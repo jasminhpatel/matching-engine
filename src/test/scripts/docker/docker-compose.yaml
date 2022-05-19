@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  me1:
+    image:  solfini-matching-engine
+    container_name: me
+    command: "./scripts/mestart.sh --profile docker -c config/staging/docker/config.properties ${ME1_PARAMS} -d PUBLISH_MARKET_DATA=false -d CONTROLLER_MODE=primary -d INSTANCE_ID=me01 -d KAFKA.CONSUMER.group.id=me01 --debug"
+    depends_on: 
+      - kafka
+    ports: 
+      - 6301:6300
+    volumes:
+      - snap:/snap
+
+  me2:
+    image:  solfini-matching-engine
+    container_name: me2
+    command: "./scripts/mestart.sh --profile docker -c config/staging/docker/config.properties ${ME2_PARAMS} -d PUBLISH_MARKET_DATA=false -d CONTROLLER_MODE=secondary -d INSTANCE_ID=me02 -d KAFKA.CONSUMER.group.id=me02 --debug"
+    ports: 
+      - 6302:6300
+    volumes:
+      - snap:/snap
+
+  me3:
+    image:  solfini-matching-engine
+    container_name: me3
+    command: "./scripts/mestart.sh --profile docker -c config/staging/docker/config.properties ${ME3_PARAMS} -d PUBLISH_MARKET_DATA=false -d CONTROLLER_MODE=secondary -d INSTANCE_ID=me03 -d KAFKA.CONSUMER.group.id=me03 --debug"
+    ports: 
+      - 6303:6300
+    volumes:
+      - snap:/snap
+
+  kafka:
+    image:  solfini-kafka
+    container_name: kafka
+    command: "bin/kafka-server-start.sh config/server.properties --override zookeeper.connect=zookeeper:2181 --override listeners=INT://:9092,EXT://kafka:4455 --override listener.security.protocol.map=INT:PLAINTEXT,EXT:PLAINTEXT --override inter.broker.listener.name=INT"
+    depends_on: 
+      - zookeeper
+    expose:
+      - 9092
+
+  zookeeper:
+    image:  solfini-kafka
+    container_name: zookeeper
+    command: "bin/zookeeper-server-start.sh config/zookeeper.properties"
+    expose: 
+      - 2181
+
+volumes: 
+  snap:
+    external: true
+    

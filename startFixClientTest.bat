@@ -1,0 +1,1 @@
+java -cp ;target/classes;target/test-classes;lib/*;. com.tradplacer.matchengine.FixClientTest

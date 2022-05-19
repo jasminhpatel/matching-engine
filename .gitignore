@@ -1,0 +1,19 @@
+.classpath
+.factorypath
+.project
+.settings/
+.vscode/*
+target/
+logs/
+lib/
+*.log
+*.data
+*.orig
+file.ser
+src (2).zip
+src.zip
+.idea/
+*.iml
+bin/
+src/test/resources/snapshots/*
+src/test/resources/queues/*

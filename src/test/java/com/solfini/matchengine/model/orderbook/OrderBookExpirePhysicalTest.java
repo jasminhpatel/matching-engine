@@ -1,0 +1,394 @@
+package com.solfini.matchengine.model.orderbook;
+
+import static com.solfini.sbe.encoder.TimeInForce.DAY;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+
+import com.solfini.common.Context;
+import com.solfini.common.Message;
+import com.solfini.common.ReusableLog;
+import com.solfini.instrument.AssetFundingRate;
+import com.solfini.instrument.InstrumentCache;
+import com.solfini.instrument.InstrumentPair;
+import com.solfini.instrument.Position;
+import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.UpdateType;
+import com.solfini.matchengine.controller.Mode;
+import com.solfini.matchengine.message.admin.ExpireContractMessage;
+import com.solfini.matchengine.model.orderbook.OrderBookTest.OrderBookWrapper;
+import com.solfini.matchengine.orderbook.OrderBook;
+import com.solfini.matchengine.orderbook.OrderBookFactory;
+import com.solfini.risk.InsuranceState;
+import com.solfini.sbe.encoder.Side;
+import com.solfini.user.User;
+import com.solfini.user.UserCache;
+import uk.co.real_logic.artio.fields.DecimalFloat;
+
+public class OrderBookExpirePhysicalTest extends OrderBookTest {
+
+  private final int USER_START = 1;
+  private final int USER_COUNT = 4;
+  private final int ORDER_COUNT = 100;
+  private final long USDT_BALANCE = 1_000_000;
+  private final long USDT_SCALE_MULT = 100;
+
+  @Before
+  @Override
+  public void before() {
+    configure();
+    clearQueues();
+    createInstruments();
+    createUsers();
+    // assertMessages();
+  }
+
+  @Override
+  protected void createUsers() {
+    for (int i = 0; i < USER_COUNT; i++) {
+      final int userId = USER_START + i;
+      final User user = createUser(userId);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      expectMessage("userId=" + userId);
+    }
+  }
+
+  @Override
+  protected void createInstruments() {
+    InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDC", 2, 8));
+    InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 2, 8));
+    InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT_F, UpdateType.PUT, "BTC/USD[F]", BTC, USDT, 2, 8));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDC", BTC, USDT, 2, 8, CASH_PREORDER_CHECK));
+
+    InstrumentCache
+        .updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT_DF, UpdateType.PUT, "BTC/USD[DF]Jun26", BTC, USDT, 2, 8));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT_CALL_6000, UpdateType.PUT, "BTC/USDT[C]Apr24_6000", BTC, USDT, 2, 8));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT_PUT_6000, UpdateType.PUT, "BTC/USDT[P]Apr24_6000", BTC, USDT, 2, 8));
+
+    InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
+    InstrumentPair futurePair = InstrumentCache.getPair(BTC_USDT_DF);
+    InstrumentPair callPair = InstrumentCache.getPair(BTC_USDT_CALL_6000);
+    InstrumentPair putPair = InstrumentCache.getPair(BTC_USDT_PUT_6000);
+
+
+    futurePair.setAssetType(AssetType.DATED_FUTURE);
+    futurePair.setContractExpireTime(System.currentTimeMillis() + 5000);
+    futurePair.setUnderlyerId(BTC_USDT);
+    futurePair.setPhysicalSettle(true);
+    futurePair.setExpireRollTimeMillis(ExpireContractMessage.ONE_DAY);
+
+    callPair.setAssetType(AssetType.OPTION_CALL);
+    callPair.setContractExpireTime(System.currentTimeMillis() + 5000);
+    callPair.setUnderlyerId(BTC_USDT);
+    callPair.setPhysicalSettle(true);
+    callPair.setStrikePrice(6000);
+    callPair.setExpireRollTimeMillis(ExpireContractMessage.ONE_DAY);
+
+    putPair.setAssetType(AssetType.OPTION_PUT);
+    putPair.setContractExpireTime(System.currentTimeMillis() + 5000);
+    putPair.setUnderlyerId(BTC_USDT);
+    putPair.setPhysicalSettle(true);
+    putPair.setStrikePrice(6000);
+    putPair.setExpireRollTimeMillis(ExpireContractMessage.ONE_DAY);
+
+    OrderBook spotOrderBook =
+        OrderBookFactory.create(OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.CASH_PREORDER_CHECK, spotPair);
+    OrderBook futureOrderBook =
+        OrderBookFactory.create(OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, futurePair);
+    OrderBook callOrderBook =
+        OrderBookFactory.create(OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, callPair);
+    OrderBook putOrderBook =
+        OrderBookFactory.create(OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, putPair);
+
+    spotPair.setOrderBook(spotOrderBook);
+    futurePair.setOrderBook(futureOrderBook);
+    callPair.setOrderBook(callOrderBook);
+    putPair.setOrderBook(putOrderBook);
+
+    spotOrderBook.setMark(8000);
+    spotPair.setIndexFeedUsdMark(8000);
+    callPair.setIndexFeedUsdMark(1200);
+    putPair.setIndexFeedUsdMark(1400);
+    futurePair.setIndexFeedUsdMark(1600);
+    spotPair.getBase().setIndexFeedUsdMark(8000);
+  }
+
+  private void assertPositionSum(final int securityId) {
+    assertPositionSum(securityId, 0, 0);
+  }
+
+  private void assertPositionSum(final int securityId, final long expected, final long delta) {
+    long total = 0;
+    for (int i = 0; i < Math.min(UserCache.getCapacity() + 1, UserCache.getCacheSize()); i++) {
+      final User user = UserCache.get(i);
+      if (user != null && user.isActive()) {
+        final Position position = user.getPosition(securityId);
+        if (position != null) {
+          total += position.getQuantity();
+        }
+      }
+    }
+
+    System.out.println("positions=" + Arrays.toString(getUserPositionsBySecurity(securityId)));
+    if (Math.abs(total - expected) > delta) {
+      System.out.println("---------------------");
+    }
+
+    Assert.assertTrue("Total=" + total + ", Expected=" + expected + ", Diff=" + (total - expected) + ", Delta=" + delta,
+        Math.abs(total - expected) <= delta);
+  }
+
+  private long[] getUserPositionsBySecurity(final int securityId) {
+    int arrLen = Math.min(UserCache.getCapacity() + 1, UserCache.getCacheSize());
+    long[] arr = new long[arrLen];
+    for (int i = 0; i < arrLen; i++) {
+      final User user = UserCache.get(i);
+      if (user != null && user.isActive()) {
+        final Position position = user.getPosition(securityId);
+        if (position != null) {
+          arr[i] = position.getQuantity();
+        }
+      }
+    }
+    return arr;
+  }
+
+  private void drain() {
+    ArrayList<Message> messages = new ArrayList<>();
+    Context.getMatcherToPublisherQueue().drainTo(messages, 1_000);
+    for (Message message : messages) {
+      System.out.println(">> " + message);
+    }
+  }
+
+  @Test
+  public void testExpirePhysicalCallMessage() {
+    try {
+      ReusableLog.setTEST_OUTPUT_MODE(true);
+      Context.setControllerMode(Mode.PRIMARY);
+
+      InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
+      user = createUser(18);
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
+      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(BTC_USDT_F, 0); // 0
+
+      expectMessage("userId=18");
+      expectOutput("userId=18");
+
+      user2 = createUser(19);
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
+      user2.setPosition(BTC_USDT_F, 0); // 0
+      expectMessage("userId=19");
+      expectOutput("userId=19");
+
+      user3 = createUser(20);
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
+      user3.setPosition(BTC_USDT_F, 0); // 0
+      InsuranceState.setUser(user3);
+
+      long now = System.currentTimeMillis();
+      final InstrumentPair callPair = InstrumentCache.getPair(BTC_USDT_CALL_6000);
+      final InstrumentPair futurePair = InstrumentCache.getPair(BTC_USDT_DF);
+
+      final OrderBook orderBook = callPair.getOrderBook();
+
+      System.out.println(">> " + now);
+
+      // short notional=1133.60
+      // 1133.60 x 1.3 = 1473.68
+      orderBook.addOrder(createOrder(101, user2, callPair.getId(), 100_50, 104_00, Side.SELL, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user2, null);
+
+      orderBook.addOrder(createOrder(102, user, callPair.getId(), 100_60, 104_00, Side.BUY, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user, null);
+
+
+
+      String symbol = callPair.getSymbol();
+      callPair.setContractExpireTime(now);
+
+      ExpireContractMessage message = new ExpireContractMessage();
+      final List<AssetFundingRate> list = message.getAssetExpireList();
+      final AssetFundingRate assetFundingRate = new AssetFundingRate();
+      assetFundingRate.setAssetId(callPair.getId());
+      list.add(assetFundingRate);
+
+      message.onMatcher();
+
+      // bought call option for 10452
+      // call option expired, mark at 0
+      // excercise: bought 104 BTC at 60.00 for 6240
+      // fee of 31.2
+      Assert.assertEquals(83284_60000000L, user.getPosition(USDC).getQuantity());
+      Assert.assertEquals(104_00000000L, user.getPosition(BTC).getQuantity());
+      Assert.assertEquals(0, user.getPosition(BTC_USDT_CALL_6000).getQuantity());
+
+      Assert.assertEquals(216668_60000000L, user2.getPosition(USDC).getQuantity());
+      Assert.assertEquals(-104_00000000L, user2.getPosition(BTC).getQuantity());
+      Assert.assertEquals(0, user2.getPosition(BTC_USDT_CALL_6000).getQuantity());
+
+      Assert.assertEquals(callPair.getContractExpireTime(), now + ExpireContractMessage.ONE_DAY);
+      Assert.assertTrue(!callPair.getSymbol().equals(symbol));
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  @Test
+  public void testExpirePhysicalPutMessage() {
+    try {
+      ReusableLog.setTEST_OUTPUT_MODE(true);
+      Context.setControllerMode(Mode.PRIMARY);
+
+      InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
+      user = createUser(21);
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
+      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(BTC_USDT_F, 0); // 0
+
+      expectMessage("userId=18");
+      expectOutput("userId=18");
+
+      user2 = createUser(22);
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
+      user2.setPosition(BTC_USDT_F, 0); // 0
+      expectMessage("userId=19");
+      expectOutput("userId=19");
+
+      user3 = createUser(23);
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
+      user3.setPosition(BTC_USDT_F, 0); // 0
+      InsuranceState.setUser(user3);
+
+      long now = System.currentTimeMillis();
+      final InstrumentPair putPair = InstrumentCache.getPair(BTC_USDT_PUT_6000);
+      final InstrumentPair futurePair = InstrumentCache.getPair(BTC_USDT_DF);
+
+      final OrderBook orderBook = putPair.getOrderBook();
+
+      System.out.println(">> " + now);
+
+      // short notional=1133.60
+      // 1133.60 x 1.3 = 1473.68
+      orderBook.addOrder(createOrder(101, user2, putPair.getId(), 100_50, 104_00, Side.SELL, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user2, null);
+
+      orderBook.addOrder(createOrder(102, user, putPair.getId(), 100_60, 104_00, Side.BUY, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user, null);
+
+
+
+      String symbol = putPair.getSymbol();
+      putPair.setContractExpireTime(now);
+
+      ExpireContractMessage message = new ExpireContractMessage();
+      final List<AssetFundingRate> list = message.getAssetExpireList();
+      final AssetFundingRate assetFundingRate = new AssetFundingRate();
+      assetFundingRate.setAssetId(putPair.getId());
+      list.add(assetFundingRate);
+
+      message.onMatcher();
+
+      // bought put option for 10452
+      // put option expired, mark at 0
+      // no excercise, put is worthless
+      Assert.assertTrue(89548_00000000L == user.getPosition(USDC).getQuantity());
+      Assert.assertTrue(0 == user.getPosition(BTC).getQuantity());
+      Assert.assertTrue(0 == user.getPosition(BTC_USDT_PUT_6000).getQuantity());
+
+      Assert.assertTrue(210452_00000000L == user2.getPosition(USDC).getQuantity());
+      Assert.assertTrue(0 == user2.getPosition(BTC).getQuantity());
+      Assert.assertTrue(0 == user2.getPosition(BTC_USDT_PUT_6000).getQuantity());
+
+
+      Assert.assertTrue(putPair.getContractExpireTime() == now + ExpireContractMessage.ONE_DAY);
+      Assert.assertTrue(!putPair.getSymbol().equals(symbol));
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+
+  @Test
+  public void testExpirePhysicalFutureMessage() {
+    try {
+      ReusableLog.setTEST_OUTPUT_MODE(true);
+      Context.setControllerMode(Mode.PRIMARY);
+
+      InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
+      user = createUser(24);
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
+      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(BTC_USDT_F, 0); // 0
+
+      expectMessage("userId=18");
+      expectOutput("userId=18");
+
+      user2 = createUser(25);
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
+      user2.setPosition(BTC_USDT_F, 0); // 0
+      expectMessage("userId=19");
+      expectOutput("userId=19");
+
+      user3 = createUser(26);
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
+      user3.setPosition(BTC_USDT_F, 0); // 0
+      InsuranceState.setUser(user3);
+
+      long now = System.currentTimeMillis();
+      final InstrumentPair putPair = InstrumentCache.getPair(BTC_USDT_PUT_6000);
+      final InstrumentPair futurePair = InstrumentCache.getPair(BTC_USDT_DF);
+
+      final OrderBook orderBook = futurePair.getOrderBook();
+
+      System.out.println(">> " + now);
+
+      // short notional=1133.60
+      // 1133.60 x 1.3 = 1473.68
+      orderBook.addOrder(createOrder(101, user2, futurePair.getId(), 100_50, 104_00, Side.SELL, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user2, null);
+
+      orderBook.addOrder(createOrder(102, user, futurePair.getId(), 100_60, 104_00, Side.BUY, DAY));
+      orderBook.getPreOrderCheck().updateRisk(user, null);
+
+
+
+      String symbol = futurePair.getSymbol();
+      futurePair.setContractExpireTime(now);
+
+      ExpireContractMessage message = new ExpireContractMessage();
+      final List<AssetFundingRate> list = message.getAssetExpireList();
+      final AssetFundingRate assetFundingRate = new AssetFundingRate();
+      assetFundingRate.setAssetId(futurePair.getId());
+      list.add(assetFundingRate);
+
+      message.onMatcher();
+
+      // bought future for 0, cost basis = 100.5
+      // future expired, mark at cost basism, net 0
+      // excercise buy 104 BTC at 100.5 = 10452 + 52.26 fee
+      Assert.assertEquals(89508_80500000L, user.getPosition(USDC).getQuantity());
+      Assert.assertEquals(104_00000000L, user.getPosition(BTC).getQuantity());
+      Assert.assertEquals(0, user.getPosition(BTC_USDT_DF).getQuantity());
+
+      Assert.assertEquals(210412_80500000L, user2.getPosition(USDC).getQuantity());
+      Assert.assertEquals(-104_00000000L, user2.getPosition(BTC).getQuantity());
+      Assert.assertEquals(0, user2.getPosition(BTC_USDT_DF).getQuantity());
+
+      Assert.assertEquals(futurePair.getContractExpireTime(), now + ExpireContractMessage.ONE_DAY);
+      Assert.assertTrue(!futurePair.getSymbol().equals(symbol));
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+}
