@@ -6,14 +6,12 @@ import static com.solfini.common.Constants.SELL_LIMIT;
 import static com.solfini.common.Constants.SELL_MARKET;
 import static com.solfini.common.Constants.STOP_BUY_LIMIT;
 import static com.solfini.common.Constants.STOP_SELL_LIMIT;
-
 import java.text.NumberFormat;
 import java.util.Properties;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
@@ -96,8 +94,8 @@ public class MarginTest {
     InstrumentCache.addInstrument(base);
     InstrumentCache.addPair(pair);
 
-    Position position1 = user1.setPosition(1, 999999_00000000L);
-    Position position2 = user2.setPosition(1, 160_000_000_000L);
+    Position position1 = user1.setPosition(1, 999999_00000000L, null);
+    Position position2 = user2.setPosition(1, 160_000_000_000L, null);
   }
 
   @Test

@@ -7,12 +7,10 @@ import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
-
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class OrderBookCashPreOrderCheckBalanceUpdateTest extends OrderBookTest {
@@ -21,7 +19,8 @@ public class OrderBookCashPreOrderCheckBalanceUpdateTest extends OrderBookTest {
   protected void createInstruments() {
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 4, 1));
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 3, 2));
-    InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 3, CASH_PREORDER_CHECK));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 3, CASH_PREORDER_CHECK));
 
     expectMessage("securityId=" + USDT + ", symbol=USDT");
     expectMessage("securityId=" + BTC + ", symbol=BTC");
@@ -43,10 +42,10 @@ public class OrderBookCashPreOrderCheckBalanceUpdateTest extends OrderBookTest {
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=19");
 
     user.getPosition(BTC_USDT).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT));

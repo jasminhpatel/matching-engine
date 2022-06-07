@@ -45,9 +45,9 @@ public class OrderBookMarginCalcTest5 extends OrderBookTest {
   }
 
   private void setPositions(final long usdt, final long btc, final long btc_usdt_f) {
-    user.setPosition(USDT, usdt * 100);
-    user.setPosition(BTC, btc * 1000);
-    user.setPosition(BTC_USDT_F, btc_usdt_f * 100);
+    user.setPosition(USDT, usdt * 100, null);
+    user.setPosition(BTC, btc * 1000, null);
+    user.setPosition(BTC_USDT_F, btc_usdt_f * 100, null);
 
     InstrumentCache.get(USDT).setIndexFeedUsdMark(1.0);
     InstrumentCache.get(BTC).setIndexFeedUsdMark(10000.0);

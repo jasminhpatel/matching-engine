@@ -2,7 +2,6 @@ package com.solfini.matchengine.message.internal;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
@@ -67,6 +66,9 @@ public class Order extends Message implements Constants {
   private long availableEstimatedQuantity;
   private long availableAccumulatedQuantity;
   private int minMaxPrice; // used for trailing stops to track the min or max price for the order
+  private long assetId;
+  private int tokenId;
+  private long selectId;
 
   public Order() {
     // default constructor
@@ -111,6 +113,10 @@ public class Order extends Message implements Constants {
 
     stopPx = newOrderSingleDecoder.stopPx();
     stopPxScale = newOrderSingleDecoder.stopPxScale();
+
+    assetId = newOrderSingleDecoder.assetId();
+    tokenId = newOrderSingleDecoder.tokenId();
+    selectId = newOrderSingleDecoder.selectId();
 
     fillCumNotional = 0;
     feeEstimatedQuantity = 0;
@@ -167,6 +173,11 @@ public class Order extends Message implements Constants {
     stopPx = source.stopPx;
     stopPxScale = source.stopPxScale;
     stopPxInt = source.stopPxInt;
+
+    assetId = source.assetId;
+    tokenId = source.tokenId;
+    selectId = source.selectId;
+
 
     type = source.type;
     ordType = source.ordType;
@@ -448,7 +459,7 @@ public class Order extends Message implements Constants {
         // calc open orders required
         Position position = user.getPositionArr()[securityId];
         if (position == null)
-          position = user.setPosition(securityId, 0);
+          position = user.setPosition(securityId, 0, null);
 
         if (Side.BUY == side) {
           if (position.getQuantity() >= 0) {
@@ -566,6 +577,30 @@ public class Order extends Message implements Constants {
 
   public final int getMarginCheckReferencePrice() {
     return marginCheckReferencePrice;
+  }
+
+  public final long getAssetId() {
+    return assetId;
+  }
+
+  public final void setAssetId(final long assetId) {
+    this.assetId = assetId;
+  }
+
+  public final int getTokenId() {
+    return tokenId;
+  }
+
+  public final void setTokenId(final int tokenId) {
+    this.tokenId = tokenId;
+  }
+
+  public final long getSelectId() {
+    return selectId;
+  }
+
+  public final void setSelectId(final long selectId) {
+    this.selectId = selectId;
   }
 
   public final void setMarginCheckReferencePrice(final int marginCheckReferencePrice) {
@@ -738,6 +773,9 @@ public class Order extends Message implements Constants {
     availableAccumulatedQuantity = 0;
     minMaxPrice = 0;
     expireTime = 0;
+    assetId = 0;
+    tokenId = 0;
+    selectId = 0;
   }
 
   @Override
@@ -780,7 +818,8 @@ public class Order extends Message implements Constants {
         .append(ISHIDDEN_EQ).append(isHidden).append(ISLIQUIDATION_EQ).append(isLiquidation).append(ISLASTLOOK_EQ).append(isLastLook)
         .append(FEEESTIMATEDQUANTITY_EQ).append(feeEstimatedQuantity).append(FEEACCUMULATEDQUANTITY_EQ).append(feeAccumulatedQuantity)
         .append(AVAILABLEESTIMATEDQUANTITY_EQ).append(availableEstimatedQuantity).append(AVAILABLEACCUMULATEDQUANTITY_EQ)
-        .append(availableAccumulatedQuantity).append(']');
+        .append(availableAccumulatedQuantity).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId).append(SELECTID_EQ)
+        .append(selectId).append(']');
     return s;
   }
 
@@ -807,7 +846,8 @@ public class Order extends Message implements Constants {
         .append(",\"isLiquidation\":").append(isLiquidation).append(",\"isLastLook\":").append(isLastLook)
         .append(",\"feeEstimatedQuantity\":").append(feeEstimatedQuantity).append(",\"feeAccumulatedQuantity\":")
         .append(feeAccumulatedQuantity).append(",\"availableEstimatedQuantity\":").append(availableEstimatedQuantity)
-        .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity);
+        .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity).append(",\"assetId\":").append(assetId)
+        .append(",\"tokenId\":").append(tokenId).append(",\"selectId\":").append(selectId);
 
     sb.append("}");
     return sb.toString();

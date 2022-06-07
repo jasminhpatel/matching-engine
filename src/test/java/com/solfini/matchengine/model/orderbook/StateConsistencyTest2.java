@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Fee;
@@ -44,7 +43,7 @@ public class StateConsistencyTest2 extends OrderBookTest {
       final int userId = USER_START + i;
       final User user = createUser(userId);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }

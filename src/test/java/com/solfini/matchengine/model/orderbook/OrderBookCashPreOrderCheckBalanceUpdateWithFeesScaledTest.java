@@ -12,7 +12,6 @@ import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
 import static com.solfini.sbe.encoder.TimeInForce.*;
-
 import java.util.Properties;
 
 public class OrderBookCashPreOrderCheckBalanceUpdateWithFeesScaledTest extends OrderBookTest {
@@ -45,13 +44,13 @@ public class OrderBookCashPreOrderCheckBalanceUpdateWithFeesScaledTest extends O
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDT, 0, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user = createUser(18, new Balance(USDT, 0, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user3 = createUser(20, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=20");
 
     user.getPosition(BTC_USDT).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT));
@@ -210,288 +209,288 @@ public class OrderBookCashPreOrderCheckBalanceUpdateWithFeesScaledTest extends O
   // // Sell order with positive base balance and zero fee balance - fee should be recovered from sale proceeds
   // @Test
   // public void sellLimitOrder_ZeroFeeBalance_FeeFromSaleProceeds_Cancel() {
-  //   assertPosition(user, USDT, 0_0, 0_0);
-  //   assertPosition(user, BTC, 1000_00, 1000_00);
+  // assertPosition(user, USDT, 0_0, 0_0);
+  // assertPosition(user, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(1, user, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
-  //   expectMessage("orderId=1, ordStatus=NEW");
+  // orderBook.addOrder(createOrder(1, user, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
+  // expectMessage("orderId=1, ordStatus=NEW");
 
-  //   orderBook.addOrder(createOrder(2, user2, BTC_USDT, 10_00, 20_00, Side.BUY, DAY));
-  //   orderBook.addOrder(createOrder(3, user2, BTC_USDT, 10_00, 20_00, Side.BUY, DAY));
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // orderBook.addOrder(createOrder(2, user2, BTC_USDT, 10_00, 20_00, Side.BUY, DAY));
+  // orderBook.addOrder(createOrder(3, user2, BTC_USDT, 10_00, 20_00, Side.BUY, DAY));
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
 
-  //   orderBook.cancelOrder(createCancelOrder(4, 1, user, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
-  //   expectMessage("orderId=1, ordStatus=PENDING_CANCEL");
-  //   expectMessage("orderId=1, ordStatus=CANCELED");
+  // orderBook.cancelOrder(createCancelOrder(4, 1, user, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
+  // expectMessage("orderId=1, ordStatus=PENDING_CANCEL");
+  // expectMessage("orderId=1, ordStatus=CANCELED");
 
-  //   assertMessages();
+  // assertMessages();
 
-  //   final long fee = 0_4;
-  //   assertPosition(user, USDT, 400_0 - fee, 400_0 - fee);
-  //   assertPosition(user, BTC, 960_00, 960_00);
+  // final long fee = 0_4;
+  // assertPosition(user, USDT, 400_0 - fee, 400_0 - fee);
+  // assertPosition(user, BTC, 960_00, 960_00);
   // }
 
   // @Test
   // public void buyLimitOrderFill_Maker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
   // @Test
   // public void buyLimitOrderFill_Taker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
 
   // @Test
   // public void buyLimitOrderFill_Higher_Taker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 50_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
   // @Test
   // public void buyLimitOrderFill_MultipleContraOrders_Maker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
   // @Test
   // public void buyLimitOrderFill_MultipleContraOrders_Taker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 10_00, 50_00, Side.BUY, DAY));
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
   // @Test
   // public void buyLimitOrderFill_MultiplePricedContraOrders_Taker() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 60_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 100_00, 20_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 60_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 100_00, 20_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // assertMessages();
 
-  //   {
-  //     final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20) - 38;
-  //     assertPosition(user2, USDT, usdtbalance, usdtbalance);
-  //     final int btcbalance = 1000_00 + 30_00 + 20_00;
-  //     assertPosition(user2, BTC, btcbalance, btcbalance);
-  //   }
-  //   {
-  //     final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20) - 38;
-  //     assertPosition(user3, USDT, usdtbalance, usdtbalance);
-  //     final int btcbalance = 1000_00 - 30_00 - 20_00;
-  //     assertPosition(user3, BTC, btcbalance, btcbalance);
-  //   }
+  // {
+  // final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20) - 38;
+  // assertPosition(user2, USDT, usdtbalance, usdtbalance);
+  // final int btcbalance = 1000_00 + 30_00 + 20_00;
+  // assertPosition(user2, BTC, btcbalance, btcbalance);
+  // }
+  // {
+  // final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20) - 38;
+  // assertPosition(user3, USDT, usdtbalance, usdtbalance);
+  // final int btcbalance = 1000_00 - 30_00 - 20_00;
+  // assertPosition(user3, BTC, btcbalance, btcbalance);
+  // }
   // }
 
   // @Test
   // public void buyLimitOrderFill_MultiplePricedContraOrders_Taker2() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   pair.setIndexFeedUsdMark(100);
+  // pair.setIndexFeedUsdMark(100);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 60_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 100_00, 20_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 60_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 100_00, 20_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 100_00, 50_00, Side.BUY, DAY));
 
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   assertMessages();
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // assertMessages();
 
-  //   {
-  //       final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20);
-  //       assertPosition(user2, USDT, usdtbalance - 38, usdtbalance - 38);
-  //       final int btcbalance = 1000_00 + 30_00 + 20_00;
-  //       assertPosition(user2, BTC, btcbalance, btcbalance);
-  //   }
-  //   {
-  //       final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20);
-  //       assertPosition(user3, USDT, usdtbalance - 38, usdtbalance - 38);
-  //       final int btcbalance = 1000_00 - 30_00 - 20_00;
-  //       assertPosition(user3, BTC, btcbalance, btcbalance);
-  //   }
+  // {
+  // final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20);
+  // assertPosition(user2, USDT, usdtbalance - 38, usdtbalance - 38);
+  // final int btcbalance = 1000_00 + 30_00 + 20_00;
+  // assertPosition(user2, BTC, btcbalance, btcbalance);
+  // }
+  // {
+  // final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20);
+  // assertPosition(user3, USDT, usdtbalance - 38, usdtbalance - 38);
+  // final int btcbalance = 1000_00 - 30_00 - 20_00;
+  // assertPosition(user3, BTC, btcbalance, btcbalance);
+  // }
   // }
 
   // @Test
   // public void buyLimitOrderFill_MultipleContraOrders_Maker_Available() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 35_00, 50_00, Side.BUY, DAY));
-  //   assertPosition(user2, USDT, 50000_0, 48250_0 - 17);
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 35_00, 50_00, Side.BUY, DAY));
+  // assertPosition(user2, USDT, 50000_0, 48250_0 - 17);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   assertMessages();
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 48250_0 - 17, 48250_0 - 17);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 48250_0 - 17, 48250_0 - 17);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 51750_0 - 17, 51750_0 - 17);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 51750_0 - 17, 51750_0 - 17);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
 
   // @Test
   // public void buyLimitOrderFill_MultipleContraOrders_Taker_Available() {
-  //   assertPosition(user2, USDT, 50000_0, 50000_0);
-  //   assertPosition(user2, BTC, 1000_00, 1000_00);
+  // assertPosition(user2, USDT, 50000_0, 50000_0);
+  // assertPosition(user2, BTC, 1000_00, 1000_00);
 
-  //   assertPosition(user3, USDT, 50000_0, 50000_0);
-  //   assertPosition(user3, BTC, 1000_00, 1000_00);
+  // assertPosition(user3, USDT, 50000_0, 50000_0);
+  // assertPosition(user3, BTC, 1000_00, 1000_00);
 
-  //   orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
-  //   orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(2, user3, BTC_USDT, 10_00, 30_00, Side.SELL, DAY));
+  // orderBook.addOrder(createOrder(3, user3, BTC_USDT, 10_00, 20_00, Side.SELL, DAY));
 
-  //   orderBook.addOrder(createOrder(1, user2, BTC_USDT, 35_00, 50_00, Side.BUY, DAY));
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // orderBook.addOrder(createOrder(1, user2, BTC_USDT, 35_00, 50_00, Side.BUY, DAY));
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
 
-  //   expectMessage("orderId=2, ordStatus=NEW");
-  //   expectMessage("orderId=3, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=NEW");
-  //   expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
-  //   expectMessage("orderId=2, ordStatus=FILLED");
-  //   expectMessage("orderId=1, ordStatus=FILLED");
-  //   expectMessage("orderId=3, ordStatus=FILLED");
-  //   assertMessages();
+  // expectMessage("orderId=2, ordStatus=NEW");
+  // expectMessage("orderId=3, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=NEW");
+  // expectMessage("orderId=1, ordStatus=PARTIALLY_FILLED");
+  // expectMessage("orderId=2, ordStatus=FILLED");
+  // expectMessage("orderId=1, ordStatus=FILLED");
+  // expectMessage("orderId=3, ordStatus=FILLED");
+  // assertMessages();
 
-  //   assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
-  //   assertPosition(user2, BTC, 1050_00, 1050_00);
+  // assertPosition(user2, USDT, 49500_0 - 5, 49500_0 - 5);
+  // assertPosition(user2, BTC, 1050_00, 1050_00);
 
-  //   assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
-  //   assertPosition(user3, BTC, 950_00, 950_00);
+  // assertPosition(user3, USDT, 50500_0 - 5, 50500_0 - 5);
+  // assertPosition(user3, BTC, 950_00, 950_00);
   // }
 
   @Test

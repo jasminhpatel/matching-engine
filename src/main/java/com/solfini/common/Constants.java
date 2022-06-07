@@ -41,6 +41,7 @@ public interface Constants {
   public static final String INVALID_ORDER_SECURITY = "Order security is invalid";
   public static final String INVALID_ALGO_ORDER_INTERVAL = "Algo Order interval time is too low";
   public static final String ONLY_LIMIT_ORDERS_ALLOWED = "Only limit orders are allowed";
+  public static final String INVALID_ORDER_SELECT = "Order select is invalid";
 
   public static final String TRUE = "true";
   public static final String FALSE = "false";
@@ -69,6 +70,8 @@ public interface Constants {
   public static final int STOP_SELL_MARKET = 11;
   public static final int TRAILING_STOP_BUY_LIMIT = 12;
   public static final int TRAILING_STOP_SELL_LIMIT = 13;
+  public static final int BUY_SELECT = 14;
+  public static final int SELL_SELECT = 15;
 
   // target Strategy, defaults to 0 (no strategy)
   public static final int ADL_MAKER_ONLY = 99;
@@ -290,6 +293,8 @@ public interface Constants {
   public static final String AVAILABLEESTIMATEDQUANTITY_EQ = ", availableEstimatedQuantity=";
   public static final String AVAILABLEACCUMULATEDQUANTITY_EQ = ", availableAccumulatedQuantity=";
   public static final String SOURCESENDTIME_EQ = ", sourceSendTime=";
+  public static final String TOKENID_EQ = ", tokenId=";
+  public static final String SELECTID_EQ = ", selectId=";
   public static final String ENABLESTATEVALIDATOR_EQ = ", enableStateValidator=";
   public static final String TIMESTAMP_EQ = ", timestamp=";
   public static final String TRIGGERTIMEMILLIS_EQ = ", triggerTimeMillis=";

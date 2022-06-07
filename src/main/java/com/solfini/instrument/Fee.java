@@ -159,7 +159,7 @@ public class Fee implements Appendable, Constants {
   public final void transferToExchange(final long feeQuantity) {
     if (collectingUser == null)
       collectingUser = UserCache.getExchangeUser();
-    collectingUser.addPosition(feeInstrumentId, feeQuantity);
+    collectingUser.addPosition(feeInstrumentId, feeQuantity, null);
 
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(LOG_FMT_8, TRANSFERTOEXCHANGE_FEEID_EQ, feeInstrumentId, VALUE_EQ, feeQuantity, ISPAIDTOINSURANCE_EQ, isPaidToInsurance,

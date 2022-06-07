@@ -7,7 +7,6 @@ import java.util.Random;
 import org.agrona.concurrent.NoOpIdleStrategy;
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Balance;
@@ -60,7 +59,7 @@ public class AutoLiquidationStateConsistencyTest extends BinanceOrderBookTest {
         user.setFeeTier(random.nextInt(5));
       }
 
-      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT);
+      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }
@@ -132,21 +131,19 @@ public class AutoLiquidationStateConsistencyTest extends BinanceOrderBookTest {
       }
     }
 
-    System.out.println("PnlSum securityId=" + BTC_USDC_F + ", totalUsdUnrealized=" + totalUsdUnrealized
-        + ", totalUsdRealized=" + totalUsdRealized + ", sum=" + (totalUsdUnrealized + totalUsdRealized));
-    Assert.assertTrue("TotalUnrealized=" + totalUsdUnrealized + ", TotalRealized=" + totalUsdRealized
-        + ", Sum=" + (totalUsdUnrealized + totalUsdRealized),
-        Math.abs(totalUsdUnrealized + totalUsdRealized) < 0.1);
+    System.out.println("PnlSum securityId=" + BTC_USDC_F + ", totalUsdUnrealized=" + totalUsdUnrealized + ", totalUsdRealized="
+        + totalUsdRealized + ", sum=" + (totalUsdUnrealized + totalUsdRealized));
+    Assert.assertTrue("TotalUnrealized=" + totalUsdUnrealized + ", TotalRealized=" + totalUsdRealized + ", Sum="
+        + (totalUsdUnrealized + totalUsdRealized), Math.abs(totalUsdUnrealized + totalUsdRealized) < 0.1);
 
     final double totalUsdWithdrawals = totalWithdrawals / (double) QTY_SCALE_MULT;
-    System.out.println("PnlSum expected=" + (expected / (double) QTY_SCALE_MULT)
-        + ", totalUsd=" + totalUsd + ", totalUsdUnrealized=" + totalUsdUnrealized
-        + ", totalUsdWithdrawals=" + totalUsdWithdrawals
-        + ", sum=" + (totalUsd + totalUsdUnrealized + totalUsdWithdrawals)
-        + ", diff=" + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUsdUnrealized - totalUsdWithdrawals));
-    Assert.assertTrue("Total=" + (totalUsd + totalUsdUnrealized + totalUsdWithdrawals)
-        + ", Expected=" + (expected / (double) QTY_SCALE_MULT)
-        + ", Diff=" + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUsdUnrealized - totalUsdWithdrawals),
+    System.out.println(
+        "PnlSum expected=" + (expected / (double) QTY_SCALE_MULT) + ", totalUsd=" + totalUsd + ", totalUsdUnrealized=" + totalUsdUnrealized
+            + ", totalUsdWithdrawals=" + totalUsdWithdrawals + ", sum=" + (totalUsd + totalUsdUnrealized + totalUsdWithdrawals) + ", diff="
+            + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUsdUnrealized - totalUsdWithdrawals));
+    Assert.assertTrue(
+        "Total=" + (totalUsd + totalUsdUnrealized + totalUsdWithdrawals) + ", Expected=" + (expected / (double) QTY_SCALE_MULT) + ", Diff="
+            + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUsdUnrealized - totalUsdWithdrawals),
         Math.abs(expected / (double) QTY_SCALE_MULT - totalUsd - totalUsdUnrealized - totalUsdWithdrawals) < 0.1);
   }
 
@@ -213,7 +210,7 @@ public class AutoLiquidationStateConsistencyTest extends BinanceOrderBookTest {
           balanceAdminMessage.setUpdateType(UpdateType.PUT);
           balanceAdminMessage.setUserId(user.getId());
           balanceAdminMessage.setTxType(TX_ADJUSTMENT);
-          balanceAdminMessage.addBalance(new Balance(USDC, 0, 0, 0, 0));
+          balanceAdminMessage.addBalance(new Balance(USDC, 0, 0, 0, 0, null));
           UserCache.addBalance(balanceAdminMessage);
 
           final List<Order> liquidationOrders = new ArrayList<Order>();

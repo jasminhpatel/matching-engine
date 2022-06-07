@@ -5,7 +5,6 @@ import java.util.Properties;
 import java.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Fee;
@@ -44,9 +43,9 @@ public class SinglePairStateConsistencyTest2 extends BinanceOrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      //user.setFeeTier(5);
+      // user.setFeeTier(5);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }
@@ -171,19 +170,18 @@ public class SinglePairStateConsistencyTest2 extends BinanceOrderBookTest {
           break;
       }
 
-      //if (i % 100 == 0) {
-        drain();
-      //}
+      // if (i % 100 == 0) {
+      drain();
+      // }
 
       long total = 0;
       for (int j = 0; j < USER_COUNT; j++) {
         final Position usdt = UserCache.get(USER_START + j).getPosition(USDT);
         final Position btcusdt = UserCache.get(USER_START + j).getPosition(BTC_USDT_F);
-        System.out.println("POSITIONS user=" + (USER_START + j)
-          + ", USDT quantity=" + usdt.getQuantity() + ", available=" + usdt.getAvailableQuantity()
-          + ", unrealized=" + usdt.getUsdUnrealized() + ", realized=" + usdt.getUsdRealizedDouble()
-          + ", BTC/USDT[F] quantity=" + btcusdt.getQuantity() + ", available=" + btcusdt.getAvailableQuantity()
-          + ", unrealized=" + btcusdt.getUsdUnrealized() + ", realized=" + btcusdt.getUsdRealizedDouble());
+        System.out.println("POSITIONS user=" + (USER_START + j) + ", USDT quantity=" + usdt.getQuantity() + ", available="
+            + usdt.getAvailableQuantity() + ", unrealized=" + usdt.getUsdUnrealized() + ", realized=" + usdt.getUsdRealizedDouble()
+            + ", BTC/USDT[F] quantity=" + btcusdt.getQuantity() + ", available=" + btcusdt.getAvailableQuantity() + ", unrealized="
+            + btcusdt.getUsdUnrealized() + ", realized=" + btcusdt.getUsdRealizedDouble());
         total += usdt.getQuantity();
       }
 
@@ -200,8 +198,8 @@ public class SinglePairStateConsistencyTest2 extends BinanceOrderBookTest {
 
     double usdtotalNotional = (totalNotional / (USDT_PX_SCALE_MULT * BTC_USDT_PX_SCALE_MULT));
     System.out.println("usdtotalNotional=" + usdtotalNotional);
-    //assertPositionSum(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT * USER_COUNT, usdtFeePosition.getQuantity(), 2 * USDT_QTY_SCALE_MULT);
-    //assertPositionSum(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT * USER_COUNT, 0, 2 * USDT_QTY_SCALE_MULT);
+    // assertPositionSum(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT * USER_COUNT, usdtFeePosition.getQuantity(), 2 * USDT_QTY_SCALE_MULT);
+    // assertPositionSum(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT * USER_COUNT, 0, 2 * USDT_QTY_SCALE_MULT);
     assertPositionSum(BTC_USDT_F);
     assertPnlSum(BTC_USDT_F, 0, USDT_QTY_SCALE_MULT);
   }

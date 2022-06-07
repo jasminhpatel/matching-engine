@@ -2,7 +2,6 @@ package com.solfini.binance.orderbook;
 
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.instrument.Fee;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.FeeType;
@@ -20,7 +19,7 @@ public class BinanceFeeCalculationTest extends BinanceOrderBookTest {
     pair.setFee(new Fee(BTC_USDT_F, USDT, 300, FeeType.PERCENT, MakerTaker.ALL, 3, true));
     pair.setFee(new Fee(BTC_USDT_F, USDT, 400, FeeType.PERCENT, MakerTaker.ALL, 4, true));
 
-    user.setPosition(BTC_USDT_F, 0);
+    user.setPosition(BTC_USDT_F, 0, null);
     user.setFeeTier(1);
   }
 
@@ -31,7 +30,7 @@ public class BinanceFeeCalculationTest extends BinanceOrderBookTest {
     pair.setFee(new Fee(BTC_USDT_F, USDT, 300, FeeType.ABSOLUTE, MakerTaker.ALL, 3, true));
     pair.setFee(new Fee(BTC_USDT_F, USDT, 400, FeeType.ABSOLUTE, MakerTaker.ALL, 4, true));
 
-    user.setPosition(BTC_USDT_F, 0);
+    user.setPosition(BTC_USDT_F, 0, null);
     user.setFeeTier(1);
   }
 
@@ -379,12 +378,12 @@ public class BinanceFeeCalculationTest extends BinanceOrderBookTest {
     beforePercentFeeCalculation();
 
     User buyer = createUser(31);
-    buyer.addPosition(BTC_USDT_F, 10000000_000000L);
+    buyer.addPosition(BTC_USDT_F, 10000000_000000L, null);
     expectMessage("userId=31");
     buyer.setFeeTier(1);
 
     User seller = createUser(32);
-    seller.addPosition(BTC_USDT_F, 10000000_000000L);
+    seller.addPosition(BTC_USDT_F, 10000000_000000L, null);
     expectMessage("userId=32");
     seller.setFeeTier(1);
 
@@ -411,13 +410,13 @@ public class BinanceFeeCalculationTest extends BinanceOrderBookTest {
     beforePercentFeeCalculation();
 
     User buyer = createUser(25);
-    buyer.addPosition(USDT, 10000000_000000L);
-    buyer.addPosition(BTC_USDT_F, -1250);
+    buyer.addPosition(USDT, 10000000_000000L, null);
+    buyer.addPosition(BTC_USDT_F, -1250, null);
     expectMessage("userId=25");
     buyer.setFeeTier(1);
 
     User seller = createUser(26);
-    seller.addPosition(USDT, 10000_000000L);
+    seller.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=26");
     seller.setFeeTier(1);
 

@@ -3,8 +3,9 @@ package com.solfini.user;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -216,7 +217,7 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        setPosition(balance.getAssetId(), quantityLong);
+        setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       }
     }
   }
@@ -282,7 +283,7 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        addPosition(balance.getAssetId(), quantityLong);
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       }
     }
   }
@@ -321,7 +322,7 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        final Position position = setPosition(balance.getAssetId(), quantityLong);
+        final Position position = setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
         position.setUsdUnrealized(balance.getUsdUnrealized());
         position.setUsdRealized(balance.getUsdRealized());
         position.setUsdAvgCostBasisDouble(balance.getUsdAvgCostBasis());
@@ -329,6 +330,7 @@ public class User implements Appendable, Serializable, Constants {
         position.setSettleCoinUsdMark(balance.getSettleCoinUsdMark());
         position.setSettleCoinUnrealized(balance.getSettleCoinUnrealized());
         position.setSettleCoinRealized(balance.getSettleCoinRealized());
+        position.setAssetIdtreeSet(balance.getAssetIdtreeSet());
       }
     }
   }
@@ -371,7 +373,7 @@ public class User implements Appendable, Serializable, Constants {
         tempQuantityLong = 0;
 
       if (tempQuantityLong == quantityLong) // accepted
-        addPosition(balance.getAssetId(), quantityLong);
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       else { // rejected
         quantityLong = 0;
         balanceAdminMessage.setTxType(TX_ADMIN_WITHDRAW_REJECTED);
@@ -391,13 +393,13 @@ public class User implements Appendable, Serializable, Constants {
           quantityLong = -Math.min(Math.abs(quantityLong), Math.abs(usdAvailableAdjusted));
         }
 
-        addPosition(balance.getAssetId(), quantityLong);
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       } else
         quantityLong = 0;
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
     } else { // original addPosition without checks
-      final Position position = addPosition(balance.getAssetId(), quantityLong);
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
     }
@@ -419,11 +421,11 @@ public class User implements Appendable, Serializable, Constants {
     // if withdrawing with checks don't allow withdraw pairs
     if (Context.isEnableBalanceWithdrawLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       quantityLong = 0;
-      final Position position = addPosition(balance.getAssetId(), quantityLong);
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       balance.setBalance(position.getQuantity(), pair.getQuantityScale());
       balance.setBalanceChange(quantityLong, pair.getQuantityScale()); // update newly changed amount
     } else {
-      final Position position = addPosition(balance.getAssetId(), quantityLong);
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
       balance.setBalance(position.getQuantity(), pair.getQuantityScale());
       balance.setBalanceChange(quantityLong, pair.getQuantityScale()); // update newly changed amount
     }
@@ -837,7 +839,7 @@ public class User implements Appendable, Serializable, Constants {
   }
 
   // must be called from the matching engine thread
-  public final Position setPosition(final int instrumentId, final long quantity) {
+  public final Position setPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
@@ -850,13 +852,26 @@ public class User implements Appendable, Serializable, Constants {
     } else {
       positionArr[instrumentId].setQuantity(quantity);
       positionArr[instrumentId].setAvailableQuantity(quantity);
+      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       positionArr[instrumentId].touched();
       return positionArr[instrumentId];
     }
   }
 
   // must be called from the matching engine thread
-  public final Position addPosition(final int instrumentId, final long quantity) {
+  public final Position addPosition(final int instrumentId, final long quantity, final long assetId, final int tokenId) {
+    if (assetId == 0)
+      return addPosition(instrumentId, quantity, null);
+    else {
+      final Set<long[]> assetIdtreeSet = new TreeSet<>();
+      final long[] value = {assetId, tokenId};
+      assetIdtreeSet.add(value);
+      return addPosition(instrumentId, quantity, assetIdtreeSet);
+    }
+  }
+
+  // must be called from the matching engine thread
+  public final Position addPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
@@ -869,6 +884,7 @@ public class User implements Appendable, Serializable, Constants {
     } else {
       positionArr[instrumentId].addQuantity(quantity);
       positionArr[instrumentId].addAvailableQuantity(quantity);
+      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       positionArr[instrumentId].touched();
       return positionArr[instrumentId];
     }

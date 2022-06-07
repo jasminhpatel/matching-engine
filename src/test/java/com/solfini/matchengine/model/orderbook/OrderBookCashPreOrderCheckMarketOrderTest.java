@@ -6,10 +6,8 @@ import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
-
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class OrderBookCashPreOrderCheckMarketOrderTest extends OrderBookTest {
@@ -18,7 +16,8 @@ public class OrderBookCashPreOrderCheckMarketOrderTest extends OrderBookTest {
   protected void createInstruments() {
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 2));
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 4, 3));
-    InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 2, CASH_PREORDER_CHECK));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 2, CASH_PREORDER_CHECK));
 
     expectMessage("securityId=" + USDT + ", symbol=USDT");
     expectMessage("securityId=" + BTC + ", symbol=BTC");
@@ -41,8 +40,8 @@ public class OrderBookCashPreOrderCheckMarketOrderTest extends OrderBookTest {
   @Override
   protected void createUsers() {
     super.createUsers();
-    user.addPosition(BTC, 10_000_00);
-    user2.addPosition(BTC, 10_000_00);
+    user.addPosition(BTC, 10_000_00, null);
+    user2.addPosition(BTC, 10_000_00, null);
   }
 
   // Add buy order without enough funds, assert business reject

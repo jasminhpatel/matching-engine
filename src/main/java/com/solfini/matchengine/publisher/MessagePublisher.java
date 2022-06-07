@@ -3,8 +3,8 @@ package com.solfini.matchengine.publisher;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.agrona.concurrent.UnsafeBuffer;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -70,6 +70,7 @@ import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.sbe.encoder.OrderCancelRejectEncoder;
 import com.solfini.sbe.encoder.PositionReportEncoder;
 import com.solfini.sbe.encoder.PositionReportEncoder.PositionsGroupEncoder;
+import com.solfini.sbe.encoder.PositionReportEncoder.PositionsGroupEncoder.PositionsAssetIdGroupEncoder;
 import com.solfini.sbe.encoder.ResendRequestEncoder;
 import com.solfini.sbe.encoder.SequenceResetEncoder;
 import com.solfini.user.User;
@@ -214,6 +215,18 @@ public class MessagePublisher implements Constants {
         groupEncoder.settleCoinRealizedScale(RISK_PUBLISH_SCALE);
         groupEncoder.bankruptPriceInt(position.getBankruptPriceInt());
         groupEncoder.bankruptPriceIntScale(instrument.getPriceScale());
+
+        // add assetId,tokenId set
+        final Set<long[]> assetIdtreeSet = position.getAssetIdtreeSet();
+        if (assetIdtreeSet != null) {
+          PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(assetIdtreeSet.size());
+          for (final long[] value : assetIdtreeSet) {
+            assetGroupEncoder = assetGroupEncoder.next();
+            assetGroupEncoder.assetId(value[0]);
+            assetGroupEncoder.tokenId((int) value[1]);
+          }
+        }
+
       } else if (pair != null) {
         groupEncoder.assetType(AssetType.get(pair.getAssetType().value()));
         groupEncoder.instrumentId(pair.getId());
@@ -682,6 +695,11 @@ public class MessagePublisher implements Constants {
     executionReportEncoder.stopPx(executionReport.getStopPx());
     executionReportEncoder.stopPxScale((short) executionReport.getStopPxScale());
 
+    executionReportEncoder.assetId(executionReport.getAssetId());
+    executionReportEncoder.tokenId(executionReport.getTokenId());
+    executionReportEncoder.selectId(executionReport.getSelectId());
+
+
     executionReportEncoder.openOrderCount(executionReport.getOpenOrderCount());
     executionReportEncoder.bestBidPx(executionReport.getBestBidPx());
     executionReportEncoder.bestAskPx(executionReport.getBestAskPx());
@@ -1124,8 +1142,7 @@ public class MessagePublisher implements Constants {
       final UnsafeBuffer adminMessageUnsafeBuffer = new UnsafeBuffer(adminMessageBuffer);
 
       final SnapResponseAdminMessageEncoder snapResponseAdminMessageEncoder = new SnapResponseAdminMessageEncoder();
-      com.solfini.internal.admin.schema.MessageHeaderEncoder headerEncoder =
-          new com.solfini.internal.admin.schema.MessageHeaderEncoder();
+      com.solfini.internal.admin.schema.MessageHeaderEncoder headerEncoder = new com.solfini.internal.admin.schema.MessageHeaderEncoder();
       snapResponseAdminMessageEncoder.wrapAndApplyHeader(adminMessageUnsafeBuffer, encodedLength, headerEncoder);
       headerEncoder.transactionId(message.getTransactionId());
       headerEncoder.transactionEnd(message.isLastMessageInTransaction() ? (short) 1 : (short) 0);
@@ -1190,8 +1207,7 @@ public class MessagePublisher implements Constants {
       final UnsafeBuffer adminMessageUnsafeBuffer = new UnsafeBuffer(adminMessageBuffer);
 
       final TradeStateAdminMessageEncoder tradeStateAdminMessageEncoder = new TradeStateAdminMessageEncoder();
-      com.solfini.internal.admin.schema.MessageHeaderEncoder headerEncoder =
-          new com.solfini.internal.admin.schema.MessageHeaderEncoder();
+      com.solfini.internal.admin.schema.MessageHeaderEncoder headerEncoder = new com.solfini.internal.admin.schema.MessageHeaderEncoder();
       tradeStateAdminMessageEncoder.wrapAndApplyHeader(adminMessageUnsafeBuffer, encodedLength, headerEncoder);
       headerEncoder.transactionId(tradeStateAdminMessage.getTransactionId());
       headerEncoder.transactionEnd(tradeStateAdminMessage.isLastMessageInTransaction() ? (short) 1 : (short) 0);

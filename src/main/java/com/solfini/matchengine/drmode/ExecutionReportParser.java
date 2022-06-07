@@ -73,6 +73,9 @@ public class ExecutionReportParser implements Constants {
   private TimeInForce timeInForce;
   private long expireTime = 0;
   private int targetStrategy = 0;
+  private long assetId = 0;
+  private int tokenId = 0;
+  private long selectId = 0;
 
   private ExecType execType = null;
   private InstrumentPair instrumentPair = null;
@@ -141,6 +144,11 @@ public class ExecutionReportParser implements Constants {
       availableEstimatedQuantity = executionReportDecoder.availableEstimatedQuantity();
       availableAccumulatedQuantity = executionReportDecoder.availableAccumulatedQuantity();
       cancelType = executionReportDecoder.cancelType();
+
+      assetId = executionReportDecoder.assetId();
+      tokenId = executionReportDecoder.tokenId();
+      selectId = executionReportDecoder.selectId();
+
 
       // special case, set orderId seqNum if greater
       NewOrderSingleHandler.setOrderIdIfGreater(orderId);
@@ -211,6 +219,9 @@ public class ExecutionReportParser implements Constants {
     order.setFeeAccumulatedQuantity(feeAccumulatedQuantity);
     order.setAvailableEstimatedQuantity(availableEstimatedQuantity);
     order.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
+    order.setAssetId(assetId);
+    order.setTokenId(tokenId);
+    order.setSelectId(selectId);
 
     if (LOGGER.isDebugEnabled() && expireTime == 0) {
       LOGGER.debug(LOG_FMT_2, ">>> parse order with expireTime==null msg=", order);
@@ -269,15 +280,18 @@ public class ExecutionReportParser implements Constants {
     order.setFeeAccumulatedQuantity(feeAccumulatedQuantity);
     order.setAvailableEstimatedQuantity(availableEstimatedQuantity);
     order.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
+    order.setAssetId(assetId);
+    order.setTokenId(tokenId);
+    order.setSelectId(selectId);
 
     NewOrderSingleHandler.parseOrder(order);
-    //final long cancelId = orderId; /// TODO: is this ok?
+    // final long cancelId = orderId; /// TODO: is this ok?
     final long cancelPriority = 0;
 
     final CancelOrder cancelOrder =
         MarketStatus.DR_MODE == Context.getMarketStatus() ? DRCancelOrderObjectPool.get() : CancelOrderObjectPool.get();
     cancelOrder.set(order, cancelId, cancelPriority);
-    //cancelOrder.setSecondaryOrderId(secondaryOrderId);
+    // cancelOrder.setSecondaryOrderId(secondaryOrderId);
     cancelOrder.setCancelType(cancelType);
 
     if (order instanceof DROrder)
@@ -352,6 +366,9 @@ public class ExecutionReportParser implements Constants {
     executionReport.setFeeAccumulatedQuantity(feeAccumulatedQuantity);
     executionReport.setAvailableEstimatedQuantity(availableEstimatedQuantity);
     executionReport.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
+    executionReport.setAssetId(assetId);
+    executionReport.setTokenId(tokenId);
+    executionReport.setSelectId(selectId);
 
     return executionReport;
   }
@@ -419,6 +436,9 @@ public class ExecutionReportParser implements Constants {
     executionReport.setFeeAccumulatedQuantity(feeAccumulatedQuantity);
     executionReport.setAvailableEstimatedQuantity(availableEstimatedQuantity);
     executionReport.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
+    executionReport.setAssetId(assetId);
+    executionReport.setTokenId(tokenId);
+    executionReport.setSelectId(selectId);
 
     return executionReport;
   }

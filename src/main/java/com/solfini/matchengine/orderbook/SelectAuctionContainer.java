@@ -21,8 +21,8 @@ import com.solfini.sbe.encoder.Side;
  *
  */
 // auction container, sorts bids and asks and matches
-public class AuctionContainer implements Constants {
-  private static final CustomLogger LOGGER = CustomLogger.getLogger(AuctionContainer.class);
+public class SelectAuctionContainer implements Constants {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(SelectAuctionContainer.class);
 
   private final InstrumentPair pair;
   private final ConcurrentSkipListSet<Order> buyTreeSet = new ConcurrentSkipListSet<>(orderComparatorHigh); // high to low
@@ -39,7 +39,7 @@ public class AuctionContainer implements Constants {
 
   private long lastCalculatedPriceTime = 0;
 
-  public AuctionContainer(final InstrumentPair pair) {
+  public SelectAuctionContainer(final InstrumentPair pair) {
     this.pair = pair;
   }
 
@@ -130,7 +130,7 @@ public class AuctionContainer implements Constants {
     }
   }
 
-  public final void openAuction(final ArrayOrderBook orderBook) {
+  public final void openAuction(final SelectArrayOrderBook orderBook) {
     if (LOGGER.isInfoEnabled()) {
       LOGGER.info(LOG_FMT_6, ">>orderbook.openAuction id=", orderBook.getId(), ", optimalAskPrice=", String.valueOf(optimalAskPrice),
           ", maxQtyMatchedAtLevel=", maxQtyMatchedAtLevel);
@@ -164,7 +164,7 @@ public class AuctionContainer implements Constants {
   // finally re-populate the orderbook
   // use volume weighted algo to calc optimal auction price
   // http://candidocs.nasdaqdubai.com/2014/May/04/de353449-6d66-4b2c-81a7-0b1c1fda8204/Calculation%20of%20the%20Theoretical%20Auction%20Price.pdf
-  public final void closeAuction(final ArrayOrderBook orderBook) {
+  public final void closeAuction(final SelectArrayOrderBook orderBook) {
     try {
       // calcAuctionPrice
       final List<Order> bidsList = new ArrayList<>();
@@ -227,7 +227,7 @@ public class AuctionContainer implements Constants {
     }
   }
 
-  public final void cancelAuction(final ArrayOrderBook orderBook) {
+  public final void cancelAuction(final SelectArrayOrderBook orderBook) {
     if (LOGGER.isInfoEnabled()) {
       LOGGER.info(LOG_FMT_6, ">>orderbook.cancelAuction id=", orderBook.getId(), ", optimalAskPrice=", String.valueOf(optimalAskPrice),
           ", maxQtyMatchedAtLevel=", maxQtyMatchedAtLevel, ", auction=", toString());
@@ -264,7 +264,7 @@ public class AuctionContainer implements Constants {
     }
   }
 
-  public final int calcAuctionPrice(final OrderBook orderBook, final long recalcTimeInterval) {
+  public final int calcAuctionPrice(final SelectArrayOrderBook orderBook, final long recalcTimeInterval) {
     if (recalcTimeInterval > 0 && System.currentTimeMillis() < recalcTimeInterval + lastCalculatedPriceTime)
       return optimalAskPrice;
 
@@ -340,7 +340,7 @@ public class AuctionContainer implements Constants {
   }
 
 
-  private final void populateOrderBookFromAuctionMap(final ArrayOrderBook orderBook) {
+  private final void populateOrderBookFromAuctionMap(final SelectArrayOrderBook orderBook) {
     try {
       orderBook.setPublishAcks(false);
       orderBook.clearOrderBook();

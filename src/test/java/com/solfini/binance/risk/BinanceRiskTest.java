@@ -69,9 +69,10 @@ public class BinanceRiskTest extends BinanceOrderBookTest {
     riskAutoLiquidationThread = new RiskAutoLiquidationThread(new NoOpIdleStrategy());
     instrumentPair = InstrumentCache.getPair(BTC_USDT_F);
 
-    user100 =
-        createUser(USER_ID_ONE, new Balance(BTC, 200, 0, 0, 0), new Balance(USDT, 200, 0, 0, 0), new Balance(BTC_USDT_F, 200, 0, 0, 0));
-    user101 = createUser(USER_ID_TWO, new Balance(BTC, 40, 0, 0, 0), new Balance(USDT, 40, 0, 0, 0), new Balance(BTC_USDT_F, 40, 0, 0, 0));
+    user100 = createUser(USER_ID_ONE, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
+    user101 = createUser(USER_ID_TWO, new Balance(BTC, 40, 0, 0, 0, null), new Balance(USDT, 40, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 40, 0, 0, 0, null));
 
     expectMessage("userId=100");
     expectMessage("userId=101");
@@ -125,8 +126,8 @@ public class BinanceRiskTest extends BinanceOrderBookTest {
   }
 
   protected User nextUser() {
-    User user =
-        createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0), new Balance(USDT, 200, 0, 0, 0), new Balance(BTC_USDT_F, 200, 0, 0, 0));
+    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
 
     expectMessage("UserAdminMessage", "userId=" + user.getId());
     assertMessages();
@@ -160,7 +161,8 @@ public class BinanceRiskTest extends BinanceOrderBookTest {
   }
 
   protected void resetBalance(User user) {
-    updateBalance(user, UpdateType.PUT, new Balance(BTC, 0, 0, 0, 0), new Balance(USDT, 0, 0, 0, 0), new Balance(BTC_USDT_F, 0, 0, 0, 0));
+    updateBalance(user, UpdateType.PUT, new Balance(BTC, 0, 0, 0, 0, null), new Balance(USDT, 0, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 0, 0, 0, 0, null));
     expectMessage("userId=" + user.getId());
     assertMessages();
 

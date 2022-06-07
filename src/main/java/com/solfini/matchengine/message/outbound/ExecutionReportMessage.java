@@ -1,7 +1,6 @@
 package com.solfini.matchengine.message.outbound;
 
 import java.util.Arrays;
-
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
@@ -79,6 +78,10 @@ public class ExecutionReportMessage extends Message {
   private short price2Scale;
   private long expireTimeMillis;
   private boolean isPositionSideCrossed; // flag indicating if this is the second execution, crossing position sides
+
+  private long assetId;
+  private int tokenId;
+  private long selectId;
 
   private ExecType execType;
   private ExecRestatementReason execRestatementReason;
@@ -214,6 +217,10 @@ public class ExecutionReportMessage extends Message {
     availableEstimatedQuantity = 0;
     availableAccumulatedQuantity = 0;
     cancelType = 0;
+
+    assetId = 0;
+    tokenId = 0;
+    selectId = 0;
   }
 
   public static final ExecutionReportMessage createAckNewOrderExecutionReport(final Order order, final InstrumentPair pair) {
@@ -267,6 +274,11 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+
+    executionReportMessage.assetId = order.getAssetId();
+    executionReportMessage.tokenId = order.getTokenId();
+    executionReportMessage.selectId = order.getSelectId();
+
 
     executionReportMessage.openOrderCount = order.getUser().getOpenOrderCount();
     if (order.getOrdType() == OrdType.LIMIT) {
@@ -334,6 +346,9 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+    executionReportMessage.assetId = order.getAssetId();
+    executionReportMessage.tokenId = order.getTokenId();
+    executionReportMessage.selectId = order.getSelectId();
     order.getUser().copySetPositionArr(executionReportMessage);
 
     return executionReportMessage;
@@ -425,6 +440,9 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.sourceSendTime = cancelOrder.getSourceSendTime();
     executionReportMessage.kafkaRecordOffset = cancelOrder.getKafkaRecordOffset();
 
+    executionReportMessage.assetId = cancelOrder.getAssetId();
+    executionReportMessage.tokenId = cancelOrder.getTokenId();
+    executionReportMessage.selectId = cancelOrder.getSelectId();
     executionReportMessage.setSenderCompId(cancelOrder.getSenderCompId());
     executionReportMessage.inputTime = cancelOrder.getInputTime();
     executionReportMessage.decodedTime = cancelOrder.getDecodedTime();
@@ -496,6 +514,9 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+    executionReportMessage.assetId = order.getAssetId();
+    executionReportMessage.tokenId = order.getTokenId();
+    executionReportMessage.selectId = order.getSelectId();
 
     // cumNotional, avgPx
     executionReportMessage.avgPx = executionReportMessage.cumQty == 0 ? 0 : (order.getFillCumNotional() / executionReportMessage.cumQty);
@@ -508,10 +529,8 @@ public class ExecutionReportMessage extends Message {
 
   public static final ExecutionReportMessage createTradeExecutionReport(final Order order, final InstrumentPair pair, final long fillPrice,
       final short fillPriceScale, final long lastQty, final short lastQtyScale, final long execId, final long secondaryExecId,
-      final Order causingMessage, final int counterpartyId, final boolean isPositionSideCrossed) {
+      final Order causingMessage, final int counterpartyId, final boolean isPositionSideCrossed, long assetId, int tokenId, long selectId) {
     final ExecutionReportMessage executionReportMessage = ExecutionReportObjectPool.get();
-
-
 
     executionReportMessage.securityId = order.getSecurityId();
     executionReportMessage.user = order.getUser();
@@ -582,6 +601,11 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+
+
+    executionReportMessage.assetId = assetId;
+    executionReportMessage.tokenId = tokenId;
+    executionReportMessage.selectId = selectId;
 
     // cumNotional, avgPx
     final long fillNotional =
@@ -666,6 +690,9 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+    executionReportMessage.assetId = order.getAssetId();
+    executionReportMessage.tokenId = order.getTokenId();
+    executionReportMessage.selectId = order.getSelectId();
 
     // cumNotional, avgPx
     executionReportMessage.avgPx = executionReportMessage.cumQty == 0 ? 0 : (order.getFillCumNotional() / executionReportMessage.cumQty);
@@ -724,6 +751,9 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
     executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
     executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+    executionReportMessage.assetId = order.getAssetId();
+    executionReportMessage.tokenId = order.getTokenId();
+    executionReportMessage.selectId = order.getSelectId();
 
     if (order.getQuantityLong() > 0) {
       if (order.getQuantityLong() == order.getQuantityOrigLong())
@@ -836,6 +866,7 @@ public class ExecutionReportMessage extends Message {
     message.setFeeAccumulatedQuantity(decoder.feeAccumulatedQuantity());
     message.setAvailableEstimatedQuantity(decoder.availableEstimatedQuantity());
     message.setAvailableAccumulatedQuantity(decoder.availableAccumulatedQuantity());
+    message.setAssetId(decoder.assetId());
 
     message.setSenderCompId(headerDecoder.senderCompId());
     message.setSequenceNumber(headerDecoder.msgSeqNum());
@@ -1483,6 +1514,30 @@ public class ExecutionReportMessage extends Message {
     this.availableAccumulatedQuantity = availableAccumulatedQuantity;
   }
 
+  public final long getAssetId() {
+    return assetId;
+  }
+
+  public final void setAssetId(final long assetId) {
+    this.assetId = assetId;
+  }
+
+  public final int getTokenId() {
+    return tokenId;
+  }
+
+  public final void setTokenId(final int tokenId) {
+    this.tokenId = tokenId;
+  }
+
+  public final long getSelectId() {
+    return selectId;
+  }
+
+  public final void setSelectId(final long selectId) {
+    this.selectId = selectId;
+  }
+
   public final short getCancelType() {
     return cancelType;
   }
@@ -1536,7 +1591,8 @@ public class ExecutionReportMessage extends Message {
         .append(matchTime).append(KAFKA_OFFSET_EQ).append(kafkaRecordOffset).append(FEEESTIMATEDQUANTITY_EQ).append(feeEstimatedQuantity)
         .append(FEEACCUMULATEDQUANTITY_EQ).append(feeAccumulatedQuantity).append(AVAILABLEESTIMATEDQUANTITY_EQ)
         .append(availableEstimatedQuantity).append(AVAILABLEACCUMULATEDQUANTITY_EQ).append(availableAccumulatedQuantity)
-        .append(", cancelType=").append(cancelType).append(']');
+        .append(", cancelType=").append(cancelType).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId)
+        .append(SELECTID_EQ).append(selectId).append(']');
     return s;
   }
 
@@ -1604,6 +1660,9 @@ public class ExecutionReportMessage extends Message {
     sb.append(",\"feeAccumulatedQuantity\":").append(feeAccumulatedQuantity);
     sb.append(",\"availableEstimatedQuantity\":").append(availableEstimatedQuantity);
     sb.append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity);
+    sb.append(",\"assetId\":").append(assetId);
+    sb.append(",\"tokenId\":").append(tokenId);
+    sb.append(",\"selectId\":").append(selectId);
     sb.append("}");
     return sb.toString();
   }

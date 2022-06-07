@@ -3,7 +3,6 @@ package com.solfini.matchengine.decoder;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
@@ -266,6 +265,8 @@ public class NewOrderSingleHandler implements Constants {
       if (Side.BUY == side) {
         if (OrdType.LIMIT == ordType)
           order.setType(BUY_LIMIT);
+        else if (OrdType.SELECT == ordType)
+          order.setType(BUY_SELECT);
         else if (OrdType.MARKET == ordType)
           order.setType(BUY_MARKET);
         else if (OrdType.STOP_LIMIT == ordType || OrdType.STOP == ordType) {
@@ -275,6 +276,8 @@ public class NewOrderSingleHandler implements Constants {
       } else if (Side.SELL == side) {
         if (OrdType.LIMIT == ordType)
           order.setType(SELL_LIMIT);
+        else if (OrdType.SELECT == ordType)
+          order.setType(SELL_SELECT);
         else if (OrdType.MARKET == ordType)
           order.setType(SELL_MARKET);
         else if (OrdType.STOP_LIMIT == ordType || OrdType.STOP == ordType) {

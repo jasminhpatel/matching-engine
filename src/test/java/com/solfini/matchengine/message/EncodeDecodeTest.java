@@ -9,7 +9,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.common.Context;
 import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
@@ -102,7 +101,7 @@ public class EncodeDecodeTest extends ModelTest {
 
     pair = InstrumentCache.getPair(BTC_USDT_F);
     user = createUser(38);
-    user.addPosition(pair.getId(), 10_000);
+    user.addPosition(pair.getId(), 10_000, null);
     expectMessage("userId=38");
     assertMessages();
   }

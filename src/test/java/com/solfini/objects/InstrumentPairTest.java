@@ -90,8 +90,8 @@ public class InstrumentPairTest {
     InstrumentCache.addPair(pair);
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000);
-    user.addPosition(14, 1_000_000);
+    user.addPosition(1, 10_000_000, null);
+    user.addPosition(14, 1_000_000, null);
     user.setActive(true);
 
     assertEquals(pair.getBase(), spy);

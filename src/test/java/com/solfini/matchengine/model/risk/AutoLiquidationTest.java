@@ -47,7 +47,7 @@ public class AutoLiquidationTest extends RiskTest {
       assertOpenOrders(user, BTC_USDT_F, 0, 0);
     }
 
-    updateBalance(user, UpdateType.PATCH, new Balance(securityId, 0, 0, change, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(securityId, 0, 0, change, 2, null));
     expectMessage("BalanceAdminMessage", "userId=" + user.getId() + ", updateType=PATCH, assetId=" + securityId + ", balance="
         + new DecimalFloat(20000 + change, 2) + ", balance_change=" + new DecimalFloat(change, 2));
     assertMessages();
@@ -166,7 +166,7 @@ public class AutoLiquidationTest extends RiskTest {
       assertOpenOrders(user, BTC_USDT_F, 0, 0);
     }
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC + ", balance=-400.00, balance_change=-600.00");
     expectMessage("MassCancelOrder", "securityId=0, userId=" + user.getId());
@@ -189,7 +189,8 @@ public class AutoLiquidationTest extends RiskTest {
     Assert.assertEquals(2, messages.size());
     ExpectedMessage.make("MassCancelOrder", "userId=" + user.getId() + ", securityId=0").verify(messages.get(0));
     ExpectedMessage
-        .make("Order", "account=" + user.getId() + ", clOrdId=autoclose, securityId=" + BTC_USDT_F + ", side=SELL, price=1005899, qty=20000")
+        .make("Order",
+            "account=" + user.getId() + ", clOrdId=autoclose, securityId=" + BTC_USDT_F + ", side=SELL, price=1005899, qty=20000")
         .verify(messages.get(1));
 
     match(messages);
@@ -232,7 +233,8 @@ public class AutoLiquidationTest extends RiskTest {
     final boolean openOrders = false;
     setLiquidationMode(false);
 
-    User user = createUser(nextUserId++, new Balance(BTC, 0, 0, 0, 0), new Balance(USDT, 69, 0, 0, 0), new Balance(BTC_USDT_F, 2, 0, 0, 0));
+    User user = createUser(nextUserId++, new Balance(BTC, 0, 0, 0, 0, null), new Balance(USDT, 69, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 2, 0, 0, 0, null));
     Position position = user.getPositionArr()[BTC_USDT_F];
     position.setUsdAvgCostBasisDouble(12_000);
 
@@ -305,8 +307,8 @@ public class AutoLiquidationTest extends RiskTest {
     final boolean openOrders = false;
     setLiquidationMode(false);
 
-    User user =
-        createUser(nextUserId++, new Balance(BTC, 0, 0, 0, 0), new Balance(USDT, 69, 0, 0, 0), new Balance(BTC_USDT_F, -2, 0, 0, 0));
+    User user = createUser(nextUserId++, new Balance(BTC, 0, 0, 0, 0, null), new Balance(USDT, 69, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, -2, 0, 0, 0, null));
     Position position = user.getPositionArr()[BTC_USDT_F];
     position.setUsdAvgCostBasisDouble(10_000);
 
@@ -396,7 +398,7 @@ public class AutoLiquidationTest extends RiskTest {
       assertOpenOrders(user, BTC_USDT_F, 0, 0);
     }
 
-    updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 0, -1000020000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 0, -1000020000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + USDT + ", balance=-10000000.00, balance_change=-10000200.00");
     expectMessage("MassCancelOrder", "securityId=0, userId=" + user.getId());
@@ -419,7 +421,8 @@ public class AutoLiquidationTest extends RiskTest {
     Assert.assertEquals(2, messages.size());
     ExpectedMessage.make("MassCancelOrder", "userId=" + user.getId() + ", securityId=0").verify(messages.get(0));
     ExpectedMessage
-        .make("Order", "account=" + user.getId() + ", clOrdId=autoclose, securityId=" + BTC_USDT_F + ", side=SELL, price=4527000, qty=20000")
+        .make("Order",
+            "account=" + user.getId() + ", clOrdId=autoclose, securityId=" + BTC_USDT_F + ", side=SELL, price=4527000, qty=20000")
         .verify(messages.get(1));
 
     match(messages);
@@ -481,7 +484,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(user, 20000, 20000, 20000);
     assertAutoLiquidationState(user, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     expectMessage("MassCancelOrder", "securityId=0, userId=" + user.getId());
@@ -569,7 +572,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(user, 20000, 20000, 20000);
     assertAutoLiquidationState(user, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
 
@@ -616,8 +619,8 @@ public class AutoLiquidationTest extends RiskTest {
   public void autoLiquidateWithInsuranceFund() throws Exception {
     User user = nextUser();
     long lossMargin = 1;
-    User insuranceFundUser = createInsuranceFundUser(User.INSURANCE_FUND, new Balance(BTC, 0, 0, 0, 0),
-        new Balance(USDT, (3 * 600 * 4950) + (4 * 40000 * 4950 * lossMargin), 0, 0, 0), new Balance(BTC_USDT_F, 600, 0, 0, 0));
+    User insuranceFundUser = createInsuranceFundUser(User.INSURANCE_FUND, new Balance(BTC, 0, 0, 0, 0, null),
+        new Balance(USDT, (3 * 600 * 4950) + (4 * 40000 * 4950 * lossMargin), 0, 0, 0, null), new Balance(BTC_USDT_F, 600, 0, 0, 0, null));
     expectMessage("userId=3");
     assertMessages();
 
@@ -628,7 +631,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(user, 20000, 20000, 20000);
     assertAutoLiquidationState(user, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -679,8 +682,8 @@ public class AutoLiquidationTest extends RiskTest {
   public void autoLiquidatePartiallyWithInsuranceFund() throws Exception {
     User user = nextUser();
     long lossMargin = 1;
-    User insuranceFundUser = createInsuranceFundUser(User.INSURANCE_FUND, new Balance(BTC, 0, 0, 0, 0),
-        new Balance(USDT, (3 * 600 * 4950) + 20000, 0, 0, 0), new Balance(BTC_USDT_F, 600, 0, 0, 0));
+    User insuranceFundUser = createInsuranceFundUser(User.INSURANCE_FUND, new Balance(BTC, 0, 0, 0, 0, null),
+        new Balance(USDT, (3 * 600 * 4950) + 20000, 0, 0, 0, null), new Balance(BTC_USDT_F, 600, 0, 0, 0, null));
     expectMessage("userId=3");
     assertMessages();
 
@@ -691,7 +694,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(user, 20000, 20000, 20000);
     assertAutoLiquidationState(user, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -751,8 +754,8 @@ public class AutoLiquidationTest extends RiskTest {
     User user = nextUser();
 
     User userCounterParty = nextUser();
-    updateBalance(userCounterParty, UpdateType.PATCH, new Balance(BTC, 0, 0, 400, 0), new Balance(USDT, 0, 0, 400, 0),
-        new Balance(BTC_USDT_F, 0, 0, 400, 0));
+    updateBalance(userCounterParty, UpdateType.PATCH, new Balance(BTC, 0, 0, 400, 0, null), new Balance(USDT, 0, 0, 400, 0, null),
+        new Balance(BTC_USDT_F, 0, 0, 400, 0, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + userCounterParty.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F
             + ", balance=600.00, balance_change=400, assetId=" + BTC + ", balance=600.00, balance_change=400, assetId=" + USDT
@@ -770,7 +773,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(userCounterParty, 60000, 60000, 60000);
     assertAutoLiquidationState(userCounterParty, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -851,7 +854,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(userCounterPartyTwo, 20000, 20000, 20000);
     assertAutoLiquidationState(userCounterPartyTwo, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -935,10 +938,10 @@ public class AutoLiquidationTest extends RiskTest {
   public void autoLiquidateWithSingleCounterPartyWhenMultipleCounterPartyPresent() throws Exception {
     User user = nextUser();
     User userCounterPartyOne =
-        nextUser(new Balance(BTC, 400, 0, 0, 0), new Balance(USDT, 400, 0, 0, 0), new Balance(BTC_USDT_F, 400, 0, 0, 0));
+        nextUser(new Balance(BTC, 400, 0, 0, 0, null), new Balance(USDT, 400, 0, 0, 0, null), new Balance(BTC_USDT_F, 400, 0, 0, 0, null));
 
     User userCounterPartyTwo =
-        nextUser(new Balance(BTC, 400, 0, 0, 0), new Balance(USDT, 400, 0, 0, 0), new Balance(BTC_USDT_F, 400, 0, 0, 0));
+        nextUser(new Balance(BTC, 400, 0, 0, 0, null), new Balance(USDT, 400, 0, 0, 0, null), new Balance(BTC_USDT_F, 400, 0, 0, 0, null));
 
     setLiquidationMode(true);
     setIndexFeedUsdMark(5000, 1, 4950);
@@ -955,7 +958,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(userCounterPartyTwo, 40000, 40000, 40000);
     assertAutoLiquidationState(userCounterPartyTwo, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -1030,10 +1033,10 @@ public class AutoLiquidationTest extends RiskTest {
   public void autoLiquidateWithHighRiskCounterPartyWhenMultipleCounterPartyPresent() throws Exception {
     User user = nextUser();
     User userCounterPartyOne =
-        nextUser(new Balance(BTC, 400, 0, 0, 0), new Balance(USDT, 400, 0, 0, 0), new Balance(BTC_USDT_F, 400, 0, 0, 0));
+        nextUser(new Balance(BTC, 400, 0, 0, 0, null), new Balance(USDT, 400, 0, 0, 0, null), new Balance(BTC_USDT_F, 400, 0, 0, 0, null));
 
     User userCounterPartyTwo =
-        nextUser(new Balance(BTC, 400, 0, 0, 0), new Balance(USDT, 400, 0, 0, 0), new Balance(BTC_USDT_F, 400, 0, 0, 0));
+        nextUser(new Balance(BTC, 400, 0, 0, 0, null), new Balance(USDT, 400, 0, 0, 0, null), new Balance(BTC_USDT_F, 400, 0, 0, 0, null));
 
     setLiquidationMode(true);
     setIndexFeedUsdMark(5000, 1, 4950);
@@ -1055,7 +1058,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(userCounterPartyTwo, 40000, 40000, 40000);
     assertAutoLiquidationState(userCounterPartyTwo, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();
@@ -1150,7 +1153,7 @@ public class AutoLiquidationTest extends RiskTest {
     assertPositions(userCounterParty, 20000, 20000, 20000);
     assertAutoLiquidationState(user, 0, 0);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, -60000, 2, null));
     expectMessage("BalanceAdminMessage",
         "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=-400.00, balance_change=-600.00");
     assertMessages();

@@ -7,7 +7,6 @@ import java.util.Properties;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.common.Constants;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
@@ -96,8 +95,8 @@ public class UserBalanceChangeTest implements Constants {
     createInstruments();
 
     final User user = createUser(18);
-    Position position1 = user.addPosition(1, 10_000_000);
-    Position position14 = user.addPosition(14, 1_000_000);
+    Position position1 = user.addPosition(1, 10_000_000, null);
+    Position position14 = user.addPosition(14, 1_000_000, null);
     user.setActive(true);
     user.setUsdValue(1000);
 

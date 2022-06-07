@@ -7,11 +7,9 @@ import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.user.UserCache;
-
 import static com.solfini.common.Constants.ARRAY_ORDER_BOOK;
 import static com.solfini.common.Constants.DEFAULT_TEST_ORDER_BOOK;
 import static com.solfini.common.Constants.NO_PREORDER_CHECK;
-
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
 import uk.co.real_logic.artio.fields.DecimalFloat;
@@ -43,7 +41,7 @@ public class CommonTests extends IntegrationTest {
           + "firmId=0, feeTier=1, status=0, accountType=0, lmm=false, routeToDestination=, useDiscountFeesCoin=false");
     }
 
-    publisher.send(balanceAdminMessage(101, 1, 1, 1, new Balance(1, 50_000, 2, 0, 0)));
+    publisher.send(balanceAdminMessage(101, 1, 1, 1, new Balance(1, 50_000, 2, 0, 0, null)));
     primary.expectMessage("BalanceAdminMessage", "userType=0, updateType=PUT, userId=101, firmId=0, txType=0, txId=0, feeTier=0");
   }
 

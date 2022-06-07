@@ -2,7 +2,6 @@ package com.solfini.matchengine.model.orderbook;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.UpdateType;
@@ -28,7 +27,7 @@ public class OrderBookRebuildTest extends ModelTest {
   public void before() {
     super.before();
 
-    user = createUser(100, new Balance(USDT, 1_000_000, 0, 0, 0));
+    user = createUser(100, new Balance(USDT, 1_000_000, 0, 0, 0, null));
     expectMessage("userId=100");
 
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 2));
@@ -458,7 +457,7 @@ public class OrderBookRebuildTest extends ModelTest {
   public void rebuildForImplementationChange() {
     OrderBook orderBook = InstrumentCache.getPair(BTC_USDT_F).getOrderBook();
     submitOrders();
-    //submitOutOfBoundOrders();
+    // submitOutOfBoundOrders();
     assertMessages();
 
     SecurityDefinitionAdminMessage message = createInstrumentPairDefinition(BTC_USDT_F, UpdateType.PATCH, "BTC/USDT[F]", BTC, USDT, 2, 2);

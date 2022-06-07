@@ -18,7 +18,7 @@ public class BinancePreOrderCheckTest extends BinanceOrderBookTest {
     User user = createUser(1015);
     expectMessage("userId=1015");
 
-    user.addPosition(USDT, 99982205_07280441L);
+    user.addPosition(USDT, 99982205_07280441L, null);
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getQuantity());
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getAvailableQuantity());
 
@@ -35,7 +35,7 @@ public class BinancePreOrderCheckTest extends BinanceOrderBookTest {
     User user = createUser(1016);
     expectMessage("userId=1016");
 
-    user.addPosition(USDT, 99982205_07280441L);
+    user.addPosition(USDT, 99982205_07280441L, null);
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getQuantity());
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getAvailableQuantity());
 

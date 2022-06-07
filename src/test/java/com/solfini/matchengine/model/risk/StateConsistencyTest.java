@@ -22,11 +22,9 @@ import com.solfini.user.UserCache;
 import org.agrona.concurrent.NoOpIdleStrategy;
 import org.junit.Assert;
 import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class StateConsistencyTest extends OrderBookTest {
@@ -38,18 +36,20 @@ public class StateConsistencyTest extends OrderBookTest {
   private final long USDT_SCALE_MULT = 100;
   private long totalWithdrawals = 0;
 
-  @Override protected void createUsers() {
+  @Override
+  protected void createUsers() {
     Random random = new Random();
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }
 
-  @Override protected void createInstruments() {
+  @Override
+  protected void createInstruments() {
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 8));
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 2, 8));
     InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT_F, UpdateType.PUT, "BTC/USDT[F]", BTC, USDT, 2, 8));
@@ -93,7 +93,7 @@ public class StateConsistencyTest extends OrderBookTest {
     }
 
     Assert.assertTrue("Total=" + total + ", Expected=" + expected + ", Diff=" + Math.abs(total - expected) + ", Delta=" + delta,
-      Math.abs(total - expected) <= delta);
+        Math.abs(total - expected) <= delta);
   }
 
   private void assertPnlSum(final int securityId, final double expected, final double delta) {
@@ -110,7 +110,7 @@ public class StateConsistencyTest extends OrderBookTest {
     }
 
     Assert.assertTrue("Total=" + total + ", Expected=" + expected + ", Diff=" + (total - expected) + ", Delta=" + delta,
-      Math.abs(total - expected) <= delta);
+        Math.abs(total - expected) <= delta);
   }
 
   private void drain() {
@@ -118,7 +118,8 @@ public class StateConsistencyTest extends OrderBookTest {
     Context.getMatcherToPublisherQueue().drainTo(messages, 1_000);
   }
 
-  @Test public void marketConsistency() {
+  @Test
+  public void marketConsistency() {
     assertPositionSum(USDT, USDT_BALANCE * USDT_SCALE_MULT * USER_COUNT, 0);
     assertPositionSum(BTC_USDT_F);
     assertPnlSum(BTC_USDT_F, 0, 0);
@@ -147,9 +148,8 @@ public class StateConsistencyTest extends OrderBookTest {
           if (orders[i] != null) {
             Order order = orders[i];
             orders[i] = null;
-            orderBook.cancelOrder(
-              createCancelOrder(i, (int) order.getOrderId(), order.getUser(), order.getOrdType(), order.getSecurityId(), order.getPrice(),
-                order.getQuantityLong(), order.getSide(), order.getTimeInForce()));
+            orderBook.cancelOrder(createCancelOrder(i, (int) order.getOrderId(), order.getUser(), order.getOrdType(), order.getSecurityId(),
+                order.getPrice(), order.getQuantityLong(), order.getSide(), order.getTimeInForce()));
           } else {
             orders[i] = createOrder(i, user, BTC_USDT_F, price, quantity, side, timeInForce);
             orderBook.addOrder(createOrder(i, user, BTC_USDT_F, price, quantity, side, timeInForce));
@@ -160,9 +160,8 @@ public class StateConsistencyTest extends OrderBookTest {
             Order order = orders[i];
             orders[i] = null;
             orders[i] = createOrder(i, user, BTC_USDT_F, price, quantity, side, timeInForce);
-            orderBook.cancelReplaceOrder(
-              createCancelReplaceOrder(i, (int) order.getOrderId(), order.getUser(), order.getSecurityId(), order.getPrice(),
-                order.getQuantityLong(), order.getSide(), order.getTimeInForce(),
+            orderBook.cancelReplaceOrder(createCancelReplaceOrder(i, (int) order.getOrderId(), order.getUser(), order.getSecurityId(),
+                order.getPrice(), order.getQuantityLong(), order.getSide(), order.getTimeInForce(),
                 createOrder(i, user, BTC_USDT_F, price, quantity, side, timeInForce)));
           } else {
             orders[i] = createOrder(i, user, BTC_USDT_F, price, quantity, side, timeInForce);
@@ -175,7 +174,7 @@ public class StateConsistencyTest extends OrderBookTest {
           balanceAdminMessage.setUpdateType(UpdateType.PUT);
           balanceAdminMessage.setUserId(user.getId());
           balanceAdminMessage.setTxType(TX_ADJUSTMENT);
-          balanceAdminMessage.addBalance(new Balance(USDT, 0, 0, 0, 0));
+          balanceAdminMessage.addBalance(new Balance(USDT, 0, 0, 0, 0, null));
           UserCache.addBalance(balanceAdminMessage);
 
           final List<Order> liquidationOrders = new ArrayList<Order>();

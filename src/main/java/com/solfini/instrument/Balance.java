@@ -1,8 +1,11 @@
 package com.solfini.instrument;
 
+import java.util.Comparator;
+import java.util.Set;
+import java.util.TreeSet;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
-
+import com.solfini.instrument.Position.AssetIdComparator;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 
 /**
@@ -31,6 +34,9 @@ public class Balance implements Appendable, Constants {
   private double settleCoinUnrealized;
   private double settleCoinRealized;
 
+  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId]
+
+
   public Balance() {}
 
   public Balance(final Position position, final int scale) {
@@ -50,16 +56,27 @@ public class Balance implements Appendable, Constants {
     this.settleCoinUsdMark = position.getSettleCoinUsdMark();
     this.settleCoinUnrealized = position.getSettleCoinUnrealized();
     this.settleCoinRealized = position.getSettleCoinRealized();
+
+    final Set<long[]> sourceAssetIdtreeSet = position.getAssetIdtreeSet();
+    if (sourceAssetIdtreeSet != null) {
+      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+    } else
+      this.assetIdtreeSet = null;
   }
 
-  public Balance(final int assetId, final long balance, final int balance_scale, final long balance_change,
-      final int balance_change_scale) {
+  public Balance(final int assetId, final long balance, final int balance_scale, final long balance_change, final int balance_change_scale,
+      final Set<long[]> sourceAssetIdtreeSet) {
     this.assetId = assetId;
     this.balanceAmount.value(balance);
     this.balanceAmount.scale(balance_scale);
     this.balanceChange.value(balance_change);
     this.balanceChange.scale(balance_change_scale);
     this.hasPositionBasisData = false;
+
+    if (sourceAssetIdtreeSet != null) {
+      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+    } else
+      this.assetIdtreeSet = null;
   }
 
   public final void set(final Position position, final int scale) {
@@ -79,6 +96,12 @@ public class Balance implements Appendable, Constants {
     this.settleCoinUsdMark = position.getSettleCoinUsdMark();
     this.settleCoinUnrealized = position.getSettleCoinUnrealized();
     this.settleCoinRealized = position.getSettleCoinRealized();
+
+    final Set<long[]> sourceAssetIdtreeSet = position.getAssetIdtreeSet();
+    if (sourceAssetIdtreeSet != null) {
+      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+    } else
+      this.assetIdtreeSet = null;
   }
 
   public int getAssetId() {
@@ -211,6 +234,37 @@ public class Balance implements Appendable, Constants {
     this.settleCoinRealized = settleCoinRealized;
   }
 
+
+  public final Set<long[]> getAssetIdtreeSet() {
+    return assetIdtreeSet;
+  }
+
+  public final void setAssetIdtreeSet(final Set<long[]> assetIdtreeSet) {
+    this.assetIdtreeSet = assetIdtreeSet;
+  }
+
+  public final void addAssetId(final long assetId, final int tokenId) {
+    if (assetId == 0)
+      return;
+
+    if (assetIdtreeSet == null)
+      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+
+    final long[] value = {assetId, tokenId};
+    assetIdtreeSet.add(value);
+  }
+
+  public final void removeAssetId(final long assetId, final int tokenId) {
+    if (assetId == 0)
+      return;
+
+    if (assetIdtreeSet == null)
+      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+
+    final long[] value = {assetId, tokenId};
+    assetIdtreeSet.remove(value);
+  }
+
   @Override
   public String toString() {
     StringBuilder s = new StringBuilder();
@@ -221,12 +275,11 @@ public class Balance implements Appendable, Constants {
   @Override
   public StringBuilder appendTo(final StringBuilder s) {
     return s.append("Balance [assetId=").append(assetId).append(", balance=").append(balanceAmount).append(", balance_change=")
-        .append(balanceChange).append(", eventType=").append(eventType).append(ORDERID_EQ).append(orderId).append(EXECID_EQ)
-        .append(execId).append(", usdCostBasis=").append(usdCostBasis).append(", usdAvgCostBasis=").append(usdAvgCostBasis)
-        .append(USDVALUE_EQ).append(usdValue).append(USDUNREALIZED_EQ).append(usdUnrealized).append(", usdRealized=")
-        .append(usdRealized).append(QUOTEDUSDMARK_EQ).append(quotedUsdMark).append(SETTLECOINUSDMARK_EQ).append(settleCoinUsdMark)
-        .append(SETTLECOINUNREALIZED_EQ).append(settleCoinUnrealized).append(SETTLECOINREALIZED_EQ).append(settleCoinRealized)
-        .append("]");
+        .append(balanceChange).append(", eventType=").append(eventType).append(ORDERID_EQ).append(orderId).append(EXECID_EQ).append(execId)
+        .append(", usdCostBasis=").append(usdCostBasis).append(", usdAvgCostBasis=").append(usdAvgCostBasis).append(USDVALUE_EQ)
+        .append(usdValue).append(USDUNREALIZED_EQ).append(usdUnrealized).append(", usdRealized=").append(usdRealized)
+        .append(QUOTEDUSDMARK_EQ).append(quotedUsdMark).append(SETTLECOINUSDMARK_EQ).append(settleCoinUsdMark)
+        .append(SETTLECOINUNREALIZED_EQ).append(settleCoinUnrealized).append(SETTLECOINREALIZED_EQ).append(settleCoinRealized).append("]");
   }
 
   public String toJSON() {
@@ -244,5 +297,22 @@ public class Balance implements Appendable, Constants {
         .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized).append(",\"settleCoinRealized\":").append(settleCoinRealized);
     sb.append("}");
     return sb.toString();
+  }
+
+  public static final class AssetIdComparator implements Comparator<long[]> {
+    @Override
+    public int compare(final long[] o1, final long[] o2) {
+      if (o1[1] < o2[1])
+        return -1;
+      if (o1[1] > o2[1])
+        return 1;
+
+      if (o1[2] < o2[2])
+        return -1;
+      if (o1[2] > o2[2])
+        return 1;
+
+      return 0;
+    }
   }
 }

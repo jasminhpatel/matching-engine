@@ -10,12 +10,9 @@ import com.solfini.matchengine.message.admin.ExpireContractMessage;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 import static org.junit.Assert.assertEquals;
-
 import java.util.List;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,7 +30,8 @@ public class ExpiryTest extends OrderBookTest {
     expectMessage("securityId=" + BTC_USDC + ", symbol=BTC/USDC");
     assertMessages();
 
-    final SecurityDefinitionAdminMessage message = createInstrumentPairDefinition(BTC_USDC_DF, UpdateType.PUT, "BTC/USDC[DF]", BTC, USDC, 2, 3);
+    final SecurityDefinitionAdminMessage message =
+        createInstrumentPairDefinition(BTC_USDC_DF, UpdateType.PUT, "BTC/USDC[DF]", BTC, USDC, 2, 3);
     message.setAssetType(AssetType.DATED_FUTURE);
     message.setUnderlyerId(BTC_USDC);
     InstrumentCache.updateSecurityDefinition(message);
@@ -61,15 +59,18 @@ public class ExpiryTest extends OrderBookTest {
 
   @Override
   protected void createUsers() {
-    user1 = createUser(18, new Balance(USDC, 1000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0), new Balance(BTC_USDC_DF, 0, 0, 0, 0));
+    user1 = createUser(18, new Balance(USDC, 1000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null),
+        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
     user1.setOpenOrderCount(0);
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDC, 0, 0, 0, 0), new Balance(BTC, 0, 0, 0, 0), new Balance(BTC_USDC_DF, 0, 0, 0, 0));
+    user2 =
+        createUser(19, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null), new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
     user2.setOpenOrderCount(0);
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDC, 1000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0), new Balance(BTC_USDC_DF, 0, 0, 0, 0));
+    user3 = createUser(20, new Balance(USDC, 1000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null),
+        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
     user3.setOpenOrderCount(0);
     expectMessage("userId=20");
 
@@ -79,8 +80,7 @@ public class ExpiryTest extends OrderBookTest {
   }
 
   private void assertPosition(final User user1, final int instrumentId, final long quantity, final long availableQuantity) {
-    Assert.assertEquals(
-        "Expected quantity: " + quantity + ", Received quantity: " + user1.getPosition(instrumentId).getQuantity(),
+    Assert.assertEquals("Expected quantity: " + quantity + ", Received quantity: " + user1.getPosition(instrumentId).getQuantity(),
         quantity, user1.getPosition(instrumentId).getQuantity());
     Assert.assertEquals(
         "Expected available quantity: " + availableQuantity + ", Received available quantity: "
@@ -376,10 +376,14 @@ public class ExpiryTest extends OrderBookTest {
     assertPosition(user3, BTC_USDC_DF, 50_000, 0_0);
 
     expireContract(BTC_USDC_DF);
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
     assertMessages();
 
     final long diff = (20 - 20) * 50_0;
@@ -420,10 +424,14 @@ public class ExpiryTest extends OrderBookTest {
 
     setUnderlyerMark(30);
     expireContract(BTC_USDC_DF);
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
     assertMessages();
 
     final long diff = (20 - 30) * 50_0;
@@ -464,10 +472,14 @@ public class ExpiryTest extends OrderBookTest {
     assertPosition(user3, BTC_USDC_DF, 50_000, 0_0);
 
     expireContract(BTC_USDC_DF);
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
     assertMessages();
 
     final long diff = (20 - 30) * 50_0;
@@ -514,10 +526,14 @@ public class ExpiryTest extends OrderBookTest {
     setUnderlyerMark(30);
 
     expireContract(BTC_USDC_DF);
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=50000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
     assertMessages();
 
     final long diff = (20 - 30) * 50_0;
@@ -597,10 +613,14 @@ public class ExpiryTest extends OrderBookTest {
 
     expireContract(BTC_USDC_DF);
     expectMessage("orderId=3, ordStatus=EXPIRED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
-    expectMessage("ExecutionReportMessage", "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=BUY,account=18,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=NEW,ordStatus=NEW");
+    expectMessage("ExecutionReportMessage",
+        "symbol=BTC/USDC[DF],ordType=LIMIT,side=SELL,account=20,orderQty=10000,timeInForce=IMMEDIATE_OR_CANCEL,execType=CALCULATED,ordStatus=FILLED");
     assertMessages();
 
     final long diff = (20 - 20) * 50_0;

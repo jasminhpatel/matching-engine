@@ -3,7 +3,6 @@ package com.solfini.matchengine.model.orderbook;
 import org.junit.Assert;
 import org.junit.Test;
 import java.util.List;
-
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.UpdateType;
@@ -43,7 +42,7 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
   @Test
   public void addBuyOrder_ValidateOpenOrders() {
     User user = createUser(50);
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=50");
 
     orderBook.addOrder(createOrder(1, user, pair.getId(), 1011, 500, Side.BUY, DAY));
@@ -846,7 +845,7 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
   @Test
   public void cancelFirstBuyOrderResting() {
     User user = createUser(401);
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=401");
 
     orderBook.addOrder(createOrder(1, user, pair.getId(), 1011, 500, Side.BUY, DAY));
@@ -869,7 +868,7 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
   @Test
   public void cancelFirstSellOrderResting() {
     User user = createUser(402);
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=402");
 
     orderBook.addOrder(createOrder(110, user, pair.getId(), 1011, 500, Side.SELL, DAY));
@@ -941,7 +940,7 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
   @Test
   public void cancelSellOrderFilled() {
     User userk = createUser(301);
-    userk.addPosition(USDT, 10_000_00);
+    userk.addPosition(USDT, 10_000_00, null);
 
     expectMessage("userId=301");
     expectOutput("userId=301");
@@ -982,7 +981,7 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
   @Test
   public void cancelMatchedOrders() {
     User user = createUser(400);
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=400");
 
     // Add 2 buy orders
@@ -1495,8 +1494,8 @@ public class OrderBookLimitOrderTest extends OrderBookTest {
     assertMessages();
 
     // Give some positions to the user
-    user.addPosition(pair.getQuotedId(), 5000);
-    user.addPosition(pair.getId(), 50);
+    user.addPosition(pair.getQuotedId(), 5000, null);
+    user.addPosition(pair.getId(), 50, null);
 
     // Add 2 sell orders that should pass preorder checks
     orderBook.addOrder(createOrder(2, user, pair.getId(), 1011, 5000, Side.SELL, DAY));

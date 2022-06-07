@@ -42,10 +42,10 @@ public class OrderBookCashPreOrderCheckTest4 extends OrderBookTest {
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=19");
   }
 

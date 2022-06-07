@@ -5,7 +5,6 @@ import java.util.Properties;
 import java.util.Random;
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Fee;
@@ -58,7 +57,7 @@ public class MultiPairStateConsistencyTest extends BinanceOrderBookTest {
         user.setFeeTier(random.nextInt(5));
       }
 
-      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT);
+      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }
@@ -136,11 +135,10 @@ public class MultiPairStateConsistencyTest extends BinanceOrderBookTest {
 
       totalUnrealized += totalUsdUnrealized;
 
-      System.out.println("PnlSum securityId=" + j + ", totalUsdUnrealized=" + totalUsdUnrealized
-          + ", totalUsdRealized=" + totalUsdRealized + ", sum=" + (totalUsdUnrealized + totalUsdRealized));
-      Assert.assertTrue("TotalUnrealized=" + totalUsdUnrealized + ", TotalUnrealized=" + totalUsdRealized
-          + ", Sum=" + (totalUsdUnrealized + totalUsdRealized),
-          Math.abs(totalUsdUnrealized + totalUsdRealized) < 0.01);
+      System.out.println("PnlSum securityId=" + j + ", totalUsdUnrealized=" + totalUsdUnrealized + ", totalUsdRealized=" + totalUsdRealized
+          + ", sum=" + (totalUsdUnrealized + totalUsdRealized));
+      Assert.assertTrue("TotalUnrealized=" + totalUsdUnrealized + ", TotalUnrealized=" + totalUsdRealized + ", Sum="
+          + (totalUsdUnrealized + totalUsdRealized), Math.abs(totalUsdUnrealized + totalUsdRealized) < 0.01);
     }
 
     double totalUsd = 0;
@@ -154,11 +152,12 @@ public class MultiPairStateConsistencyTest extends BinanceOrderBookTest {
       }
     }
 
-    System.out.println("PnlSum expected=" + (expected / (double) QTY_SCALE_MULT)
-        + ", totalUsd=" + totalUsd + ", totalUsdUnrealized=" + totalUnrealized
-        + ", sum=" + (totalUsd + totalUnrealized) + ", diff=" + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUnrealized));
-    Assert.assertTrue("Total=" + (totalUsd + totalUnrealized) + ", Expected=" + (expected / (double) QTY_SCALE_MULT)
-        + ", Diff=" + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUnrealized),
+    System.out.println(
+        "PnlSum expected=" + (expected / (double) QTY_SCALE_MULT) + ", totalUsd=" + totalUsd + ", totalUsdUnrealized=" + totalUnrealized
+            + ", sum=" + (totalUsd + totalUnrealized) + ", diff=" + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUnrealized));
+    Assert.assertTrue(
+        "Total=" + (totalUsd + totalUnrealized) + ", Expected=" + (expected / (double) QTY_SCALE_MULT) + ", Diff="
+            + (expected / (double) QTY_SCALE_MULT - totalUsd - totalUnrealized),
         Math.abs(expected / (double) QTY_SCALE_MULT - totalUsd - totalUnrealized) < 0.01);
   }
 

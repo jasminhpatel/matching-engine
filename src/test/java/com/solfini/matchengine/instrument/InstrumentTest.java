@@ -7,7 +7,6 @@ import java.util.Properties;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
@@ -90,8 +89,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000);
-    user.addPosition(14, 1_000_000);
+    user.addPosition(1, 10_000_000, null);
+    user.addPosition(14, 1_000_000, null);
     user.setActive(true);
 
 
@@ -116,8 +115,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000);
-    user.addPosition(14, 1_000_000);
+    user.addPosition(1, 10_000_000, null);
+    user.addPosition(14, 1_000_000, null);
     user.setActive(true);
 
 
@@ -145,8 +144,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000);
-    user.addPosition(14, 1_000_000);
+    user.addPosition(1, 10_000_000, null);
+    user.addPosition(14, 1_000_000, null);
     user.setActive(true);
 
 

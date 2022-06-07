@@ -6,7 +6,6 @@ import java.util.Properties;
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.Message;
@@ -27,7 +26,6 @@ import com.solfini.util.LogLevel;
 import com.solfini.util.PoolSize;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
-
 import uk.co.real_logic.artio.fields.DecimalFloat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -101,8 +99,8 @@ public class FundingRateTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000);
-    user.addPosition(14, 1_000_000);
+    user.addPosition(1, 10_000_000, null);
+    user.addPosition(14, 1_000_000, null);
     user.setActive(true);
 
     FundingRateCalcMessage message = new FundingRateCalcMessage();

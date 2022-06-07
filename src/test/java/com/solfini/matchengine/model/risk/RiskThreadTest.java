@@ -7,7 +7,6 @@ import java.util.Properties;
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
-
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.UpdateType;
@@ -82,15 +81,15 @@ public class RiskThreadTest extends OrderBookTest {
   protected void createUsers() {
     user = createUser(18);
 
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=18");
 
     user2 = createUser(19);
-    user2.addPosition(USDT, 10_000_00);
+    user2.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=19");
 
     user3 = createUser(20);
-    user3.addPosition(USDT, 10_000_00);
+    user3.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=20");
   }
 

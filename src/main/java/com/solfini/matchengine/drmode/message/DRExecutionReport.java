@@ -41,6 +41,9 @@ public class DRExecutionReport extends Message {
   private int feeInstrumentId;
   private boolean isPaidToInsurance; // internal use only
   private int targetStrategy;
+  private long assetId;
+  private int tokenId;
+  private long selectId;
 
   private ExecType execType;
   private OrdStatus ordStatus;
@@ -81,6 +84,10 @@ public class DRExecutionReport extends Message {
     this.feeAccumulatedQuantity = executionReportDecoder.feeAccumulatedQuantity();
     this.availableEstimatedQuantity = executionReportDecoder.availableEstimatedQuantity();
     this.availableAccumulatedQuantity = executionReportDecoder.availableAccumulatedQuantity();
+
+    this.assetId = executionReportDecoder.assetId();
+    this.tokenId = executionReportDecoder.tokenId();
+    this.selectId = executionReportDecoder.selectId();
   }
 
   public final int getSecurityId() {
@@ -272,6 +279,30 @@ public class DRExecutionReport extends Message {
     this.availableAccumulatedQuantity = availableAccumulatedQuantity;
   }
 
+  public final long getAssetId() {
+    return assetId;
+  }
+
+  public final void setAssetId(final long assetId) {
+    this.assetId = assetId;
+  }
+
+  public final int getTokenId() {
+    return tokenId;
+  }
+
+  public final void setTokenId(final int tokenId) {
+    this.tokenId = tokenId;
+  }
+
+  public final long getSelectId() {
+    return selectId;
+  }
+
+  public final void setSelectId(final long selectId) {
+    this.selectId = selectId;
+  }
+
   @Override
   public String toString() {
     StringBuilder s = new StringBuilder();
@@ -318,6 +349,7 @@ public class DRExecutionReport extends Message {
     sb.append(",\"execType\":").append("\"").append(execType).append("\"");
     sb.append(",\"ordStatus\":").append("\"").append(ordStatus).append("\"");
     sb.append(",\"targetStrategy\":").append("\"").append(targetStrategy).append("\"");
+    sb.append(",\"assetId\":").append(assetId).append(",\"tokenId\":").append(tokenId).append(",\"selectId\":").append(selectId);
     sb.append("}");
     return sb.toString();
   }

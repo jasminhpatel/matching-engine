@@ -31,8 +31,8 @@ public class TestOpenOrderCalc extends OrderBookTest {
     InstrumentCache.addPair(pair);
 
     User user = new User(18);
-    Position position = user.setPosition(1, 10_000_000_000_000L);
-    Position position2 = user.setPosition(14, 20_000_000);
+    Position position = user.setPosition(1, 10_000_000_000_000L, null);
+    Position position2 = user.setPosition(14, 20_000_000, null);
     UserOpenOrdersByPair userOpenOrdersByPair = position2.getUserOpenOrdersByPair();
     MarginPreOrderCheckAndSettle marginPreOrderCheck = new MarginPreOrderCheckAndSettle();
     // position.getUserOpenOrdersByPair()

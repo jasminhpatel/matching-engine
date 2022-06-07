@@ -51,7 +51,7 @@ public class CollateralSwapMessageTest extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDC, USDC_BALANCE * USDC_SCALE_MULT);
+      user.addPosition(USDC, USDC_BALANCE * USDC_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
 
@@ -173,8 +173,8 @@ public class CollateralSwapMessageTest extends OrderBookTest {
   }
 
   private static void setPositions(final User user, final long usdc, final long btc) {
-    user.setPosition(USDC, usdc);
-    user.setPosition(BTC, btc);
+    user.setPosition(USDC, usdc, null);
+    user.setPosition(BTC, btc, null);
   }
 
   private static void assertPosition(final User user, final int instrumentId, final long quantity, final long available) {

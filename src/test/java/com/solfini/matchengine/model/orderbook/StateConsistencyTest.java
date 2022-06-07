@@ -2,7 +2,6 @@ package com.solfini.matchengine.model.orderbook;
 
 import java.util.ArrayList;
 import java.util.Random;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Fee;
@@ -20,7 +19,6 @@ import com.solfini.user.User;
 import com.solfini.user.UserCache;
 import org.junit.Assert;
 import org.junit.Test;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class StateConsistencyTest extends OrderBookTest {
@@ -38,7 +36,7 @@ public class StateConsistencyTest extends OrderBookTest {
       final int userId = USER_START + i;
       final User user = createUser(userId);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }

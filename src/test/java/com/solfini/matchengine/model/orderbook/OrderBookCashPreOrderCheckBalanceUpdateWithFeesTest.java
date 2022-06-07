@@ -38,13 +38,13 @@ public class OrderBookCashPreOrderCheckBalanceUpdateWithFeesTest extends OrderBo
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDT, 0, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user = createUser(18, new Balance(USDT, 0, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDT, 50000, 0, 0, 0), new Balance(BTC, 1000, 0, 0, 0));
+    user3 = createUser(20, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
     expectMessage("userId=20");
 
     user.getPosition(BTC_USDT).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT));
@@ -422,16 +422,16 @@ public class OrderBookCashPreOrderCheckBalanceUpdateWithFeesTest extends OrderBo
     assertMessages();
 
     {
-        final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20);
-        assertPosition(user2, USDT, usdtbalance - 38, usdtbalance - 38);
-        final int btcbalance = 1000_00 + 30_00 + 20_00;
-        assertPosition(user2, BTC, btcbalance, btcbalance);
+      final int usdtbalance = 50000_0 - (60_0 * 30) - (100_0 * 20);
+      assertPosition(user2, USDT, usdtbalance - 38, usdtbalance - 38);
+      final int btcbalance = 1000_00 + 30_00 + 20_00;
+      assertPosition(user2, BTC, btcbalance, btcbalance);
     }
     {
-        final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20);
-        assertPosition(user3, USDT, usdtbalance - 38, usdtbalance - 38);
-        final int btcbalance = 1000_00 - 30_00 - 20_00;
-        assertPosition(user3, BTC, btcbalance, btcbalance);
+      final int usdtbalance = 50000_0 + (60_0 * 30) + (100_0 * 20);
+      assertPosition(user3, USDT, usdtbalance - 38, usdtbalance - 38);
+      final int btcbalance = 1000_00 - 30_00 - 20_00;
+      assertPosition(user3, BTC, btcbalance, btcbalance);
     }
   }
 

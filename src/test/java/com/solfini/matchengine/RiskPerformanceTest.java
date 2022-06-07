@@ -1,7 +1,6 @@
 package com.solfini.matchengine;
 
 import java.util.Random;
-
 import com.solfini.common.Constants;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
@@ -19,9 +18,8 @@ public class RiskPerformanceTest implements Constants {
   protected static final int ETH_USDT_F = 9;
   protected static final int BTC_USDT_F = 12;
 
-  private static SecurityDefinitionAdminMessage createInstrumentDefinition(
-    final int securityId, final UpdateType updateType, final String symbol,
-    final int priceScale, final int quantityScale) {
+  private static SecurityDefinitionAdminMessage createInstrumentDefinition(final int securityId, final UpdateType updateType,
+      final String symbol, final int priceScale, final int quantityScale) {
 
     SecurityDefinitionAdminMessage message = new SecurityDefinitionAdminMessage();
     message.setUpdateType(updateType);
@@ -37,10 +35,8 @@ public class RiskPerformanceTest implements Constants {
     return message;
   }
 
-  private static SecurityDefinitionAdminMessage createInstrumentPairDefinition(
-    final int securityId, final UpdateType updateType, final String symbol,
-    final int baseId, final int quotedId,
-    final int priceScale, final int quantityScale) {
+  private static SecurityDefinitionAdminMessage createInstrumentPairDefinition(final int securityId, final UpdateType updateType,
+      final String symbol, final int baseId, final int quotedId, final int priceScale, final int quantityScale) {
 
     SecurityDefinitionAdminMessage message = createInstrumentDefinition(securityId, updateType, symbol, priceScale, quantityScale);
     message.setAssetType(AssetType.PAIR);
@@ -55,7 +51,7 @@ public class RiskPerformanceTest implements Constants {
     message.setUpdateType(UpdateType.PUT);
     message.setUserId(userId);
     if (null != balances) {
-      for (final Balance balance: balances) {
+      for (final Balance balance : balances) {
         message.addBalance(balance);
       }
     }
@@ -74,7 +70,8 @@ public class RiskPerformanceTest implements Constants {
     System.out.println("Creating users");
     final Random random = new Random();
     for (int i = 1; i <= 1_000_000; i++) {
-      createUser(100 + i, new Balance(USDT, random.nextInt(10_000), 2, 0, 0), new Balance(BTC_USDT_F, random.nextInt(10_000), 2, 0, 0));
+      createUser(100 + i, new Balance(USDT, random.nextInt(10_000), 2, 0, 0, null),
+          new Balance(BTC_USDT_F, random.nextInt(10_000), 2, 0, 0, null));
       if (i % 100_000 == 0) {
         System.out.println("  ... " + i);
       }

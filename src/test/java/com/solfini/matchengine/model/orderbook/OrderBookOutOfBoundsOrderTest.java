@@ -8,7 +8,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
 import java.util.Properties;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
 public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
@@ -54,9 +53,9 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     assertMessages();
   }
 
-  //Add orders in such a way that they are being added to the outOfBoundsOrderMap.
-  //Cancel one of them
-  //Order cancel should happen without any error
+  // Add orders in such a way that they are being added to the outOfBoundsOrderMap.
+  // Cancel one of them
+  // Order cancel should happen without any error
   @Test
   @Ignore
   public void cancelOrderFromOutOfBoundsOrderMap() {
@@ -72,7 +71,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
 
-    orderBook.cancelOrder(createCancelOrder(5, 5, user, pair.getId(), 1011, 500, Side.SELL, DAY)); //ARRAY INDEX OUT OF BOUNDS HERE!!
+    orderBook.cancelOrder(createCancelOrder(5, 5, user, pair.getId(), 1011, 500, Side.SELL, DAY)); // ARRAY INDEX OUT OF BOUNDS HERE!!
     expectMessage("orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderQty=500, ordStatus=CANCELED");
 
@@ -87,7 +86,10 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
 
     Order amendingOrder = createOrder(5, user, pair.getId(), 1011, 1000, Side.SELL, DAY);
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5,5, user,   pair.getId(), 1011, 500,Side.SELL,DAY, amendingOrder)); //Array index out of bounds!!
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5, 5, user, pair.getId(), 1011, 500, Side.SELL, DAY, amendingOrder)); // Array
+                                                                                                                                // index out
+                                                                                                                                // of
+                                                                                                                                // bounds!!
     expectMessage("orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderQty=500, ordStatus=CANCELED");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
@@ -103,7 +105,10 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
 
     Order amendingOrder = createOrder(5, user, pair.getId(), 2, 500, Side.SELL, DAY);
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5,5, user,   pair.getId(), 1011, 500,Side.SELL,DAY, amendingOrder)); //Array index out of bounds!!
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5, 5, user, pair.getId(), 1011, 500, Side.SELL, DAY, amendingOrder)); // Array
+                                                                                                                                // index out
+                                                                                                                                // of
+                                                                                                                                // bounds!!
     expectMessage("orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderQty=500, ordStatus=CANCELED");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
@@ -120,7 +125,10 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
 
     Order amendingOrder = createOrder(5, user, pair.getId(), 1013, 500, Side.SELL, DAY);
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5,5, user,   pair.getId(), 1011, 500,Side.SELL,DAY, amendingOrder)); //Array index out of bounds!!
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5, 5, user, pair.getId(), 1011, 500, Side.SELL, DAY, amendingOrder)); // Array
+                                                                                                                                // index out
+                                                                                                                                // of
+                                                                                                                                // bounds!!
     expectMessage("orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderQty=500, ordStatus=CANCELED");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
@@ -137,7 +145,9 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
 
     Order amendingOrder = createOrder(5, user, pair.getId(), 1023, 500, Side.SELL, DAY);
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5,5, user,   pair.getId(), 5, 500,Side.SELL,DAY, amendingOrder)); //Array index out of bounds!!
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(5, 5, user, pair.getId(), 5, 500, Side.SELL, DAY, amendingOrder)); // Array index
+                                                                                                                             // out of
+                                                                                                                             // bounds!!
     expectMessage("orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderQty=500, ordStatus=CANCELED");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
@@ -147,7 +157,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
 
   @Test
   @Ignore
-  public void restateOutOfBoundOrders(){
+  public void restateOutOfBoundOrders() {
     Order outOfBoundOrder = createOrder(5, user, pair.getId(), 1011, 500, Side.SELL, DAY);
     Order bookArrayOrder = createOrder(6, user, pair.getId(), 5, 500, Side.SELL, DAY);
     Order restateOrder = createOrder(7, user, pair.getId(), 5, 500, Side.SELL, DAY);
@@ -158,7 +168,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
     expectMessage("ordType=LIMIT, side=SELL, ordStatus=NEW");
 
-    pair.changeState(MarketStatus.RESTATE,0,restateOrder);
+    pair.changeState(MarketStatus.RESTATE, 0, restateOrder);
 
     expectMessage("execType=RESTATED, ordType=PREVIOUSLY_INDICATED");
     expectMessage("orderId=6, execType=RESTATED, ordStatus=NEW");
@@ -173,10 +183,10 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
   public void updateRiskOnOutOfBoundsOrders() {
 
     User newUser = createUser(28);
-    newUser.addPosition(pair.getId(), 10_000);
+    newUser.addPosition(pair.getId(), 10_000, null);
     expectMessage("userId=28");
 
-    newUser.setUsdValue(0.0); //set USD value to zero
+    newUser.setUsdValue(0.0); // set USD value to zero
 
     Assert.assertEquals(0.0, newUser.getUsdValue(), 0);
     orderBook.addOrder(createOrder(5, newUser, pair.getId(), 1011, 500, Side.SELL, DAY));
@@ -234,7 +244,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     expectMessage("orderId=1, account=18, ordType=LIMIT, side=SELL, price=1011, orderQty=500, ordStatus=NEW");
 
     Order order = createOrder(2, user, pair.getId(), 1011, 1000, Side.SELL, DAY);
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(3, 1, user2, pair.getId(), 1011, 500,Side.SELL,DAY, order));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(3, 1, user2, pair.getId(), 1011, 500, Side.SELL, DAY, order));
     expectMessage("CancelRejectMessage", "orderId=1, account=19, cxlRejReason=UNKNOWN_ORDER, ordStatus=NEW");
     assertMessages();
   }
@@ -247,7 +257,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
     expectMessage("orderId=1, account=18, ordType=LIMIT, side=SELL, price=1011, orderQty=500, ordStatus=NEW");
 
     Order order = createOrder(2, user2, pair.getId(), 1011, 1000, Side.SELL, DAY);
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(3, 1, user2, pair.getId(), 1011, 500,Side.SELL,DAY, order));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(3, 1, user2, pair.getId(), 1011, 500, Side.SELL, DAY, order));
     expectMessage("orderId=1, account=19, ordType=LIMIT, side=SELL, price=1011, orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("CancelRejectMessage", "orderId=1, account=19, cxlRejReason=UNKNOWN_ORDER, ordStatus=NEW");
     assertMessages();

@@ -7,11 +7,9 @@ import com.solfini.internal.admin.schema.MakerTaker;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
 import com.solfini.util.MbxMath;
-
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
 public class OrderBookFeeCalculationTest extends OrderBookTest {
@@ -23,7 +21,7 @@ public class OrderBookFeeCalculationTest extends OrderBookTest {
     pair.setFee(new Fee(pair.getId(), pair.getBaseId(), 300, FeeType.PERCENT, MakerTaker.ALL, 3, true));
     pair.setFee(new Fee(pair.getId(), pair.getBaseId(), 400, FeeType.PERCENT, MakerTaker.ALL, 4, true));
 
-    user.setPosition(pair.getId(), 0);
+    user.setPosition(pair.getId(), 0, null);
     user.setFeeTier(1);
   }
 
@@ -34,7 +32,7 @@ public class OrderBookFeeCalculationTest extends OrderBookTest {
     pair.setFee(new Fee(pair.getId(), pair.getBaseId(), 300, FeeType.ABSOLUTE, MakerTaker.ALL, 3, true));
     pair.setFee(new Fee(pair.getId(), pair.getBaseId(), 400, FeeType.ABSOLUTE, MakerTaker.ALL, 4, true));
 
-    user.setPosition(pair.getId(), 0);
+    user.setPosition(pair.getId(), 0, null);
     user.setFeeTier(1);
   }
 
@@ -382,12 +380,12 @@ public class OrderBookFeeCalculationTest extends OrderBookTest {
     beforePercentFeeCalculation();
 
     User buyer = createUser(31);
-    buyer.addPosition(pair.getId(), 100000_000);
+    buyer.addPosition(pair.getId(), 100000_000, null);
     expectMessage("userId=31");
     buyer.setFeeTier(1);
 
     User seller = createUser(32);
-    seller.addPosition(pair.getId(), 125);
+    seller.addPosition(pair.getId(), 125, null);
     expectMessage("userId=32");
     seller.setFeeTier(1);
 
@@ -416,13 +414,13 @@ public class OrderBookFeeCalculationTest extends OrderBookTest {
     beforePercentFeeCalculation();
 
     User buyer = createUser(25);
-    buyer.addPosition(pair.getBaseId(), 100_000_000);
-    buyer.addPosition(pair.getId(), -125);
+    buyer.addPosition(pair.getBaseId(), 100_000_000, null);
+    buyer.addPosition(pair.getId(), -125, null);
     expectMessage("userId=25");
     buyer.setFeeTier(1);
 
     User seller = createUser(26);
-    seller.addPosition(pair.getBaseId(), 100_000_000);
+    seller.addPosition(pair.getBaseId(), 100_000_000, null);
     expectMessage("userId=26");
     seller.setFeeTier(1);
 

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import org.junit.Assert;
@@ -12,7 +11,6 @@ import org.junit.Test;
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
@@ -23,7 +21,6 @@ import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class PositionContractConsistencyTest3 extends OrderBookTest {
@@ -40,7 +37,7 @@ public class PositionContractConsistencyTest3 extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }

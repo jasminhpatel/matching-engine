@@ -6,7 +6,6 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.AssetFundingRate;
@@ -46,7 +45,7 @@ public class OrderBookExpireTest extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }

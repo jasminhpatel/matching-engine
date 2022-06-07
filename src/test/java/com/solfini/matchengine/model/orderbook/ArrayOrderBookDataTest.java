@@ -26,9 +26,7 @@ import org.junit.Test;
 import org.slf4j.event.Level;
 import uk.co.real_logic.artio.*;
 import uk.co.real_logic.artio.fields.DecimalFloat;
-
 import static com.solfini.common.Constants.*;
-
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
@@ -104,10 +102,10 @@ public class ArrayOrderBookDataTest {
     InstrumentCache.addPair(instrumentPair);
 
 
-    user1.addPosition(1, 1000000000);
-    user2.addPosition(1, 1000000000);
+    user1.addPosition(1, 1000000000, null);
+    user2.addPosition(1, 1000000000, null);
 
-    user2.addPosition(3, 20);
+    user2.addPosition(3, 20, null);
   }
 
 

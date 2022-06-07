@@ -119,6 +119,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
 
@@ -145,6 +146,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           break;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           final Position quotedPosition = positionArr[instrumentPair.getQuotedId()];
           long amount = normalizedQuantityLong * order.getMarginCheckReferencePrice();
@@ -276,8 +278,10 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           basePosition.addQuantity(-normalizedQuantityLong); // fill
+          basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId());
           quotedPosition.addQuantity(normalizedAmountLong); // fill
           quotedPosition.addAvailableQuantity(normalizedAmountLong); // fill
           feePosition.addQuantity(-feeQuantity);
@@ -331,9 +335,11 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           return true;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           basePosition.addQuantity(normalizedQuantityLong); // fill
           basePosition.addAvailableQuantity(normalizedQuantityLong); // fill
+          basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId());
           quotedPosition.addQuantity(-normalizedAmountLong); // fill
 
           long adjustment = normalizedQuantityLong * order.getMarginCheckReferencePrice();
@@ -431,7 +437,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
 
       Position postion = user.getPositionArr()[order.getSecurityId()];
       if (postion == null) {
-        postion = user.setPosition(order.getSecurityId(), 0);
+        postion = user.setPosition(order.getSecurityId(), 0, null);
       }
 
       final UserOpenOrdersByPair userOpenOrdersByPair = postion.getUserOpenOrdersByPair();
@@ -474,6 +480,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null)
@@ -487,6 +494,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           return true;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           long amount = normalizedQuantityLong * order.getMarginCheckReferencePrice();
           for (int i = 0; i < instrumentPair.getBase().getQuantityScale(); i++)
@@ -575,6 +583,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null) {
@@ -583,6 +592,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           break;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           final Position quotedPosition = positionArr[instrumentPair.getQuotedId()];
           if (quotedPosition != null) {
@@ -723,6 +733,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
 
@@ -747,6 +758,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           break;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           final Position quotedPosition = positionArr[instrumentPair.getQuotedId()];
           long amount = normalizedQuantityLong * order.getMarginCheckReferencePrice();
@@ -804,7 +816,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
 
       Position postion = user.getPositionArr()[order.getSecurityId()];
       if (postion == null) {
-        postion = user.setPosition(order.getSecurityId(), 0);
+        postion = user.setPosition(order.getSecurityId(), 0, null);
       }
 
       final Fee fee = instrumentPair.getFee(user.getFeeTier(), IS_MAKER_DEFAULT, null);
@@ -842,6 +854,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null)
@@ -855,6 +868,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           return true;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           long amount = normalizedQuantityLong * order.getMarginCheckReferencePrice();
           for (int i = 0; i < instrumentPair.getBase().getQuantityScale(); i++)

@@ -2,7 +2,6 @@ package com.solfini.matchengine.decoder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
@@ -34,8 +33,8 @@ public class CancelRequestHandler implements Constants {
     try {
       // validate
       if (cancelOrderDecoder.securityId() == 0) {
-        return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(),
-            MsgType.ORDER_CANCEL_REQUEST, cancelOrderDecoder.clOrdID(), BusinessRejectReason.SECURITY_ID_IS_MISSING, SECURITY_ID_IS_MISSING,
+        return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(), MsgType.ORDER_CANCEL_REQUEST,
+            cancelOrderDecoder.clOrdID(), BusinessRejectReason.SECURITY_ID_IS_MISSING, SECURITY_ID_IS_MISSING,
             cancelOrderDecoder.cancelId(), 0, cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId);
       }
 
@@ -49,9 +48,9 @@ public class CancelRequestHandler implements Constants {
       LOGGER.error(ERROR_LOG, e);
     }
 
-    return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(),
-        MsgType.ORDER_CANCEL_REQUEST, headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE,
-        cancelOrderDecoder.cancelId(), 0, cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId);
+    return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(), MsgType.ORDER_CANCEL_REQUEST,
+        headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, cancelOrderDecoder.cancelId(), 0,
+        cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId);
   }
 
   public static final Message parseCancelOrder(final CancelOrder cancelOrder) {
@@ -86,15 +85,15 @@ public class CancelRequestHandler implements Constants {
         if (user != null)
           cancelOrder.setUser(user);
         else {
-          return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(),
-              MsgType.ORDER_CANCEL_REQUEST, Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND,
-              cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
+          return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(), MsgType.ORDER_CANCEL_REQUEST,
+              Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND, cancelOrder.getOrigOrderId(),
+              0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
         }
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
-        return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(),
-            MsgType.ORDER_CANCEL_REQUEST, Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.UNABLE_TO_LOAD_USER,
-            UNABLE_TO_LOAD_USER, cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
+        return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(), MsgType.ORDER_CANCEL_REQUEST,
+            Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.UNABLE_TO_LOAD_USER, UNABLE_TO_LOAD_USER,
+            cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
       }
 
 
@@ -106,11 +105,15 @@ public class CancelRequestHandler implements Constants {
           type = BUY_LIMIT;
         else if (OrdType.MARKET == ordType)
           type = BUY_MARKET;
+        else if (OrdType.SELECT == ordType)
+          type = BUY_SELECT;
       } else if (Side.SELL == side) {
         if (OrdType.LIMIT == ordType)
           type = SELL_LIMIT;
         else if (OrdType.MARKET == ordType)
           type = SELL_MARKET;
+        else if (OrdType.SELECT == ordType)
+          type = SELL_SELECT;
       }
       cancelOrder.setType(type);
     } catch (Exception e) {

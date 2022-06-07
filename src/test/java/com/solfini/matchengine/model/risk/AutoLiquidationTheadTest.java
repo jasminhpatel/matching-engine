@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.agrona.concurrent.NoOpIdleStrategy;
 import org.junit.Test;
-
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
@@ -24,7 +23,7 @@ public class AutoLiquidationTheadTest extends RiskTest {
 
     instrumentPair.setIndexFeedUsdMark(5000.00);
 
-    Position position = user.setPosition(BTC_USDT_F, 10_000); // scale 3
+    Position position = user.setPosition(BTC_USDT_F, 10_000, null); // scale 3
     position.setUsdAvgCostBasisDouble(9000.00);
     MarginPreOrderCheckAndSettle marginPreOrderCheck = new MarginPreOrderCheckAndSettle();
     marginPreOrderCheck.updateRisk(user, null);
@@ -47,7 +46,7 @@ public class AutoLiquidationTheadTest extends RiskTest {
     // total pnl = -20,000
     // close at 2,970,
 
-    Position position = user.setPosition(BTC_USDT_F, -10_00); // scale 2
+    Position position = user.setPosition(BTC_USDT_F, -10_00, null); // scale 2
     position.setUsdAvgCostBasisDouble(2000.00);
     MarginPreOrderCheckAndSettle marginPreOrderCheck = new MarginPreOrderCheckAndSettle();
     marginPreOrderCheck.updateRisk(user, null);
@@ -64,9 +63,9 @@ public class AutoLiquidationTheadTest extends RiskTest {
     final InstrumentPair instrumentPair = InstrumentCache.getPair(BTC_USDT_F);
 
     instrumentPair.setIndexFeedUsdMark(5000.00);
-    Position positionusdt = user.setPosition(USDT, -10000_00); // scale 2
+    Position positionusdt = user.setPosition(USDT, -10000_00, null); // scale 2
 
-    Position position = user.setPosition(BTC_USDT_F, -1_00); // scale 2
+    Position position = user.setPosition(BTC_USDT_F, -1_00, null); // scale 2
     position.setUsdAvgCostBasisDouble(2000.00);
     MarginPreOrderCheckAndSettle marginPreOrderCheck = new MarginPreOrderCheckAndSettle();
     marginPreOrderCheck.updateRisk(user, null);

@@ -1,7 +1,6 @@
 package com.solfini.binance.orderbook;
 
 import org.junit.Test;
-
 import com.solfini.instrument.Balance;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.sbe.encoder.Side;
@@ -105,8 +104,7 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   @Test
   public void rejectBuyOrderNoStopPrice() {
     orderBook.addOrder(createStopLimitOrder(1, user, pair.getId(), 1012, 0, 500, Side.BUY, DAY));
-    expectMessage(
-        "orderId=1, businessRejectReason=STOP_PRICE_IS_MISSING, text=Stop price is missing, businessRejectRefID=1");
+    expectMessage("orderId=1, businessRejectReason=STOP_PRICE_IS_MISSING, text=Stop price is missing, businessRejectRefID=1");
     assertMessages();
   }
 
@@ -114,8 +112,7 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   @Test
   public void rejectSellOrderNoStopPrice() {
     orderBook.addOrder(createStopLimitOrder(1, user, pair.getId(), 1010, 0, 500, Side.SELL, DAY));
-    expectMessage(
-        "orderId=1, businessRejectReason=STOP_PRICE_IS_MISSING, text=Stop price is missing, businessRejectRefID=1");
+    expectMessage("orderId=1, businessRejectReason=STOP_PRICE_IS_MISSING, text=Stop price is missing, businessRejectRefID=1");
     assertMessages();
   }
 
@@ -201,8 +198,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Assert that the stop limit order is triggered and filled
   @Test
   public void sellStopLimitTriggeredByBuyLimitWithEqualPrice() {
-    User user = createUser(600, new Balance(USDT, 10000, 0, 0, 0));
-    User user2 = createUser(601, new Balance(USDT, 10000, 0, 0, 0));
+    User user = createUser(600, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user2 = createUser(601, new Balance(USDT, 10000, 0, 0, 0, null));
     expectMessage("userId=600");
     expectMessage("userId=601");
 
@@ -1343,8 +1340,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Buy stop limits should trigger in stop price order (lowest first)
   @Test
   public void buyStopLimitTriggeringOrder1() {
-    User user = createUser(602, new Balance(USDT, 10000, 0, 0, 0));
-    User user2 = createUser(603, new Balance(USDT, 10000, 0, 0, 0));
+    User user = createUser(602, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user2 = createUser(603, new Balance(USDT, 10000, 0, 0, 0, null));
     expectMessage("userId=602");
     expectMessage("userId=603");
 
@@ -1371,8 +1368,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Buy stop limits should trigger in stop price order (lowest first)
   @Test
   public void buyStopLimitTriggeringOrder2() {
-    User user = createUser(604, new Balance(USDT, 10000, 0, 0, 0));
-    User user2 = createUser(605, new Balance(USDT, 10000, 0, 0, 0));
+    User user = createUser(604, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user2 = createUser(605, new Balance(USDT, 10000, 0, 0, 0, null));
     expectMessage("userId=604");
     expectMessage("userId=605");
 

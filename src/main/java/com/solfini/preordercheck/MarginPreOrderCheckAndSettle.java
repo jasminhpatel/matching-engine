@@ -368,7 +368,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       // calc open orders required
       Position position = user.getPosition(order.getSecurityId());
       if (position == null)
-        position = user.setPosition(order.getSecurityId(), 0);
+        position = user.setPosition(order.getSecurityId(), 0, null);
       final UserOpenOrdersByPair userOpenOrdersByPair = position.getUserOpenOrdersByPair();
 
       if (order.isReduceOnly() && !checkReduceOnlyOrder(order, referencePrice, position)) {
@@ -429,7 +429,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       User user = order.getUser();
       Position position = user.getPosition(order.getSecurityId());
       if (position == null) {
-        position = user.setPosition(order.getSecurityId(), 0);
+        position = user.setPosition(order.getSecurityId(), 0, null);
       }
 
       UserOpenOrdersByPair userOpenOrdersByPair = position.getUserOpenOrdersByPair();
@@ -809,6 +809,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       switch (order.getType()) {
         case SELL_LIMIT:
         case SELL_MARKET:
+        case SELL_SELECT:
         case STOP_SELL_LIMIT:
           if (origPosition > 0 && referenceQuantity > origPosition) { // sell close and open new short
             final long diff = referenceQuantity - origPosition;
@@ -822,7 +823,8 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
             final ExecutionReportMessage execOpen = ExecutionReportMessage.createTradeExecutionReport(order, instrumentPair,
                 execReport.getLastPx(), execReport.getLastPxScale(), execReport.getLastQty(), execReport.getLastQtyScale(),
-                execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true);
+                execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true, execReport.getAssetId(),
+                execReport.getTokenId(), execReport.getSelectId());
             status = updateFillSell(order, referencePrice, diff, execOpen, quotedUsdMark, settleCoinUsdMark, quotedCoinUsdMark, isMaker,
                 pairPosition, feePosition, settlePosition, user, positionArr, instrumentPair, fee);
           } else {
@@ -832,6 +834,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
           break;
         case BUY_LIMIT:
         case BUY_MARKET:
+        case BUY_SELECT:
         case STOP_BUY_LIMIT:
           if (origPosition < 0 && (origPosition + referenceQuantity) > 0) { // buy close and open long
             final long diff = Math.abs(referenceQuantity) - Math.abs(origPosition);
@@ -845,7 +848,8 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
             final ExecutionReportMessage execOpen = ExecutionReportMessage.createTradeExecutionReport(order, instrumentPair,
                 execReport.getLastPx(), execReport.getLastPxScale(), execReport.getLastQty(), execReport.getLastQtyScale(),
-                execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true);
+                execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true, execReport.getAssetId(),
+                execReport.getTokenId(), execReport.getSelectId());
 
             status = updateFillBuy(order, referencePrice, diff, execOpen, quotedUsdMark, settleCoinUsdMark, quotedCoinUsdMark, isMaker,
                 pairPosition, feePosition, settlePosition, user, positionArr, instrumentPair, fee);
@@ -882,7 +886,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       }
       Position postion = user.getPosition(order.getSecurityId());
       if (postion == null)
-        postion = user.setPosition(order.getSecurityId(), 0);
+        postion = user.setPosition(order.getSecurityId(), 0, null);
       final UserOpenOrdersByPair userOpenOrdersByPair = postion.getUserOpenOrdersByPair();
       userOpenOrdersByPair.remove(order);
       userOpenOrdersByPair.calcNotionalRequiredMargin(usdMark);

@@ -287,9 +287,9 @@ public class IntegrationTest {
 
   public List<Balance> createBalanceList(long quotedBalance, long quoteBalance, long pairBalance) {
     List<Balance> balanceList = new ArrayList<>();
-    balanceList.add(new Balance(SECURITY_ID_QUOTED, quotedBalance, 0, 0, 0));
-    balanceList.add(new Balance(SECURITY_ID_QUOTE, quoteBalance, 0, 0, 0));
-    balanceList.add(new Balance(SECURITY_ID_PAIR, pairBalance, 0, 0, 0));
+    balanceList.add(new Balance(SECURITY_ID_QUOTED, quotedBalance, 0, 0, 0, null));
+    balanceList.add(new Balance(SECURITY_ID_QUOTE, quoteBalance, 0, 0, 0, null));
+    balanceList.add(new Balance(SECURITY_ID_PAIR, pairBalance, 0, 0, 0, null));
     return balanceList;
   }
 

@@ -9,7 +9,6 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
@@ -89,7 +88,7 @@ public class DecoderTest extends MessageTest {
   public void measurePositionReportDecoderPerformance() {
     final User user = new User(18);
     for (int i = 0; i < user.getPositionArr().length; ++i) {
-      user.addPosition(i, i % 2 == 0 ? 0 : 100);
+      user.addPosition(i, i % 2 == 0 ? 0 : 100, null);
     }
 
     final PositionReportMessage positionReport = makePositionReport(user);

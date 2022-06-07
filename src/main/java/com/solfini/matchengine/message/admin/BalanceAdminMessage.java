@@ -1,8 +1,10 @@
 package com.solfini.matchengine.message.admin;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-
+import java.util.Set;
+import java.util.TreeSet;
 import com.solfini.common.AdminMessage;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -15,6 +17,7 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.BalanceAdminMessageDecoder;
 import com.solfini.internal.admin.schema.BalanceAdminMessageDecoder.BalanceGroupDecoder;
+import com.solfini.internal.admin.schema.BalanceAdminMessageDecoder.BalanceGroupDecoder.PositionsAssetIdGroupDecoder;
 import com.solfini.internal.admin.schema.RequestStatus;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.internal.schema.PayloadType;
@@ -115,10 +118,23 @@ public class BalanceAdminMessage extends AdminMessage {
       final long value = balanceGroupDecoder.balance().value();
       final int scale = balanceGroupDecoder.balance().scale();
 
+      // add assetId,tokenId set
+      Set<long[]> assetIdtreeSet = null;
+      for (final PositionsAssetIdGroupDecoder assetIdGroupDecoder : balanceGroupDecoder.positionsAssetIdGroup()) {
+        if (assetIdtreeSet == null)
+          assetIdtreeSet = new TreeSet<>();
+
+        final long assetId2 = assetIdGroupDecoder.assetId();
+        final int tokenId = assetIdGroupDecoder.tokenId();
+        final long[] arrvalue = new long[] {assetId2, tokenId};
+        assetIdtreeSet.add(arrvalue);
+      }
+
+
       if (BALANCE_DECODER.updateType() == UpdateType.PUT) {
-        addBalance(new Balance(assetId, value, scale, 0, 0));
+        addBalance(new Balance(assetId, value, scale, 0, 0, assetIdtreeSet));
       } else if (BALANCE_DECODER.updateType() == UpdateType.PATCH) {
-        addBalance(new Balance(assetId, 0, 0, value, scale));
+        addBalance(new Balance(assetId, 0, 0, value, scale, assetIdtreeSet));
       }
     }
   }
@@ -158,7 +174,7 @@ public class BalanceAdminMessage extends AdminMessage {
         continue;
 
       addBalance(new Balance(balance.getAssetId(), balance.getBalance().value(), balance.getBalance().scale(),
-          balance.getBalanceChange().value(), balance.getBalanceChange().scale()));
+          balance.getBalanceChange().value(), balance.getBalanceChange().scale(), balance.getAssetIdtreeSet()));
     }
   }
 

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import org.agrona.collections.Long2ObjectHashMap;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -83,8 +84,8 @@ import com.solfini.util.MbxMath;
  */
 
 
-public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Constants {
-  private static final CustomLogger LOGGER = CustomLogger.getLogger(ArrayOrderBook.class);
+public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, Constants {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(SelectArrayOrderBook.class);
 
   public static final int DEFAULT_ARR_SIZE = Context.getInitialOrderBookSize();
   public static final int DEFAULT_CACHE_DEPTH = 512; // test with 4
@@ -107,12 +108,13 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   private final InstrumentPair instrumentPair;
   private final Map<Long, Order> outOfBoundsOrderMap; // key is orderId
   private final Map<Long, Order> outOfBoundsOrderMapBySecondaryOrderId; // key is secondaryOrderId
+  private final Long2ObjectHashMap<Order> idToOrderMap; // cache by orderId to support select
   private final FastArrayList<Order> triggeredOrders;
   private final StopLimitContainer stopLimitContainer;
   private final StopProfitContainer stopProfitContainer;
   private final TrailingStopContainer trailingStopContainer;
   private final ADLMakerContainer adlMakerContainer;
-  private final AuctionContainer auctionContainer;
+  private final SelectAuctionContainer auctionContainer;
 
   private PreOrderCheck preOrderCheck;
   private final PreOrderCheck preOrderCheckOrig;
@@ -141,12 +143,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   private long circuitBreakerEndTime = 0;
   private boolean publishAcks = true;
 
-  public ArrayOrderBook(final InstrumentPair pair, final PreOrderCheck preOrderCheck, final int orderBookStrategy,
+  public SelectArrayOrderBook(final InstrumentPair pair, final PreOrderCheck preOrderCheck, final int orderBookStrategy,
       final int preOrderCheckStrategy) {
     this(pair, preOrderCheck, DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH, orderBookStrategy, preOrderCheckStrategy);
   }
 
-  public ArrayOrderBook(final InstrumentPair pair, final PreOrderCheck preOrderCheck, final int arrSize, final int cacheDepth,
+  public SelectArrayOrderBook(final InstrumentPair pair, final PreOrderCheck preOrderCheck, final int arrSize, final int cacheDepth,
       final int orderBookStrategy, final int preOrderCheckStrategy) {
     this.id = pair.getId();
     this.priceScale = pair.getPriceScale();
@@ -166,7 +168,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     this.stopProfitContainer = new StopProfitContainer(id);
     this.trailingStopContainer = new TrailingStopContainer(pair);
     this.adlMakerContainer = new ADLMakerContainer(id);
-    this.auctionContainer = new AuctionContainer(pair);
+    this.auctionContainer = new SelectAuctionContainer(pair);
 
     this.ARR_SIZE = arrSize > 0 ? arrSize : DEFAULT_ARR_SIZE;
     this.CACHE_DEPTH = cacheDepth > 0 ? cacheDepth : DEFAULT_CACHE_DEPTH;
@@ -175,6 +177,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     this.bookArr = new OrderBookPriceLevel[ARR_SIZE];
     this.outOfBoundsOrderMap = new HashMap<>();
     this.outOfBoundsOrderMapBySecondaryOrderId = new HashMap<>();
+    this.idToOrderMap = new Long2ObjectHashMap<>();
     this.settleCoinUsdMarkInstrument = InstrumentCache.getBySymbol(USDC);
     this.usdMark = pair.getIndexFeedUsdMark();
     this.orderBookStrategy = orderBookStrategy;
@@ -463,6 +466,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         break;
       case SELL_MARKET:
         addSellMarket(order);
+        break;
+      case BUY_SELECT:
+        addBuySelect(order);
+        break;
+      case SELL_SELECT:
+        addSellSelect(order);
         break;
       case STOP_BUY_LIMIT:
         addStopBuyLimit(order);
@@ -1004,6 +1013,41 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     return lastPriceLevelVisited;
   }
 
+  public int matchOnAskOnSelect(final Order takerOrder, final Order makerOrder) {
+    final int lastPriceLevelVisited = makerOrder.getPriceInt();
+
+    // match
+    // cancel if self-trading
+    if (PREVENT_SELF_TRADE && !takerOrder.isLmm() && (takerOrder.getAccount() != 8) && takerOrder.getAccount() == makerOrder.getAccount()) {
+      LOGGER.warn(LOG_FMT_4, "matchOnAsksMarket cancel self-trading, takerOrder=", takerOrder, ", tmpPtr=", makerOrder);
+      cancelOrder(takerOrder);
+      return lastPriceLevelVisited;
+    } else if (takerOrder.getMatchQuantityLong(makerOrder) < makerOrder.getMatchQuantityLong(takerOrder)) {
+      final long quantityFilled = takerOrder.getMatchQuantityLong(makerOrder);
+      makerOrder.setQuantityLong(makerOrder.getMatchQuantityLong(takerOrder) - quantityFilled);
+      takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(makerOrder) - quantityFilled);
+      filled(quantityFilled, makerOrder, takerOrder, BUY_SELECT);
+      return lastPriceLevelVisited;
+    } else {
+      final long quantityFilled = makerOrder.getMatchQuantityLong(takerOrder);
+      makerOrder.setQuantityLong(makerOrder.getMatchQuantityLong(takerOrder) - quantityFilled);
+      takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(makerOrder) - quantityFilled);
+      filled(quantityFilled, makerOrder, takerOrder, BUY_SELECT);
+      removeSellOrder(makerOrder);
+
+      if (takerOrder.getMatchQuantityLong(makerOrder) == 0) {
+        OrderObjectPool.returnObject(makerOrder);
+        return lastPriceLevelVisited;
+      }
+    }
+
+    // market sweeped, no liquidity remains
+    if (takerOrder.getQty() > 0) {
+      cancelOrder(takerOrder);
+    }
+    return lastPriceLevelVisited;
+  }
+
   public final boolean isAsksFillOrKill(final Order newPtr) {
     long quantity = 0;
 
@@ -1153,6 +1197,42 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
           tmpPtr = tmpPtr.getNext();
       }
     }
+    // market sweeped, no liquidity remains
+    if (takerOrder.getQty() > 0) {
+      cancelOrder(takerOrder);
+    }
+    return lastPriceLevelVisited;
+  }
+
+
+  public final int matchOnBidOnSelect(final Order takerOrder, final Order makerOrder) {
+    final int lastPriceLevelVisited = makerOrder.getPriceInt();
+
+    // match
+    // cancel if self-trading
+    if (PREVENT_SELF_TRADE && !takerOrder.isLmm() && (takerOrder.getAccount() != 8) && takerOrder.getAccount() == makerOrder.getAccount()) {
+      LOGGER.warn(LOG_FMT_4, "matchOnBidsMarket cancel self-trading, takerOrder=", takerOrder, ", tmpPtr=", makerOrder);
+      cancelOrder(takerOrder);
+      return lastPriceLevelVisited;
+    } else if (takerOrder.getMatchQuantityLong(makerOrder) < makerOrder.getMatchQuantityLong(takerOrder)) {
+      final long quantityFilled = takerOrder.getMatchQuantityLong(makerOrder);
+      makerOrder.setQuantityLong(makerOrder.getMatchQuantityLong(takerOrder) - quantityFilled);
+      takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(makerOrder) - quantityFilled);
+      filled(quantityFilled, makerOrder, takerOrder, SELL_SELECT);
+      return lastPriceLevelVisited;
+    } else {
+      final long quantityFilled = makerOrder.getMatchQuantityLong(takerOrder);
+      makerOrder.setQuantityLong(makerOrder.getMatchQuantityLong(takerOrder) - quantityFilled);
+      takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(makerOrder) - quantityFilled);
+      filled(quantityFilled, makerOrder, takerOrder, SELL_SELECT);
+      removeBuyOrder(makerOrder);
+
+      if (takerOrder.getMatchQuantityLong(makerOrder) == 0) {
+        OrderObjectPool.returnObject(makerOrder);
+        return lastPriceLevelVisited;
+      }
+    }
+
     // market sweeped, no liquidity remains
     if (takerOrder.getQty() > 0) {
       cancelOrder(takerOrder);
@@ -1552,6 +1632,126 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     OrderObjectPool.returnObject(newPtr);
   }
 
+
+  public final void addBuySelect(final Order newPtr) {
+    if (isCircuitBreaker()) {
+      if (LOGGER.isTraceEnabled()) {
+        LOGGER.trace(LOG_FMT_3, REJECT_ORDER_EQ, MARKET_CIRCUIT_BREAKER, ORDER_EQ, newPtr);
+      }
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
+
+    final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
+
+    if (counterOrder == null || counterOrder.getQty() <= 0) {
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
+
+    final int marketOrderRiskPrice = counterOrder.getPrice2Int();
+
+    if ((askLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
+        && marketStatus != MarketStatus.OPEN_AUCTION) {
+      // ack
+      if (Context.isAckRejectMessages()) {
+        final ExecutionReportMessage executionReportMessage =
+            ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
+        matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+      }
+
+      matcherToPublisherQueue.addGuaranteed(
+          BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
+              askLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
+              askLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+
+      OrderObjectPool.returnObject(newPtr);
+      return;
+    }
+
+    // ack
+    if (!rebuildInProgress && publishAcks) {
+      final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
+      matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+    }
+
+    // auction
+    if (MarketStatus.OPEN_AUCTION == marketStatus) {
+      auctionContainer.addBuyLimit(newPtr);
+      return;
+    }
+
+    // match orders
+    if (MarketStatus.PREOPEN != marketStatus && MarketStatus.DR_MODE != marketStatus) {
+      final int lastPriceLevelVisited = matchOnAskOnSelect(newPtr, counterOrder);
+      triggerStopLimitOrders(lastPriceLevelVisited);
+    }
+    OrderObjectPool.returnObject(newPtr);
+  }
+
+  public final void addSellSelect(final Order newPtr) {
+    if (isCircuitBreaker()) {
+      if (LOGGER.isTraceEnabled()) {
+        LOGGER.trace(LOG_FMT_3, REJECT_ORDER_EQ, MARKET_CIRCUIT_BREAKER, ORDER_EQ, newPtr);
+      }
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
+
+    final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
+
+    if (counterOrder == null || counterOrder.getQty() <= 0) {
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
+
+    final int marketOrderRiskPrice = counterOrder.getPrice2Int();
+    if ((bidLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
+        && marketStatus != MarketStatus.OPEN_AUCTION) {
+      // ack
+      if (Context.isAckRejectMessages()) {
+        final ExecutionReportMessage executionReportMessage =
+            ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
+        matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+      }
+
+      matcherToPublisherQueue.addGuaranteed(
+          BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
+              bidLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
+              bidLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+
+      return;
+    }
+
+    // ack
+    if (!rebuildInProgress && publishAcks) {
+      final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
+      matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+    }
+
+    // auction
+    if (MarketStatus.OPEN_AUCTION == marketStatus) {
+      auctionContainer.addSellLimit(newPtr);
+      return;
+    }
+
+    // match orders
+    if (MarketStatus.PREOPEN != marketStatus && MarketStatus.DR_MODE != marketStatus) {
+      final int lastPriceLevelVisited = matchOnBidOnSelect(newPtr, counterOrder);
+      triggerStopLimitOrders(lastPriceLevelVisited);
+    }
+    OrderObjectPool.returnObject(newPtr);
+  }
 
   public final void addStopBuyLimit(final Order newPtr) {
     if (isCircuitBreaker()) {
@@ -2452,8 +2652,16 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   public MarketDataSnapshotFullRefreshEncoder build(final MarketDataSnapshotFullRefreshEncoder marketDataSnapshotFullRefreshEncoder) {
     final int[] bidPricesArr = new int[CACHE_DEPTH];
     final long[] bidQuantityArr = new long[CACHE_DEPTH];
+    final long[] bidAssetIdArr = new long[CACHE_DEPTH];
+    final int[] bidTokenIdArr = new int[CACHE_DEPTH];
+    final long[] bidSelectIdArr = new long[CACHE_DEPTH];
+
     final int[] askPricesArr = new int[CACHE_DEPTH];
     final long[] askQuantityArr = new long[CACHE_DEPTH];
+    final long[] askAssetIdArr = new long[CACHE_DEPTH];
+    final int[] askTokenIdArr = new int[CACHE_DEPTH];
+    final long[] askSelectIdArr = new long[CACHE_DEPTH];
+
     int bidIndex = 0;
     int askIndex = 0;
 
@@ -2478,16 +2686,34 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       }
 
       bidPricesArr[bidIndex] = temp.getPriceInt();
+      bidAssetIdArr[bidIndex] = temp.getAssetId();
+      bidTokenIdArr[bidIndex] = temp.getTokenId();
+      bidSelectIdArr[bidIndex] = temp.getSelectId();
+
+
       if (!temp.isHidden())
         bidQuantityArr[bidIndex] = temp.getQuantityLong();
       temp = temp.getNext();
       while (temp != null) {
-        if (!temp.isHidden())
+        if (!temp.isHidden()) {
+          if (temp.getAssetId() != bidAssetIdArr[bidIndex] || temp.getTokenId() != bidTokenIdArr[bidIndex]) {
+            bidIndex++;
+            if (bidIndex >= CACHE_DEPTH)
+              break;
+            bidPricesArr[bidIndex] = temp.getPriceInt();
+            bidAssetIdArr[bidIndex] = temp.getAssetId();
+            bidTokenIdArr[bidIndex] = temp.getTokenId();
+            bidSelectIdArr[bidIndex] = temp.getSelectId();
+          }
           bidQuantityArr[bidIndex] += temp.getQuantityLong();
+        }
         temp = temp.getNext();
       }
-      if (bidQuantityArr[bidIndex] > 0)
+      if (bidQuantityArr[bidIndex] > 0) {
         bidIndex++;
+        if (bidIndex >= CACHE_DEPTH)
+          break;
+      }
     }
 
     for (int i = 0; i < CACHE_DEPTH; i++) {
@@ -2515,12 +2741,25 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         askQuantityArr[askIndex] = temp.getQuantityLong();
       temp = temp.getNext();
       while (temp != null) {
-        if (!temp.isHidden())
-          askQuantityArr[askIndex] += temp.getQuantityLong();
+        if (!temp.isHidden()) {
+          if (temp.getAssetId() != askAssetIdArr[bidIndex] || temp.getTokenId() != askTokenIdArr[bidIndex]) {
+            bidIndex++;
+            if (bidIndex >= CACHE_DEPTH)
+              break;
+            askPricesArr[bidIndex] = temp.getPriceInt();
+            askAssetIdArr[bidIndex] = temp.getAssetId();
+            askTokenIdArr[bidIndex] = temp.getTokenId();
+            askSelectIdArr[bidIndex] = temp.getSelectId();
+          }
+          askQuantityArr[bidIndex] += temp.getQuantityLong();
+        }
         temp = temp.getNext();
       }
-      if (askQuantityArr[askIndex] > 0)
+      if (askQuantityArr[askIndex] > 0) {
         askIndex++;
+        if (askIndex >= CACHE_DEPTH)
+          break;
+      }
     }
     if (marketStatus != null)
       marketDataSnapshotFullRefreshEncoder.marketStatus(marketStatus.value());
@@ -2545,6 +2784,9 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       entry.priceScale(instrumentPair.getPriceScale());
       entry.quantity(bidQuantityArr[i]);
       entry.quantityScale(instrumentPair.getQuantityScale());
+      entry.assetId(bidAssetIdArr[i]);
+      entry.tokenId(bidTokenIdArr[i]);
+      entry.selectId(bidSelectIdArr[i]);
     }
     for (int i = 0; i < askIndex; i++) {
       entry = entry.next();
@@ -2553,6 +2795,9 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       entry.priceScale(instrumentPair.getPriceScale());
       entry.quantity(askQuantityArr[i]);
       entry.quantityScale(instrumentPair.getQuantityScale());
+      entry.assetId(askAssetIdArr[i]);
+      entry.tokenId(askTokenIdArr[i]);
+      entry.selectId(askSelectIdArr[i]);
     }
 
     return marketDataSnapshotFullRefreshEncoder;

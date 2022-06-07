@@ -1,8 +1,10 @@
 package com.solfini.instrument;
 
-import org.slf4j.LoggerFactory;
+import java.util.Comparator;
+import java.util.Set;
+import java.util.TreeSet;
 import org.slf4j.Logger;
-
+import org.slf4j.LoggerFactory;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
 import com.solfini.internal.admin.schema.AssetType;
@@ -42,6 +44,8 @@ public class Position implements Appendable, Constants {
   private UserOpenOrdersByPair userOpenOrdersByPair;
   private int bankruptPriceInt;
   private boolean markAsReturned = false;
+
+  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId]
 
   public Position() {
     // default constructor
@@ -83,6 +87,13 @@ public class Position implements Appendable, Constants {
           position.userOpenOrdersByPair.set(user, instrumentPair);
         }
       }
+
+      final Set<long[]> sourceAssetIdtreeSet = source.getAssetIdtreeSet();
+      if (sourceAssetIdtreeSet != null) {
+        position.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+      } else
+        position.assetIdtreeSet = null;
+
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);
     }
@@ -135,6 +146,7 @@ public class Position implements Appendable, Constants {
     this.settleCoinRealized = 0;
     this.bankruptPriceInt = 0;
     this.isTouched = false;
+    this.assetIdtreeSet = null;
 
     if (userOpenOrdersByPair != null) {
       userOpenOrdersByPair.clear();
@@ -354,6 +366,44 @@ public class Position implements Appendable, Constants {
     return markAsReturned;
   }
 
+  public final Set<long[]> getAssetIdtreeSet() {
+    return assetIdtreeSet;
+  }
+
+  public final void addAssetIdtreeSet(final Set<long[]> assetIdtreeSet) {
+    if (this.assetIdtreeSet == null)
+      this.assetIdtreeSet = assetIdtreeSet;
+    else if (assetIdtreeSet != null) {
+      this.assetIdtreeSet.addAll(assetIdtreeSet);
+    }
+  }
+
+  public final void setAssetIdtreeSet(final Set<long[]> assetIdtreeSet) {
+    this.assetIdtreeSet = assetIdtreeSet;
+  }
+
+  public final void addAssetId(final long assetId, final int tokenId) {
+    if (assetId == 0)
+      return;
+
+    if (assetIdtreeSet == null)
+      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+
+    final long[] value = {assetId, tokenId};
+    assetIdtreeSet.add(value);
+  }
+
+  public final void removeAssetId(final long assetId, final int tokenId) {
+    if (assetId == 0)
+      return;
+
+    if (assetIdtreeSet == null)
+      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+
+    final long[] value = {assetId, tokenId};
+    assetIdtreeSet.remove(value);
+  }
+
   @Override
   public String toString() {
     StringBuilder s = new StringBuilder();
@@ -382,5 +432,22 @@ public class Position implements Appendable, Constants {
         .append(",\"bankruptPriceInt\":").append(bankruptPriceInt);
     sb.append("}");
     return sb.toString();
+  }
+
+  public static final class AssetIdComparator implements Comparator<long[]> {
+    @Override
+    public int compare(final long[] o1, final long[] o2) {
+      if (o1[1] < o2[1])
+        return -1;
+      if (o1[1] > o2[1])
+        return 1;
+
+      if (o1[2] < o2[2])
+        return -1;
+      if (o1[2] > o2[2])
+        return 1;
+
+      return 0;
+    }
   }
 }

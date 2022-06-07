@@ -9,11 +9,9 @@ import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.user.User;
 import com.solfini.util.MbxMath;
-
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.*;
 
 public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
@@ -22,7 +20,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
   protected void createInstruments() {
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 2));
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 4, 3));
-    InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 2, CASH_PREORDER_CHECK));
+    InstrumentCache.updateSecurityDefinition(
+        createInstrumentPairDefinition(BTC_USDT, UpdateType.PUT, "BTC/USDT", BTC, USDT, 2, 2, CASH_PREORDER_CHECK));
 
     expectMessage("securityId=" + USDT + ", symbol=USDT");
     expectMessage("securityId=" + BTC + ", symbol=BTC");
@@ -45,8 +44,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
   @Override
   protected void createUsers() {
     super.createUsers();
-    user.addPosition(BTC, 10_000_00);
-    user.addPosition(BTC_USDT, 10_000_00);
+    user.addPosition(BTC, 10_000_00, null);
+    user.addPosition(BTC_USDT, 10_000_00, null);
 
     user.getPosition(BTC_USDT).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT));
   }
@@ -716,9 +715,9 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
   @Test
   public void cancelSellOrderFilled() {
     User userk = createUser(301);
-    userk.addPosition(BTC, 10_000_00);
-    userk.addPosition(USDT, 10_000_00);
-    userk.addPosition(BTC_USDT, 10_000_00);
+    userk.addPosition(BTC, 10_000_00, null);
+    userk.addPosition(USDT, 10_000_00, null);
+    userk.addPosition(BTC_USDT, 10_000_00, null);
 
     expectMessage("userId=301");
     expectOutput("userId=301");
@@ -825,7 +824,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     expectMessage(
         "orderId=3, ordType=LIMIT, side=BUY, price=1011, orderQty=600, leavesQty=100, cumQty=500, timeInForce=IMMEDIATE_OR_CANCEL, ordStatus=PARTIALLY_FILLED");
     expectMessage("orderId=1, ordType=LIMIT, side=SELL, price=1011, orderQty=500, leavesQty=0, cumQty=500, ordStatus=FILLED");
-    expectMessage("orderId=3, ordType=LIMIT, side=BUY, price=1011, orderQty=600, leavesQty=0, cumQty=600, timeInForce=IMMEDIATE_OR_CANCEL, ordStatus=FILLED");
+    expectMessage(
+        "orderId=3, ordType=LIMIT, side=BUY, price=1011, orderQty=600, leavesQty=0, cumQty=600, timeInForce=IMMEDIATE_OR_CANCEL, ordStatus=FILLED");
     expectMessage("orderId=2, ordType=LIMIT, side=SELL, price=1011, orderQty=300, leavesQty=200, cumQty=100, ordStatus=PARTIALLY_FILLED");
     assertMessages();
   }
@@ -1273,7 +1273,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     Assert.assertNotNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY));
     Assert.assertEquals(1, user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY).getOrderId());
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(10, 0, user, pair.getId(), 1011, 500, Side.BUY, DAY, createOrder(2, user, pair.getId(), 1012, 500, Side.BUY, DAY)));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(10, 0, user, pair.getId(), 1011, 500, Side.BUY, DAY,
+        createOrder(2, user, pair.getId(), 1012, 500, Side.BUY, DAY)));
     expectMessage("orderId=1, ordType=LIMIT, side=BUY, price=1011, orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderId=1, ordType=LIMIT, side=BUY, price=1011, orderQty=500, ordStatus=CANCELED");
     expectMessage("orderId=2, ordType=LIMIT, side=BUY, price=1012, orderQty=500, ordStatus=NEW");
@@ -1283,7 +1284,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     Assert.assertNotNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY));
     Assert.assertEquals(2, user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY).getOrderId());
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(11, 0, user, pair.getId(), 1012, 500, Side.BUY, DAY, createOrder(3, user, pair.getId(), 1013, 500, Side.BUY, DAY)));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(11, 0, user, pair.getId(), 1012, 500, Side.BUY, DAY,
+        createOrder(3, user, pair.getId(), 1013, 500, Side.BUY, DAY)));
     expectMessage("orderId=2, ordType=LIMIT, side=BUY, price=1012, orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderId=2, ordType=LIMIT, side=BUY, price=1012, orderQty=500, ordStatus=CANCELED");
     expectMessage("orderId=3, ordType=LIMIT, side=BUY, price=1013, orderQty=500, ordStatus=NEW");
@@ -1293,7 +1295,7 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     Assert.assertNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder(2, Side.BUY));
     Assert.assertNotNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY));
     Assert.assertEquals(3, user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.BUY).getOrderId());
-    }
+  }
 
   // Cancel replace sell order with the same client order id
   @Test
@@ -1308,7 +1310,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     Assert.assertNotNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.SELL));
     Assert.assertEquals(1, user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.SELL).getOrderId());
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(10, 0, user, pair.getId(), 1011, 500, Side.SELL, DAY, createOrder(2, user, pair.getId(), 1012, 500, Side.SELL, DAY)));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(10, 0, user, pair.getId(), 1011, 500, Side.SELL, DAY,
+        createOrder(2, user, pair.getId(), 1012, 500, Side.SELL, DAY)));
     expectMessage("orderId=1, ordType=LIMIT, side=SELL, price=1011, orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderId=1, ordType=LIMIT, side=SELL, price=1011, orderQty=500, ordStatus=CANCELED");
     expectMessage("orderId=2, ordType=LIMIT, side=SELL, price=1012, orderQty=500, ordStatus=NEW");
@@ -1318,7 +1321,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
     Assert.assertNotNull(user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.SELL));
     Assert.assertEquals(2, user.getPosition(pair.getId()).getUserOpenOrdersByPair().lookupOrder("ClOrdId", Side.SELL).getOrderId());
 
-    orderBook.cancelReplaceOrder(createCancelReplaceOrder(11, 0, user, pair.getId(), 1012, 500, Side.SELL, DAY, createOrder(3, user, pair.getId(), 1013, 500, Side.SELL, DAY)));
+    orderBook.cancelReplaceOrder(createCancelReplaceOrder(11, 0, user, pair.getId(), 1012, 500, Side.SELL, DAY,
+        createOrder(3, user, pair.getId(), 1013, 500, Side.SELL, DAY)));
     expectMessage("orderId=2, ordType=LIMIT, side=SELL, price=1012, orderQty=500, ordStatus=PENDING_CANCEL");
     expectMessage("orderId=2, ordType=LIMIT, side=SELL, price=1012, orderQty=500, ordStatus=CANCELED");
     expectMessage("orderId=3, ordType=LIMIT, side=SELL, price=1013, orderQty=500, ordStatus=NEW");

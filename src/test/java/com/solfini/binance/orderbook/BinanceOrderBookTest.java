@@ -5,7 +5,6 @@ import java.util.Properties;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.event.Level;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
@@ -187,58 +186,58 @@ public class BinanceOrderBookTest extends BinanceModelTest {
     this.validator = orderBook.getOrderBookValidator();
 
     pair.setOrderBook(orderBook.orderBook);
-    pair.setIndexFeedUsdMark(10.084);//10084.510000000002);
+    pair.setIndexFeedUsdMark(10.084);// 10084.510000000002);
   }
 
   protected void createUsers() {
     user = createUser(18);
 
-    user.addPosition(USDT, 10000_000000L);
+    user.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=18");
     expectOutput("userId=18");
 
     user2 = createUser(19);
-    user2.addPosition(USDT, 10000_000000L);
+    user2.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=19");
     expectOutput("userId=19");
 
     user3 = createUser(20);
-    user3.addPosition(USDT, 10000_000000L);
+    user3.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=20");
     expectOutput("userId=20");
 
     user4 = createUser(21);
-    user4.addPosition(USDT, 10000_000000L);
+    user4.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=21");
     expectOutput("userId=21");
 
     user5 = createUser(22);
-    user5.addPosition(USDT, 10000_000000L);
+    user5.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=22");
     expectOutput("userId=22");
 
     user6 = createUser(23);
-    user6.addPosition(USDT, 10000_000000L);
+    user6.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=23");
     expectOutput("userId=23");
 
     user7 = createUser(24);
-    user7.addPosition(USDT, 10000_000000L);
+    user7.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=24");
     expectOutput("userId=24");
 
     user8 = createUser(25);
-    user8.addPosition(USDT, 10000_000000L);
+    user8.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=25");
     expectOutput("userId=25");
 
     user9 = createUser(26);
-    user9.addPosition(USDT, 10000_000000L);
+    user9.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=26");
     expectOutput("userId=26");
 
     user10 = createUser(27);
-    user10.addPosition(USDT, 10000_000000L);
+    user10.addPosition(USDT, 10000_000000L, null);
     expectMessage("userId=27");
     expectOutput("userId=27");
   }

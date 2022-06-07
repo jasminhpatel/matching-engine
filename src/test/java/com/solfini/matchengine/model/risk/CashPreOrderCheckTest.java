@@ -19,7 +19,6 @@ import org.junit.runner.RunWith;
 import com.solfini.sbe.encoder.Side;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
 @RunWith(JUnitParamsRunner.class)
@@ -90,7 +89,7 @@ public class CashPreOrderCheckTest extends OrderBookTest {
         new Object[] {Side.SELL, BTC, true, lessThanMinBalanceToSell, 0, 0, true}, // Not enough balance to deduct amount
         new Object[] {Side.SELL, BTC, true, lessThanRequiredFeeQty, 0, 0, true}, // Not enough balance to deduct fee
         new Object[] {Side.SELL, BTC, true, lessThanMinBalanceToSell + lessThanRequiredFeeQty, 0, 0, true}, // Not enough balance to deduct
-                                                                                                          // fee
+        // fee
 
         // fee deducted from quote position
         new Object[] {Side.BUY, USDT, true, 0, minBalanceToBuy + requiredfeeQty, 0, false}, // Enough balance to deduct amount amount
@@ -99,17 +98,17 @@ public class CashPreOrderCheckTest extends OrderBookTest {
         // fee deducted from neither from base or quote position
         new Object[] {Side.SELL, ETH, true, minBalanceToSell, 0, requiredfeeQty, false}, // Enough balance to deduct fee and amount
         new Object[] {Side.SELL, ETH, true, minBalanceToSell, 0, lessThanRequiredFeeQty, true}, // Enough balance to deduct amount but not
-                                                                                               // fee
+                                                                                                // fee
         new Object[] {Side.SELL, ETH, true, lessThanMinBalanceToSell, 0, requiredfeeQty, true}, // Enough balance to deduct amount
         new Object[] {Side.SELL, ETH, true, minBalanceToSell, 0, lessThanRequiredFeeQty, true}, // Not enough balance to deduct fee // Not
-                                                                                               // enough balance to deduct amount
+                                                                                                // enough balance to deduct amount
         new Object[] {Side.SELL, ETH, true, lessThanRequiredFeeQty, 0, 0, true}, // Not enough balance to deduct fee
 
         // fee deducted from neither from base or quote position
         new Object[] {Side.BUY, ETH, true, 0, minBalanceToBuy, requiredfeeQty, false}, // Enough balance to deduct amount amount and fee
         new Object[] {Side.BUY, ETH, true, 0, lessThanMinBalanceToBuy, requiredfeeQty, true}, // not enough balance to deduct amount
         new Object[] {Side.BUY, ETH, true, 0, lessThanMinBalanceToBuy, lessThanRequiredFeeQty, true}, // not enough balance to deduct amount
-                                                                                                     // or fee
+                                                                                                      // or fee
         ///
         // fee deducted from base position
         new Object[] {Side.SELL, BTC, false, requiredfeeQty + minBalanceToSell, 0, 0, false}, // Enough balance to deduct fee and amount
@@ -117,8 +116,9 @@ public class CashPreOrderCheckTest extends OrderBookTest {
         new Object[] {Side.SELL, BTC, false, requiredfeeQty, 0, 0, true}, // Enough balance to deduct fee but not amount
         new Object[] {Side.SELL, BTC, false, lessThanMinBalanceToSell, 0, 0, true}, // Not enough balance to deduct amount
         new Object[] {Side.SELL, BTC, false, lessThanRequiredFeeQty, 0, 0, true}, // Not enough balance to deduct fee
-        new Object[] {Side.SELL, BTC, false, lessThanMinBalanceToSell + lessThanRequiredFeeQty, 0, 0, false}, // Not enough balance to deduct
-                                                                                                            // fee -
+        new Object[] {Side.SELL, BTC, false, lessThanMinBalanceToSell + lessThanRequiredFeeQty, 0, 0, false}, // Not enough balance to
+                                                                                                              // deduct
+        // fee -
 
         // fee deducted from quote position
         new Object[] {Side.BUY, USDT, false, 0, minBalanceToBuy, 0, true}, // Enough balance to deduct amount amount -
@@ -127,17 +127,18 @@ public class CashPreOrderCheckTest extends OrderBookTest {
         // fee deducted from neither from base or quote position
         new Object[] {Side.SELL, ETH, false, minBalanceToSell, 0, requiredfeeQty, false}, // Enough balance to deduct fee and amount
         new Object[] {Side.SELL, ETH, false, minBalanceToSell, 0, lessThanRequiredFeeQty, false}, // Enough balance to deduct amount but not
-                                                                                                 // fee
+                                                                                                  // fee
         new Object[] {Side.SELL, ETH, false, lessThanMinBalanceToSell, 0, requiredfeeQty, true}, // Enough balance to deduct amount
         new Object[] {Side.SELL, ETH, false, minBalanceToSell, 0, lessThanRequiredFeeQty, false}, // Not enough balance to deduct fee // Not
-                                                                                                 // enough balance to deduct amount
+                                                                                                  // enough balance to deduct amount
         new Object[] {Side.SELL, ETH, false, lessThanRequiredFeeQty, 0, 0, true}, // Not enough balance to deduct fee -
 
         // fee deducted from neither from base or quote position
         new Object[] {Side.BUY, ETH, false, 0, minBalanceToBuy, requiredfeeQty, true}, // Enough balance to deduct amount amount and fee -
         new Object[] {Side.BUY, ETH, false, 0, lessThanMinBalanceToBuy, requiredfeeQty, true}, // not enough balance to deduct amount
-        new Object[] {Side.BUY, ETH, false, 0, lessThanMinBalanceToBuy, lessThanRequiredFeeQty, true}, // not enough balance to deduct amount
-                                                                                                      // or fee
+        new Object[] {Side.BUY, ETH, false, 0, lessThanMinBalanceToBuy, lessThanRequiredFeeQty, true}, // not enough balance to deduct
+                                                                                                       // amount
+                                                                                                       // or fee
     };
   }
 
@@ -178,8 +179,8 @@ public class CashPreOrderCheckTest extends OrderBookTest {
       boolean expectReject) {
     int feeInstrument = setFeeInstrument(side, feeInstrumentId);
 
-    User user = createUser(userId, new Balance(BTC, btcPosition, 2, 0, 0), new Balance(USDT, usdtPosition, 2, 0, 0),
-        new Balance(BTC_USDT_F, btcusdtPosition, 2, 0, 0), new Balance(ETH, btcusdtPosition, 2, 0, 0));
+    User user = createUser(userId, new Balance(BTC, btcPosition, 2, 0, 0, null), new Balance(USDT, usdtPosition, 2, 0, 0, null),
+        new Balance(BTC_USDT_F, btcusdtPosition, 2, 0, 0, null), new Balance(ETH, btcusdtPosition, 2, 0, 0, null));
     user.getPosition(BTC_USDT_F).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT_F));
     expectMessage("UserAdminMessage", "userId=" + userId);
     assertMessages();

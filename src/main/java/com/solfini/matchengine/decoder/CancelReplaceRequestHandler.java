@@ -37,8 +37,8 @@ public class CancelReplaceRequestHandler implements Constants {
             cancelReplaceOrderDecoder.securityId(), newCancelOrderId, newOrderId);
       }
 
-      final CancelReplaceOrder cancelReplaceOrder =
-          new CancelReplaceOrder(cancelReplaceOrderDecoder, newCancelOrderId, cancelOrderPriority++, newOrderId, headerDecoder.kafkaRecordOffset());
+      final CancelReplaceOrder cancelReplaceOrder = new CancelReplaceOrder(cancelReplaceOrderDecoder, newCancelOrderId,
+          cancelOrderPriority++, newOrderId, headerDecoder.kafkaRecordOffset());
       cancelReplaceOrder.setSenderCompId(headerDecoder.senderCompId());
       cancelReplaceOrder.setSecondaryOrderId(NewOrderSingleHandler.getSecondaryOrderId(cancelReplaceOrder.getSecurityId()));
 
@@ -49,9 +49,9 @@ public class CancelReplaceRequestHandler implements Constants {
     }
 
     return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(headerDecoder.senderCompId(),
-        MsgType.ORDER_CANCEL_REPLACE_REQUEST, headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE,
-        UNABLE_TO_PARSE, cancelReplaceOrderDecoder.cancelId(), 0, cancelReplaceOrderDecoder.secondaryOrderId(),
-        cancelReplaceOrderDecoder.securityId(), newCancelOrderId, newOrderId);
+        MsgType.ORDER_CANCEL_REPLACE_REQUEST, headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE,
+        cancelReplaceOrderDecoder.cancelId(), 0, cancelReplaceOrderDecoder.secondaryOrderId(), cancelReplaceOrderDecoder.securityId(),
+        newCancelOrderId, newOrderId);
   }
 
   public static final Message parseCancelOrder(final CancelReplaceOrder cancelReplaceOrder) {
@@ -114,18 +114,16 @@ public class CancelReplaceRequestHandler implements Constants {
           cancelReplaceOrder.setUser(user);
         else {
           return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(cancelReplaceOrder.getSenderCompId(),
-              MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()),
-              BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND, cancelReplaceOrder.getOrigOrderId(), 0,
-              cancelReplaceOrder.getSecondaryOrderId(), cancelReplaceOrder.getSecurityId(),
-              cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
+              MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()), BusinessRejectReason.USER_NOT_FOUND,
+              USER_NOT_FOUND, cancelReplaceOrder.getOrigOrderId(), 0, cancelReplaceOrder.getSecondaryOrderId(),
+              cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
         }
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
         return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(cancelReplaceOrder.getSenderCompId(),
-            MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()),
-            BusinessRejectReason.UNABLE_TO_LOAD_USER, UNABLE_TO_LOAD_USER, cancelReplaceOrder.getOrigOrderId(), 0,
-            cancelReplaceOrder.getSecondaryOrderId(), cancelReplaceOrder.getSecurityId(),
-            cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
+            MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()), BusinessRejectReason.UNABLE_TO_LOAD_USER,
+            UNABLE_TO_LOAD_USER, cancelReplaceOrder.getOrigOrderId(), 0, cancelReplaceOrder.getSecondaryOrderId(),
+            cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
       }
 
 
@@ -137,11 +135,15 @@ public class CancelReplaceRequestHandler implements Constants {
           type = BUY_LIMIT;
         else if (OrdType.MARKET == ordType)
           type = BUY_MARKET;
+        else if (OrdType.SELECT == ordType)
+          type = BUY_SELECT;
       } else if (Side.SELL == side) {
         if (OrdType.LIMIT == ordType)
           type = SELL_LIMIT;
         else if (OrdType.MARKET == ordType)
           type = SELL_MARKET;
+        else if (OrdType.SELECT == ordType)
+          type = SELL_SELECT;
       }
       cancelReplaceOrder.setType(type); // TODO: this isn't being used
 

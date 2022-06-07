@@ -7,7 +7,6 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.common.ReusableLog;
@@ -51,7 +50,7 @@ public class OrderBookExpirePhysicalTest extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
       expectMessage("userId=" + userId);
     }
   }
@@ -175,22 +174,22 @@ public class OrderBookExpirePhysicalTest extends OrderBookTest {
 
       InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
       user = createUser(18);
-      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
-      user.setPosition(BTC_USDT_F, 0); // 0
-      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L, null); // $100,000
+      user.setPosition(BTC_USDT_F, 0, null); // 0
+      user.setPosition(BTC_USDT_F, 0, null); // 0
 
       expectMessage("userId=18");
       expectOutput("userId=18");
 
       user2 = createUser(19);
-      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
-      user2.setPosition(BTC_USDT_F, 0); // 0
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L, null); // $200,000
+      user2.setPosition(BTC_USDT_F, 0, null); // 0
       expectMessage("userId=19");
       expectOutput("userId=19");
 
       user3 = createUser(20);
-      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
-      user3.setPosition(BTC_USDT_F, 0); // 0
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L, null); // $300,000
+      user3.setPosition(BTC_USDT_F, 0, null); // 0
       InsuranceState.setUser(user3);
 
       long now = System.currentTimeMillis();
@@ -250,22 +249,22 @@ public class OrderBookExpirePhysicalTest extends OrderBookTest {
 
       InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
       user = createUser(21);
-      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
-      user.setPosition(BTC_USDT_F, 0); // 0
-      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L, null); // $100,000
+      user.setPosition(BTC_USDT_F, 0, null); // 0
+      user.setPosition(BTC_USDT_F, 0, null); // 0
 
       expectMessage("userId=18");
       expectOutput("userId=18");
 
       user2 = createUser(22);
-      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
-      user2.setPosition(BTC_USDT_F, 0); // 0
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L, null); // $200,000
+      user2.setPosition(BTC_USDT_F, 0, null); // 0
       expectMessage("userId=19");
       expectOutput("userId=19");
 
       user3 = createUser(23);
-      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
-      user3.setPosition(BTC_USDT_F, 0); // 0
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L, null); // $300,000
+      user3.setPosition(BTC_USDT_F, 0, null); // 0
       InsuranceState.setUser(user3);
 
       long now = System.currentTimeMillis();
@@ -326,22 +325,22 @@ public class OrderBookExpirePhysicalTest extends OrderBookTest {
 
       InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
       user = createUser(24);
-      user.setPosition(spotPair.getQuotedId(), 100000_00000000L); // $100,000
-      user.setPosition(BTC_USDT_F, 0); // 0
-      user.setPosition(BTC_USDT_F, 0); // 0
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L, null); // $100,000
+      user.setPosition(BTC_USDT_F, 0, null); // 0
+      user.setPosition(BTC_USDT_F, 0, null); // 0
 
       expectMessage("userId=18");
       expectOutput("userId=18");
 
       user2 = createUser(25);
-      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L); // $200,000
-      user2.setPosition(BTC_USDT_F, 0); // 0
+      user2.setPosition(spotPair.getQuotedId(), 200000_00000000L, null); // $200,000
+      user2.setPosition(BTC_USDT_F, 0, null); // 0
       expectMessage("userId=19");
       expectOutput("userId=19");
 
       user3 = createUser(26);
-      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L); // $300,000
-      user3.setPosition(BTC_USDT_F, 0); // 0
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L, null); // $300,000
+      user3.setPosition(BTC_USDT_F, 0, null); // 0
       InsuranceState.setUser(user3);
 
       long now = System.currentTimeMillis();

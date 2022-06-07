@@ -10,16 +10,13 @@ import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.pool.OrderObjectPool;
-
 import org.junit.Assert;
 import org.junit.Test;
-
 import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import static com.solfini.sbe.encoder.TimeInForce.*;
-
 import java.util.Properties;
 
 public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest {
@@ -52,13 +49,13 @@ public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest 
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDC, 0, 0, 0, 0), new Balance(BTC, 0, 0, 0, 0));
+    user = createUser(18, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDC, 0, 0, 0, 0), new Balance(BTC, 0, 0, 0, 0));
+    user2 = createUser(19, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDC, 0, 0, 0, 0), new Balance(BTC, 0, 0, 0, 0));
+    user3 = createUser(20, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
     expectMessage("userId=20");
 
     user.getPosition(BTC_USDC).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDC));
@@ -67,8 +64,8 @@ public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest 
   }
 
   private void setPosition(final User user, final int instrumentId, final long quantity, final long availableQuantity) {
-      user.getPosition(instrumentId).setQuantity(quantity);
-      user.getPosition(instrumentId).setAvailableQuantity(availableQuantity);
+    user.getPosition(instrumentId).setQuantity(quantity);
+    user.getPosition(instrumentId).setAvailableQuantity(availableQuantity);
   }
 
   private void assertPosition(final User user, final int instrumentId, final long quantity, final long availableQuantity) {
@@ -119,20 +116,23 @@ public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest 
 
     orderBook.addOrder(createOrder(3, user, OrdType.LIMIT, BTC_USDC, 12012_00, 300000, Side.BUY, DAY));
 
-    // available  12012.00 * 0.300000               = 3603.600000
-    // fee        12012.00 * 0.300000 * 0.15%       =    5.405400
-    expectMessage("orderId=3, ordStatus=NEW, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=0, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=0");
+    // available 12012.00 * 0.300000 = 3603.600000
+    // fee 12012.00 * 0.300000 * 0.15% = 5.405400
+    expectMessage(
+        "orderId=3, ordStatus=NEW, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=0, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=0");
 
-    // available  12000.00 * 0.100000               = 1200.000000
-    // adjustment (12012.00 - 12000.00) * 0.100000  =    1.200000
-    // fee        12000.00 * 0.100000 * 0.15%       =    1.800000
-    expectMessage("orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=1800000, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=1201200000");
+    // available 12000.00 * 0.100000 = 1200.000000
+    // adjustment (12012.00 - 12000.00) * 0.100000 = 1.200000
+    // fee 12000.00 * 0.100000 * 0.15% = 1.800000
+    expectMessage(
+        "orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=1800000, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=1201200000");
     expectMessage("orderId=1, ordStatus=FILLED");
 
-    // available  12012.00 * 0.123000               = 1477.470000
-    // adjustment (12012.00 - 12012.00) * 0.123000  =    0.000000
-    // fee        12012.00 * 0.123000 * 0.15%       =    2.216214
-    expectMessage("orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=4016214, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=2678670000");
+    // available 12012.00 * 0.123000 = 1477.470000
+    // adjustment (12012.00 - 12012.00) * 0.123000 = 0.000000
+    // fee 12012.00 * 0.123000 * 0.15% = 2.216214
+    expectMessage(
+        "orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=4016214, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=2678670000");
     expectMessage("orderId=2, ordStatus=FILLED");
 
     assertMessages();
@@ -155,20 +155,23 @@ public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest 
 
     orderBook.addOrder(createOrder(3, user, OrdType.LIMIT, BTC_USDC, 12012_00, 300000, Side.BUY, DAY));
 
-    // available  12012.00 * 0.300000               = 3603.600000
-    // fee        12012.00 * 0.300000 * 0.15%       =    5.405400
-    expectMessage("orderId=3, ordStatus=NEW, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=0, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=0");
+    // available 12012.00 * 0.300000 = 3603.600000
+    // fee 12012.00 * 0.300000 * 0.15% = 5.405400
+    expectMessage(
+        "orderId=3, ordStatus=NEW, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=0, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=0");
 
-    // available  12000.00 * 0.100000               = 1200.000000
-    // adjustment (12012.00 - 12000.00) * 0.100000  =    1.200000
-    // fee        12000.00 * 0.100000 * 0.15%       =    1.800000
-    expectMessage("orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=1800000, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=1201200000");
+    // available 12000.00 * 0.100000 = 1200.000000
+    // adjustment (12012.00 - 12000.00) * 0.100000 = 1.200000
+    // fee 12000.00 * 0.100000 * 0.15% = 1.800000
+    expectMessage(
+        "orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=1800000, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=1201200000");
     expectMessage("orderId=1, ordStatus=FILLED");
 
-    // available  12012.00 * 0.123000               = 1477.470000
-    // adjustment (12012.00 - 12012.00) * 0.123000  =    0.000000
-    // fee        12012.00 * 0.123000 * 0.15%       =    2.216214
-    expectMessage("orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=4016214, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=2678670000");
+    // available 12012.00 * 0.123000 = 1477.470000
+    // adjustment (12012.00 - 12012.00) * 0.123000 = 0.000000
+    // fee 12012.00 * 0.123000 * 0.15% = 2.216214
+    expectMessage(
+        "orderId=3, ordStatus=PARTIALLY_FILLED, feeEstimatedQuantity=5405400, feeAccumulatedQuantity=4016214, availableEstimatedQuantity=3603600000, availableAccumulatedQuantity=2678670000");
     expectMessage("orderId=2, ordStatus=FILLED");
 
     assertMessages();

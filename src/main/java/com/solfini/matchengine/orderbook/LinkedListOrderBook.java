@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -557,12 +556,12 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    final ExecutionReportMessage execMaker =
-        ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
-            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false);
-    final ExecutionReportMessage execTaker =
-        ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
-            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false);
+    final ExecutionReportMessage execMaker = ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair,
+        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
+        filledCount, takerOrder, takerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execTaker = ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair,
+        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
+        filledCount, takerOrder, makerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
 
     preOrderCheck.updateFill(takerOrder, makerOrder.getPriceInt(), quantityFilled, execTaker, quotedUsdMark, settleCoinUsdMark,
         quotedCoinUsdMark, false, takerOrder, makerUserId);
@@ -584,12 +583,12 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    final ExecutionReportMessage execMaker =
-        ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
-            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false);
-    final ExecutionReportMessage execTaker =
-        ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
-            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false);
+    final ExecutionReportMessage execMaker = ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair,
+        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
+        filledCount, takerOrder, takerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execTaker = ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair,
+        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
+        filledCount, takerOrder, makerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
     execMaker.setExecType(execType);
     execTaker.setExecType(execType);
 
@@ -967,7 +966,8 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       if (LOGGER.isInfoEnabled())
         LOGGER.info(LOG_FMT_4, "updateOrderFromExecReport, feeId=", (long) executionReport.getFeeInstrumentId(), VALUE_EQ,
             (-executionReport.getFeeQty()));
-      UserCache.getExchangeUser().addPosition(executionReport.getFeeInstrumentId(), -executionReport.getFeeQty());
+      UserCache.getExchangeUser().addPosition(executionReport.getFeeInstrumentId(), -executionReport.getFeeQty(),
+          executionReport.getAssetId(), executionReport.getTokenId());
     }
 
     DRExecutionReportObjectPool.returnObject(executionReport);

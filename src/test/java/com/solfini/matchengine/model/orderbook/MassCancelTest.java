@@ -9,16 +9,13 @@ import com.solfini.user.UserCache;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
 public class MassCancelTest extends OrderBookTest {
   private static int nextUserId = 2000;
 
-  protected void resetBalance(User user){
-    updateBalance(user.getId(), UpdateType.PUT,
-      new Balance(BTC_USDT_F, 0, 0, 0, 0)
-    );
+  protected void resetBalance(User user) {
+    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 0, 0, 0, 0, null));
     expectMessage("userId=" + user.getId());
     assertMessages();
     Assert.assertEquals(0, user.getPositionArr()[BTC_USDT_F].getQuantity());
@@ -26,9 +23,9 @@ public class MassCancelTest extends OrderBookTest {
 
   protected void assertOpenOrders(User user, int securityId, double expectedOpenOrderValue, int expectedOpenOrderCount) {
     double openOrderValue = user.getPositionArr()[securityId].getUserOpenOrdersByPair().getAsksNotional()
-      + user.getPositionArr()[securityId].getUserOpenOrdersByPair().getBidsNotional();
+        + user.getPositionArr()[securityId].getUserOpenOrdersByPair().getBidsNotional();
     int openOrderCount = user.getPositionArr()[securityId].getUserOpenOrdersByPair().getAsksCount()
-      + user.getPositionArr()[securityId].getUserOpenOrdersByPair().getBidsCount();
+        + user.getPositionArr()[securityId].getUserOpenOrdersByPair().getBidsCount();
     Assert.assertEquals(expectedOpenOrderValue, openOrderValue, 0.001);
     Assert.assertEquals(expectedOpenOrderCount, openOrderCount);
     Assert.assertEquals(expectedOpenOrderCount, user.getOpenOrderCount());
@@ -49,8 +46,8 @@ public class MassCancelTest extends OrderBookTest {
   }
 
   protected User nextUser() {
-    User user =
-      createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0), new Balance(USDT, 200, 0, 0, 0), new Balance(BTC_USDT_F, 200, 0, 0, 0));
+    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
 
     expectMessage("UserAdminMessage", "userId=" + user.getId());
     assertMessages();
@@ -77,9 +74,9 @@ public class MassCancelTest extends OrderBookTest {
     massCancelOrder.onMatcher();
     expectMessage("MassCancelOrder", "securityId=" + pair.getId());
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     assertMessages();
 
     assertOpenOrders(user, pair.getId(), 0, 0);
@@ -133,17 +130,17 @@ public class MassCancelTest extends OrderBookTest {
     massCancelOrder.onMatcher();
     expectMessage("MassCancelOrder", "securityId=" + pair.getId());
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=BUY, ordType=LIMIT, account=" + user.getId() + ", orderId=3, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=BUY, ordType=LIMIT, account=" + user.getId() + ", orderId=3, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=2, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=2, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     assertMessages();
 
     assertOpenOrders(user, pair.getId(), 0, 0);
@@ -163,9 +160,9 @@ public class MassCancelTest extends OrderBookTest {
 
     Assert.assertEquals(20_000, user.getPositionArr()[BTC_USDT_F].getQuantity());
 
-    updateBalance(user.getId(), UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, 30, 2));
-    expectMessage(
-      "userId=" + user.getId() + ", updateType=PATCH, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=200.30, balance_change=.30, "
+    updateBalance(user.getId(), UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, 30, 2, null));
+    expectMessage("userId=" + user.getId()
+        + ", updateType=PATCH, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=200.30, balance_change=.30, "
         + "eventType=0, orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0,"
         + " settleCoinUsdMark=0.0, settleCoinUnrealized=0.0, settleCoinRealized=0.0]], sourceSeqNum=0, sourceSendTime=0, "
         + "sourceSeqNum=0, sourceSendTime=0, balanceTransferToUserId=0]"); // baseUsdMark=0.0,
@@ -181,9 +178,9 @@ public class MassCancelTest extends OrderBookTest {
     massCancelOrder.onMatcher();
     expectMessage("MassCancelOrder", "securityId=" + pair.getId());
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     assertMessages();
 
     assertOpenOrders(user, pair.getId(), 0, 0);
@@ -203,9 +200,9 @@ public class MassCancelTest extends OrderBookTest {
 
     Assert.assertEquals(20_000, user.getPositionArr()[BTC_USDT_F].getQuantity());
 
-    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 30, 2, 0, 0));
-    expectMessage(
-      "userId=" + user.getId() + ", updateType=PUT, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=.30, balance_change=0, eventType=0,"
+    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 30, 2, 0, 0, null));
+    expectMessage("userId=" + user.getId()
+        + ", updateType=PUT, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=.30, balance_change=0, eventType=0,"
         + " orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0, "
         + "settleCoinUsdMark=0.0, settleCoinUnrealized=0.0, settleCoinRealized=0.0]]"); // baseUsdMark=0.0
     assertMessages();
@@ -220,9 +217,9 @@ public class MassCancelTest extends OrderBookTest {
     massCancelOrder.onMatcher();
     expectMessage("MassCancelOrder", "securityId=0");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
+        + "execType=PENDING_CANCEL, ordStatus=PENDING_CANCEL");
     expectMessage("securityId=12, clOrdId=ClOrdId, symbol=BTC/USDT[F], side=SELL, ordType=LIMIT, account=" + user.getId() + ", orderId=1, "
-      + "execType=CANCELED, ordStatus=CANCELED");
+        + "execType=CANCELED, ordStatus=CANCELED");
     assertMessages();
 
     assertOpenOrders(user, pair.getId(), 0, 0);

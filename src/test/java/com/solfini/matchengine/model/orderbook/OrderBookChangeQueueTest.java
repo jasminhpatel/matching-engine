@@ -3,7 +3,6 @@ package com.solfini.matchengine.model.orderbook;
 import org.junit.Test;
 import com.solfini.user.User;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
 public class OrderBookChangeQueueTest extends OrderBookTest {
@@ -12,7 +11,7 @@ public class OrderBookChangeQueueTest extends OrderBookTest {
   @Test
   public void disableEnable() {
     User user = createUser(50);
-    user.addPosition(USDT, 10_000_00);
+    user.addPosition(USDT, 10_000_00, null);
     expectMessage("userId=50");
 
     orderBook.disableOutputQueue();

@@ -41,6 +41,10 @@ public class CancelReplaceOrder extends Message implements Constants {
   private long newOrderId;
   private long secondaryOrderId; // orderId grouped by instrumentPair
 
+  private long assetId;
+  private int tokenId;
+  private long selectId;
+
   private String clOrdId;
   private int submitterId;
   private int account; // userid
@@ -94,6 +98,10 @@ public class CancelReplaceOrder extends Message implements Constants {
     user = UserCache.get(account);
     submitterId = cancelReplaceOrderDecoder.submitterId();
 
+    assetId = cancelReplaceOrderDecoder.assetId();
+    tokenId = cancelReplaceOrderDecoder.tokenId();
+    selectId = cancelReplaceOrderDecoder.selectId();
+
     forceAddOrder = cancelReplaceOrderDecoder.forceAddOrder() == BooleanType.FALSE ? false : true;
 
     // create new order
@@ -138,6 +146,9 @@ public class CancelReplaceOrder extends Message implements Constants {
     senderCompId = order.getSenderCompId();
     account = order.getAccount();
     submitterId = order.getSubmitterId();
+    assetId = order.getAssetId();
+    tokenId = order.getTokenId();
+    selectId = order.getSelectId();
   }
 
   public final int getSecurityId() {
@@ -335,6 +346,30 @@ public class CancelReplaceOrder extends Message implements Constants {
     this.forceAddOrder = forceAddOrder;
   }
 
+  public final long getAssetId() {
+    return assetId;
+  }
+
+  public final void setAssetId(final int assetId) {
+    this.assetId = assetId;
+  }
+
+  public final int getTokenId() {
+    return tokenId;
+  }
+
+  public final void setTokenId(final int tokenId) {
+    this.tokenId = tokenId;
+  }
+
+  public final long getSelectId() {
+    return selectId;
+  }
+
+  public final void setSelectId(final int selectId) {
+    this.selectId = selectId;
+  }
+
   public final Order getOrder() {
     if (order != null) {
       order.setInputTime(inputTime);
@@ -404,7 +439,8 @@ public class CancelReplaceOrder extends Message implements Constants {
         .append(PRICEINT_EQ).append(priceInt).append(PRICE2INT_EQ).append(price2Int).append(QUANTITYLONG_EQ).append(quantityLong)
         .append(QUANTITYORIGLONG_EQ).append(quantityOrigLong).append(SECONDARYORDERID_EQ).append(secondaryOrderId).append(ORDER_EQ)
         .append(order).append(INPUTTIME_EQ).append(inputTime).append(DECODEDTIME_EQ).append(decodedTime).append(SOURCESEQNUM_EQ)
-        .append(sourceSeqNum).append(SOURCESENDTIME_EQ).append(sourceSendTime).append(']');
+        .append(sourceSeqNum).append(SOURCESENDTIME_EQ).append(sourceSendTime).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ)
+        .append(tokenId).append(SELECTID_EQ).append(selectId).append(']');
     return s;
   }
 
@@ -425,7 +461,8 @@ public class CancelReplaceOrder extends Message implements Constants {
         .append(",\"quantityLong\":").append(quantityLong).append(",\"quantityOrigLong\":").append(quantityOrigLong).append(",\"price2\":")
         .append(price2).append(",\"price2_scale\":").append(price2Scale).append(",\"qty2\":").append(qty2).append(",\"qty2_scale\":")
         .append(qty2Scale).append(",\"newOrderId\":").append(newOrderId).append(",\"cancelId\":").append(secondaryOrderId)
-        .append(",\"price2Int\":").append(price2Int).append(",\"order\":").append(order.getOrderId());
+        .append(",\"price2Int\":").append(price2Int).append(",\"order\":").append(order.getOrderId()).append(",\"assetId\":")
+        .append(assetId).append(",\"tokenId\":").append(tokenId).append(",\"selectId\":").append(selectId);
     sb.append("}");
     return sb.toString();
   }

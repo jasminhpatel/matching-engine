@@ -26,7 +26,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
-
 import com.solfini.common.Context;
 import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
@@ -98,7 +97,7 @@ public class KafkaFixInputListenerTest extends ModelTest {
 
     pair = InstrumentCache.getPair(BTC_USDT_F);
     user = createUser(28);
-    user.addPosition(pair.getId(), 10_000);
+    user.addPosition(pair.getId(), 10_000, null);
     expectMessage("userId=28");
     assertMessages();
   }
@@ -133,7 +132,7 @@ public class KafkaFixInputListenerTest extends ModelTest {
   @Test
   public void decodeLogonMessage() {
     User newUser = createUser(29);
-    newUser.addPosition(pair.getId(), 10_000);
+    newUser.addPosition(pair.getId(), 10_000, null);
     expectMessage("userId=29");
     assertMessages();
 

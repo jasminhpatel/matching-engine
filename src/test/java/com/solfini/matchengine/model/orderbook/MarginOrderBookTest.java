@@ -6,16 +6,13 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import org.junit.Test;
-
 import com.solfini.matchengine.orderbook.ArrayOrderBook;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.preordercheck.PreOrderCheck;
 import com.solfini.user.User;
 import com.solfini.sbe.encoder.Side;
-
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
-
 import java.util.Properties;
 
 /**
@@ -63,11 +60,11 @@ public class MarginOrderBookTest extends OrderBookTest {
     orderBook.setMark(125_000);
     base.setIndexFeedUsdMark(6_000);
 
-    user1.setPosition(USDT, 1_000_000);
-    user1.setPosition(BTC, 5_000);
-    user1.setPosition(BTC_USDT_F, 300);
-    user2.setPosition(USDT, 1_000_000);
-    user2.setPosition(BTC, 5_000);
+    user1.setPosition(USDT, 1_000_000, null);
+    user1.setPosition(BTC, 5_000, null);
+    user1.setPosition(BTC_USDT_F, 300, null);
+    user2.setPosition(USDT, 1_000_000, null);
+    user2.setPosition(BTC, 5_000, null);
 
     int orderId = 0;
     orderBook.setMark(120_000);
@@ -145,11 +142,11 @@ public class MarginOrderBookTest extends OrderBookTest {
     orderBook.setMark(125_000);
     base.setIndexFeedUsdMark(6_000);
 
-    user1.setPosition(USDT, 1_000_000);
-    user1.setPosition(BTC, 5_000);
-    user1.setPosition(BTC_USDT_F, 300);
-    user2.setPosition(USDT, 1_000_000);
-    user2.setPosition(BTC, 5_000);
+    user1.setPosition(USDT, 1_000_000, null);
+    user1.setPosition(BTC, 5_000, null);
+    user1.setPosition(BTC_USDT_F, 300, null);
+    user2.setPosition(USDT, 1_000_000, null);
+    user2.setPosition(BTC, 5_000, null);
 
     preOrderCheck.updateRisk(user, null);
     System.out.println("user=" + user);

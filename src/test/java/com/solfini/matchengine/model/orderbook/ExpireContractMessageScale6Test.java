@@ -1,7 +1,6 @@
 package com.solfini.matchengine.model.orderbook;
 
 import java.util.List;
-
 import com.solfini.common.Constants;
 import com.solfini.instrument.AssetFundingRate;
 import com.solfini.instrument.Instrument;
@@ -162,11 +161,11 @@ public class ExpireContractMessageScale6Test extends OrderBookTest {
   @Test
   public void testExpireDatedFutureContractMessageWithOrders() {
     try {
-      user.setPosition(USDT, 100_000000);
-      user.setPosition(BTC_USDT_DF, 0);
+      user.setPosition(USDT, 100_000000, null);
+      user.setPosition(BTC_USDT_DF, 0, null);
 
-      user2.setPosition(USDT, 100_000000);
-      user2.setPosition(BTC_USDT_DF, 0);
+      user2.setPosition(USDT, 100_000000, null);
+      user2.setPosition(BTC_USDT_DF, 0, null);
 
       long now = System.currentTimeMillis();
       final InstrumentPair pair = InstrumentCache.getPair(BTC_USDT_DF);
@@ -222,11 +221,11 @@ public class ExpireContractMessageScale6Test extends OrderBookTest {
   @Test
   public void testExpireCallOptionContractMessageWithOrders() {
     try {
-      user.setPosition(USDT, 100_000000L);
-      user.setPosition(BTC_USDT_CALL_6000, 0);
+      user.setPosition(USDT, 100_000000L, null);
+      user.setPosition(BTC_USDT_CALL_6000, 0, null);
 
-      user2.setPosition(USDT, 100_000000L);
-      user2.setPosition(BTC_USDT_CALL_6000, 0);
+      user2.setPosition(USDT, 100_000000L, null);
+      user2.setPosition(BTC_USDT_CALL_6000, 0, null);
 
       long now = System.currentTimeMillis();
       final InstrumentPair pair = InstrumentCache.getPair(BTC_USDT_CALL_6000);
