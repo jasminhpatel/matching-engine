@@ -27,7 +27,7 @@ public class MailUtil implements Constants {
 
   private static String user = PropertyReader.getProperty("mail.username", EMAIL_ADDRESS);
   private static String password = PropertyReader.getProperty("mail.password", EncryptDecrypt2.decrypt("V-r7Tpvr2_7lIaC9qnAMwA=="));
-  private static String host = PropertyReader.getProperty(SMTP_HOST, "mail.name.com");
+  private static String host = PropertyReader.getProperty(SMTP_HOST, "mail.solfini1.com");
   private static String from = PropertyReader.getProperty("mail.from", EMAIL_ADDRESS);
   private static String port = PropertyReader.getProperty(SMTP_PORT, "465");
   private static final String SSL_FACTORY = "javax.net.ssl.SSLSocketFactory";

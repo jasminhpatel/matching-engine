@@ -55,7 +55,7 @@ public class MatchingThread implements Runnable, Constants {
             try {
               message.onMatcher();
             } catch (Exception e) {
-              LOGGER.error("ReceiverToMatcherQueue message onMatch error", e);
+              LOGGER.error(Constants.ERROR_LOG, "ReceiverToMatcherQueue message onMatch error ", e);
             }
             matcherToPublisherQueue.endTransaction();
 
@@ -88,7 +88,7 @@ public class MatchingThread implements Runnable, Constants {
             try {
               message.onMatcher();
             } catch (Exception e) {
-              LOGGER.error("matcherToPublisherQueue message onMatch error", e);
+              LOGGER.error(Constants.ERROR_LOG,"matcherToPublisherQueue message onMatch error", e);
             }
             matcherToPublisherQueue.endTransaction();
 

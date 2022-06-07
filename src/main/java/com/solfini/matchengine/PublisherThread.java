@@ -73,9 +73,9 @@ public class PublisherThread implements Runnable, Constants {
 
           // Do not persist when in primary mode. This code is broken as position messages
           // are not persisted, and only execution reports go in to the database.
-          // if (Context.isPersistModeEnabled() && (message.getSnapId() == 0)) {
-          // persisterQueue.add(message);
-          // }
+           if (Context.isPersistModeEnabled() && (message.getSnapId() == 0)) {
+            persisterQueue.add(message);
+           }
         }
 
         list.clear();

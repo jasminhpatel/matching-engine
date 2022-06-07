@@ -165,6 +165,7 @@ public class KafkaInputFixListener extends KafkaListener {
     final int length = data.length - KAFKA_OFFSET;
     final long inputTime = TimeUtil.getTime();
     final long latency = (inputTime - sendTime) / 1000; // in microseconds
+
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace(LOG_FMT_14, RECEIVED_SEQNUM_EQ, seqNum, SENDTIME_EQ, sendTime, RECORDOFFSET_EQ, recordOffset, MESSAGETYPE_EQ,
           messageType, LATENCY_EQ, latency, INPUTTIME_EQ, inputTime, DATA_EQ, StringUtil.fixToString(data));

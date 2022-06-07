@@ -31,7 +31,7 @@
     <dependency>
       <groupId>net.openhft</groupId>
       <artifactId>chronicle-map</artifactId>
-      <version>3.16.3</version>
+      <version>3.19.0</version>
       <exclusions>
         <exclusion>
           <groupId>com.sun.java</groupId>
@@ -141,9 +141,9 @@
       <version>42.2.5</version>
     </dependency>
     <dependency>
-      <groupId>uk.co.real_logic.artio</groupId>
+      <groupId>uk.co.real-logic</groupId>
       <artifactId>artio-codecs</artifactId>
-      <version>0.15-SNAPSHOT</version>
+      <version>0.90</version>
     </dependency>
     <dependency>
       <groupId>net.openhft</groupId>

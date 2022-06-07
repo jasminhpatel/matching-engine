@@ -1,0 +1,889 @@
+-- DROP TABLE address_state;
+-- DROP TABLE address_state_log;
+-- DROP TABLE addresses;
+-- DROP TABLE balance_log;
+-- DROP TABLE balance_state;
+-- DROP TABLE chain_transaction_log;
+-- DROP TABLE deribit_last_trade;
+-- DROP TABLE deribit_pair;
+-- DROP TABLE email_log;
+-- DROP TABLE execution_report;
+-- DROP TABLE fee_log;
+-- DROP TABLE fund;
+-- DROP TABLE fund_balance_log;
+-- DROP TABLE funding_rate_history;
+-- DROP TABLE geo_ip;
+-- DROP TABLE message_log;
+-- DROP TABLE order_book_state;
+-- DROP TABLE position_report;
+-- DROP TABLE position_report_balance;
+-- DROP TABLE security_definition_log;
+-- DROP TABLE trade_history_log;
+-- DROP TABLE upload_file;
+-- DROP TABLE user_log;
+-- DROP TABLE user_role;
+-- DROP TABLE user_stat_fee_log;
+-- DROP TABLE user_stat_log;
+-- DROP TABLE user_state;
+-- DROP TABLE user_whitelist_address;
+-- DROP TABLE user_whitelist_ip;
+-- DROP TABLE withdraw_request;
+
+CREATE TABLE address_state (
+  id bigserial NOT NULL,
+  sequence_number int8 NULL,
+  insert_time varchar(32) NULL DEFAULT NULL::character varying,
+  address varchar(64) NULL,
+  updatetype int2 NULL,
+  userid int8 NULL,
+  assetid int4 NULL,
+  symbol varchar(16) NULL,
+  balance int8 NULL,
+  balance_scale int4 NULL,
+  confirms int4 NULL,
+  "source" varchar(256) NULL,
+  active int2 NULL,
+  updateby varchar(64) NULL,
+  signature varchar(256) NULL,
+  status int4 NULL,
+  manageruserid int4 NULL,
+  CONSTRAINT address_state_pkey PRIMARY KEY (id)
+);
+CREATE INDEX address_state1 ON address_state USING btree (userid);
+CREATE INDEX address_state2 ON address_state USING btree (assetid);
+CREATE INDEX address_state3 ON address_state USING btree (active);
+CREATE INDEX address_state4 ON address_state USING btree (manageruserid);
+
+CREATE TABLE address_state_log (
+  id bigserial NOT NULL,
+  sequence_number int8 NULL,
+  insert_time varchar(32) NULL DEFAULT NULL::character varying,
+  address varchar(64) NULL,
+  updatetype int2 NULL,
+  userid int8 NULL,
+  assetid int4 NULL,
+  symbol varchar(16) NULL,
+  balance_change int8 NULL,
+  balance_change_scale int4 NULL,
+  balance int8 NULL,
+  balance_scale int4 NULL,
+  confirms int4 NULL,
+  "source" varchar(256) NULL,
+  updateby varchar(64) NULL,
+  signature varchar(256) NULL,
+  manageruserid int4 NULL,
+  CONSTRAINT address_state_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX address_state_log1 ON address_state_log USING btree (manageruserid);
+
+CREATE TABLE addresses (
+  id bigserial NOT NULL,
+  address varchar(64) NULL,
+  userid int8 NULL,
+  assetid int4 NULL,
+  symbol varchar(16) NULL,
+  signature varchar(256) NULL,
+  CONSTRAINT addresses_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE balance_log (
+    id bigserial NOT NULL,
+    sequence_number int8 NULL,
+    insert_time varchar(32) NULL DEFAULT NULL::character varying,
+    updatetype int2 NULL,
+    userid int8 NULL,
+    firmid int4 NULL,
+    feetier int4 NULL,
+    assetid int4 NULL,
+    balance int8 NULL,
+    balance_scale int4 NULL,
+    balance_change int8 NULL,
+    balance_change_scale int4 NULL,
+    event_type int4 NULL,
+    orderid int8 NULL,
+    execid int8 NULL,
+    unrealizedusd float4 NULL,
+    realizedusd float4 NULL,
+    avgcostbasisusd float4 NULL,
+    baseusdmark float4 NULL,
+    settlecoinusdmark float4 NULL,
+    settlecoinunrealized float4 NULL,
+    settlecoinrealized float4 NULL,
+    CONSTRAINT balance_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX balance_log1 ON balance_log USING btree (userid);
+CREATE INDEX balance_log2 ON balance_log USING btree (assetid);
+
+CREATE TABLE balance_state (
+  id bigserial NOT NULL,
+  sequence_number int8 NULL,
+  insert_time varchar(32) NULL DEFAULT NULL::character varying,
+  updatetype int2 NULL,
+  userid int8 NULL,
+  firmid int4 NULL,
+  feetier int4 NULL,
+  assetid int4 NULL,
+  balance int8 NULL,
+  balance_scale int4 NULL,
+  unrealizedusd float4 NULL,
+  realizedusd float4 NULL,
+  avgcostbasisusd float4 NULL,
+  baseusdmark float4 NULL,
+  settlecoinusdmark float4 NULL,
+  settlecoinunrealized float4 NULL,
+  settlecoinrealized float4 NULL,
+  CONSTRAINT balance_state_pkey PRIMARY KEY (id)
+);
+CREATE INDEX balance_state1 ON balance_state USING btree (userid);
+CREATE INDEX balance_state2 ON balance_state USING btree (assetid);
+
+CREATE TABLE chain_transaction_log (
+  id bigserial NOT NULL,
+  userid int8 NULL,
+  instrumentid int4 NULL,
+  symbol varchar(64) NULL,
+  address varchar(256) NULL,
+  transactionid varchar(256) NULL,
+  balance float4 NULL,
+  balance_change float4 NULL,
+  confirmations int4 NULL,
+  transaction_time varchar(64) NULL,
+  created timestamp NULL DEFAULT now(),
+  ip varchar(64) NULL,
+  "source" varchar(64) NULL,
+  status int4 NULL,
+  sent float4 NULL,
+  received float4 NULL,
+  tx_count int4 NULL,
+  unconfirmed_tx_count int4 NULL,
+  unspent_tx_count int4 NULL,
+  unconfirmed_received float4 NULL,
+  unconfirmed_sent float4 NULL,
+  first_tx varchar(256) NULL,
+  last_tx varchar(256) NULL,
+  watcher_timestamp varchar(64) NULL,
+  transactiontype varchar(32) NULL,
+  note varchar(256) NULL,
+  CONSTRAINT chain_transaction_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX chain_transaction_log1 ON chain_transaction_log USING btree (userid);
+CREATE INDEX chain_transaction_log2 ON chain_transaction_log USING btree (instrumentid);
+CREATE INDEX chain_transaction_log3 ON chain_transaction_log USING btree (address);
+
+CREATE TABLE deribit_last_trade (
+    id bigserial NOT NULL,
+    pairid int4 NULL,
+    instrumentid int4 NULL,
+    "timestamp" int8 NULL,
+    symbol varchar(32) NULL DEFAULT NULL::character varying,
+    direction varchar(32) NULL DEFAULT NULL::character varying,
+    trade_id varchar(32) NULL DEFAULT NULL::character varying,
+    trade_seq int8 NULL,
+    tick_direction int4 NULL,
+    price float4 NULL,
+    index_price float4 NULL,
+    amount float4 NULL,
+    iv float4 NULL,
+    created timestamp NULL DEFAULT now(),
+    CONSTRAINT deribit_last_trade_pkey1 PRIMARY KEY (id)
+);
+CREATE INDEX deribit_last_trade11 ON deribit_last_trade USING btree (instrumentid);
+CREATE INDEX deribit_last_trade21 ON deribit_last_trade USING btree (symbol);
+CREATE INDEX deribit_last_trade31 ON deribit_last_trade USING btree (pairid);
+CREATE INDEX deribit_last_trade41 ON deribit_last_trade USING btree (trade_seq);
+
+CREATE TABLE deribit_pair (
+ id bigserial NOT NULL,
+ instrumentid int4 NULL,
+ "type" int4 NULL,
+ "timestamp" int8 NULL,
+ symbol varchar(32) NULL DEFAULT NULL::character varying,
+ kind varchar(32) NULL DEFAULT NULL::character varying,
+ quote_currency varchar(32) NULL DEFAULT NULL::character varying,
+ base_currency varchar(32) NULL DEFAULT NULL::character varying,
+ option_type varchar(32) NULL DEFAULT NULL::character varying,
+ settlement_period varchar(32) NULL DEFAULT NULL::character varying,
+ expiration_timestamp int8 NULL,
+ creation_timestamp int8 NULL,
+ is_active bool NULL,
+ contract_size int4 NULL,
+ taker_commission float4 NULL,
+ maker_commission float4 NULL,
+ tick_size float4 NULL,
+ created timestamp NULL DEFAULT now(),
+ CONSTRAINT deribit_pair_pkey1 PRIMARY KEY (id)
+);
+CREATE INDEX deribit_pair1 ON deribit_pair USING btree (instrumentid);
+CREATE INDEX deribit_pair2 ON deribit_pair USING btree (symbol);
+
+CREATE TABLE email_log (
+  id serial NOT NULL,
+  email varchar(128) NULL DEFAULT NULL::character varying,
+  insert_time varchar(32) NULL DEFAULT NULL::character varying,
+  ip varchar(128) NULL DEFAULT NULL::character varying,
+  CONSTRAINT email_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE execution_report (
+ id bigserial NOT NULL,
+ created timestamp NULL DEFAULT now(),
+ securityid int4 NULL,
+ userid int4 NULL,
+ clordid varchar(32) NULL DEFAULT NULL::character varying,
+ symbol varchar(32) NULL,
+ side varchar(32) NULL,
+ ordtype varchar(32) NULL,
+ exectype varchar(32) NULL,
+ ordstatus varchar(32) NULL,
+ orderid int8 NULL,
+ secondaryorderid int8 NULL,
+ origorderid int8 NULL,
+ execid int8 NULL,
+ secondaryexecid int8 NULL,
+ counterpartyid int4 NULL,
+ ispositionsidecrossed bool NULL,
+ targetstrategy int4 NULL,
+ orderqty int8 NULL,
+ orderqtyscale int4 NULL,
+ leavesqty int8 NULL,
+ leavesqtyscale int4 NULL,
+ cumqty int8 NULL,
+ cumqtyscale int4 NULL,
+ cumquoteqty int8 NULL,
+ price int8 NULL,
+ pricescale int4 NULL,
+ avgpx int8 NULL,
+ avgpxscale int4 NULL,
+ lastpx int8 NULL,
+ lastpxscale int4 NULL,
+ lastqty int8 NULL,
+ lastqtyscale int4 NULL,
+ stoppx int8 NULL,
+ stoppxscale int4 NULL,
+ timeinforce varchar(32) NULL,
+ expiretime int8 NULL,
+ timestampmillis int8 NULL,
+ expiretimemillis int8 NULL,
+ aggressorside varchar(32) NULL,
+ price2 int8 NULL,
+ price2scale int4 NULL,
+ execrestatementreason varchar(32) NULL,
+ sourceseqnum int8 NULL,
+ sourcesendtime int8 NULL,
+ snapid int8 NULL,
+ kafkarecordoffset int8 NULL,
+ transactionid int8 NULL,
+ islastmessageintransaction bool NULL,
+ decodedtime int8 NULL,
+ matchtime int8 NULL,
+ publishtime int8 NULL,
+ notional float4 NULL,
+ feepositionid int4 NULL,
+ feepositionquantitychange int8 NULL,
+ feepositionquantity int8 NULL,
+ settlepositionid int4 NULL,
+ settlepositionquantitychange int8 NULL,
+ settlepositionquantity int8 NULL,
+ ispaidtoinsurance bool NULL,
+ ishidden bool NULL,
+ isliquidation bool NULL,
+ submitterid int4 NULL DEFAULT 0,
+ CONSTRAINT execution_report_pkey PRIMARY KEY (id)
+);
+CREATE INDEX execution_report1 ON execution_report USING btree (userid);
+CREATE INDEX execution_report2 ON execution_report USING btree (securityid);
+CREATE INDEX execution_report3 ON execution_report USING btree (orderid);
+
+CREATE TABLE fee_log (
+id bigserial NOT NULL,
+sequence_number int8 NULL,
+insert_time varchar(32) NULL DEFAULT NULL::character varying,
+updatetype int2 NULL,
+assetid int4 NULL,
+feeinstrumentid int4 NULL,
+fee int8 NULL,
+feetype int2 NULL,
+makertaker int2 NULL,
+tier int4 NULL,
+CONSTRAINT fee_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE fund (
+ id bigserial NOT NULL,
+ user_id int8 NULL,
+ user_manager_id int8 NULL,
+ title varchar(128) NULL,
+ description varchar(2048) NULL,
+ keywords varchar(2048) NULL,
+ image_url varchar(256) NULL,
+ overview varchar(2048) NULL,
+ manager_description varchar(2048) NULL,
+ manager_fee float4 NULL,
+ solfini_fee float4 NULL,
+ manager_stake float4 NULL,
+ created timestamp NULL DEFAULT now(),
+ last_updated timestamp NULL DEFAULT now(),
+ volatility float4 NULL,
+ target_return float4 NULL,
+ target_interest float4 NULL,
+ nav float4 NULL,
+ outstanding float4 NULL,
+ inception_return float4 NULL,
+ d1_return float4 NULL,
+ d30_return float4 NULL,
+ holding1 int4 NULL,
+ holding1_percent float4 NULL,
+ holding1_name varchar(64) NULL,
+ holding2 int4 NULL,
+ holding2_percent float4 NULL,
+ holding2_name varchar(64) NULL,
+ holding3 int4 NULL,
+ holding3_percent float4 NULL,
+ holding3_name varchar(64) NULL,
+ holding4 int4 NULL,
+ holding4_percent float4 NULL,
+ holding4_name varchar(64) NULL,
+ holding5 int4 NULL,
+ holding5_percent float4 NULL,
+ holding5_name varchar(64) NULL,
+ status int4 NULL,
+ strategy varchar(256) NULL,
+ yr1return float4 NULL,
+ valuation float4 NULL,
+ divyield float4 NULL,
+ benchmark float4 NULL,
+ account_id int8 NULL,
+ CONSTRAINT fund_pkey PRIMARY KEY (id)
+);
+CREATE INDEX fund1 ON fund USING btree (user_id);
+CREATE INDEX fund2 ON fund USING btree (user_manager_id);
+CREATE INDEX fund3 ON fund USING btree (holding1);
+
+CREATE TABLE fund_balance_log (
+ id bigserial NOT NULL,
+ sequence_number int8 NULL,
+ insert_time varchar(32) NULL DEFAULT NULL::character varying,
+ updatetype int2 NULL,
+ userid int8 NULL,
+ account_id int8 NULL,
+ firmid int4 NULL,
+ feetier int4 NULL,
+ assetid int4 NULL,
+ balance int8 NULL,
+ balance_scale int4 NULL,
+ balance_change int8 NULL,
+ balance_change_scale int4 NULL,
+ quantity int8 NULL,
+ quantity_scale int4 NULL,
+ price int8 NULL,
+ price_scale int4 NULL,
+ event_type int4 NULL,
+ orderid int8 NULL,
+ execid int8 NULL,
+ unrealizedusd float4 NULL,
+ realizedusd float4 NULL,
+ avgcostbasisusd float4 NULL,
+ baseusdmark float4 NULL,
+ settlecoinusdmark float4 NULL,
+ settlecoinunrealized float4 NULL,
+ settlecoinrealized float4 NULL,
+ fund_outstanding int8 NULL,
+ fund_outstanding_scale int4 NULL,
+ side bpchar(3) NULL,
+ usdtotalfundvalue float4 NULL,
+ CONSTRAINT fund_balance_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX fund_balance_log1 ON fund_balance_log USING btree (userid);
+CREATE INDEX fund_balance_log2 ON fund_balance_log USING btree (assetid);
+
+CREATE TABLE funding_rate_history (
+ id bigserial NOT NULL,
+ created timestamp NULL DEFAULT now(),
+ pairid int4 NULL,
+ symbol varchar(32) NULL,
+ fundingrate float4 NULL,
+ markinsettlecoin float4 NULL,
+ txid int8 NULL DEFAULT 0,
+ "timestamp" int8 NULL DEFAULT 0,
+ vwap float4 NULL,
+ "last" float4 NULL,
+ usdmark float4 NULL,
+ timeperiodinterest float4 NULL,
+ CONSTRAINT funding_rate_history_pkey PRIMARY KEY (id)
+);
+CREATE INDEX funding_rate_history1 ON funding_rate_history USING btree (pairid);
+CREATE INDEX funding_rate_history2 ON funding_rate_history USING btree ("timestamp");
+
+CREATE TABLE geo_ip (
+id bigserial NOT NULL,
+ip varchar(64) NULL,
+continentname varchar(64) NULL,
+countrycode varchar(64) NULL,
+countryname varchar(64) NULL,
+regioncode varchar(64) NULL,
+regionname varchar(64) NULL,
+city varchar(64) NULL,
+zip varchar(64) NULL,
+latitude varchar(64) NULL,
+longitude varchar(64) NULL,
+geonameid varchar(64) NULL,
+status int4 NULL,
+created timestamp NULL DEFAULT now(),
+CONSTRAINT geo_ip_pkey PRIMARY KEY (id)
+);
+CREATE INDEX geo_ip1 ON geo_ip USING btree (ip);
+CREATE INDEX geo_ip2 ON geo_ip USING btree (countryname);
+CREATE INDEX geo_ip3 ON geo_ip USING btree (status);
+
+CREATE TABLE message_log (
+id bigserial NOT NULL,
+sequence_number int8 NULL,
+insert_time varchar(32) NULL DEFAULT NULL::character varying,
+messagetype bpchar(3) NULL,
+orderid int8 NULL,
+execid int8 NULL,
+clordid varchar(32) NULL DEFAULT NULL::character varying,
+securityid int4 NULL,
+symbol varchar(32) NULL,
+side bpchar(3) NULL,
+ordtype bpchar(3) NULL,
+exectype bpchar(3) NULL,
+execrestatementreason bpchar(3) NULL,
+ordstatus bpchar(3) NULL,
+account int4 NULL,
+timeinforce bpchar(1) NULL,
+expiretime varchar(32) NULL DEFAULT NULL::character varying,
+orderqty int8 NULL,
+orderqty_scale int2 NULL,
+leavesqty int8 NULL,
+leavesqty_scale int2 NULL,
+cumqty int8 NULL,
+cumqty_scale int2 NULL,
+price int8 NULL,
+price_scale int2 NULL,
+avgpx int8 NULL,
+avgpx_scale int2 NULL,
+lastpx int8 NULL,
+lastpx_scale int2 NULL,
+lastqty int8 NULL,
+lastqty_scale int2 NULL,
+CONSTRAINT message_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX message_log1 ON message_log USING btree (orderid);
+CREATE INDEX message_log2 ON message_log USING btree (account);
+CREATE INDEX message_log3 ON message_log USING btree (sequence_number);
+
+CREATE TABLE order_book_state (
+ id bigserial NOT NULL,
+ sequence_number int8 NULL,
+ active int2 NULL,
+ insert_time varchar(32) NULL DEFAULT NULL::character varying,
+ messagetype bpchar(3) NULL,
+ orderid int8 NULL,
+ execid int8 NULL,
+ clordid varchar(32) NULL DEFAULT NULL::character varying,
+ securityid int4 NULL,
+ symbol varchar(32) NULL,
+ side bpchar(3) NULL,
+ ordtype bpchar(3) NULL,
+ exectype bpchar(3) NULL,
+ execrestatementreason bpchar(3) NULL,
+ ordstatus bpchar(3) NULL,
+ account int8 NULL,
+ timeinforce bpchar(1) NULL,
+ expiretime varchar(32) NULL DEFAULT NULL::character varying,
+ "timestamp" varchar(32) NULL DEFAULT NULL::character varying,
+ orderqty int8 NULL,
+ orderqty_scale int4 NULL,
+ leavesqty int8 NULL,
+ leavesqty_scale int2 NULL,
+ cumqty int8 NULL,
+ cumqty_scale int2 NULL,
+ price int8 NULL,
+ price_scale int2 NULL,
+ avgpx int8 NULL,
+ avgpx_scale int2 NULL,
+ lastpx int8 NULL,
+ lastpx_scale int2 NULL,
+ lastqty int8 NULL,
+ lastqty_scale int2 NULL,
+ stoppx int8 NULL,
+ stoppx_scale int2 NULL,
+ sendercompid varchar(64) NULL DEFAULT NULL::character varying,
+ feepositionid int8 NULL,
+ feepositionquantity int8 NULL,
+ feepositionquantitychange int8 NULL,
+ CONSTRAINT order_book_state_pkey PRIMARY KEY (id)
+);
+CREATE INDEX order_book_state1 ON order_book_state USING btree (orderid);
+CREATE INDEX order_book_state2 ON order_book_state USING btree (securityid);
+CREATE INDEX order_book_state3 ON order_book_state USING btree (active);
+CREATE INDEX order_book_state4 ON order_book_state USING btree (account);
+
+CREATE TABLE position_report (
+id bigserial NOT NULL,
+reportid int8 NULL,
+created timestamp NULL DEFAULT now(),
+userid int4 NULL,
+usdvalue float4 NULL,
+usdnotionalpositionvalue float4 NULL,
+usdmaxexposurepositionandopenordersvalue float4 NULL,
+usdopenordersrequiredvalue float4 NULL,
+usdmarginvalue float4 NULL,
+usdmarginrequiredvalue float4 NULL,
+usdmarginmaintvalue float4 NULL,
+leverageratio float4 NULL,
+usdunrealized float4 NULL,
+sourceseqnum int8 NULL,
+sourcesendtime int8 NULL,
+snapid int8 NULL,
+kafkarecordoffset int8 NULL,
+transactionid int8 NULL,
+islastmessageintransaction bool NULL,
+decodedtime int8 NULL,
+matchtime int8 NULL,
+publishtime int8 NULL,
+txntype int4 NULL DEFAULT 0,
+execid int8 NULL DEFAULT 0,
+orderid int8 NULL DEFAULT 0,
+instrumentid1 int4 NULL DEFAULT 0,
+qty1 int8 NULL DEFAULT 0,
+change1 int8 NULL DEFAULT 0,
+instrumentid2 int4 NULL DEFAULT 0,
+qty2 int8 NULL DEFAULT 0,
+change2 int8 NULL DEFAULT 0,
+instrumentid3 int4 NULL DEFAULT 0,
+qty3 int8 NULL DEFAULT 0,
+change3 int8 NULL DEFAULT 0,
+instrumentid4 int4 NULL DEFAULT 0,
+qty4 int8 NULL DEFAULT 0,
+change4 int8 NULL DEFAULT 0,
+txnid int8 NULL,
+usdmarginablevalue float4 NULL,
+CONSTRAINT position_report_pkey PRIMARY KEY (id)
+);
+CREATE INDEX position_report1 ON position_report USING btree (userid);
+CREATE INDEX position_report2 ON position_report USING btree (reportid);
+CREATE INDEX position_report3 ON position_report USING btree (created);
+CREATE INDEX position_report4 ON position_report USING btree (txntype);
+CREATE INDEX position_report5 ON position_report USING btree (publishtime);
+
+CREATE TABLE position_report_balance (
+id bigserial NOT NULL,
+reportid int8 NULL,
+instrumentid int4 NULL,
+assettype bpchar(8) NULL,
+quantity int8 NULL,
+quantityscale int4 NULL,
+availablequantity int8 NULL,
+availablequantityscale int4 NULL,
+usdcostbasis int8 NULL,
+usdcostbasisscale int4 NULL,
+usdavgcostbasis int8 NULL,
+usdavgcostbasisscale int4 NULL,
+usdvalue float4 NULL,
+usdunrealized float4 NULL,
+usdrealized float4 NULL,
+quotedusdmark float4 NULL,
+settlecoinusdmark float4 NULL,
+settlecoinunrealized float4 NULL,
+settlecoinrealized float4 NULL,
+bankruptpriceint int8 NULL,
+CONSTRAINT position_report_balance_pkey PRIMARY KEY (id)
+);
+CREATE INDEX position_report_balance1 ON position_report_balance USING btree (reportid);
+
+CREATE TABLE security_definition_log (
+id serial NOT NULL,
+sequence_number int8 NULL,
+insert_time varchar(32) NULL,
+updatetype int2 NULL,
+securityid int4 NULL,
+symbol varchar(32) NULL,
+"name" varchar(128) NULL,
+assettype int2 NULL,
+baseid int4 NULL,
+quotedid int4 NULL,
+pricescale int4 NULL,
+quantityscale int4 NULL,
+orderbookstrategy int2 NULL,
+preordercheckstrategy int2 NULL,
+settletype int4 NULL,
+maintmarginpercent int4 NULL,
+requiredmarginpercent int4 NULL,
+usdmark float4 NULL,
+status int4 NULL,
+estimatedusercount int4 NULL,
+estimatedvolatility float4 NULL,
+daysfeedisactive int4 NULL,
+estimatedvar float4 NULL,
+sortorder int4 NULL DEFAULT 0,
+tenure varchar(8) NULL,
+symbolrollcount int4 NULL DEFAULT 0,
+expiretimemillis int8 NULL DEFAULT 0,
+expirerolltimemillis int8 NULL DEFAULT 0,
+minpriceincrement float4 NULL DEFAULT 0.01,
+minpriceincrementamount float4 NULL DEFAULT 0.01,
+minimumfillsize int4 NULL DEFAULT 0,
+qtytype int4 NULL DEFAULT 0,
+contractmultiplier float4 NULL DEFAULT 0.01,
+issuedate int4 NULL DEFAULT 0,
+strikecurrencyid int4 NULL DEFAULT 1,
+description varchar(256) NULL,
+cficode varchar(64) NULL,
+miccode varchar(64) NULL,
+CONSTRAINT security_definition_log_pkey PRIMARY KEY (id)
+);
+CREATE INDEX security_definition_log1 ON security_definition_log USING btree (sequence_number);
+
+CREATE TABLE trade_history_log (
+  id bigserial NOT NULL,
+  timemillis varchar(18) NULL,
+  securityid int4 NULL,
+  price int8 NULL,
+  quantity int8 NULL,
+  side bpchar(3) NULL,
+  CONSTRAINT trade_history_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE upload_file (
+id bigserial NOT NULL,
+userid int8 NULL,
+file_key varchar(128) NULL,
+filename varchar(128) NULL,
+content_type varchar(32) NULL,
+proxy_location varchar(128) NULL,
+created timestamp NULL DEFAULT now(),
+CONSTRAINT upload_file_pkey PRIMARY KEY (id)
+);
+CREATE INDEX upload_file1 ON upload_file USING btree (file_key);
+
+CREATE TABLE user_log (
+ id bigserial NOT NULL,
+ sequence_number int8 NULL,
+ insert_time varchar(32) NULL DEFAULT NULL::character varying,
+ userid int8 NULL,
+ username varchar(128) NULL,
+ "password" varchar(128) NULL,
+ firmid int4 NULL,
+ feetier int4 NULL,
+ requeststatus int2 NULL,
+ lmm int2 NULL,
+ registeredip varchar(32) NULL,
+ lastip varchar(32) NULL,
+ verification int4 NULL,
+ referral_code varchar(256) NULL,
+ referred_by_code varchar(256) NULL,
+ CONSTRAINT user_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE user_role (
+  id bigserial NOT NULL,
+  userid int4 NULL,
+  account int4 NULL,
+  "role" int4 NULL,
+  status int4 NULL,
+  created_by int4 NULL,
+  created timestamp NULL DEFAULT now(),
+  CONSTRAINT user_role_pkey PRIMARY KEY (id)
+);
+CREATE INDEX user_role1 ON user_role USING btree (userid);
+CREATE INDEX user_role2 ON user_role USING btree (account);
+CREATE INDEX user_role3 ON user_role USING btree (role);
+CREATE INDEX user_role4 ON user_role USING btree (created);
+
+CREATE TABLE user_stat_fee_log (
+  id bigserial NOT NULL,
+  "timestamp" timestamp NULL,
+  userid int4 NULL,
+  feeinstrumentid int4 NULL,
+  feescale int4 NULL,
+  feeamount int8 NULL,
+  grantuserid int4 NULL,
+  granttimestamp timestamp NULL,
+  grantamount int8 NULL,
+  grantkafkaoffset int8 NULL,
+  discountuserid int4 NULL,
+  discounttimestamp timestamp NULL,
+  discountamount int8 NULL,
+  discountkafkaoffset int8 NULL,
+  processed bool NULL DEFAULT false,
+  CONSTRAINT user_stat_fee_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE user_stat_log (
+  id bigserial NOT NULL,
+  "timestamp" timestamp NULL,
+  userid int4 NULL,
+  feetier int4 NULL,
+  makervolume float4 NULL,
+  takervolume float4 NULL,
+  makerfillcount int8 NULL,
+  takerfillcount int8 NULL,
+  ordercount int8 NULL,
+  cancelcount int8 NULL,
+  openordercount int8 NULL,
+  bestordercount0bps int8 NULL,
+  bestordercount20bps int8 NULL,
+  bestordercount50bps int8 NULL,
+  realizedpnl float4 NULL,
+  unrealizedpnl float4 NULL,
+  effectivevolume float4 NULL,
+  CONSTRAINT user_stat_log_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE user_state (
+id serial NOT NULL,
+sequence_number int8 NULL,
+insert_time varchar(32) NULL DEFAULT NULL::character varying,
+username varchar(128) NULL,
+"password" varchar(128) NULL,
+requesttoken varchar(128) NULL,
+requestsecret varchar(128) NULL,
+email varchar(128) NULL,
+phone varchar(64) NULL,
+firmid int4 NULL,
+feetier int4 NULL,
+requeststatus int2 NULL,
+lmm int2 NULL,
+sendercompid varchar(128) NULL,
+targetcompid varchar(128) NULL,
+registeredip varchar(32) NULL,
+lastip varchar(32) NULL,
+walletrequesttoken varchar(128) NULL,
+walletrequestsecret varchar(128) NULL,
+verification int4 NULL,
+referral_code varchar(128) NULL,
+referred_by_code varchar(128) NULL,
+use2auth int2 NULL,
+authtoken varchar(128) NULL,
+authurl varchar(512) NULL,
+companyname varchar(256) NULL,
+firstname varchar(256) NULL,
+middlename varchar(256) NULL,
+lastname varchar(256) NULL,
+address1 varchar(256) NULL,
+address2 varchar(256) NULL,
+address3 varchar(256) NULL,
+city varchar(128) NULL,
+state varchar(128) NULL,
+zip varchar(64) NULL,
+country varchar(64) NULL,
+birthdate varchar(64) NULL,
+taxid varchar(64) NULL,
+requestcount int4 NULL,
+ordercount int4 NULL,
+linkedin varchar(128) NULL,
+facebook varchar(128) NULL,
+skype varchar(128) NULL,
+photo_url varchar(128) NULL,
+icon_url varchar(128) NULL,
+id_url1 varchar(128) NULL,
+id_url2 varchar(128) NULL,
+id_url3 varchar(128) NULL,
+id_url4 varchar(128) NULL,
+id_url5 varchar(128) NULL,
+security_question1 varchar(256) NULL,
+security_answer1 varchar(256) NULL,
+security_question2 varchar(256) NULL,
+security_answer2 varchar(256) NULL,
+security_question3 varchar(256) NULL,
+security_answer3 varchar(256) NULL,
+security_question4 varchar(256) NULL,
+security_answer4 varchar(256) NULL,
+security_question5 varchar(256) NULL,
+security_answer5 varchar(256) NULL,
+emergency_contact_name varchar(128) NULL,
+emergency_contact_email varchar(128) NULL,
+emergency_contact_phone varchar(128) NULL,
+emergency_btc_address varchar(128) NULL,
+"type" varchar(64) NULL,
+registercode varchar(128) NULL DEFAULT NULL::character varying,
+lastwithdrawcode varchar(128) NULL DEFAULT NULL::character varying,
+usecodevalidaton int4 NULL DEFAULT 1,
+minimumfeetier int4 NULL,
+upgradefeetier int4 NULL,
+sso_key varchar(64) NULL,
+frozen int4 NULL,
+alias_username varchar(128) NULL,
+updated timestamp NULL,
+cancel_on_disconnect int4 NULL,
+consent_marketing int4 NULL,
+consent_terms int4 NULL,
+holdusdeinstrumentid int4 NULL,
+isfirm int2 NULL,
+isexchangestaff int2 NULL DEFAULT 0,
+uithemeid int2 NULL DEFAULT 0,
+updated_2fa timestamp NULL DEFAULT now(),
+updated_password timestamp NULL DEFAULT now(),
+last_login_time timestamp NULL DEFAULT now(),
+isindividual int2 NULL DEFAULT 0,
+isfuturesenabled int2 NULL DEFAULT 1,
+isoptionsenabled int2 NULL DEFAULT 1,
+kyctier int2 NULL DEFAULT 1,
+twitter varchar(128) NULL,
+iscommoditiesenabled int2 NULL DEFAULT 1,
+isequitiesenabled int2 NULL DEFAULT 1,
+isleaderboardexcluded int2 NULL DEFAULT 0,
+istoasterenabled int2 NULL DEFAULT 1,
+depositkycrestriction float4 NULL DEFAULT 0,
+withdrawkycrestriction float4 NULL DEFAULT 0,
+displaycurrency varchar(8) NULL DEFAULT 'USD'::character varying,
+notionalpositioncap float4 NULL,
+leveragecap float4 NULL,
+isauctionsenabled int2 NULL DEFAULT 1,
+isdatedfuturesenabled int2 NULL DEFAULT 1,
+margincurveidoverride int4 NULL DEFAULT 0,
+localauth int4 NULL DEFAULT 0,
+CONSTRAINT user_state_pkey1 PRIMARY KEY (id)
+);
+CREATE INDEX user_state1 ON user_state USING btree (email);
+CREATE INDEX user_state2 ON user_state USING btree (requesttoken);
+
+CREATE TABLE user_whitelist_address (
+   id bigserial NOT NULL,
+   userid int8 NULL,
+   instrumentid int4 NULL,
+   address varchar(64) NULL DEFAULT NULL::character varying,
+   insert_time varchar(32) NULL DEFAULT NULL::character varying,
+   created timestamp NULL DEFAULT now(),
+   status int4 NULL,
+   "name" varchar(128) NULL,
+   memo varchar(256) NULL,
+   CONSTRAINT user_whitelist_address_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE user_whitelist_ip (
+  id bigserial NOT NULL,
+  userid int8 NULL,
+  ip varchar(32) NULL DEFAULT NULL::character varying,
+  insert_time varchar(32) NULL DEFAULT NULL::character varying,
+  created timestamp NULL DEFAULT now(),
+  status int4 NULL,
+  CONSTRAINT user_whitelist_ip_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE withdraw_request (
+ id bigserial NOT NULL,
+ sequence_number int8 NULL,
+ insert_time varchar(32) NULL DEFAULT NULL::character varying,
+ address varchar(64) NULL,
+ updatetype int2 NULL,
+ userid int8 NULL,
+ assetid int4 NULL,
+ symbol varchar(16) NULL,
+ balance_change int8 NULL,
+ balance_change_scale int4 NULL,
+ balance int8 NULL,
+ balance_scale int4 NULL,
+ confirms int4 NULL,
+ "source" varchar(256) NULL,
+ updateby varchar(64) NULL,
+ signature varchar(256) NULL,
+ status int4 NULL,
+ ip varchar(32) NULL,
+ CONSTRAINT withdraw_request_pkey PRIMARY KEY (id)
+);
+CREATE INDEX withdraw_request1 ON public.withdraw_request USING btree (userid);
+CREATE INDEX withdraw_request2 ON public.withdraw_request USING btree (assetid);
+CREATE INDEX withdraw_request3 ON public.withdraw_request USING btree (status);

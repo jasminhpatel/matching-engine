@@ -1,6 +1,37 @@
-drop table TRADE_HISTORY_LOG;
 drop table ADDRESS_STATE;
 drop table ADDRESS_STATE_LOG;
+
+create table ADDRESS_STATE (
+id BIGINT(15) NOT NULL AUTO_INCREMENT,
+sequence_number BIGINT(15),
+insert_time VARCHAR(32) DEFAULT NULL,
+address VARCHAR(64),
+updateType INT(1),
+userId BIGINT(16),
+assetId INT(8),
+symbol VARCHAR(16),
+balance BIGINT(16),
+balance_scale INT(4),
+confirms INT(8),
+source VARCHAR(256),
+active INT(1),
+updateBy VARCHAR(64),
+signature VARCHAR(256),
+status INT(4),
+PRIMARY KEY (id)
+);
+CREATE INDEX `ADDRESS_STATE1` ON `ADDRESS_STATE` (`userId`);
+CREATE INDEX `ADDRESS_STATE2` ON `ADDRESS_STATE` (`assetId`);
+CREATE INDEX `ADDRESS_STATE3` ON `ADDRESS_STATE` (`active`);
+
+
+
+
+
+
+drop table TRADE_HISTORY_LOG;
+
+
 drop table BALANCE_LOG;
 drop table BALANCE_STATE;
 drop table FEE_LOG;
@@ -399,28 +430,7 @@ CREATE INDEX `WITHDRAW_REQUEST3` ON `WITHDRAW_REQUEST` (`status`);
   	PRIMARY KEY (id)
  );
  
- create table ADDRESS_STATE (
-  	id BIGINT(15) NOT NULL AUTO_INCREMENT,
-  	sequence_number BIGINT(15),
-  	insert_time VARCHAR(32) DEFAULT NULL,
-  	address VARCHAR(64),
-  	updateType INT(1),
-  	userId BIGINT(16),
-  	assetId INT(8),
-  	symbol VARCHAR(16),
-  	balance BIGINT(16),
-  	balance_scale INT(4),
-  	confirms INT(8),
-  	source VARCHAR(256),
-  	active INT(1),
-  	updateBy VARCHAR(64),
-  	signature VARCHAR(256),
-  	status INT(4),
-  	PRIMARY KEY (id)
- );
- CREATE INDEX `ADDRESS_STATE1` ON `ADDRESS_STATE` (`userId`); 
-CREATE INDEX `ADDRESS_STATE2` ON `ADDRESS_STATE` (`assetId`); 
-CREATE INDEX `ADDRESS_STATE3` ON `ADDRESS_STATE` (`active`);
+
 
 
  create table ADDRESSES (
