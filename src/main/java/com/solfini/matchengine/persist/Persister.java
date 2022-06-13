@@ -24,7 +24,7 @@ public class Persister implements Constants {
   private static boolean active = false;
 
   public static final String INSERT_EXEC_REPORT =
-      "INSERT INTO execution_report (securityid,userid,clordid,symbol,side,ordtype,exectype,ordstatus,orderid,secondaryorderid,origorderid,execid,secondaryexecid,counterpartyid,ispositionsidecrossed,targetstrategy,orderqty,orderqtyscale,leavesqty,leavesqtyscale,cumqty,cumqtyscale,cumquoteqty,price,pricescale,avgpx,avgpxscale,lastpx,lastpxscale,lastqty,lastqtyscale,stoppx,stoppxscale,timeinforce,expiretime,timestampmillis,expiretimemillis,aggressorside,price2,price2scale,execrestatementreason,sourceseqnum,sourcesendtime,snapid,kafkarecordoffset,transactionid,islastmessageintransaction,decodedtime,matchtime,publishtime,notional,feePositionId,feePositionQuantityChange,feePositionQuantity,settlePositionId,settlePositionQuantityChange,settlePositionQuantity,isPaidToInsurance,isHidden,isLiquidation,submitterId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+      "INSERT INTO execution_report (securityid,userid,clordid,symbol,side,ordtype,exectype,ordstatus,orderid,secondaryorderid,origorderid,execid,secondaryexecid,counterpartyid,ispositionsidecrossed,targetstrategy,orderqty,orderqtyscale,leavesqty,leavesqtyscale,cumqty,cumqtyscale,cumquoteqty,price,pricescale,avgpx,avgpxscale,lastpx,lastpxscale,lastqty,lastqtyscale,stoppx,stoppxscale,timeinforce,expiretime,timestampmillis,expiretimemillis,aggressorside,price2,price2scale,execrestatementreason,sourceseqnum,sourcesendtime,snapid,kafkarecordoffset,transactionid,islastmessageintransaction,decodedtime,matchtime,publishtime,notional,feePositionId,feePositionQuantityChange,feePositionQuantity,settlePositionId,settlePositionQuantityChange,settlePositionQuantity,isPaidToInsurance,isHidden,isLiquidation,submitterId,assetId,tokenId,selectId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
   private static PreparedStatement psExecutionReport = null;
 
@@ -179,6 +179,9 @@ public class Persister implements Constants {
       psExecutionReport.setBoolean(59, message.isHidden());
       psExecutionReport.setBoolean(60, message.isLiquidation());
       psExecutionReport.setInt(61, message.getSubmitterId());
+      psExecutionReport.setLong(62, message.getAssetId());
+      psExecutionReport.setInt(63, message.getTokenId());
+      psExecutionReport.setLong(64, message.getSelectId());
 
       psExecutionReport.addBatch();
     } catch (Exception e) {
