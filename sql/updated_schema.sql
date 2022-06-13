@@ -288,6 +288,9 @@ CREATE TABLE execution_report (
  ishidden bool NULL,
  isliquidation bool NULL,
  submitterid int4 NULL DEFAULT 0,
+ assetId int8 NULL DEFAULT 0,
+ tokenId int4 NULL DEFAULT 0,
+ selectId int8 NULL DEFAULT 0,
  CONSTRAINT execution_report_pkey PRIMARY KEY (id)
 );
 CREATE INDEX execution_report1 ON execution_report USING btree (userid);
