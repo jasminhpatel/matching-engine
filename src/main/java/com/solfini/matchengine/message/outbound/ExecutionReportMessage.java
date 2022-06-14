@@ -1553,6 +1553,9 @@ public class ExecutionReportMessage extends Message {
 
   @Override
   public final void onPersist() {
+    if (!Context.isPersistMarketMakerOrders() && Context.getMarketMakerUserid() == this.account) {
+      return;
+    }
     if (Context.isUserStatsEnabled()) {
       UserStats.onMessage(this);
     }

@@ -79,6 +79,7 @@ public final class Context implements Constants {
   private static String REPLAY_FROM_FILE_LOCATION = PropertyReader.getProperty("REPLAY_FROM_FILE_LOCATION", "");
   private static boolean ENABLE_SCAN_FOR_ORDER = TRUE.equalsIgnoreCase(PropertyReader.getProperty("ENABLE_SCAN_FOR_ORDER", TRUE));
   private static boolean PERSIST_MODE_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PERSIST_MODE_ENABLED", FALSE));
+  private static boolean PERSIST_MARKET_MAKER_ORDERS = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PERSIST_MARKET_MAKER_ORDERS", FALSE));
 
   private static boolean PRICING_THREAD_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PRICING_THREAD_ENABLED", TRUE));
   private static boolean PERPETUALS_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PERPETUALS_ENABLED", TRUE));
@@ -185,6 +186,7 @@ public final class Context implements Constants {
 
 
   private static boolean PUBLISH_HEALTH_REPORT_MAIL = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PUBLISH_HEALTH_REPORT_MAIL", TRUE));
+  private static int MARKET_MAKER_USERID = PropertyReader.getProperty("MARKET_MAKER_USERID", 0);
 
   private static KafkaPublisher kafkaPublisher = null;
   private static int loadStrategy;
@@ -495,6 +497,10 @@ public final class Context implements Constants {
     return PERSIST_MODE_ENABLED;
   }
 
+  public static boolean isPersistMarketMakerOrders() {
+    return PERSIST_MARKET_MAKER_ORDERS;
+  }
+
   public static final void setPersistModeEnabled(final boolean value) {
     PERSIST_MODE_ENABLED = value;
   }
@@ -715,4 +721,7 @@ public final class Context implements Constants {
     return CIRCUIT_BREAKER_TIME_INTERVAL;
   }
 
+  public static int getMarketMakerUserid() {
+    return MARKET_MAKER_USERID;
+  }
 }

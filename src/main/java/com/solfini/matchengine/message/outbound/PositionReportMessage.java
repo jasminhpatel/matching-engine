@@ -199,6 +199,9 @@ public class PositionReportMessage extends Message implements Constants {
 
   @Override
   public final void onPersist() {
+    if (!Context.isPersistMarketMakerOrders() && Context.getMarketMakerUserid() == this.user.getId()) {
+      return;
+    }
     if (Context.isUserStatsEnabled()) {
       UserStats.onMessage(this);
     }
