@@ -377,7 +377,6 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled() && user.getId() == 15) {
         LOGGER.debug(LOG_FMT_2, USER18PUBLISH2_EXECUTIONREPORT_EQ, executionReport, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
       }
-      System.out.println("Position report execution message: " + positionReportMessage.toString());
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
@@ -465,8 +464,6 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
         LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
       }
-
-      System.out.println("Position report balance message: " + positionReportMessage.toString());
 
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
 
@@ -956,8 +953,6 @@ public class MessagePublisher implements Constants {
     final User user = logonMessage.getUser();
     final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(TX_RESTATE, user,
         logonMessage.getSenderCompId(), logonMessage.getPositionArr(), logonMessage.getPositionsLength(), 0, 0);
-
-    System.out.println("Position report logon message: " + positionReportMessage.toString());
 
     final PositionReportEncoderCache positionEncoderCache = PositionReportEncoderCache.get();
     publish(positionReportMessage, DEFAULT_POS_RPT, positionEncoderCache);
