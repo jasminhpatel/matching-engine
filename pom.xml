@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.solfini</groupId>
 	<artifactId>solfini-match-engine</artifactId>
-	<version>1.0.1-SNAPSHOT</version>
+	<version>v1.1.0-snapshot</version>
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -123,17 +123,17 @@
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-infrastructure-messaging</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
+      <version>v1.1.0-snapshot</version>
     </dependency>				
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-sbe-messaging</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
+      <version>v1.1.0-snapshot</version>
     </dependency>		
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-admin-messaging</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
+      <version>v1.1.0-snapshot</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
