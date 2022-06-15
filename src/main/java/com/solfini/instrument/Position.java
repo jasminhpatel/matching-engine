@@ -90,7 +90,8 @@ public class Position implements Appendable, Constants {
 
       final Set<long[]> sourceAssetIdtreeSet = source.getAssetIdtreeSet();
       if (sourceAssetIdtreeSet != null) {
-        position.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+        position.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+        position.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
       } else
         position.assetIdtreeSet = null;
 
@@ -387,7 +388,7 @@ public class Position implements Appendable, Constants {
       return;
 
     if (assetIdtreeSet == null)
-      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+      assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
     final long[] value = {assetId, tokenId};
     assetIdtreeSet.add(value);
@@ -398,7 +399,7 @@ public class Position implements Appendable, Constants {
       return;
 
     if (assetIdtreeSet == null)
-      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+      assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
     final long[] value = {assetId, tokenId};
     assetIdtreeSet.remove(value);
@@ -434,7 +435,7 @@ public class Position implements Appendable, Constants {
     return sb.toString();
   }
 
-  public static final class AssetIdComparator implements Comparator<long[]> {
+  public static final Comparator<long[]> assetIdComparator = new Comparator<long[]>() {
     @Override
     public int compare(final long[] o1, final long[] o2) {
       if (o1[0] < o2[0])
@@ -449,5 +450,5 @@ public class Position implements Appendable, Constants {
 
       return 0;
     }
-  }
+  };
 }
