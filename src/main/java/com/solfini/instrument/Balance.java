@@ -5,7 +5,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
-import com.solfini.instrument.Position.AssetIdComparator;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 
 /**

@@ -437,14 +437,14 @@ public class Position implements Appendable, Constants {
   public static final class AssetIdComparator implements Comparator<long[]> {
     @Override
     public int compare(final long[] o1, final long[] o2) {
+      if (o1[0] < o2[0])
+        return -1;
+      if (o1[0] > o2[0])
+        return 1;
+
       if (o1[1] < o2[1])
         return -1;
       if (o1[1] > o2[1])
-        return 1;
-
-      if (o1[2] < o2[2])
-        return -1;
-      if (o1[2] > o2[2])
         return 1;
 
       return 0;
