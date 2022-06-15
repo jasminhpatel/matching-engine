@@ -7,6 +7,8 @@ import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 
+import static com.solfini.instrument.Position.assetIdComparator;
+
 /**
  * 
  * @author Chris Mack
@@ -73,7 +75,8 @@ public class Balance implements Appendable, Constants {
     this.hasPositionBasisData = false;
 
     if (sourceAssetIdtreeSet != null) {
-      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+      this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+      this.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
     } else
       this.assetIdtreeSet = null;
   }

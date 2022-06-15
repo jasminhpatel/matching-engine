@@ -26,6 +26,8 @@ import com.solfini.util.FastArrayList;
 import com.solfini.util.StringUtil;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 
+import static com.solfini.instrument.Position.assetIdComparator;
+
 /**
  *
  * @author Chris Mack
@@ -120,9 +122,9 @@ public class BalanceAdminMessage extends AdminMessage {
 
       // add assetId,tokenId set
       Set<long[]> assetIdtreeSet = null;
-      for (final PositionsAssetIdGroupDecoder assetIdGroupDecoder : balanceGroupDecoder.positionsAssetIdGroup()) {
+      for (BalanceGroupDecoder.PositionsAssetIdGroupDecoder assetIdGroupDecoder : balanceGroupDecoder.positionsAssetIdGroup()) {
         if (assetIdtreeSet == null)
-          assetIdtreeSet = new TreeSet<>();
+          assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
         final long assetId2 = assetIdGroupDecoder.assetId();
         final int tokenId = assetIdGroupDecoder.tokenId();
