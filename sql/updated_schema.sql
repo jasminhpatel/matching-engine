@@ -291,6 +291,8 @@ CREATE TABLE execution_report (
  assetId int8 NULL DEFAULT 0,
  tokenId int4 NULL DEFAULT 0,
  selectId int8 NULL DEFAULT 0,
+ quoteType varchar(32) NULL,
+ quoteTargetUserId int8 NULL DEFAULT 0
  CONSTRAINT execution_report_pkey PRIMARY KEY (id)
 );
 CREATE INDEX execution_report1 ON execution_report USING btree (userid);
@@ -953,9 +955,9 @@ CREATE TABLE ASSET_STATE(
 	estNav double precision,
 	estROI double precision
 );
-CREATE INDEX ASSET_STATE1 ON public.ASSET_STATE USING btree (userid);
+CREATE INDEX ASSET_STATE1 ON public.ASSET_STATE USING btree (ownerUserId);
 CREATE INDEX ASSET_STATE2 ON public.ASSET_STATE USING btree (assetid);
-CREATE INDEX ASSET_STATE3 ON public.ASSET_STATE USING btree (status);
-CREATE INDEX ASSET_STATE2 ON public.ASSET_STATE USING btree (securityId);
+CREATE INDEX ASSET_STATE3 ON public.ASSET_STATE USING btree (tokeniId);
+CREATE INDEX ASSET_STATE4 ON public.ASSET_STATE USING btree (securityId);
 
 

@@ -295,6 +295,8 @@ public interface Constants {
   public static final String SOURCESENDTIME_EQ = ", sourceSendTime=";
   public static final String TOKENID_EQ = ", tokenId=";
   public static final String SELECTID_EQ = ", selectId=";
+  public static final String QUOTETYPE_EQ = ", quoteType=";
+  public static final String QUOTE_TARGET_USERID_EQ = ", quoteTargetUserId=";
   public static final String ENABLESTATEVALIDATOR_EQ = ", enableStateValidator=";
   public static final String TIMESTAMP_EQ = ", timestamp=";
   public static final String TRIGGERTIMEMILLIS_EQ = ", triggerTimeMillis=";

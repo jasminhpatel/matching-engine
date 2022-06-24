@@ -15,6 +15,7 @@ import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.sbe.encoder.BooleanType;
 import com.solfini.sbe.encoder.NewOrderSingleDecoder;
 import com.solfini.sbe.encoder.OrdType;
+import com.solfini.sbe.encoder.QuoteType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
@@ -69,6 +70,8 @@ public class Order extends Message implements Constants {
   private long assetId;
   private int tokenId;
   private long selectId;
+  private QuoteType quoteType;
+  private int quoteTargetUserId;
 
   public Order() {
     // default constructor
@@ -123,6 +126,9 @@ public class Order extends Message implements Constants {
     feeAccumulatedQuantity = 0;
     availableEstimatedQuantity = 0;
     availableAccumulatedQuantity = 0;
+
+    quoteType = newOrderSingleDecoder.quoteType();
+    quoteTargetUserId = newOrderSingleDecoder.quoteTargetUserId();
   }
 
   // copy set order, used for stop limit orders
@@ -177,7 +183,8 @@ public class Order extends Message implements Constants {
     assetId = source.assetId;
     tokenId = source.tokenId;
     selectId = source.selectId;
-
+    quoteType = source.quoteType;
+    quoteTargetUserId = source.quoteTargetUserId;
 
     type = source.type;
     ordType = source.ordType;
@@ -623,6 +630,22 @@ public class Order extends Message implements Constants {
     return this.minMaxPrice;
   }
 
+  public final QuoteType getQuoteType() {
+    return quoteType;
+  }
+
+  public final void setQuoteType(final QuoteType quoteType) {
+    this.quoteType = quoteType;
+  }
+
+  public final int getQuoteTargetUserId() {
+    return quoteTargetUserId;
+  }
+
+  public final void setQuoteTargetUserId(final int quoteTargetUserId) {
+    this.quoteTargetUserId = quoteTargetUserId;
+  }
+
   public final long getFeeEstimatedQuantity() {
     return feeEstimatedQuantity;
   }
@@ -776,6 +799,8 @@ public class Order extends Message implements Constants {
     assetId = 0;
     tokenId = 0;
     selectId = 0;
+    quoteType = null;
+    quoteTargetUserId = 0;
   }
 
   @Override
@@ -819,7 +844,7 @@ public class Order extends Message implements Constants {
         .append(FEEESTIMATEDQUANTITY_EQ).append(feeEstimatedQuantity).append(FEEACCUMULATEDQUANTITY_EQ).append(feeAccumulatedQuantity)
         .append(AVAILABLEESTIMATEDQUANTITY_EQ).append(availableEstimatedQuantity).append(AVAILABLEACCUMULATEDQUANTITY_EQ)
         .append(availableAccumulatedQuantity).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId).append(SELECTID_EQ)
-        .append(selectId).append(']');
+        .append(selectId).append(QUOTETYPE_EQ).append(quoteType).append(QUOTE_TARGET_USERID_EQ).append(quoteTargetUserId).append(']');
     return s;
   }
 

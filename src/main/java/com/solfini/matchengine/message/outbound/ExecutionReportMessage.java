@@ -24,6 +24,7 @@ import com.solfini.sbe.encoder.ExecutionReportDecoder;
 import com.solfini.sbe.encoder.MessageHeaderDecoder;
 import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.sbe.encoder.OrdType;
+import com.solfini.sbe.encoder.QuoteType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.UserStats;
@@ -82,6 +83,8 @@ public class ExecutionReportMessage extends Message {
   private long assetId;
   private int tokenId;
   private long selectId;
+  private QuoteType quoteType;
+  private int quoteTargetUserId;
 
   private ExecType execType;
   private ExecRestatementReason execRestatementReason;
@@ -221,6 +224,8 @@ public class ExecutionReportMessage extends Message {
     assetId = 0;
     tokenId = 0;
     selectId = 0;
+    quoteType = null;
+    quoteTargetUserId = 0;
   }
 
   public static final ExecutionReportMessage createAckNewOrderExecutionReport(final Order order, final InstrumentPair pair) {
@@ -278,6 +283,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = order.getAssetId();
     executionReportMessage.tokenId = order.getTokenId();
     executionReportMessage.selectId = order.getSelectId();
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
 
 
     executionReportMessage.openOrderCount = order.getUser().getOpenOrderCount();
@@ -349,6 +356,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = order.getAssetId();
     executionReportMessage.tokenId = order.getTokenId();
     executionReportMessage.selectId = order.getSelectId();
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
     order.getUser().copySetPositionArr(executionReportMessage);
 
     return executionReportMessage;
@@ -517,6 +526,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = order.getAssetId();
     executionReportMessage.tokenId = order.getTokenId();
     executionReportMessage.selectId = order.getSelectId();
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
 
     // cumNotional, avgPx
     executionReportMessage.avgPx = executionReportMessage.cumQty == 0 ? 0 : (order.getFillCumNotional() / executionReportMessage.cumQty);
@@ -606,6 +617,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = assetId;
     executionReportMessage.tokenId = tokenId;
     executionReportMessage.selectId = selectId;
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
 
     // cumNotional, avgPx
     final long fillNotional =
@@ -693,6 +706,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = order.getAssetId();
     executionReportMessage.tokenId = order.getTokenId();
     executionReportMessage.selectId = order.getSelectId();
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
 
     // cumNotional, avgPx
     executionReportMessage.avgPx = executionReportMessage.cumQty == 0 ? 0 : (order.getFillCumNotional() / executionReportMessage.cumQty);
@@ -754,6 +769,8 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.assetId = order.getAssetId();
     executionReportMessage.tokenId = order.getTokenId();
     executionReportMessage.selectId = order.getSelectId();
+    executionReportMessage.quoteType = order.getQuoteType();
+    executionReportMessage.quoteTargetUserId = order.getQuoteTargetUserId();
 
     if (order.getQuantityLong() > 0) {
       if (order.getQuantityLong() == order.getQuantityOrigLong())
@@ -1538,6 +1555,22 @@ public class ExecutionReportMessage extends Message {
     this.selectId = selectId;
   }
 
+  public final QuoteType getQuoteType() {
+    return quoteType;
+  }
+
+  public final void setQuoteType(final QuoteType quoteType) {
+    this.quoteType = quoteType;
+  }
+
+  public final int getQuoteTargetUserId() {
+    return quoteTargetUserId;
+  }
+
+  public final void setQuoteTargetUserId(final int quoteTargetUserId) {
+    this.quoteTargetUserId = quoteTargetUserId;
+  }
+
   public final short getCancelType() {
     return cancelType;
   }
@@ -1595,7 +1628,8 @@ public class ExecutionReportMessage extends Message {
         .append(FEEACCUMULATEDQUANTITY_EQ).append(feeAccumulatedQuantity).append(AVAILABLEESTIMATEDQUANTITY_EQ)
         .append(availableEstimatedQuantity).append(AVAILABLEACCUMULATEDQUANTITY_EQ).append(availableAccumulatedQuantity)
         .append(", cancelType=").append(cancelType).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId)
-        .append(SELECTID_EQ).append(selectId).append(']');
+        .append(SELECTID_EQ).append(selectId).append(QUOTETYPE_EQ).append(quoteType).append(QUOTE_TARGET_USERID_EQ)
+        .append(quoteTargetUserId).append(']');
     return s;
   }
 
