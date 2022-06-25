@@ -1,6 +1,7 @@
 -- DROP TABLE address_state;
 -- DROP TABLE address_state_log;
 -- DROP TABLE addresses;
+-- DROP TABLE asset_state;
 -- DROP TABLE balance_log;
 -- DROP TABLE balance_state;
 -- DROP TABLE chain_transaction_log;
@@ -85,6 +86,82 @@ CREATE TABLE addresses (
   signature varchar(256) NULL,
   CONSTRAINT addresses_pkey PRIMARY KEY (id)
 );
+
+CREATE TABLE asset_state(
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    sequence_number INT,
+    assetId BIGINT,
+    tokeniId INT,
+    securityId INT,
+    assetType VARCHAR(32),
+    assetStatus VARCHAR(32),
+    venueId INT,
+    ticketId INT,
+    artistId INT,
+    seriesId INT,
+    idHex VARCHAR(256),
+    publicAddress VARCHAR(256),
+    contractAddress VARCHAR(256),
+    contractTokenId VARCHAR(256),
+    chainType VARCHAR(64),
+    parentId BIGINT,
+    numOfKind INT,
+    ownerUserId INT,
+    externalId VARCHAR(32),
+    updateType VARCHAR(16),
+    created TIMESTAMP default now(),
+    updated TIMESTAMP default now(),
+    kafkaRecordOffset BIGINT,
+    insert_time VARCHAR(32),
+    collectionId INT,
+    redeemStatus INT,
+    name VARCHAR(64),
+    description VARCHAR(1280),
+    url VARCHAR(256),
+    imageUrl VARCHAR(256),
+    imagethumburl VARCHAR(256),
+    mediaurl VARCHAR(256),
+    etherscanUrl VARCHAR(128),
+    openseaUrl VARCHAR(128),
+    ipfsUrl VARCHAR(128),
+    redeemfile varchar(256) NULL,
+    redeemfilehq varchar(256) NULL,
+    isphysical bool NULL,
+    isdigital bool NULL,
+    category VARCHAR(64),
+    fundTransferAccount VARCHAR(256),
+    eventId INT,
+    ticketSyncStatus VARCHAR(32),
+    includeMerch bool NULL,
+    seatNo VARCHAR(32),
+    isRegister bool NULL,
+    assetPayeeAccountAddress varchar(256),
+    payeeEnabled bool default false,
+    assetAttributeId BIGINT,
+    region VARCHAR(64),
+    assetSize VARCHAR(64),
+    registerTime BIGINT,
+    firstDivTime BIGINT,
+    divFrequencyTime BIGINT,
+    estNav double precision,
+    estROI double precision,
+    metadataUrl varchar(128) NULL,
+    redeemimagethumburl varchar(256) NULL,
+    supplylimit int4 null,
+    royaltypercentage float8 null,
+    royaltyreceiveraddress varchar(256) null,
+    transferlimit int4 NULL DEFAULT 0,
+    resalelimit int4 NULL DEFAULT 0,
+    albumname varchar(64) null,
+    taxfeewalletaddress varchar(256) null,
+    ccfeewalletaddress varchar(256) null,
+    "label" varchar(16) null,
+    exchangeFee double precision
+);
+CREATE INDEX ASSET_STATE1 ON public.ASSET_STATE USING btree (ownerUserId);
+CREATE INDEX ASSET_STATE2 ON public.ASSET_STATE USING btree (assetid);
+CREATE INDEX ASSET_STATE3 ON public.ASSET_STATE USING btree (tokeniId);
+CREATE INDEX ASSET_STATE4 ON public.ASSET_STATE USING btree (securityId);
 
 CREATE TABLE balance_log (
     id bigserial NOT NULL,
@@ -896,68 +973,6 @@ CREATE INDEX withdraw_request3 ON public.withdraw_request USING btree (status);
 
 
 
-CREATE TABLE ASSET_STATE(
-	id BIGSERIAL PRIMARY KEY NOT NULL,
-	sequence_number INT,
-	assetId BIGINT,
-	tokeniId INT,
-	securityId INT,
-	assetType VARCHAR(32),
-	assetStatus VARCHAR(32),
-	venueId INT,
-	ticketId INT,
-	artistId INT,
-	seriesId INT,
-	idHex VARCHAR(256),
-	publicAddress VARCHAR(256),
-	contractAddress VARCHAR(256),
-	contractTokenId VARCHAR(256),
-	chainType VARCHAR(64),
-	parentId BIGINT,
-	numOfKind INT,
-	ownerUserId INT,
-	externalId VARCHAR(32),
-	updateType VARCHAR(16),
-	created TIMESTAMP default now(),
-	updated TIMESTAMP default now(),
-	kafkaRecordOffset BIGINT,
-	insert_time VARCHAR(32),
-	collectionId INT,
-	redeemStatus INT,
-	name VARCHAR(64),
-	description VARCHAR(1280),
-	url VARCHAR(256),
-	imageUrl VARCHAR(256),
-	imagethumburl VARCHAR(256),
-	mediaurl VARCHAR(256),
-	etherscanUrl VARCHAR(128),
-	openseaUrl VARCHAR(128),
-	ipfsUrl VARCHAR(128),
-	redeemfile varchar(256) NULL,
-	redeemfilehq varchar(256) NULL,
-	isphysical bool NULL,
-	isdigital bool NULL,
-	category VARCHAR(64),
-	fundTransferAccount VARCHAR(256),
-	eventId INT,
-	ticketSyncStatus VARCHAR(32),
-	includeMerch bool NULL,
-	seatNo VARCHAR(32),
-	isRegister bool NULL,
-	assetPayeeAccountAddress varchar(256),
-	payeeEnabled bool default false,
-	assetAttributeId BIGINT,
-	region VARCHAR(64),
-	assetSize VARCHAR(64),
-	registerTime BIGINT,
-	firstDivTime BIGINT,
-	divFrequencyTime BIGINT,
-	estNav double precision,
-	estROI double precision
-);
-CREATE INDEX ASSET_STATE1 ON public.ASSET_STATE USING btree (ownerUserId);
-CREATE INDEX ASSET_STATE2 ON public.ASSET_STATE USING btree (assetid);
-CREATE INDEX ASSET_STATE3 ON public.ASSET_STATE USING btree (tokeniId);
-CREATE INDEX ASSET_STATE4 ON public.ASSET_STATE USING btree (securityId);
+
 
 
