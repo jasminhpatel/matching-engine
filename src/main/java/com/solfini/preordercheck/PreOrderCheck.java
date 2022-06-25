@@ -27,7 +27,7 @@ public interface PreOrderCheck {
 
   public void updateRiskAndCalcBankruptcyPrices(final User user, final double[] usdMarkPricesToSet);
 
-  public void addOrderDuringRebuild(Order newPtr, int priceInt);
+  public void addOrderDuringRebuild(final Order newPtr, final int priceInt);
 
   public boolean checkOrderNoValidation(final Order order, final int referencePrice);
 

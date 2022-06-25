@@ -630,6 +630,12 @@ public class Order extends Message implements Constants {
     return this.minMaxPrice;
   }
 
+  public final boolean isRFQ() {
+    if (quoteType == null || quoteType == quoteType.NULL_VAL)
+      return false;
+    return true;
+  }
+
   public final QuoteType getQuoteType() {
     return quoteType;
   }

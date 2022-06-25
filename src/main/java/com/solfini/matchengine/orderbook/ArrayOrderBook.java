@@ -113,6 +113,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   private final TrailingStopContainer trailingStopContainer;
   private final ADLMakerContainer adlMakerContainer;
   private final AuctionContainer auctionContainer;
+  private final RFQContainer rfqContainer;
 
   private PreOrderCheck preOrderCheck;
   private final PreOrderCheck preOrderCheckOrig;
@@ -167,6 +168,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     this.trailingStopContainer = new TrailingStopContainer(pair);
     this.adlMakerContainer = new ADLMakerContainer(id);
     this.auctionContainer = new AuctionContainer(pair);
+    this.rfqContainer = new RFQContainer(pair);
 
     this.ARR_SIZE = arrSize > 0 ? arrSize : DEFAULT_ARR_SIZE;
     this.CACHE_DEPTH = cacheDepth > 0 ? cacheDepth : DEFAULT_CACHE_DEPTH;
@@ -370,8 +372,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       setSecondaryOrderIdIfGreater(order.getSecondaryOrderId());
     }
     // validate
-    if (order == null
-        || (order.getPriceInt() <= 0 && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket()))) {
+    if (order == null || (order.getPriceInt() <= 0
+        && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket() || order.isRFQ()))) {
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_4, REJECT_ORDER_EQ, PRICE_IS_MISSING, ORDER_EQ, order);
       }
@@ -690,6 +692,23 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
       if (cancelOrder.getOrigOrderId() == 0)
         cancelOrder.setOrigOrderId(order.getOrderId());
+
+
+      // rfq
+      if (order.isRFQ()) {
+        boolean rc = false;
+        if (order.getSide() == Side.BUY)
+          rc = rfqContainer.removeBuyLimit(order);
+        else if (order.getSide() == Side.SELL)
+          rc = rfqContainer.removeSellLimit(order);
+
+        preOrderCheck.updateCancel(order);
+        matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
+            instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        OrderObjectPool.returnObject(order);
+        CancelOrderObjectPool.returnObject(cancelOrder);
+        return;
+      }
 
       // auction
       if (MarketStatus.OPEN_AUCTION == marketStatus) {
@@ -1229,6 +1248,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addBuyLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1353,6 +1378,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addSellLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addSellLimit(newPtr);
@@ -1471,6 +1502,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addBuyLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1528,6 +1565,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     if (!rebuildInProgress && publishAcks) {
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+    }
+
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addSellLimit(newPtr, this);
+      return;
     }
 
     // auction
@@ -2161,7 +2204,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
     }
 
-    // restate auction limit orders
+    // restate trailingStop orders
     final TreeSet<Order> buyTreeSet4 = trailingStopContainer.getBuyTreeSet();
     for (final Order tmp : buyTreeSet4) {
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
@@ -2172,6 +2215,16 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
     }
 
+    // restate rfq limit orders
+    final ConcurrentSkipListSet<Order> buyTreeSet5 = rfqContainer.getBuyTreeSet();
+    for (final Order tmp : buyTreeSet3) {
+      matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
+    }
+
+    final ConcurrentSkipListSet<Order> sellTreeSet5 = rfqContainer.getSellTreeSet();
+    for (final Order tmp : sellTreeSet3) {
+      matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
+    }
 
     // restate outOfBounds orders
     final List<Order> outOfBoundsList = new ArrayList<>(outOfBoundsOrderMap.values());
@@ -2419,6 +2472,18 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         }
       }
       for (final Order order : trailingStopContainer.getSellTreeSet()) {
+        if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
+          orders.add(order);
+        }
+      }
+
+      // rfq orders
+      for (final Order order : rfqContainer.getBuyTreeSet()) {
+        if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
+          orders.add(order);
+        }
+      }
+      for (final Order order : rfqContainer.getSellTreeSet()) {
         if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
           orders.add(order);
         }
@@ -3528,6 +3593,22 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       }
     }
 
+    // restate rfq orders
+    final ConcurrentSkipListSet<Order> buyTreeSet5 = auctionContainer.getBuyTreeSet();
+    while (!buyTreeSet3.isEmpty()) {
+      final Order order = buyTreeSet3.pollFirst();
+      if (order != null) {
+        target.addOrder(transform == null ? order : transform.transform(order));
+      }
+    }
+    final ConcurrentSkipListSet<Order> sellTreeSet5 = auctionContainer.getSellTreeSet();
+    while (!sellTreeSet3.isEmpty()) {
+      final Order order = sellTreeSet3.pollFirst();
+      if (order != null) {
+        target.addOrder(transform == null ? order : transform.transform(order));
+      }
+    }
+
     // restore publishing to output
     target.restoreOutputQueue();
   }
@@ -3842,6 +3923,24 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     }
 
     list = new FastArrayList<>(auctionContainer.getBuyTreeSet());
+    for (final Order order : list) {
+      final long cancelId = order.getOrderId();
+      final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();
+      cancelOrder.set(order, cancelId, cancelId);
+      cancelOrder.setUser(order.getUser());
+      cancelOrder(cancelOrder);
+    }
+
+    list = new FastArrayList<>(rfqContainer.getSellTreeSet());
+    for (final Order order : list) {
+      final long cancelId = order.getOrderId();
+      final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();
+      cancelOrder.set(order, cancelId, cancelId);
+      cancelOrder.setUser(order.getUser());
+      cancelOrder(cancelOrder);
+    }
+
+    list = new FastArrayList<>(rfqContainer.getBuyTreeSet());
     for (final Order order : list) {
       final long cancelId = order.getOrderId();
       final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();
