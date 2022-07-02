@@ -450,6 +450,8 @@ public class MessagePublisher implements Constants {
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
 
+    decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
+
     if (balanceAdminMessage.getSnapId() == 0) {
       // for normal case with no snap, reuse the balanceAdminMessage in publish
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
@@ -469,9 +471,8 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
         LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
       }
-
+      decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
-      decodeAndPrint(bytesWithKafkaOffset);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
   }
