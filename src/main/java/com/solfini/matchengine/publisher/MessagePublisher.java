@@ -402,6 +402,7 @@ public class MessagePublisher implements Constants {
     encodedLength += headerEncoder.encodedLength();
 
     positionReportEncoder.userId(balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId());
+    LOGGER.info("userId: " + (balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId()));
     positionReportEncoder.posReqResult(posReqResult);
     positionReportEncoder.transactTime(System.currentTimeMillis());
     if (posReqResult == TX_FUNDING_RATE)
@@ -415,6 +416,8 @@ public class MessagePublisher implements Constants {
     final Position[] positionArr = balanceAdminMessage.getPositionArr();
     final int positionsLength = balanceAdminMessage.getPositionsLength();
 
+    LOGGER.info("positionArr.length: " + positionArr.length);
+    LOGGER.info("positionsLength: " + positionsLength);
 
     // set balance change for settleCoin to positionReport settlPrice
     final List<Balance> balanceList = balanceAdminMessage.getBalanceList();
