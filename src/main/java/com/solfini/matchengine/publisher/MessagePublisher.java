@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+
+import com.solfini.sbe.encoder.MessageHeaderDecoder;
+import com.solfini.sbe.encoder.PositionReportDecoder;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -307,6 +310,8 @@ public class MessagePublisher implements Constants {
     directBuffer.limit(encodedLength);
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
+
+    decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
 
     PositionReportObjectPool.returnObject(positionReportMessage);
@@ -466,7 +471,7 @@ public class MessagePublisher implements Constants {
       }
 
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
-
+      decodeAndPrint(bytesWithKafkaOffset);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
   }
@@ -1486,5 +1491,30 @@ public class MessagePublisher implements Constants {
     LOGGER.debug("Flushing message publishers completed");
   }
 
+  public static void decodeAndPrint(byte[] bytes) {
+    final int OFFSET = 2;
+    final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
+    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+    final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
 
+    decoderUnsafeBuffer.wrap(bytes);
+    headerDecoder.wrap(decoderUnsafeBuffer, OFFSET);
+    int headerLength = OFFSET + headerDecoder.encodedLength();
+
+    positionReportDecoder.wrap(decoderUnsafeBuffer, headerLength, headerDecoder.blockLength(),
+        headerDecoder.version());
+
+    System.out.println("UserId: " + positionReportDecoder.userId());
+    for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
+      final int securityId = positionsGroupDecoder.instrumentId();
+      System.out.println("SecurityId: " + securityId);
+      System.out.println("Quantity: " + positionsGroupDecoder.quantity());
+      for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
+          positionsGroupDecoder.positionsAssetIdGroup()) {
+        final long assetId = positionsAssetIdGroupDecoder.assetId();
+        final int tokenId = positionsAssetIdGroupDecoder.tokenId();
+        System.out.println("assetId:" + assetId + ", tokenId:" + tokenId);
+      }
+    }
+  }
 }
