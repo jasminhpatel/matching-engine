@@ -1504,16 +1504,16 @@ public class MessagePublisher implements Constants {
     positionReportDecoder.wrap(decoderUnsafeBuffer, headerLength, headerDecoder.blockLength(),
         headerDecoder.version());
 
-    System.out.println("UserId: " + positionReportDecoder.userId());
+    LOGGER.info("UserId: " + positionReportDecoder.userId());
     for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
       final int securityId = positionsGroupDecoder.instrumentId();
-      System.out.println("SecurityId: " + securityId);
-      System.out.println("Quantity: " + positionsGroupDecoder.quantity());
+      LOGGER.info("SecurityId: " + securityId);
+      LOGGER.info("Quantity: " + positionsGroupDecoder.quantity());
       for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
           positionsGroupDecoder.positionsAssetIdGroup()) {
         final long assetId = positionsAssetIdGroupDecoder.assetId();
         final int tokenId = positionsAssetIdGroupDecoder.tokenId();
-        System.out.println("assetId:" + assetId + ", tokenId:" + tokenId);
+        LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
       }
     }
   }
