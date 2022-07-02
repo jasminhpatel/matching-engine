@@ -1516,16 +1516,19 @@ public class MessagePublisher implements Constants {
       final int securityId = positionsGroupDecoder.instrumentId();
       LOGGER.info("SecurityId: " + securityId);
       LOGGER.info("Quantity: " + positionsGroupDecoder.quantity());
-      PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder =
-      positionsGroupDecoder.positionsAssetIdGroup();
-      //for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
-      //    positionsGroupDecoder.positionsAssetIdGroup()) {
-      for (int j = 0; j < positionsAssetIdGroupDecoder.count(); j++) {
-        LOGGER.info("Iteration: j = " + j);
-        positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
-        final long assetId = positionsAssetIdGroupDecoder.assetId();
-        final int tokenId = positionsAssetIdGroupDecoder.tokenId();
-        LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
+      try {
+        PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder = positionsGroupDecoder.positionsAssetIdGroup();
+        //for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
+        //    positionsGroupDecoder.positionsAssetIdGroup()) {
+        for (int j = 0; j < positionsAssetIdGroupDecoder.count(); j++) {
+          LOGGER.info("Iteration: j = " + j);
+          positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
+          final long assetId = positionsAssetIdGroupDecoder.assetId();
+          final int tokenId = positionsAssetIdGroupDecoder.tokenId();
+          LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
+        }
+      } catch (Exception e) {
+        LOGGER.error(e.getMessage());
       }
     }
   }
