@@ -1496,7 +1496,7 @@ public class MessagePublisher implements Constants {
   }
 
   public static void decodeAndPrint(byte[] bytes) {
-    final int OFFSET = 2;
+    final int OFFSET = 19;
     final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
     final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
     final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
