@@ -17,3 +17,7 @@ src.zip
 bin/
 src/test/resources/snapshots/*
 src/test/resources/queues/*
+*.DS_Store
+.project
+.gradle/*
+.vscode/
