@@ -1506,12 +1506,19 @@ public class MessagePublisher implements Constants {
         headerDecoder.version());
 
     LOGGER.info("UserId: " + positionReportDecoder.userId());
-    for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
+    PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder = positionReportDecoder.positionsGroup();
+    for (int i = 0; i < positionsGroupDecoder.count(); i++) {
+    //for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
+      positionsGroupDecoder = positionsGroupDecoder.next();
       final int securityId = positionsGroupDecoder.instrumentId();
       LOGGER.info("SecurityId: " + securityId);
       LOGGER.info("Quantity: " + positionsGroupDecoder.quantity());
-      for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
-          positionsGroupDecoder.positionsAssetIdGroup()) {
+      PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder =
+      positionsGroupDecoder.positionsAssetIdGroup();
+      //for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
+      //    positionsGroupDecoder.positionsAssetIdGroup()) {
+      for (int j = 0; j < positionsAssetIdGroupDecoder.count(); j++) {
+        positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
         final long assetId = positionsAssetIdGroupDecoder.assetId();
         final int tokenId = positionsAssetIdGroupDecoder.tokenId();
         LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
