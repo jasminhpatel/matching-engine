@@ -257,6 +257,12 @@ public class MessagePublisher implements Constants {
         groupEncoder.settleCoinRealizedScale(RISK_PUBLISH_SCALE);
         groupEncoder.bankruptPriceInt(position.getBankruptPriceInt());
         groupEncoder.bankruptPriceIntScale(pair.getPriceScale());
+
+        //dummy value
+        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
+        assetGroupEncoder = assetGroupEncoder.next();
+        assetGroupEncoder.assetId(0);
+        assetGroupEncoder.tokenId(0);
       }
     }
   }
