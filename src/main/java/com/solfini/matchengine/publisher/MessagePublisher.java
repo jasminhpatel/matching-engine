@@ -1507,7 +1507,10 @@ public class MessagePublisher implements Constants {
 
     LOGGER.info("UserId: " + positionReportDecoder.userId());
     PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder = positionReportDecoder.positionsGroup();
-    for (int i = 0; i < positionsGroupDecoder.count(); i++) {
+    int positionCount =  positionsGroupDecoder.count();
+    LOGGER.info("positionCount: " + positionCount);
+    for (int i = 0; i < positionCount; i++) {
+      LOGGER.info("Iteration: i = " + i);
     //for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
       positionsGroupDecoder = positionsGroupDecoder.next();
       final int securityId = positionsGroupDecoder.instrumentId();
@@ -1518,6 +1521,7 @@ public class MessagePublisher implements Constants {
       //for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
       //    positionsGroupDecoder.positionsAssetIdGroup()) {
       for (int j = 0; j < positionsAssetIdGroupDecoder.count(); j++) {
+        LOGGER.info("Iteration: j = " + j);
         positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
         final long assetId = positionsAssetIdGroupDecoder.assetId();
         final int tokenId = positionsAssetIdGroupDecoder.tokenId();
