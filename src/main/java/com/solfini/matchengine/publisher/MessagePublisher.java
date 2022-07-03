@@ -846,7 +846,7 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_2, "publish marketDataSnapMessage: ", marketDataSnapMessage.getSymbol());
       }
-      LOGGER.info("Publish MarketDataSnapMessage: " + marketDataSnapMessage.toString());
+      //LOGGER.info("Publish MarketDataSnapMessage: " + marketDataSnapMessage.toString());
 
       final MarketDataSnapshotFullRefreshEncoder mdEncoder = marketDataSnapMessage.getEncoder();
       final ByteBuffer directBuffer = marketDataSnapMessage.getDirectBuffer();
@@ -923,7 +923,7 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
-    LOGGER.info("Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
+    //LOGGER.info("Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();
