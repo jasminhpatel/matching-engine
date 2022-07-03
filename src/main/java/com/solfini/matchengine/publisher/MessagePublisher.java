@@ -1535,6 +1535,7 @@ public class MessagePublisher implements Constants {
           LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
         }
       } catch (Exception e) {
+        e.printStackTrace();
         LOGGER.error(e.getMessage());
       }
     }
