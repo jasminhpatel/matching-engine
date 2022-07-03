@@ -223,7 +223,9 @@ public class MessagePublisher implements Constants {
 
         // add assetId,tokenId set
         final Set<long[]> assetIdtreeSet = position.getAssetIdtreeSet();
+        LOGGER.info("assetIdtreeSet: " + assetIdtreeSet);
         if (assetIdtreeSet != null) {
+          LOGGER.info("assetIdtreeSet.size: " + assetIdtreeSet.size());
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(assetIdtreeSet.size());
           for (final long[] value : assetIdtreeSet) {
             assetGroupEncoder = assetGroupEncoder.next();
