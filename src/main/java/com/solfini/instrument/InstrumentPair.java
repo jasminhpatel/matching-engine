@@ -352,8 +352,8 @@ public class InstrumentPair implements Appendable, Constants {
         if (prevIndexFeedUsdMarkTime > 0 && System.currentTimeMillis() - prevIndexFeedUsdMarkTime > 600_000) {
           MarginPreOrderCheckAndSettle.setLIQUIDATON_MODE(false);
         }
-        LOGGER.warn("price feed protection indexFeedUsdMark=" + indexFeedUsdMark + ", prevIndexFeedUsdMark=" + prevIndexFeedUsdMark
-            + ", pair=" + this);
+       // LOGGER.warn("price feed protection indexFeedUsdMark=" + indexFeedUsdMark + ", prevIndexFeedUsdMark=" + prevIndexFeedUsdMark
+       //     + ", pair=" + this);
         return;
       }
     }

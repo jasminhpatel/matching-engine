@@ -826,8 +826,8 @@ public class MessagePublisher implements Constants {
         executionReport.setLastMessageInTransaction(isLastMessage);
       }
     }
-    LOGGER.info("Execution. orderId: " + executionReport.getClOrdId() + " userId: " + (executionReport.getUser() == null ? 0 : executionReport.getUser().getId())
-        + " securityId: " + executionReport.getSecurityId() + " symbol: " + executionReport.getSymbol());
+/*    LOGGER.info("Execution. orderId: " + executionReport.getClOrdId() + " userId: " + (executionReport.getUser() == null ? 0 : executionReport.getUser().getId())
+        + " securityId: " + executionReport.getSecurityId() + " symbol: " + executionReport.getSymbol());*/
     // convert and publish
     encodedLength += executionReportEncoder.encodedLength();
     directBuffer.limit(encodedLength);
@@ -846,6 +846,7 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_2, "publish marketDataSnapMessage: ", marketDataSnapMessage.getSymbol());
       }
+      LOGGER.info("Publish MarketDataSnapMessage: " + marketDataSnapMessage.toString());
 
       final MarketDataSnapshotFullRefreshEncoder mdEncoder = marketDataSnapMessage.getEncoder();
       final ByteBuffer directBuffer = marketDataSnapMessage.getDirectBuffer();

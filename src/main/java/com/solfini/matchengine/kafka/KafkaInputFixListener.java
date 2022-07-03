@@ -245,7 +245,7 @@ public class KafkaInputFixListener extends KafkaListener {
           newOrderSingleDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
               headerDecoder.version());
           Message message = newOrderSingleHandler.decodeNewOrderSingle(headerDecoder, newOrderSingleDecoder);
-          LOGGER.info("Order message decoded: " + message.toJSON());
+          //LOGGER.info("Order message decoded: " + message.toJSON());
           return message;
         case CancelOrderDecoder.TEMPLATE_ID:
           if (LOGGER.isTraceEnabled()) {
