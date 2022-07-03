@@ -5,8 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import com.solfini.sbe.encoder.MessageHeaderDecoder;
-import com.solfini.sbe.encoder.PositionReportDecoder;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -190,8 +188,6 @@ public class MessagePublisher implements Constants {
 
       final Instrument instrument = (position == null) ? null : InstrumentCache.get(position.getInstrumentId());
       final InstrumentPair pair = (position == null) ? null : InstrumentCache.getPair(position.getInstrumentId());
-      LOGGER.info("instrument: " + instrument);
-      LOGGER.info("pair: " + pair);
 
       if (instrument != null) {
         groupEncoder.assetType(AssetType.ASSET);
@@ -223,9 +219,7 @@ public class MessagePublisher implements Constants {
 
         // add assetId,tokenId set
         final Set<long[]> assetIdtreeSet = position.getAssetIdtreeSet();
-        LOGGER.info("assetIdtreeSet: " + assetIdtreeSet);
         if (assetIdtreeSet != null) {
-          LOGGER.info("assetIdtreeSet.size: " + assetIdtreeSet.size());
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(assetIdtreeSet.size());
           for (final long[] value : assetIdtreeSet) {
             assetGroupEncoder = assetGroupEncoder.next();
@@ -233,7 +227,7 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder.tokenId((int) value[1]);
           }
         } else {
-          LOGGER.info("append dummy");
+          //todo make this field optional in sbe and remove below
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
           assetGroupEncoder = assetGroupEncoder.next();
           assetGroupEncoder.assetId(0);
@@ -268,7 +262,7 @@ public class MessagePublisher implements Constants {
         groupEncoder.bankruptPriceInt(position.getBankruptPriceInt());
         groupEncoder.bankruptPriceIntScale(pair.getPriceScale());
 
-        //dummy value
+        //todo make this field optional in sbe and remove below
         PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
@@ -327,7 +321,6 @@ public class MessagePublisher implements Constants {
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
 
-    decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
 
     PositionReportObjectPool.returnObject(positionReportMessage);
@@ -418,7 +411,6 @@ public class MessagePublisher implements Constants {
     encodedLength += headerEncoder.encodedLength();
 
     positionReportEncoder.userId(balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId());
-    LOGGER.info("userId: " + (balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId()));
     positionReportEncoder.posReqResult(posReqResult);
     positionReportEncoder.transactTime(System.currentTimeMillis());
     if (posReqResult == TX_FUNDING_RATE)
@@ -432,10 +424,7 @@ public class MessagePublisher implements Constants {
     final Position[] positionArr = balanceAdminMessage.getPositionArr();
     final int positionsLength = balanceAdminMessage.getPositionsLength();
 
-    LOGGER.info("positionArr.length: " + positionArr.length);
-    LOGGER.info("positionsLength: " + positionsLength);
-
-    // set balance change for settleCoin to positionReport settlPrice
+    // set balance change for settleCoin to positionReport settlePrice
     final List<Balance> balanceList = balanceAdminMessage.getBalanceList();
     if (balanceList != null) {
       for (final Balance balance : balanceList) {
@@ -469,8 +458,6 @@ public class MessagePublisher implements Constants {
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
 
-    decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
-
     if (balanceAdminMessage.getSnapId() == 0) {
       // for normal case with no snap, reuse the balanceAdminMessage in publish
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
@@ -490,7 +477,6 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
         LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
       }
-      decodeAndPrint(bytesWithKafkaOffset);//todo remove after testing
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
@@ -1509,47 +1495,5 @@ public class MessagePublisher implements Constants {
     }
 
     LOGGER.debug("Flushing message publishers completed");
-  }
-  final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
-  final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-  final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
-
-  public void decodeAndPrint(byte[] bytes) {
-    final int OFFSET = 19;
-    decoderUnsafeBuffer.wrap(bytes);
-    headerDecoder.wrap(decoderUnsafeBuffer, OFFSET);
-    int headerLength = OFFSET + headerDecoder.encodedLength();
-
-    positionReportDecoder.wrap(decoderUnsafeBuffer, headerLength, headerDecoder.blockLength(),
-        headerDecoder.version());
-    LOGGER.info("Start ================================================== ");
-    LOGGER.info("UserId: " + positionReportDecoder.userId());
-    PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder = positionReportDecoder.positionsGroup();
-    int positionCount =  positionsGroupDecoder.count();
-    LOGGER.info("####### Position Count: " + positionCount);
-    for (int i = 0; i < positionCount; i++) {
-      LOGGER.info("Iteration: i = " + i);
-      positionsGroupDecoder = positionsGroupDecoder.next();
-      final int securityId = positionsGroupDecoder.instrumentId();
-      LOGGER.info("SecurityId: " + securityId);
-      LOGGER.info("Quantity: " + positionsGroupDecoder.quantity());
-      try {
-        PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder = positionsGroupDecoder.positionsAssetIdGroup();
-        int positionsAssetIdGroupCount = positionsAssetIdGroupDecoder.count();
-        LOGGER.info("####### Asset Position Count: " + positionsAssetIdGroupCount);
-        for (int j = 0; j < positionsAssetIdGroupCount; j++) {
-          LOGGER.info("Iteration: j = " + j);
-          positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
-          final long assetId = positionsAssetIdGroupDecoder.assetId();
-          final int tokenId = positionsAssetIdGroupDecoder.tokenId();
-          LOGGER.info("assetId:" + assetId + ", tokenId:" + tokenId);
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-        LOGGER.error(e.getMessage());
-      }
-    }
-
-    LOGGER.info("End ================================================== ");
   }
 }
