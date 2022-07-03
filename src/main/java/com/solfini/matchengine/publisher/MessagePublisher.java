@@ -826,7 +826,8 @@ public class MessagePublisher implements Constants {
         executionReport.setLastMessageInTransaction(isLastMessage);
       }
     }
-
+    LOGGER.info("Execution. orderId: " + executionReport.getClOrdId() + " userId: " + (executionReport.getUser() == null ? 0 : executionReport.getUser().getId())
+        + " securityId: " + executionReport.getSecurityId() + " symbol: " + executionReport.getSymbol());
     // convert and publish
     encodedLength += executionReportEncoder.encodedLength();
     directBuffer.limit(encodedLength);
@@ -921,7 +922,7 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
-    LOGGER.info("Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " reason: " + businessRejectMessage.getText());
+    LOGGER.info("Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();
