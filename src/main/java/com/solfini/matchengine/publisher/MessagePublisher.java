@@ -190,6 +190,8 @@ public class MessagePublisher implements Constants {
 
       final Instrument instrument = (position == null) ? null : InstrumentCache.get(position.getInstrumentId());
       final InstrumentPair pair = (position == null) ? null : InstrumentCache.getPair(position.getInstrumentId());
+      LOGGER.info("instrument: " + instrument);
+      LOGGER.info("pair: " + pair);
 
       if (instrument != null) {
         groupEncoder.assetType(AssetType.ASSET);
@@ -259,10 +261,10 @@ public class MessagePublisher implements Constants {
         groupEncoder.bankruptPriceIntScale(pair.getPriceScale());
 
         //dummy value
-/*        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
+        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
-        assetGroupEncoder.tokenId(0);*/
+        assetGroupEncoder.tokenId(0);
       }
     }
   }
