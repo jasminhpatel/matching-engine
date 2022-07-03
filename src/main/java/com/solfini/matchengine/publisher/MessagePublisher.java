@@ -259,10 +259,10 @@ public class MessagePublisher implements Constants {
         groupEncoder.bankruptPriceIntScale(pair.getPriceScale());
 
         //dummy value
-        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
+/*        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
-        assetGroupEncoder.tokenId(0);
+        assetGroupEncoder.tokenId(0);*/
       }
     }
   }
@@ -1500,36 +1500,34 @@ public class MessagePublisher implements Constants {
 
     LOGGER.debug("Flushing message publishers completed");
   }
+  final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
+  final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
+  final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
 
-  public static void decodeAndPrint(byte[] bytes) {
+  public void decodeAndPrint(byte[] bytes) {
     final int OFFSET = 19;
-    final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
-    final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
-    final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
-
     decoderUnsafeBuffer.wrap(bytes);
     headerDecoder.wrap(decoderUnsafeBuffer, OFFSET);
     int headerLength = OFFSET + headerDecoder.encodedLength();
 
     positionReportDecoder.wrap(decoderUnsafeBuffer, headerLength, headerDecoder.blockLength(),
         headerDecoder.version());
-
+    LOGGER.info("Start ================================================== ");
     LOGGER.info("UserId: " + positionReportDecoder.userId());
     PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder = positionReportDecoder.positionsGroup();
     int positionCount =  positionsGroupDecoder.count();
-    LOGGER.info("positionCount: " + positionCount);
+    LOGGER.info("####### Position Count: " + positionCount);
     for (int i = 0; i < positionCount; i++) {
       LOGGER.info("Iteration: i = " + i);
-    //for (final PositionReportDecoder.PositionsGroupDecoder positionsGroupDecoder : positionReportDecoder.positionsGroup()) {
       positionsGroupDecoder = positionsGroupDecoder.next();
       final int securityId = positionsGroupDecoder.instrumentId();
       LOGGER.info("SecurityId: " + securityId);
       LOGGER.info("Quantity: " + positionsGroupDecoder.quantity());
       try {
         PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder = positionsGroupDecoder.positionsAssetIdGroup();
-        //for(final PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder :
-        //    positionsGroupDecoder.positionsAssetIdGroup()) {
-        for (int j = 0; j < positionsAssetIdGroupDecoder.count(); j++) {
+        int positionsAssetIdGroupCount = positionsAssetIdGroupDecoder.count();
+        LOGGER.info("####### Asset Position Count: " + positionsAssetIdGroupCount);
+        for (int j = 0; j < positionsAssetIdGroupCount; j++) {
           LOGGER.info("Iteration: j = " + j);
           positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
           final long assetId = positionsAssetIdGroupDecoder.assetId();
@@ -1540,5 +1538,7 @@ public class MessagePublisher implements Constants {
         LOGGER.error(e.getMessage());
       }
     }
+
+    LOGGER.info("End ================================================== ");
   }
 }
