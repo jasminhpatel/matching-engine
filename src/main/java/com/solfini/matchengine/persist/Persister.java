@@ -103,6 +103,7 @@ public class Persister implements Constants {
   public static final long MULTIPLIER = 100_000_000;
 
   public static final void onMessage(final ExecutionReportMessage message) {
+    LOGGER.info("Persist message received: " + message.getClOrdId() + " symbol: " + message.getSymbol());
     if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
       active = true;
     }
@@ -188,6 +189,7 @@ public class Persister implements Constants {
 
       psExecutionReport.addBatch();
     } catch (Exception e) {
+      e.printStackTrace();
       LOGGER.error(ERROR_LOG, e);
       failed = true;
     }

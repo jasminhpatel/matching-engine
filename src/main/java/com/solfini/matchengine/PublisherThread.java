@@ -75,6 +75,9 @@ public class PublisherThread implements Runnable, Constants {
           // are not persisted, and only execution reports go in to the database.
            if (Context.isPersistModeEnabled() && (message.getSnapId() == 0)) {
             persisterQueue.add(message);
+           } else {
+             LOGGER.info("Context.isPersistModeEnabled() " + Context.isPersistModeEnabled());
+             LOGGER.info("message.getSnapId() " + message.getSnapId());
            }
         }
 
