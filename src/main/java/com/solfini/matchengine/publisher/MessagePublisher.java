@@ -267,6 +267,8 @@ public class MessagePublisher implements Constants {
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
+      } else {
+        LOGGER.error(Constants.ERROR_LOG, "##################### Both instrument and pair are empty. Instrument id: ", position.getInstrumentId());
       }
     }
   }
