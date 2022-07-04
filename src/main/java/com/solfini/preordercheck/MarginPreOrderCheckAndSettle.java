@@ -49,7 +49,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
   }
 
   public static final void setLIQUIDATON_MODE(final boolean value) {
-    //LOGGER.warn(LOG_FMT_2, "setLIQUIDATON_MODE ", value);
+    LOGGER.warn(LOG_FMT_2, "setLIQUIDATON_MODE ", value);
     LIQUIDATON_MODE = value;
   }
 

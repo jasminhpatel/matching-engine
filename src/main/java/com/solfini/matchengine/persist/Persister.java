@@ -103,7 +103,7 @@ public class Persister implements Constants {
   public static final long MULTIPLIER = 100_000_000;
 
   public static final void onMessage(final ExecutionReportMessage message) {
-    //LOGGER.info("Persist message received: " + message.getClOrdId() + " symbol: " + message.getSymbol());
+    LOGGER.info("Persist message received: " + message.getClOrdId() + " symbol: " + message.getSymbol());
     if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
       active = true;
     }
