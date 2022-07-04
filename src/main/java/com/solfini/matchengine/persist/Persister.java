@@ -107,6 +107,8 @@ public class Persister implements Constants {
       active = true;
     }
     if (!active) {
+      LOGGER.warn(Constants.WARN_LOG, "Persist message kafka offset: " + message.getKafkaRecordOffset() +
+          " max previous kafka offset: " + getMaxKafkaRecordOffset());
       return;
     }
 
