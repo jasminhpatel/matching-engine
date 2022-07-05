@@ -41,6 +41,8 @@ public class OrderBookFactory implements Constants {
         return new LinkedListOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       case TREE_ORDER_BOOK2:
         return new TreeOrderBook2(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
+      case SELECT_ARRAY_ORDER_BOOK:
+        return new SelectArrayOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       default:
         return new TreeOrderBook(pair.getSymbol(), preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
     }
@@ -69,6 +71,8 @@ public class OrderBookFactory implements Constants {
         return new LinkedListOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       case TREE_ORDER_BOOK2:
         return new TreeOrderBook2(pair, preOrderCheck, arrSize, cacheDepth, orderBookStrategy, preOrderCheckStrategy);
+      case SELECT_ARRAY_ORDER_BOOK:
+        return new SelectArrayOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       default:
         return new TreeOrderBook(pair.getSymbol(), preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
     }
@@ -92,6 +96,17 @@ public class OrderBookFactory implements Constants {
       ArrayOrderBook oldArrayOrderBook = (ArrayOrderBook) oldOrderBook;
       if ((oldArrayOrderBook.ARR_SIZE == (arrSize > 0 ? arrSize : ArrayOrderBook.DEFAULT_ARR_SIZE))
           && (oldArrayOrderBook.CACHE_DEPTH == (cacheDepth > 0 ? cacheDepth : ArrayOrderBook.DEFAULT_CACHE_DEPTH))) {
+        newPair.setOrderBook(oldOrderBook);
+        return oldOrderBook;
+      }
+    }
+
+    // check if we need to recreate the order book or simply reuse it
+    if ((SELECT_ARRAY_ORDER_BOOK == orderBookStrategy) && (oldOrderBook instanceof SelectArrayOrderBook)
+        && (newPair.getPriceScale() == oldPair.getPriceScale()) && (newPair.getQuantityScale() == oldPair.getQuantityScale())) {
+      SelectArrayOrderBook oldSelectArrayOrderBook = (SelectArrayOrderBook) oldOrderBook;
+      if ((oldSelectArrayOrderBook.ARR_SIZE == (arrSize > 0 ? arrSize : ArrayOrderBook.DEFAULT_ARR_SIZE))
+          && (oldSelectArrayOrderBook.CACHE_DEPTH == (cacheDepth > 0 ? cacheDepth : ArrayOrderBook.DEFAULT_CACHE_DEPTH))) {
         newPair.setOrderBook(oldOrderBook);
         return oldOrderBook;
       }

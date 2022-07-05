@@ -98,6 +98,7 @@ public interface Constants {
   public static final int ARRAY_ORDER_BOOK = 2;
   public static final int LINKED_LIST_ORDER_BOOK = 3;
   public static final int TREE_ORDER_BOOK2 = 4;
+  public static final int SELECT_ARRAY_ORDER_BOOK = 5;
 
   public static final int DEFAULT_TEST_ORDER_BOOK = ARRAY_ORDER_BOOK;
 
