@@ -2650,6 +2650,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   // called from a separate MarketDataOutputBuilderThread thread
   @Override
   public MarketDataSnapshotFullRefreshEncoder build(final MarketDataSnapshotFullRefreshEncoder marketDataSnapshotFullRefreshEncoder) {
+    //todo remove logger
+    LOGGER.info("### From ArrayOrderBook ");
     final int[] bidPricesArr = new int[CACHE_DEPTH];
     final long[] bidQuantityArr = new long[CACHE_DEPTH];
     final long[] bidAssetIdArr = new long[CACHE_DEPTH];
@@ -2787,6 +2789,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       entry.assetId(bidAssetIdArr[i]);
       entry.tokenId(bidTokenIdArr[i]);
       entry.selectId(bidSelectIdArr[i]);
+      LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i] +
+          " assetId: " + bidAssetIdArr[i] + " tokenId: " + bidSelectIdArr[i]);
     }
     for (int i = 0; i < askIndex; i++) {
       entry = entry.next();
@@ -2798,6 +2802,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       entry.assetId(askAssetIdArr[i]);
       entry.tokenId(askTokenIdArr[i]);
       entry.selectId(askSelectIdArr[i]);
+      LOGGER.info("Side: " + Side.SELL + " price: " + askSelectIdArr[i] + " quantity: " + askSelectIdArr[i] +
+          " assetId: " + askSelectIdArr[i] + " tokenId: " + askSelectIdArr[i]);
     }
 
     return marketDataSnapshotFullRefreshEncoder;

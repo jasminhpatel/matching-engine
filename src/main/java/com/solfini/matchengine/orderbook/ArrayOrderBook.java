@@ -2515,6 +2515,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   // called from a separate MarketDataOutputBuilderThread thread
   @Override
   public MarketDataSnapshotFullRefreshEncoder build(final MarketDataSnapshotFullRefreshEncoder marketDataSnapshotFullRefreshEncoder) {
+    //todo remove logger
+    LOGGER.info("### From ArrayOrderBook ");
     final int[] bidPricesArr = new int[CACHE_DEPTH];
     final long[] bidQuantityArr = new long[CACHE_DEPTH];
     final int[] askPricesArr = new int[CACHE_DEPTH];
