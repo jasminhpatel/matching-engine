@@ -418,7 +418,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
       return;
     }
-    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0 ) {//todo add && order.getSide() == Side.BUY
+    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0 && order.getSide() == Side.BUY) {//todo verify
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_4, "adding invalid selectId in order. id=", id, ORDER_EQ, order);
       }
@@ -2652,8 +2652,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   // called from a separate MarketDataOutputBuilderThread thread
   @Override
   public MarketDataSnapshotFullRefreshEncoder build(final MarketDataSnapshotFullRefreshEncoder marketDataSnapshotFullRefreshEncoder) {
-    //todo remove logger
-    LOGGER.info("### From SelectArrayOrderBook ");
     final int[] bidPricesArr = new int[CACHE_DEPTH];
     final long[] bidQuantityArr = new long[CACHE_DEPTH];
     final long[] bidAssetIdArr = new long[CACHE_DEPTH];
@@ -2688,7 +2686,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         if (temp == null)
           continue;
       }
-      LOGGER.info("Bid prices: temp.getAssetId(): " + temp.getAssetId() + " temp.getTokenId(): " + temp.getTokenId() + " " + temp);
       bidPricesArr[bidIndex] = temp.getPriceInt();
       bidAssetIdArr[bidIndex] = temp.getAssetId();
       bidTokenIdArr[bidIndex] = temp.getTokenId();
@@ -2698,12 +2695,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       if (!temp.isHidden())
         bidQuantityArr[bidIndex] = temp.getQuantityLong();
       temp = temp.getNext();
-      LOGGER.info("Bid prices: bidAssetIdArr: " + bidAssetIdArr + " bidTokenIdArr: " + bidTokenIdArr + " " + temp);
       while (temp != null) {
         if (!temp.isHidden()) {
-          LOGGER.info("Bid prices: temp.getAssetId(): " + temp.getAssetId() + " bidAssetIdArr[bidIndex]: " + bidAssetIdArr[bidIndex] +
-              " temp.getTokenId(): " + temp.getTokenId() + " bidTokenIdArr[bidIndex]" + bidTokenIdArr[bidIndex] + " bidIndex: " + bidIndex
-          + " CACHE_DEPTH: " + CACHE_DEPTH);
           if (temp.getAssetId() != bidAssetIdArr[bidIndex] || temp.getTokenId() != bidTokenIdArr[bidIndex]) {
             bidIndex++;
             if (bidIndex >= CACHE_DEPTH)
@@ -2799,8 +2792,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       entry.assetId(bidAssetIdArr[i]);
       entry.tokenId(bidTokenIdArr[i]);
       entry.selectId(bidSelectIdArr[i]);
-      LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i] +
-          " assetId: " + bidAssetIdArr[i] + " tokenId: " + bidSelectIdArr[i]);
+/*      LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i] +
+          " assetId: " + bidAssetIdArr[i] + " tokenId: " + bidSelectIdArr[i]);*/
     }
     for (int i = 0; i < askIndex; i++) {
       entry = entry.next();
@@ -2812,8 +2805,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       entry.assetId(askAssetIdArr[i]);
       entry.tokenId(askTokenIdArr[i]);
       entry.selectId(askSelectIdArr[i]);
-      LOGGER.info("Side: " + Side.SELL + " price: " + askSelectIdArr[i] + " quantity: " + askSelectIdArr[i] +
-          " assetId: " + askSelectIdArr[i] + " tokenId: " + askSelectIdArr[i]);
+/*      LOGGER.info("Side: " + Side.SELL + " price: " + askSelectIdArr[i] + " quantity: " + askSelectIdArr[i] +
+          " assetId: " + askSelectIdArr[i] + " tokenId: " + askSelectIdArr[i]);*/
     }
 
     return marketDataSnapshotFullRefreshEncoder;

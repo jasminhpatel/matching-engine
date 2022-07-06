@@ -842,19 +842,6 @@ public class User implements Appendable, Serializable, Constants {
 
   // must be called from the matching engine thread
   public final Position setPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
-    //todo remove logger
-    StringBuilder sb = new StringBuilder();
-    if (assetIdtreeSet != null) {
-      sb.append("[");
-      for(long[] arr : assetIdtreeSet) {
-        sb.append("assetId: ").append(arr[0]).append(", ");
-        sb.append("tokenId: ").append(arr[1]);
-      }
-      sb.append("]");
-    }
-    LOGGER.info("###### setPosition. instrumentId: " + instrumentId + " assetIdtreeSet: " + assetIdtreeSet + " " + sb.toString());
-    //todo remove logger
-
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
@@ -875,14 +862,6 @@ public class User implements Appendable, Serializable, Constants {
 
   // must be called from the matching engine thread
   public final Position addPosition(final int instrumentId, final long quantity, final long assetId, final int tokenId) {
-    //todo remove logger
-    StringBuilder sb = new StringBuilder();
-    sb.append("[");
-      sb.append("assetId: ").append(assetId).append(", ");
-      sb.append("tokenId: ").append(tokenId);
-    sb.append("]");
-    LOGGER.info("###### addPosition 1. instrumentId: " + instrumentId + " " + sb.toString());
-    //todo remove logger
     if (assetId == 0)
       return addPosition(instrumentId, quantity, null);
     else {
@@ -895,18 +874,6 @@ public class User implements Appendable, Serializable, Constants {
 
   // must be called from the matching engine thread
   public final Position addPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
-    //todo remove logger
-    StringBuilder sb = new StringBuilder();
-    if (assetIdtreeSet != null) {
-      sb.append("[");
-      for(long[] arr : assetIdtreeSet) {
-        sb.append("assetId: ").append(arr[0]).append(", ");
-        sb.append("tokenId: ").append(arr[1]);
-      }
-      sb.append("]");
-    }
-    LOGGER.info("###### addPosition 2. instrumentId: " + instrumentId + " assetIdtreeSet: " + assetIdtreeSet + " " + sb.toString());
-    //todo remove logger
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
