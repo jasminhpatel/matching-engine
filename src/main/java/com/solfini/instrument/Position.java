@@ -88,8 +88,21 @@ public class Position implements Appendable, Constants {
         }
       }
 
-      final Set<long[]> sourceAssetIdtreeSet = source.getAssetIdtreeSet();
+     final Set<long[]> sourceAssetIdtreeSet = source.getAssetIdtreeSet();
+      //todo remove logger
+      LOGGER.info("### Position.set instrumentId:" + position.instrumentId + " sourceAssetIdtreeSet: " + sourceAssetIdtreeSet);
       if (sourceAssetIdtreeSet != null) {
+        StringBuilder sb = new StringBuilder();
+        if (sourceAssetIdtreeSet != null) {
+          sb.append("[");
+          for(long[] arr : sourceAssetIdtreeSet) {
+            sb.append("assetId: ").append(arr[0]).append(", ");
+            sb.append("tokenId: ").append(arr[1]);
+          }
+          sb.append("]");
+        }
+        LOGGER.info("###### addPosition 2. instrumentId: " + position.instrumentId + " assetIdtreeSet: " + sourceAssetIdtreeSet + " " + sb.toString());
+        //todo remove logger
         position.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
         position.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
       } else
