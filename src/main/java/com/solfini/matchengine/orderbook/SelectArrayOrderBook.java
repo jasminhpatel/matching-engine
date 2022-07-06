@@ -418,7 +418,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
       return;
     }
-    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0) {
+    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0 ) {//todo add && order.getSide() == Side.BUY
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_4, "adding invalid selectId in order. id=", id, ORDER_EQ, order);
       }
@@ -1695,6 +1695,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   }
 
   public final void addSellSelect(final Order newPtr) {
+    //todo remove
+    LOGGER.info("Add sell select order: assetId: " + newPtr.getAssetId() + " tokenId: " + newPtr.getTokenId());
     if (isCircuitBreaker()) {
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_3, REJECT_ORDER_EQ, MARKET_CIRCUIT_BREAKER, ORDER_EQ, newPtr);
@@ -2651,7 +2653,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   @Override
   public MarketDataSnapshotFullRefreshEncoder build(final MarketDataSnapshotFullRefreshEncoder marketDataSnapshotFullRefreshEncoder) {
     //todo remove logger
-    LOGGER.info("### From ArrayOrderBook ");
+    LOGGER.info("### From SelectArrayOrderBook ");
     final int[] bidPricesArr = new int[CACHE_DEPTH];
     final long[] bidQuantityArr = new long[CACHE_DEPTH];
     final long[] bidAssetIdArr = new long[CACHE_DEPTH];
@@ -2686,7 +2688,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         if (temp == null)
           continue;
       }
-
+      LOGGER.info("Bid prices: temp.getAssetId(): " + temp.getAssetId() + " temp.getTokenId(): " + temp.getTokenId() + " " + temp);
       bidPricesArr[bidIndex] = temp.getPriceInt();
       bidAssetIdArr[bidIndex] = temp.getAssetId();
       bidTokenIdArr[bidIndex] = temp.getTokenId();
@@ -2696,8 +2698,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       if (!temp.isHidden())
         bidQuantityArr[bidIndex] = temp.getQuantityLong();
       temp = temp.getNext();
+      LOGGER.info("Bid prices: bidAssetIdArr: " + bidAssetIdArr + " bidTokenIdArr: " + bidTokenIdArr + " " + temp);
       while (temp != null) {
         if (!temp.isHidden()) {
+          LOGGER.info("Bid prices: temp.getAssetId(): " + temp.getAssetId() + " bidAssetIdArr[bidIndex]: " + bidAssetIdArr[bidIndex] +
+              " temp.getTokenId(): " + temp.getTokenId() + " bidTokenIdArr[bidIndex]" + bidTokenIdArr[bidIndex] + " bidIndex: " + bidIndex
+          + " CACHE_DEPTH: " + CACHE_DEPTH);
           if (temp.getAssetId() != bidAssetIdArr[bidIndex] || temp.getTokenId() != bidTokenIdArr[bidIndex]) {
             bidIndex++;
             if (bidIndex >= CACHE_DEPTH)
@@ -2739,21 +2745,25 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
 
       askPricesArr[askIndex] = temp.getPriceInt();
+      askAssetIdArr[askIndex] = temp.getAssetId();
+      askTokenIdArr[askIndex] = temp.getTokenId();
+      askSelectIdArr[askIndex] = temp.getSelectId();
+
       if (!temp.isHidden())
         askQuantityArr[askIndex] = temp.getQuantityLong();
       temp = temp.getNext();
       while (temp != null) {
         if (!temp.isHidden()) {
-          if (temp.getAssetId() != askAssetIdArr[bidIndex] || temp.getTokenId() != askTokenIdArr[bidIndex]) {
-            bidIndex++;
-            if (bidIndex >= CACHE_DEPTH)
+          if (temp.getAssetId() != askAssetIdArr[askIndex] || temp.getTokenId() != askTokenIdArr[askIndex]) {
+            askIndex++;
+            if (askIndex >= CACHE_DEPTH)
               break;
-            askPricesArr[bidIndex] = temp.getPriceInt();
-            askAssetIdArr[bidIndex] = temp.getAssetId();
-            askTokenIdArr[bidIndex] = temp.getTokenId();
-            askSelectIdArr[bidIndex] = temp.getSelectId();
+            askPricesArr[askIndex] = temp.getPriceInt();
+            askAssetIdArr[askIndex] = temp.getAssetId();
+            askTokenIdArr[askIndex] = temp.getTokenId();
+            askSelectIdArr[askIndex] = temp.getSelectId();
           }
-          askQuantityArr[bidIndex] += temp.getQuantityLong();
+          askQuantityArr[askIndex] += temp.getQuantityLong();
         }
         temp = temp.getNext();
       }
