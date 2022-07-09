@@ -454,6 +454,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       return;
     }
 
+    LOGGER.info("Order- " + order.getType());
+
     switch (order.getType()) {
       case BUY_LIMIT:
         addBuyLimit(order);

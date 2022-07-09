@@ -930,7 +930,7 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
-    //LOGGER.info("Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
+    LOGGER.info("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();
