@@ -99,11 +99,11 @@ public class SelectArrayOrderBookDataTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(1, "USDT", "USDT", (short) 6, (short) 6, 1, 1000);
-    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 1000);
-    instrumentPair = new InstrumentPair(229, "CARBON/USDT", "CARBON/USDT", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 10, 20, 1, 0);
+    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0);
+    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0);
+    instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0);
 
-    orderBook = OrderBookFactory.create(OrderBookFactory.SELECT_ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, instrumentPair,
+    orderBook = OrderBookFactory.create(OrderBookFactory.SELECT_ARRAY_ORDER_BOOK, OrderBookFactory.CASH_PREORDER_CHECK, instrumentPair,
         DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
     orderBook.setSettleCoinUsdMarkInstrument(quoted);
 
@@ -112,23 +112,23 @@ public class SelectArrayOrderBookDataTest {
     InstrumentCache.addPair(instrumentPair);
 
 
-    user1.addPosition(1, 1000000000, null);
-    user2.addPosition(1, 1000000000, null);
+    user1.addPosition(0, 1000000000, null);
+    user2.addPosition(0, 1000000000, null);
 
     TreeSet assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {101, 1});
 
-    user2.addPosition(229, 1, assetIdTreeSet);//deposit assetId 101, tokenId 1
+    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 101, tokenId 1
 
     assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {101, 2});
 
-    user2.addPosition(229, 1, assetIdTreeSet);//deposit assetId 101, tokenId 2
+    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 101, tokenId 2
 
     assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {102, 5});
 
-    user2.addPosition(229, 1, assetIdTreeSet);//deposit assetId 102, tokenId 5
+    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 102, tokenId 5
   }
 
 
