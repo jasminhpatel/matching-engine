@@ -454,8 +454,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       return;
     }
 
-    LOGGER.info("Order- " + order.getType());
-
     switch (order.getType()) {
       case BUY_LIMIT:
         addBuyLimit(order);
@@ -1657,7 +1655,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     }
 
     final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
-    LOGGER.info("Order- counterOrder: " + counterOrder);
     if (counterOrder == null || counterOrder.getQty() <= 0) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
@@ -1666,7 +1663,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     }
 
     final int marketOrderRiskPrice = counterOrder.getPrice2Int();
-    LOGGER.info("Order- marketOrderRiskPrice: " + marketOrderRiskPrice + " askLevelCachePtrArr[0] = " + askLevelCachePtrArr[0]);
     if ((askLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
         && marketStatus != MarketStatus.OPEN_AUCTION) {
       // ack

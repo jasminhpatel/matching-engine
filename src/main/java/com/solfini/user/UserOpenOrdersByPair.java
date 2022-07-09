@@ -159,8 +159,6 @@ public class UserOpenOrdersByPair implements Appendable, Constants {
   public boolean add(final Order order, final int marginCheckReferencePrice) {
     if (Context.isRejectDuplicateClorIdsEnabled() && order.getClOrdId() != null && order.getClOrdId().length() > 1
         && isClOrdIdUsed(order.getClOrdId())) {
-      LOGGER.info("Context.isRejectDuplicateClorIdsEnabled() = " + Context.isRejectDuplicateClorIdsEnabled() +
-          " order.getClOrdId()= " + order.getClOrdId() + " isClOrdIdUsed: " + isClOrdIdUsed(order.getClOrdId()));
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_6, ">> reject ClOrdId order=", order, REFERENCEPRICE_EQ, marginCheckReferencePrice, TOSTRING_EQ, this);
       }
@@ -168,7 +166,6 @@ public class UserOpenOrdersByPair implements Appendable, Constants {
     }
 
     if (Context.getUserOpenOrderLimit() > 0 && bidsCount + asksCount >= Context.getUserOpenOrderLimit()) {
-      LOGGER.info("Context.getUserOpenOrderLimit() = " + Context.getUserOpenOrderLimit() + " count: " + (bidsCount + asksCount));
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_6, ">> reject open order count order=", order, REFERENCEPRICE_EQ, marginCheckReferencePrice, TOSTRING_EQ,
             this);
