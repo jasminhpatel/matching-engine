@@ -99,9 +99,9 @@ public class SelectArrayOrderBookDataTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(1, "USDT", "USDT", (short) 6, (short) 6, 3500, 1000);
+    quoted = new Instrument(1, "USDT", "USDT", (short) 6, (short) 6, 1, 1000);
     base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 1000);
-    instrumentPair = new InstrumentPair(229, "CARBON/USDT", "CARBON/USDT", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 10, 20, 3500, 0);
+    instrumentPair = new InstrumentPair(229, "CARBON/USDT", "CARBON/USDT", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 10, 20, 1, 0);
 
     orderBook = OrderBookFactory.create(OrderBookFactory.SELECT_ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, instrumentPair,
         DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
@@ -134,11 +134,17 @@ public class SelectArrayOrderBookDataTest {
 
   private void placeOrders() {
     //sell assetId 101, tokenId 1
-    Order sell = makeOrder(user2, account2, OrdType.SELECT, 1058098, 0, 1, Side.SELL, 101, 1, 1);
+    Order sell = makeOrder(user2, account2, OrdType.LIMIT, 10000, 0, 1, Side.SELL, 101, 1, 0);
     orderBook.addOrder(sell);
+    //sell assetId 102, tokenId 5
+    Order sell2 = makeOrder(user2, account2, OrdType.LIMIT, 10200, 0, 1, Side.SELL, 102, 5, 0);
+    orderBook.addOrder(sell2);
     //buy assetId 101, tokenId 1
-    Order buy = makeOrder(user1, account1, OrdType.SELECT, 1058098, 0, 1, Side.BUY,101, 1, 1);
+    Order buy = makeOrder(user1, account1, OrdType.SELECT, 10000, 0, 1, Side.BUY,101, 1, sell.getOrderId());
     orderBook.addOrder(buy);
+    //buy assetId 102, tokenId 5
+    Order buy2 = makeOrder(user1, account1, OrdType.SELECT, 10200, 0, 1, Side.BUY,102, 5, sell2.getOrderId());
+    orderBook.addOrder(buy2);
 
   }
 
@@ -146,14 +152,16 @@ public class SelectArrayOrderBookDataTest {
   public void testOrderMatch () throws InterruptedException {
     placeOrders();
     Thread.sleep(1000);
+    int iterations = 0;
     int count = 1;
-    while (count > 0) {
+    while (iterations < 3) {
       count = Context.getMatcherToPublisherQueue().drainTo(list, 4096);
 
       for (int i = 0; i < count; i++) {
         Message message = list.get(i);
         System.out.println(message.toJSON());
       }
+      iterations++;
 
       Thread.sleep(1000);
     }
@@ -235,9 +243,27 @@ public class SelectArrayOrderBookDataTest {
     final Side side = order.getSide();
 
     if (Side.BUY == side) {
-      order.setType(BUY_SELECT);
+      if (OrdType.LIMIT == ordType)
+        order.setType(BUY_LIMIT);
+      else if (OrdType.MARKET == ordType)
+        order.setType(BUY_MARKET);
+      else if (OrdType.STOP_LIMIT == ordType || OrdType.STOP == ordType) {
+        order.setType(STOP_BUY_LIMIT);
+        order = parseStop(order);
+      } else if (order.getOrdType() == OrdType.SELECT) {
+        order.setType(BUY_SELECT);
+      }
     } else if (Side.SELL == side) {
-      order.setType(SELL_SELECT);
+      if (OrdType.LIMIT == ordType)
+        order.setType(SELL_LIMIT);
+      else if (OrdType.MARKET == ordType)
+        order.setType(SELL_MARKET);
+      else if (OrdType.STOP_LIMIT == ordType || OrdType.STOP == ordType) {
+        order.setType(STOP_SELL_LIMIT);
+        order = parseStop(order);
+      } else if (order.getOrdType() == OrdType.SELECT) {
+        order.setType(SELL_SELECT);
+      }
     }
 
     return order;

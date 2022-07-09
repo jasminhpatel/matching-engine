@@ -418,7 +418,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
       return;
     }
-    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0 && order.getSide() == Side.BUY) {//todo verify
+    if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0) {
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_4, "adding invalid selectId in order. id=", id, ORDER_EQ, order);
       }
@@ -1309,6 +1309,11 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    //used for select id orders
+    //todo write cleanup logic
+    newPtr.setSelectId(newPtr.getOrderId());
+    idToOrderMap.put(newPtr.getOrderId(), newPtr);
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1432,6 +1437,11 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
+
+    //used for select id orders
+    //todo write cleanup logic
+    newPtr.setSelectId(newPtr.getOrderId());
+    idToOrderMap.put(newPtr.getOrderId(), newPtr);
 
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
@@ -1654,7 +1664,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     }
 
     final int marketOrderRiskPrice = counterOrder.getPrice2Int();
-
     if ((askLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
         && marketStatus != MarketStatus.OPEN_AUCTION) {
       // ack
@@ -1695,8 +1704,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   }
 
   public final void addSellSelect(final Order newPtr) {
-    //todo remove
-    LOGGER.info("Add sell select order: assetId: " + newPtr.getAssetId() + " tokenId: " + newPtr.getTokenId());
     if (isCircuitBreaker()) {
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_3, REJECT_ORDER_EQ, MARKET_CIRCUIT_BREAKER, ORDER_EQ, newPtr);
@@ -1707,7 +1714,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       return;
     }
 
-    final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
+   final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
 
     if (counterOrder == null || counterOrder.getQty() <= 0) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
