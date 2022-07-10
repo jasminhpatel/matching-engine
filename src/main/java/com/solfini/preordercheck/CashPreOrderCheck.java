@@ -185,6 +185,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         LOGGER.debug(LOG_FMT_10, ">>> checkOrder qtyLong=", order.getQuantityLong(), "order.getPriceInt()=", order.getPriceInt(),
             REFERENCEPRICE_EQ, referencePrice, ", basePosition=", basePosition, ", quotedPosition=", quotedPosition);
       }
+      LOGGER.info(LOG_FMT_10, ">>> checkOrder qtyLong=", order.getQuantityLong(), "order.getPriceInt()= ", order.getPriceInt(),
+          REFERENCEPRICE_EQ, referencePrice, ", basePosition=", basePosition, ", quotedPosition=", quotedPosition);
     } catch (Exception e) {
       LOGGER.error("error in checkOrder " + order + REFERENCEPRICE_EQ + referencePrice, e);
     }
