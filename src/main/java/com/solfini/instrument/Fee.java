@@ -37,7 +37,7 @@ public class Fee implements Appendable, Constants {
     feeType = FeeType.ABSOLUTE;
     feeCalc = new FeeCalcAbsolute(0);
     makerTaker = MakerTaker.ALL;
-    feeInstrumentId = 1;//todo added for testing
+    feeInstrumentId = 1;//USDC
   }
 
   public Fee(final int instrumentPairId, final int feeInstrumentId, final int feeAmount, final FeeType feeType, final MakerTaker makerTaker,
