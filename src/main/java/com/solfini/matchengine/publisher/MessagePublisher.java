@@ -225,6 +225,9 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder = assetGroupEncoder.next();
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
+            if(instrument.getId() == 228 || instrument.getId() == 229) {
+              LOGGER.info("Position>>> assetId: " + value[0] + " tokenId: " + value[1]);
+            }
           }
         } else {
           //todo make this field optional in sbe and remove below
