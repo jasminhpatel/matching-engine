@@ -384,7 +384,7 @@ public class Position implements Appendable, Constants {
   }
 
   public final void addAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0)
+    if (assetId == 0 && tokenId == 0)
       return;
 
     if (assetIdtreeSet == null)

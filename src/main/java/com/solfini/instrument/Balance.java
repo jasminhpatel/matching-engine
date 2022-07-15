@@ -101,7 +101,8 @@ public class Balance implements Appendable, Constants {
 
     final Set<long[]> sourceAssetIdtreeSet = position.getAssetIdtreeSet();
     if (sourceAssetIdtreeSet != null) {
-      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+      this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+      this.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
     } else
       this.assetIdtreeSet = null;
   }
@@ -246,7 +247,7 @@ public class Balance implements Appendable, Constants {
   }
 
   public final void addAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0)
+    if (assetId == 0 && tokenId == 0)
       return;
 
     if (assetIdtreeSet == null)

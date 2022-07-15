@@ -226,7 +226,7 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
             if(instrument.getId() == 228 || instrument.getId() == 229) {
-              LOGGER.info("Position>>> assetId: " + value[0] + " tokenId: " + value[1]);
+              LOGGER.info("Position>>> assetId: " + value[0] + " tokenId: " + value[1] + " size: " + assetIdtreeSet.size());
             }
           }
         } else {
