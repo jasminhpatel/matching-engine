@@ -225,12 +225,11 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder = assetGroupEncoder.next();
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
-            if(instrument.getId() == 228 || instrument.getId() == 229) {
+            if (instrument.getId() == 228 || instrument.getId() == 229) {
               LOGGER.info("Position>>> assetId: " + value[0] + " tokenId: " + value[1] + " size: " + assetIdtreeSet.size());
             }
           }
         } else {
-          //todo make this field optional in sbe and remove below
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
           assetGroupEncoder = assetGroupEncoder.next();
           assetGroupEncoder.assetId(0);
@@ -933,7 +932,8 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
-    LOGGER.info("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
+    LOGGER.info(Constants.LOG_FMT_2, "Order- Business Reject. orderId: ", businessRejectMessage.getClOrdId(),
+        " pairId: ", businessRejectMessage.getPairId(), " reason: ", businessRejectMessage.getText());
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();

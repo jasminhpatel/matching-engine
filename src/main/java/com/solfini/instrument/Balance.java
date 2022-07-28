@@ -60,7 +60,10 @@ public class Balance implements Appendable, Constants {
 
     final Set<long[]> sourceAssetIdtreeSet = position.getAssetIdtreeSet();
     if (sourceAssetIdtreeSet != null) {
-      this.assetIdtreeSet = new TreeSet<long[]>(sourceAssetIdtreeSet);
+      if (this.assetIdtreeSet == null) {
+        this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+      }
+      this.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
     } else
       this.assetIdtreeSet = null;
   }

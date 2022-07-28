@@ -850,6 +850,7 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
+      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       return positionArr[instrumentId];
     } else {
       positionArr[instrumentId].setQuantity(quantity);
@@ -882,12 +883,14 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
+      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       return positionArr[instrumentId];
     } else {
       positionArr[instrumentId].addQuantity(quantity);
       positionArr[instrumentId].addAvailableQuantity(quantity);
       positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       positionArr[instrumentId].touched();
+
       return positionArr[instrumentId];
     }
   }
