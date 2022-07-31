@@ -2,7 +2,10 @@ package com.solfini.matchengine.user;
 
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,6 +90,21 @@ public class UserTest implements Constants {
     InstrumentCache.addPair(pair);
   }
 
+  protected static void createCarbonInstruments() {
+    final Instrument usdc = new Instrument(1, "USDC", "USDC", (short) 2, (short) 6, 1, 1000);
+    usdc.setIndexFeedUsdMark(1);
+    InstrumentCache.addInstrument(usdc);
+
+    final Instrument carbon = new Instrument(228, "CARBON", "CARBON", (short) 2, (short) 6, 1, 1000);
+    carbon.setIndexFeedUsdMark(1);
+    InstrumentCache.addInstrument(carbon);
+
+    final InstrumentPair pair =
+        new InstrumentPair(229, "CARBON/USD", "CARBON/USD", usdc, carbon, (short) 2, (short) 0, 2, AssetType.PAIR, 5_00, 10_00, 40, 0);
+
+    InstrumentCache.addPair(pair);
+  }
+
   @Test
   public void createUserTest() {
     createInstruments();
@@ -147,6 +165,25 @@ public class UserTest implements Constants {
     assertTrue(userAdminMessage != null);
     assertTrue(balanceAdminMessage != null);
 
+  }
+
+  @Test
+  public void copyPositionTest() {
+    createCarbonInstruments();
+
+    final User user = createUser(18);
+    user.addPosition(1, 10_000_000, null);
+    Set<long[]> assetIdTreeSet = new HashSet<>();
+    long[] token = {100l, 1};
+    assetIdTreeSet.add(token);
+    token = new long[]{100l, 2};
+    assetIdTreeSet.add(token);
+    Position position = user.addPosition(228, 1, assetIdTreeSet);
+    user.setActive(true);
+    user.addPosition(228, 1, assetIdTreeSet);
+    user.setActive(true);
+
+    BalanceAdminMessage balanceAdminMessage = user.buildBalanceAdminMessage();
   }
 
 }
