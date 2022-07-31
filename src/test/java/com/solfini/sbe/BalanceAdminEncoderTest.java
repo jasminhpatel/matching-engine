@@ -66,9 +66,12 @@ public class BalanceAdminEncoderTest {
     balanceGroupEncoder.assetId(1).balance().value(120).scale(0);
 
     com.solfini.internal.admin.schema.BalanceAdminMessageEncoder.BalanceGroupEncoder.PositionsAssetIdGroupEncoder assetIdGroupEncoder =
-        balanceGroupEncoder.positionsAssetIdGroupCount(2);
+        balanceGroupEncoder.positionsAssetIdGroupCount(5);
     assetIdGroupEncoder.next().assetId(1).tokenId(101);
     assetIdGroupEncoder.next().assetId(2).tokenId(102);
+    assetIdGroupEncoder.next().assetId(3).tokenId(103);
+    assetIdGroupEncoder.next().assetId(4).tokenId(104);
+    assetIdGroupEncoder.next().assetId(5).tokenId(105);
 
     encodedLength += balanceAdminMessageEncoder.encodedLength();
     adminMessageBuffer.limit(encodedLength);
