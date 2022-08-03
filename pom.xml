@@ -123,17 +123,17 @@
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-infrastructure-messaging</artifactId>
-      <version>v1.1.0-snapshot</version>
+      <version>v1.2.0-snapshot</version>
     </dependency>				
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-sbe-messaging</artifactId>
-      <version>v1.1.0-snapshot</version>
+      <version>v1.2.0-snapshot</version>
     </dependency>		
     <dependency>
       <groupId>com.solfini.messaging</groupId>
       <artifactId>solfini-admin-messaging</artifactId>
-      <version>v1.1.0-snapshot</version>
+      <version>v1.2.0-snapshot</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
