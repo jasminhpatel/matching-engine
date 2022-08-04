@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-
 import org.agrona.concurrent.UnsafeBuffer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -55,8 +54,10 @@ import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.SnapResponseAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.ExecutionReportDecoder;
 import com.solfini.sbe.encoder.MessageHeaderDecoder;
 import com.solfini.sbe.encoder.PositionReportDecoder;
@@ -99,6 +100,7 @@ public class SnapConverter implements Constants {
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
   private final ExecutionReportDecoder executionReportDecoder = new ExecutionReportDecoder();
   private final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
+  private final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
   private final SnapTransformer transformer;
   private final Set<String> transforms = new HashSet<>();
 
@@ -106,8 +108,7 @@ public class SnapConverter implements Constants {
     this(false, false, false, null);
   }
 
-  public SnapConverter(final boolean debug, final boolean prune, final boolean clean,
-      final SnapTransformer transformer) {
+  public SnapConverter(final boolean debug, final boolean prune, final boolean clean, final SnapTransformer transformer) {
     this.debug = debug;
     this.prune = clean || prune;
     this.clean = clean;
@@ -145,8 +146,8 @@ public class SnapConverter implements Constants {
 
       final long duration = System.currentTimeMillis() - start;
       if (duration != 0) {
-        System.out.println(format.format(total) + " records: " + format.format(duration) + " ms ("
-            + format.format(total * 1_000 / duration) + " rec/s)");
+        System.out.println(
+            format.format(total) + " records: " + format.format(duration) + " ms (" + format.format(total * 1_000 / duration) + " rec/s)");
       }
 
       if (summary) {
@@ -165,8 +166,7 @@ public class SnapConverter implements Constants {
     System.out.println("EXPORT: " + snapshot + " -> " + json);
 
     final BufferedWriter writer = new BufferedWriter(new FileWriter(json, false));
-    final ChronicleQueue queue = SingleChronicleQueueBuilder.single(snapshot).blockSize(1048576)
-        .rollCycle(RollCycles.DAILY).build();
+    final ChronicleQueue queue = SingleChronicleQueueBuilder.single(snapshot).blockSize(1048576).rollCycle(RollCycles.DAILY).build();
     final ExcerptTailer tailer = queue.createTailer();
     final Bytes<ByteBuffer> bytes = Bytes.elasticHeapByteBuffer(32768);
     final ByteBuffer buffer = ByteBuffer.allocateDirect(32768);
@@ -247,11 +247,11 @@ public class SnapConverter implements Constants {
     return validator.validate();
   }
 
-  private Message decodeAdminMessage(final long seqNum, final long sendTime, final ByteBuffer buffer, final int length)
-      throws IOException {
+  private Message decodeAdminMessage(final long seqNum, final long sendTime, final ByteBuffer buffer, final int length) throws IOException {
     final InboundAdminMessageHandler inboundAdminMessageHandler = new InboundAdminMessageHandler();
     final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(buffer);
-    final com.solfini.internal.admin.schema.MessageHeaderDecoder messageHeaderDecoder = new com.solfini.internal.admin.schema.MessageHeaderDecoder();
+    final com.solfini.internal.admin.schema.MessageHeaderDecoder messageHeaderDecoder =
+        new com.solfini.internal.admin.schema.MessageHeaderDecoder();
     messageHeaderDecoder.wrap(unsafeBuffer, 0);
 
     final int connectionId = 0;
@@ -263,8 +263,7 @@ public class SnapConverter implements Constants {
         message = inboundAdminMessageHandler.decodeAdminUserUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       case BalanceAdminMessageDecoder.TEMPLATE_ID:
-        message = inboundAdminMessageHandler.decodeBalanceAdminUserUpdate(unsafeBuffer, messageHeaderDecoder,
-            connectionId);
+        message = inboundAdminMessageHandler.decodeBalanceAdminUserUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       case FeeAdminMessageDecoder.TEMPLATE_ID:
         message = inboundAdminMessageHandler.decodeFeeAdminUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
@@ -272,25 +271,21 @@ public class SnapConverter implements Constants {
           ((FeeAdminMessage) message).setUpdateType(UpdateType.PUT);
         break;
       case SecurityDefinitionAdminMessageDecoder.TEMPLATE_ID:
-        message = inboundAdminMessageHandler.decodeSecurityDefinitionAdminUpdate(unsafeBuffer, messageHeaderDecoder,
-            connectionId);
+        message = inboundAdminMessageHandler.decodeSecurityDefinitionAdminUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         ((SecurityDefinitionAdminMessage) message).setUpdateType(UpdateType.PUT);
         ((SecurityDefinitionAdminMessage) message).setSnapConverterMode(true);
         break;
       case TradeStateAdminMessageDecoder.TEMPLATE_ID:
-        message = inboundAdminMessageHandler.decodeTradeStateAdminUpdate(unsafeBuffer, messageHeaderDecoder,
-            connectionId);
+        message = inboundAdminMessageHandler.decodeTradeStateAdminUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       case FIXUserAdminMessageDecoder.TEMPLATE_ID:
         message = inboundAdminMessageHandler.decodeFIXUserAdminUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       case FundingRateCalcAdminMessageDecoder.TEMPLATE_ID:
-        message = inboundAdminMessageHandler.decodeFundingRateCalcAdminUpdate(unsafeBuffer, messageHeaderDecoder,
-            connectionId);
+        message = inboundAdminMessageHandler.decodeFundingRateCalcAdminUpdate(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       case SnapResponseAdminMessageDecoder.TEMPLATE_ID:
-        message = inboundAdminMessageHandler.decodeSnapResponseAdminMessage(unsafeBuffer, messageHeaderDecoder,
-            connectionId);
+        message = inboundAdminMessageHandler.decodeSnapResponseAdminMessage(unsafeBuffer, messageHeaderDecoder, connectionId);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported admin message: templateId=" + templateId);
@@ -386,11 +381,7 @@ public class SnapConverter implements Constants {
       // set usd mark to 1.0 for usd, usd pegged stable coins
       if (message instanceof SecurityDefinitionAdminMessage) {
         final String symbol = ((SecurityDefinitionAdminMessage) message).getSymbol();
-        if (symbol.equals("USD") ||
-            symbol.equals("USDC") ||
-            symbol.equals("USDT") ||
-            symbol.equals("PAX") ||
-            symbol.equals("TUSD")) {
+        if (symbol.equals("USD") || symbol.equals("USDC") || symbol.equals("USDT") || symbol.equals("PAX") || symbol.equals("TUSD")) {
           ((SecurityDefinitionAdminMessage) message).setIndexFeedUsdMark(1.0);
         }
       }
@@ -421,8 +412,7 @@ public class SnapConverter implements Constants {
     return message;
   }
 
-  private Message decodeNormalMessage(final byte[] data, final int length, final Statistics statistics)
-      throws IOException {
+  private Message decodeNormalMessage(final byte[] data, final int length, final Statistics statistics) throws IOException {
     // wrap bytes
     decoderUnsafeBuffer.wrap(data);
     headerDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET);
@@ -430,8 +420,8 @@ public class SnapConverter implements Constants {
     Message message;
     switch (headerDecoder.templateId()) {
       case ExecutionReportDecoder.TEMPLATE_ID:
-        executionReportDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(),
-            headerDecoder.blockLength(), headerDecoder.version());
+        executionReportDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+            headerDecoder.version());
 
         message = executionReportParser.parse(headerDecoder, executionReportDecoder);
 
@@ -444,10 +434,25 @@ public class SnapConverter implements Constants {
 
         break;
       case PositionReportDecoder.TEMPLATE_ID:
-        positionReportDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(),
-            headerDecoder.blockLength(), headerDecoder.version());
+        positionReportDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+            headerDecoder.version());
 
         message = positionReportParser.parse(headerDecoder, positionReportDecoder);
+        if (message != null) {
+          message.setSenderCompId(headerDecoder.senderCompId());
+          message.setSequenceNumber(headerDecoder.msgSeqNum());
+          message.setSourceSeqNum(headerDecoder.sourceSeqNum());
+          message.setKafkaRecordOffset(headerDecoder.kafkaRecordOffset());
+        }
+        break;
+      case AssetGroupDecoder.TEMPLATE_ID:
+        final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
+        assetGroupDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+            headerDecoder.version());
+
+        final AssetGroup assetGroup = new AssetGroup();
+        assetGroup.set(assetGroupDecoder);
+        message = assetGroup;
         if (message != null) {
           message.setSenderCompId(headerDecoder.senderCompId());
           message.setSequenceNumber(headerDecoder.msgSeqNum());
@@ -699,8 +704,7 @@ public class SnapConverter implements Constants {
         message = builder.create().fromJson(json, FeeAdminMessage.class);
         break;
       case "SecurityDefinitionAdminMessage":
-        builder.registerTypeAdapter(SecurityDefinitionAdminMessage.class,
-            new SecurityDefinitionAdminMessageJsonDeserializer());
+        builder.registerTypeAdapter(SecurityDefinitionAdminMessage.class, new SecurityDefinitionAdminMessageJsonDeserializer());
         message = builder.create().fromJson(json, SecurityDefinitionAdminMessage.class);
         ((SecurityDefinitionAdminMessage) message).setSnapConverterMode(true);
 
@@ -743,7 +747,8 @@ public class SnapConverter implements Constants {
     options.addOption(Option.builder("h").longOpt("help").desc("show help").required(false).build());
     options.addOption(Option.builder("s").longOpt("snapshot").desc("snapshot directory").hasArg().argName("dir").required().build());
     options.addOption(Option.builder("j").longOpt("json").desc("json file path").hasArg().argName("file").required().build());
-    options.addOption(Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").required().build());
+    options.addOption(
+        Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").required().build());
     options.addOption(Option.builder().longOpt("debug").desc("enable debug logging").required(false).build());
     options.addOption(Option.builder().longOpt("prune").desc("enable snapshot pruning").required(false).build());
     options.addOption(Option.builder().longOpt("clean").desc("enable snapshot cleaning").required(false).build());
@@ -796,8 +801,8 @@ public class SnapConverter implements Constants {
         transformer = new SnapTransformer(properties);
       }
 
-      final SnapConverter snapConverter = new SnapConverter(
-          cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer);
+      final SnapConverter snapConverter =
+          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer);
 
       if (cmd.hasOption("transform")) {
         for (final String name : cmd.getOptionValues("transform")) {

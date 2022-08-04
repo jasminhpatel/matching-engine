@@ -45,7 +45,7 @@ public class Position implements Appendable, Constants {
   private int bankruptPriceInt;
   private boolean markAsReturned = false;
 
-  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId]
+  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId, groupAssetId]
 
   public Position() {
     // default constructor
@@ -383,25 +383,25 @@ public class Position implements Appendable, Constants {
     this.assetIdtreeSet = assetIdtreeSet;
   }
 
-  public final void addAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0 && tokenId == 0)
+  public final void addAssetId(final long assetId, final int tokenId, final long groupAssetId) {
+    if (assetId == 0 && tokenId == 0 && groupAssetId == 0)
       return;
 
     if (assetIdtreeSet == null)
       assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
-    final long[] value = {assetId, tokenId};
+    final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.add(value);
   }
 
-  public final void removeAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0)
+  public final void removeAssetId(final long assetId, final int tokenId, final long groupAssetId) {
+    if (assetId == 0 && groupAssetId == 0)
       return;
 
     if (assetIdtreeSet == null)
       assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
-    final long[] value = {assetId, tokenId};
+    final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.remove(value);
   }
 
@@ -446,6 +446,11 @@ public class Position implements Appendable, Constants {
       if (o1[1] < o2[1])
         return -1;
       if (o1[1] > o2[1])
+        return 1;
+
+      if (o1[2] < o2[2])
+        return -1;
+      if (o1[2] > o2[2])
         return 1;
 
       return 0;

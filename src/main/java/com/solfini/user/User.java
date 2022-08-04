@@ -28,7 +28,6 @@ import com.solfini.pool.PositionMatchThreadObjectPool;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
 import uk.co.real_logic.artio.fields.DecimalFloat;
-
 import static com.solfini.instrument.Position.assetIdComparator;
 
 /**
@@ -862,12 +861,13 @@ public class User implements Appendable, Serializable, Constants {
   }
 
   // must be called from the matching engine thread
-  public final Position addPosition(final int instrumentId, final long quantity, final long assetId, final int tokenId) {
+  public final Position addPosition(final int instrumentId, final long quantity, final long assetId, final int tokenId,
+      final long groupAssetId) {
     if (assetId == 0)
       return addPosition(instrumentId, quantity, null);
     else {
       final Set<long[]> assetIdtreeSet = new TreeSet<>(assetIdComparator);
-      final long[] value = {assetId, tokenId};
+      final long[] value = {assetId, tokenId, groupAssetId};
       assetIdtreeSet.add(value);
       return addPosition(instrumentId, quantity, assetIdtreeSet);
     }

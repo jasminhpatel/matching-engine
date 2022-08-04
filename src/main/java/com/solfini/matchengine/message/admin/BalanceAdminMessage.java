@@ -25,7 +25,6 @@ import com.solfini.user.UserCache;
 import com.solfini.util.FastArrayList;
 import com.solfini.util.StringUtil;
 import uk.co.real_logic.artio.fields.DecimalFloat;
-
 import static com.solfini.instrument.Position.assetIdComparator;
 
 /**
@@ -120,7 +119,7 @@ public class BalanceAdminMessage extends AdminMessage {
       final long value = balanceGroupDecoder.balance().value();
       final int scale = balanceGroupDecoder.balance().scale();
 
-      // add assetId,tokenId set
+      // add assetId,tokenId,groupAssetId set
       Set<long[]> assetIdtreeSet = null;
       for (BalanceGroupDecoder.PositionsAssetIdGroupDecoder assetIdGroupDecoder : balanceGroupDecoder.positionsAssetIdGroup()) {
         if (assetIdtreeSet == null)
@@ -128,10 +127,11 @@ public class BalanceAdminMessage extends AdminMessage {
 
         final long assetId2 = assetIdGroupDecoder.assetId();
         final int tokenId = assetIdGroupDecoder.tokenId();
+        final long groupAssetId = assetIdGroupDecoder.groupAssetId();
         if (assetId == 228 || assetId == 229) {
           LOGGER.info("Position>>>1 assetId: " + assetId2 + " tokenId: " + tokenId);
         }
-        final long[] arrvalue = new long[] {assetId2, tokenId};
+        final long[] arrvalue = new long[] {assetId2, tokenId, groupAssetId};
         assetIdtreeSet.add(arrvalue);
       }
 

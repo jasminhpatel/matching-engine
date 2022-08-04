@@ -8,17 +8,18 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
-
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
+import com.solfini.matchengine.decoder.AssetGroupRequestHandler;
 import com.solfini.matchengine.decoder.CancelReplaceRequestHandler;
 import com.solfini.matchengine.decoder.CancelRequestHandler;
 import com.solfini.matchengine.decoder.MarketDataFeedRequestHandler;
 import com.solfini.matchengine.decoder.MassCancelRequestHandler;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.decoder.SessionHandler;
+import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.CancelOrderDecoder;
 import com.solfini.sbe.encoder.CancelReplaceOrderDecoder;
 import com.solfini.sbe.encoder.HeartbeatDecoder;
@@ -52,6 +53,7 @@ public class KafkaInputFixListener extends KafkaListener {
   private final MassCancelRequestHandler massCancelRequestHandler = new MassCancelRequestHandler();
   private final MarketDataFeedRequestHandler marketDataFeedRequestHandler = new MarketDataFeedRequestHandler();
   private final SessionHandler sessionHandler = new SessionHandler();
+  private final AssetGroupRequestHandler assetGroupRequestHandler = new AssetGroupRequestHandler();
 
   private final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -60,6 +62,7 @@ public class KafkaInputFixListener extends KafkaListener {
   private final CancelReplaceOrderDecoder cancelReplaceOrderDecoder = new CancelReplaceOrderDecoder();
   private final MassCancelOrderDecoder massCancelOrderDecoder = new MassCancelOrderDecoder();
   private final MarketDataFeedDecoder marketDataFeedDecoder = new MarketDataFeedDecoder();
+  private final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
 
   private final LogonDecoder logonDecoder = new LogonDecoder();
   private final HeartbeatDecoder heartbeatDecoder = new HeartbeatDecoder();
@@ -245,7 +248,7 @@ public class KafkaInputFixListener extends KafkaListener {
           newOrderSingleDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
               headerDecoder.version());
           Message message = newOrderSingleHandler.decodeNewOrderSingle(headerDecoder, newOrderSingleDecoder);
-          //LOGGER.info("Order message decoded: " + message.toJSON());
+          // LOGGER.info("Order message decoded: " + message.toJSON());
           return message;
         case CancelOrderDecoder.TEMPLATE_ID:
           if (LOGGER.isTraceEnabled()) {
@@ -265,6 +268,14 @@ public class KafkaInputFixListener extends KafkaListener {
           cancelId = NewOrderSingleHandler.getNextOrderId();
           long newOrderId = NewOrderSingleHandler.getNextOrderId();
           message = cancelReplaceRequestHandler.decodeCancelReplaceRequest(headerDecoder, cancelReplaceOrderDecoder, cancelId, newOrderId);
+          return message;
+        case AssetGroupDecoder.TEMPLATE_ID:
+          if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace(ASSET_GROUP_REQUEST);
+          }
+          assetGroupDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+              headerDecoder.version());
+          message = assetGroupRequestHandler.decodeAssetGroupRequest(headerDecoder, assetGroupDecoder);
           return message;
         case MassCancelOrderDecoder.TEMPLATE_ID:
           if (LOGGER.isTraceEnabled()) {

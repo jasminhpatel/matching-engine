@@ -43,6 +43,7 @@ public class CancelReplaceOrder extends Message implements Constants {
 
   private long assetId;
   private int tokenId;
+  private long groupAssetId;
   private long selectId;
 
   private String clOrdId;
@@ -100,6 +101,7 @@ public class CancelReplaceOrder extends Message implements Constants {
 
     assetId = cancelReplaceOrderDecoder.assetId();
     tokenId = cancelReplaceOrderDecoder.tokenId();
+    groupAssetId = cancelReplaceOrderDecoder.groupAssetId();
     selectId = cancelReplaceOrderDecoder.selectId();
 
     forceAddOrder = cancelReplaceOrderDecoder.forceAddOrder() == BooleanType.FALSE ? false : true;
@@ -148,6 +150,7 @@ public class CancelReplaceOrder extends Message implements Constants {
     submitterId = order.getSubmitterId();
     assetId = order.getAssetId();
     tokenId = order.getTokenId();
+    groupAssetId = order.getGroupAssetId();
     selectId = order.getSelectId();
   }
 
@@ -370,6 +373,14 @@ public class CancelReplaceOrder extends Message implements Constants {
     this.selectId = selectId;
   }
 
+  public long getGroupAssetId() {
+    return groupAssetId;
+  }
+
+  public void setGroupAssetId(final long groupAssetId) {
+    this.groupAssetId = groupAssetId;
+  }
+
   public final Order getOrder() {
     if (order != null) {
       order.setInputTime(inputTime);
@@ -440,7 +451,7 @@ public class CancelReplaceOrder extends Message implements Constants {
         .append(QUANTITYORIGLONG_EQ).append(quantityOrigLong).append(SECONDARYORDERID_EQ).append(secondaryOrderId).append(ORDER_EQ)
         .append(order).append(INPUTTIME_EQ).append(inputTime).append(DECODEDTIME_EQ).append(decodedTime).append(SOURCESEQNUM_EQ)
         .append(sourceSeqNum).append(SOURCESENDTIME_EQ).append(sourceSendTime).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ)
-        .append(tokenId).append(SELECTID_EQ).append(selectId).append(']');
+        .append(tokenId).append(GROUPASSETID_EQ).append(groupAssetId).append(SELECTID_EQ).append(selectId).append(']');
     return s;
   }
 
@@ -462,7 +473,8 @@ public class CancelReplaceOrder extends Message implements Constants {
         .append(price2).append(",\"price2_scale\":").append(price2Scale).append(",\"qty2\":").append(qty2).append(",\"qty2_scale\":")
         .append(qty2Scale).append(",\"newOrderId\":").append(newOrderId).append(",\"cancelId\":").append(secondaryOrderId)
         .append(",\"price2Int\":").append(price2Int).append(",\"order\":").append(order.getOrderId()).append(",\"assetId\":")
-        .append(assetId).append(",\"tokenId\":").append(tokenId).append(",\"selectId\":").append(selectId);
+        .append(assetId).append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":")
+        .append(selectId);
     sb.append("}");
     return sb.toString();
   }

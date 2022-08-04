@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-
+import java.util.concurrent.ConcurrentSkipListSet;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -29,6 +29,7 @@ import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.SnapResponseAdminMessage;
 import com.solfini.matchengine.message.admin.TradeStateAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.MarketDataFeed;
 import com.solfini.matchengine.message.internal.MassCancelOrder;
 import com.solfini.matchengine.message.outbound.BusinessRejectMessage;
@@ -53,6 +54,7 @@ import com.solfini.pool.OptionPricingObjectPool;
 import com.solfini.pool.PositionReportObjectPool;
 import com.solfini.preordercheck.MarginPreOrderCheckAndSettle;
 import com.solfini.preordercheck.PreOrderCheck;
+import com.solfini.sbe.encoder.AssetGroupEncoder;
 import com.solfini.sbe.encoder.AssetType;
 import com.solfini.sbe.encoder.BooleanType;
 import com.solfini.sbe.encoder.BusinessRejectEncoder;
@@ -217,7 +219,7 @@ public class MessagePublisher implements Constants {
         groupEncoder.bankruptPriceInt(position.getBankruptPriceInt());
         groupEncoder.bankruptPriceIntScale(instrument.getPriceScale());
 
-        // add assetId,tokenId set
+        // add assetId,tokenId,groupAssetId set
         final Set<long[]> assetIdtreeSet = position.getAssetIdtreeSet();
         if (assetIdtreeSet != null) {
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(assetIdtreeSet.size());
@@ -225,15 +227,14 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder = assetGroupEncoder.next();
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
-            if (instrument.getId() == 228 || instrument.getId() == 229) {
-              LOGGER.info("Position>>> assetId: " + value[0] + " tokenId: " + value[1] + " size: " + assetIdtreeSet.size());
-            }
+            assetGroupEncoder.groupAssetId(value[2]);
           }
         } else {
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
           assetGroupEncoder = assetGroupEncoder.next();
           assetGroupEncoder.assetId(0);
           assetGroupEncoder.tokenId(0);
+          assetGroupEncoder.groupAssetId(0);
         }
 
       } else if (pair != null) {
@@ -264,18 +265,17 @@ public class MessagePublisher implements Constants {
         groupEncoder.bankruptPriceInt(position.getBankruptPriceInt());
         groupEncoder.bankruptPriceIntScale(pair.getPriceScale());
 
-        //todo make this field optional in sbe and remove below
         PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
+        assetGroupEncoder.groupAssetId(0);
       } else {
         PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
-
-        //LOGGER.error(Constants.ERROR_LOG, "##################### Both instrument and pair are empty. Instrument id: ", position.getInstrumentId());
+        assetGroupEncoder.groupAssetId(0);
       }
     }
   }
@@ -835,8 +835,6 @@ public class MessagePublisher implements Constants {
         executionReport.setLastMessageInTransaction(isLastMessage);
       }
     }
-    //LOGGER.info("Execution. orderId: " + executionReport.getClOrdId() + " userId: " + (executionReport.getUser() == null ? 0 : executionReport.getUser().getId())
-    //    + " securityId: " + executionReport.getSecurityId() + " symbol: " + executionReport.getSymbol());
     // convert and publish
     encodedLength += executionReportEncoder.encodedLength();
     directBuffer.limit(encodedLength);
@@ -855,7 +853,6 @@ public class MessagePublisher implements Constants {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_2, "publish marketDataSnapMessage: ", marketDataSnapMessage.getSymbol());
       }
-      //LOGGER.info("Publish MarketDataSnapMessage: " + marketDataSnapMessage.toString());
 
       final MarketDataSnapshotFullRefreshEncoder mdEncoder = marketDataSnapMessage.getEncoder();
       final ByteBuffer directBuffer = marketDataSnapMessage.getDirectBuffer();
@@ -932,8 +929,8 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
-    LOGGER.info(Constants.LOG_FMT_2, "Order- Business Reject. orderId: ", businessRejectMessage.getClOrdId(),
-        " pairId: ", businessRejectMessage.getPairId(), " reason: ", businessRejectMessage.getText());
+    LOGGER.info("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId()
+        + " reason: " + businessRejectMessage.getText());
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();
@@ -1158,6 +1155,47 @@ public class MessagePublisher implements Constants {
 
     // return to pool
     MarketDataFeedObjectPool.returnObject(mdFeed);
+  }
+
+  public void publish(final AssetGroup assetGroup) {
+    final AssetGroupEncoderCache cache = AssetGroupEncoderCache.get();
+    final AssetGroupEncoder assetGroupEncoder = cache.getEncoder();
+    final ByteBuffer directBuffer = cache.getDirectBuffer();
+    final UnsafeBuffer unsafeBuffer = cache.getUnsafeBuffer();
+    final MessageHeaderEncoder headerEncoder = cache.getHeaderEncoder();
+
+    short encodedLength = ADMIN_ENCODED_LENGTH_SIZE;
+    assetGroupEncoder.wrapAndApplyHeader(unsafeBuffer, encodedLength, headerEncoder);
+    populateHeader(headerEncoder, assetGroup);
+    encodedLength += headerEncoder.encodedLength();
+
+    // set
+    assetGroupEncoder.updateType(assetGroup.getUpdateType());
+    assetGroupEncoder.id(assetGroup.getId());
+    assetGroupEncoder.ownerUserId(assetGroup.getOwnerUserId());
+    assetGroupEncoder.groupAssetId(assetGroup.getGroupAssetId());
+    assetGroupEncoder.securityId(assetGroup.getSecurityId());
+    assetGroupEncoder.updateType(assetGroup.getUpdateType());
+    assetGroupEncoder.name(assetGroup.getName());
+
+    final ConcurrentSkipListSet<long[]> assetIdGroup = assetGroup.getAssetIdGroupTreeSet();
+    AssetGroupEncoder.PositionsAssetIdGroupEncoder positionsAssetIdGroupEncoder =
+        assetGroupEncoder.positionsAssetIdGroupCount(assetIdGroup.size());
+    for (final long[] assetTokenId : assetIdGroup) {
+      positionsAssetIdGroupEncoder.assetId(assetTokenId[0]);
+      positionsAssetIdGroupEncoder.tokenId((int) assetTokenId[1]);
+      positionsAssetIdGroupEncoder.next();
+    }
+
+    // convert and publish
+    encodedLength += assetGroupEncoder.encodedLength();
+    directBuffer.limit(encodedLength);
+    unsafeBuffer.putShort(0, encodedLength);
+    final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
+    publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, assetGroup);
+
+    // return to pool
+    // AssetGroupObjectPool.returnObject(assetGroup);
   }
 
   public void publish(final SnapResponseAdminMessage message) {
@@ -1510,4 +1548,6 @@ public class MessagePublisher implements Constants {
 
     LOGGER.debug("Flushing message publishers completed");
   }
+
+
 }

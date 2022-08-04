@@ -189,7 +189,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       LOGGER.info(">>> checkOrder: instrumentPair" + instrumentPair);
       LOGGER.info(">>> checkOrder: basePosition" + basePosition);
       LOGGER.info(">>> checkOrder: quotedPosition" + quotedPosition);
-      
+
     } catch (Exception e) {
       LOGGER.error("error in checkOrder " + order + REFERENCEPRICE_EQ + referencePrice, e);
     }
@@ -285,7 +285,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case SELL_SELECT:
         case STOP_SELL_LIMIT:
           basePosition.addQuantity(-normalizedQuantityLong); // fill
-          basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId());
+          basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           quotedPosition.addQuantity(normalizedAmountLong); // fill
           quotedPosition.addAvailableQuantity(normalizedAmountLong); // fill
           feePosition.addQuantity(-feeQuantity);
@@ -343,7 +343,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_BUY_LIMIT:
           basePosition.addQuantity(normalizedQuantityLong); // fill
           basePosition.addAvailableQuantity(normalizedQuantityLong); // fill
-          basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId());
+          basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           quotedPosition.addQuantity(-normalizedAmountLong); // fill
 
           long adjustment = normalizedQuantityLong * order.getMarginCheckReferencePrice();

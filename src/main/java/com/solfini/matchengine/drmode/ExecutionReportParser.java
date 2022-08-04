@@ -76,6 +76,7 @@ public class ExecutionReportParser implements Constants {
   private long assetId = 0;
   private int tokenId = 0;
   private long selectId = 0;
+  private long groupAssetId = 0;
 
   private ExecType execType = null;
   private InstrumentPair instrumentPair = null;
@@ -147,6 +148,7 @@ public class ExecutionReportParser implements Constants {
 
       assetId = executionReportDecoder.assetId();
       tokenId = executionReportDecoder.tokenId();
+      groupAssetId = executionReportDecoder.groupAssetId();
       selectId = executionReportDecoder.selectId();
 
 
@@ -221,6 +223,7 @@ public class ExecutionReportParser implements Constants {
     order.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
     order.setAssetId(assetId);
     order.setTokenId(tokenId);
+    order.setGroupAssetId(groupAssetId);
     order.setSelectId(selectId);
 
     if (LOGGER.isDebugEnabled() && expireTime == 0) {
@@ -282,6 +285,7 @@ public class ExecutionReportParser implements Constants {
     order.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
     order.setAssetId(assetId);
     order.setTokenId(tokenId);
+    order.setGroupAssetId(groupAssetId);
     order.setSelectId(selectId);
 
     NewOrderSingleHandler.parseOrder(order);
@@ -368,6 +372,7 @@ public class ExecutionReportParser implements Constants {
     executionReport.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
     executionReport.setAssetId(assetId);
     executionReport.setTokenId(tokenId);
+    executionReport.setGroupAssetId(groupAssetId);
     executionReport.setSelectId(selectId);
 
     return executionReport;
@@ -438,6 +443,7 @@ public class ExecutionReportParser implements Constants {
     executionReport.setAvailableAccumulatedQuantity(availableAccumulatedQuantity);
     executionReport.setAssetId(assetId);
     executionReport.setTokenId(tokenId);
+    executionReport.setGroupAssetId(groupAssetId);
     executionReport.setSelectId(selectId);
 
     return executionReport;

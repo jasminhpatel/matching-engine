@@ -49,7 +49,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
   }
 
   public static final void setLIQUIDATON_MODE(final boolean value) {
-    //LOGGER.warn(LOG_FMT_2, "setLIQUIDATON_MODE ", value);
+    // LOGGER.warn(LOG_FMT_2, "setLIQUIDATON_MODE ", value);
     LIQUIDATON_MODE = value;
   }
 
@@ -824,7 +824,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
             final ExecutionReportMessage execOpen = ExecutionReportMessage.createTradeExecutionReport(order, instrumentPair,
                 execReport.getLastPx(), execReport.getLastPxScale(), execReport.getLastQty(), execReport.getLastQtyScale(),
                 execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true, execReport.getAssetId(),
-                execReport.getTokenId(), execReport.getSelectId());
+                execReport.getTokenId(), execReport.getGroupAssetId(), execReport.getSelectId());
             status = updateFillSell(order, referencePrice, diff, execOpen, quotedUsdMark, settleCoinUsdMark, quotedCoinUsdMark, isMaker,
                 pairPosition, feePosition, settlePosition, user, positionArr, instrumentPair, fee);
           } else {
@@ -849,7 +849,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
             final ExecutionReportMessage execOpen = ExecutionReportMessage.createTradeExecutionReport(order, instrumentPair,
                 execReport.getLastPx(), execReport.getLastPxScale(), execReport.getLastQty(), execReport.getLastQtyScale(),
                 execReport.getExecId(), execReport.getSecondaryExecId(), causingMessage, counterpartyId, true, execReport.getAssetId(),
-                execReport.getTokenId(), execReport.getSelectId());
+                execReport.getTokenId(), execReport.getGroupAssetId(), execReport.getSelectId());
 
             status = updateFillBuy(order, referencePrice, diff, execOpen, quotedUsdMark, settleCoinUsdMark, quotedCoinUsdMark, isMaker,
                 pairPosition, feePosition, settlePosition, user, positionArr, instrumentPair, fee);

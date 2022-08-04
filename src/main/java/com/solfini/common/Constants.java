@@ -42,6 +42,10 @@ public interface Constants {
   public static final String INVALID_ALGO_ORDER_INTERVAL = "Algo Order interval time is too low";
   public static final String ONLY_LIMIT_ORDERS_ALLOWED = "Only limit orders are allowed";
   public static final String INVALID_ORDER_SELECT = "Order select is invalid";
+  public static final String ASSET_GROUP_NOT_FOUND = "Asset Group not found";
+  public static final String ASSET_GROUP_NOT_AVAILABLE = "Asset Group not available";
+  public static final String ASSET_GROUP_NOT_ENOUGH = "Asset Group not enough";
+
 
   public static final String TRUE = "true";
   public static final String FALSE = "false";
@@ -409,6 +413,7 @@ public interface Constants {
   public static final String NEW_ORDER_SINGLE_RECEIVED = "New Order Single Received";
   public static final String ORDER_CANCEL_REQUEST = "Order Cancel Request";
   public static final String ORDER_CANCEL_REPLACE = "Order Cancel Replace";
+  public static final String ASSET_GROUP_REQUEST = "Asset Group Request";
   public static final String ORDER_MASS_CANCEL_REPLACE = "Order Mass Cancel Replace";
   public static final String MARKET_DATA_FEED = "Market Data Feed";
   public static final String LOGON_MESSAGE_RECEIVED = "Logon Message Received, senderCompId=";
@@ -537,6 +542,7 @@ public interface Constants {
   public static final String FEEADMINMESSAGE_SENDERCOMPID_EQ = "FeeAdminMessage [senderCompId=";
   public static final String COLLATERALSWAPMESSAGE_UPDATETYPE_EQ = "CollateralSwapMessage [updateType=";
   public static final String RESTATEALLUSERS_USERADMINMESSAGE_EQ = "restateAllUsers userAdminMessage=";
+  public static final String RESTATEALL_ASSET_GROUPS_EQ = "restateAllAssetGroups assetGroup=";
   public static final String RESTATEALLUSERS_BALANCEADMINMESSAGE_EQ = "restateAllUserPositions balanceAdminMessage=";
   public static final String POSITIONSGROUPENCODER_EQ = ", positionsGroupEncoder=";
   public static final String POSITIONREPORTMESSAGE_EQ = ", positionReportMessage=";
@@ -544,6 +550,7 @@ public interface Constants {
   public static final String ORDERMAKER_EQ = ", orderMaker=";
   public static final String POSITIONARR_I_EQ = ", positionArr[i]=";
   public static final String ASSETID_EQ = ", assetId=";
+  public static final String GROUPASSETID_EQ = ", groupAssetId=";
   public static final String VERBOSE_AUTOLIQUIDATE_MARGIN_CALL_TRIGGERED_USER_EQ = ">>> verbose autoLiquidate margin call triggered user=";
   public static final String VERBOSE_AUTOLIQUIDATE_MARGIN_CALL_TRIGGERED_USER2_EQ =
       ">>> verbose autoLiquidate margin call triggered user2=";
@@ -602,6 +609,8 @@ public interface Constants {
   public static final String INSTRUMENTPAIR_MARK_EQ = " instrumentPair mark=";
   public static final String DECODED_EXECUTIONREPORT_EQ = "decoded executionReport=";
   public static final String DECODED_POSITIONREPORT_EQ = "decoded positionReport=";
+  public static final String DECODED_ASSETGROUP_EQ = "decoded assetGroup=";
+
   public static final String LOCKID_EQ = ", lockId=";
   public static final String MSGSEQNUM_EQ = ", msgSeqNum=";
   public static final String KAFKARECORDOFFSET_EQ = ", kafkaRecordOffset=";

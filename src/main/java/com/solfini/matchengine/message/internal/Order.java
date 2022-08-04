@@ -69,6 +69,7 @@ public class Order extends Message implements Constants {
   private int minMaxPrice; // used for trailing stops to track the min or max price for the order
   private long assetId;
   private int tokenId;
+  private long groupAssetId;
   private long selectId;
   private QuoteType quoteType;
   private int quoteTargetUserId;
@@ -119,6 +120,7 @@ public class Order extends Message implements Constants {
 
     assetId = newOrderSingleDecoder.assetId();
     tokenId = newOrderSingleDecoder.tokenId();
+    groupAssetId = newOrderSingleDecoder.groupAssetId();
     selectId = newOrderSingleDecoder.selectId();
 
     fillCumNotional = 0;
@@ -182,6 +184,8 @@ public class Order extends Message implements Constants {
 
     assetId = source.assetId;
     tokenId = source.tokenId;
+    groupAssetId = source.groupAssetId;
+
     selectId = source.selectId;
     quoteType = source.quoteType;
     quoteTargetUserId = source.quoteTargetUserId;
@@ -602,6 +606,14 @@ public class Order extends Message implements Constants {
     this.tokenId = tokenId;
   }
 
+  public long getGroupAssetId() {
+    return groupAssetId;
+  }
+
+  public void setGroupAssetId(final long groupAssetId) {
+    this.groupAssetId = groupAssetId;
+  }
+
   public final long getSelectId() {
     return selectId;
   }
@@ -805,6 +817,7 @@ public class Order extends Message implements Constants {
     assetId = 0;
     tokenId = 0;
     selectId = 0;
+    groupAssetId = 0;
     quoteType = null;
     quoteTargetUserId = 0;
   }
@@ -849,8 +862,9 @@ public class Order extends Message implements Constants {
         .append(ISHIDDEN_EQ).append(isHidden).append(ISLIQUIDATION_EQ).append(isLiquidation).append(ISLASTLOOK_EQ).append(isLastLook)
         .append(FEEESTIMATEDQUANTITY_EQ).append(feeEstimatedQuantity).append(FEEACCUMULATEDQUANTITY_EQ).append(feeAccumulatedQuantity)
         .append(AVAILABLEESTIMATEDQUANTITY_EQ).append(availableEstimatedQuantity).append(AVAILABLEACCUMULATEDQUANTITY_EQ)
-        .append(availableAccumulatedQuantity).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId).append(SELECTID_EQ)
-        .append(selectId).append(QUOTETYPE_EQ).append(quoteType).append(QUOTE_TARGET_USERID_EQ).append(quoteTargetUserId).append(']');
+        .append(availableAccumulatedQuantity).append(ASSETID_EQ).append(assetId).append(TOKENID_EQ).append(tokenId).append(GROUPASSETID_EQ)
+        .append(groupAssetId).append(SELECTID_EQ).append(selectId).append(QUOTETYPE_EQ).append(quoteType).append(QUOTE_TARGET_USERID_EQ)
+        .append(quoteTargetUserId).append(']');
     return s;
   }
 
@@ -878,7 +892,8 @@ public class Order extends Message implements Constants {
         .append(",\"feeEstimatedQuantity\":").append(feeEstimatedQuantity).append(",\"feeAccumulatedQuantity\":")
         .append(feeAccumulatedQuantity).append(",\"availableEstimatedQuantity\":").append(availableEstimatedQuantity)
         .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity).append(",\"assetId\":").append(assetId)
-        .append(",\"tokenId\":").append(tokenId).append(",\"selectId\":").append(selectId);
+        .append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":")
+        .append(selectId);
 
     sb.append("}");
     return sb.toString();

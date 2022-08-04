@@ -367,6 +367,7 @@ CREATE TABLE execution_report (
  submitterid int4 NULL DEFAULT 0,
  assetId int8 NULL DEFAULT 0,
  tokenId int4 NULL DEFAULT 0,
+ groupAssetId int8 NULL DEFAULT 0,
  selectId int8 NULL DEFAULT 0,
  quoteType varchar(32) NULL,
  quoteTargetUserId int8 NULL DEFAULT 0

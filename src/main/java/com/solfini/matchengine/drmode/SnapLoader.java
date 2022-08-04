@@ -10,7 +10,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -23,8 +22,10 @@ import com.solfini.matchengine.kafka.KafkaAdminInputFixListener;
 import com.solfini.matchengine.kafka.KafkaListener;
 import com.solfini.matchengine.kafka.KafkaPublisher;
 import com.solfini.matchengine.message.admin.SnapResponseAdminMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.session.NetworkStatusMessage;
 import com.solfini.matchengine.orderbook.GlobalOrderBook;
+import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.BusinessRejectDecoder;
 import com.solfini.sbe.encoder.ExecutionReportDecoder;
 import com.solfini.sbe.encoder.HeartbeatDecoder;
@@ -69,8 +70,7 @@ public class SnapLoader implements Constants {
   private KafkaAdminInputFixListener kafkaAdminInputFixListener;
   private static volatile boolean snapLoaderMode = true;
 
-  private final ManyToOneConcurrentArrayQueueCustom<com.solfini.common.Message> fixDRToMatcherQueue =
-      Context.getReceiverToMatcherQueue();
+  private final ManyToOneConcurrentArrayQueueCustom<com.solfini.common.Message> fixDRToMatcherQueue = Context.getReceiverToMatcherQueue();
 
   private final ExecutionReportParser executionReportParser = new ExecutionReportParser();
   private final PositionReportParser positionReportParser = new PositionReportParser();
@@ -82,6 +82,7 @@ public class SnapLoader implements Constants {
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
   private final ExecutionReportDecoder executionReportDecoder = new ExecutionReportDecoder();
   private final PositionReportDecoder positionReportDecoder = new PositionReportDecoder();
+  private final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
   private final NetworkStatusDecoder networkStatusDecoder = new NetworkStatusDecoder();
 
   public static final void setSnapLoaderMode(final boolean value) {
@@ -344,7 +345,7 @@ public class SnapLoader implements Constants {
           if (seqNum > 0) {
             if (LOGGER.isWarnEnabled()) {
               LOGGER.warn(LOG_FMT_6, ">>> SKIPPING replay: data=", StringUtil.fixToString(data), SEQNUM_EQ, seqNum, " lastSequenceNumber=",
-                lastSequenceNumber, ", kafkaOffset=", record.offset());
+                  lastSequenceNumber, ", kafkaOffset=", record.offset());
             }
             skip = true;
           }
@@ -485,6 +486,25 @@ public class SnapLoader implements Constants {
           }
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(LOG_FMT_2, DECODED_POSITIONREPORT_EQ, message);
+          }
+          return message;
+
+        case AssetGroupDecoder.TEMPLATE_ID:
+          assetGroupDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+              headerDecoder.version());
+
+          final AssetGroup assetGroup = new AssetGroup();
+          assetGroup.set(assetGroupDecoder);
+
+          message = assetGroup;
+          if (message != null) {
+            message.setSenderCompId(headerDecoder.senderCompId());
+            message.setSequenceNumber(headerDecoder.msgSeqNum());
+            message.setSourceSeqNum(headerDecoder.sourceSeqNum());
+            message.setKafkaRecordOffset(headerDecoder.kafkaRecordOffset());
+          }
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(LOG_FMT_2, DECODED_ASSETGROUP_EQ, message);
           }
           return message;
 

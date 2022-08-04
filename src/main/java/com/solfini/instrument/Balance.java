@@ -6,7 +6,6 @@ import java.util.TreeSet;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
 import uk.co.real_logic.artio.fields.DecimalFloat;
-
 import static com.solfini.instrument.Position.assetIdComparator;
 
 /**
@@ -35,7 +34,7 @@ public class Balance implements Appendable, Constants {
   private double settleCoinUnrealized;
   private double settleCoinRealized;
 
-  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId]
+  private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId, groupAssetId]
 
 
   public Balance() {}
@@ -253,25 +252,25 @@ public class Balance implements Appendable, Constants {
     this.assetIdtreeSet = assetIdtreeSet;
   }
 
-  public final void addAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0 && tokenId == 0)
+  public final void addAssetId(final long assetId, final int tokenId, final long groupAssetId) {
+    if (assetId == 0 && tokenId == 0 && groupAssetId == 0)
       return;
 
     if (assetIdtreeSet == null)
       assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
 
-    final long[] value = {assetId, tokenId};
+    final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.add(value);
   }
 
-  public final void removeAssetId(final long assetId, final int tokenId) {
-    if (assetId == 0)
+  public final void removeAssetId(final long assetId, final int tokenId, final long groupAssetId) {
+    if (assetId == 0 && groupAssetId == 0)
       return;
 
     if (assetIdtreeSet == null)
       assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
 
-    final long[] value = {assetId, tokenId};
+    final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.remove(value);
   }
 
@@ -312,6 +311,11 @@ public class Balance implements Appendable, Constants {
   public static final class AssetIdComparator implements Comparator<long[]> {
     @Override
     public int compare(final long[] o1, final long[] o2) {
+      if (o1[0] < o2[0])
+        return -1;
+      if (o1[0] > o2[0])
+        return 1;
+
       if (o1[1] < o2[1])
         return -1;
       if (o1[1] > o2[1])

@@ -1960,12 +1960,14 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    final ExecutionReportMessage execMaker = ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair,
-        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
-        filledCount, takerOrder, takerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
-    final ExecutionReportMessage execTaker = ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair,
-        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
-        filledCount, takerOrder, makerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execMaker =
+        ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
+            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false,
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execTaker =
+        ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
+            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false,
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
 
     preOrderCheck.updateFill(takerOrder, makerOrder.getPriceInt(), quantityFilled, execTaker, quotedUsdMark, settleCoinUsdMark,
         quotedCoinUsdMark, false, takerOrder, makerUserId);
@@ -1988,12 +1990,14 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    final ExecutionReportMessage execMaker = ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair,
-        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
-        filledCount, takerOrder, takerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
-    final ExecutionReportMessage execTaker = ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair,
-        makerOrder.getPrice(), makerOrder.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
-        filledCount, takerOrder, makerUserId, false, makerOrder.getAssetId(), makerOrder.getTokenId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execMaker =
+        ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
+            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false,
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
+    final ExecutionReportMessage execTaker =
+        ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
+            quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false,
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
     execMaker.setExecType(execType);
     execTaker.setExecType(execType);
 
@@ -2601,7 +2605,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       marketDataSnapshotFullRefreshEncoder.auctionPrice(auctionContainer.getOptimalAskPrice());
       marketDataSnapshotFullRefreshEncoder.auctionVolume(auctionContainer.getMaxQtyMatchedAtLevel());
     }
-    //LOGGER.info("Publish MD bidIndex: " + bidIndex + " askIndex: " + askIndex + "==========================================");
+    // LOGGER.info("Publish MD bidIndex: " + bidIndex + " askIndex: " + askIndex + "==========================================");
     MdEntrieGroupEncoder entry = marketDataSnapshotFullRefreshEncoder.mdEntrieGroupCount(bidIndex + askIndex);
     for (int i = 0; i < bidIndex; i++) {
       entry = entry.next();
@@ -2610,7 +2614,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       entry.priceScale(instrumentPair.getPriceScale());
       entry.quantity(bidQuantityArr[i]);
       entry.quantityScale(instrumentPair.getQuantityScale());
-      //LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i]);
+      // LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i]);
     }
     for (int i = 0; i < askIndex; i++) {
       entry = entry.next();
@@ -2619,9 +2623,9 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       entry.priceScale(instrumentPair.getPriceScale());
       entry.quantity(askQuantityArr[i]);
       entry.quantityScale(instrumentPair.getQuantityScale());
-      //LOGGER.info("Side: " + Side.SELL + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i]);
+      // LOGGER.info("Side: " + Side.SELL + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i]);
     }
-    //LOGGER.info("End===========================================================");
+    // LOGGER.info("End===========================================================");
     return marketDataSnapshotFullRefreshEncoder;
   }
 
@@ -2677,7 +2681,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       orderTaker.setQuantityLong(0); // full quantity is filled
       final ExecutionReportMessage execTaker = ExecutionReportMessage.createTradeExecutionReport(orderTaker, instrumentPair,
           adjMarkInSettleCoin, instrumentPair.getPriceScale(), quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal,
-          filledCount, orderTaker, takerUserId, false, 0, 0, orderTaker.getSelectId());
+          filledCount, orderTaker, takerUserId, false, 0, 0, 0, orderTaker.getSelectId());
       execTaker.setExecType(ExecType.CALCULATED); // TODO: should we change to another execType?
 
       // only in the money options and futures can be physically settled
@@ -3704,7 +3708,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
               (-executionReport.getFeeQty()));
         }
         UserCache.getExchangeUser().addPosition(executionReport.getFeeInstrumentId(), -executionReport.getFeeQty(),
-            executionReport.getAssetId(), executionReport.getTokenId());
+            executionReport.getAssetId(), executionReport.getTokenId(), executionReport.getGroupAssetId());
       } else if (executionReport.getFeeInstrumentId() > 0 && executionReport.isPaidToInsurance() && executionReport.getFeeQty() != 0
           && UserCache.getInsuranceFundUser() != null) {
         if (LOGGER.isInfoEnabled()) {
@@ -3712,7 +3716,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
               (-executionReport.getFeeQty()));
         }
         UserCache.getInsuranceFundUser().addPosition(executionReport.getFeeInstrumentId(), -executionReport.getFeeQty(),
-            executionReport.getAssetId(), executionReport.getTokenId());
+            executionReport.getAssetId(), executionReport.getTokenId(), executionReport.getGroupAssetId());
       }
     }
 

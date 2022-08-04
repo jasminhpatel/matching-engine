@@ -4,7 +4,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
-
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -22,12 +21,14 @@ import com.solfini.matchengine.kafka.KafkaPublisher;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.SnapResponseAdminMessage;
 import com.solfini.matchengine.message.admin.TradeStateAdminMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.MarketDataFeed;
 import com.solfini.matchengine.message.internal.MassCancelOrder;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.matchengine.message.outbound.PositionReportMessage;
 import com.solfini.matchengine.message.session.NetworkStatusMessage;
 import com.solfini.pool.DRRecieverDataObjectPool;
+import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.BusinessRejectDecoder;
 import com.solfini.sbe.encoder.ExecutionReportDecoder;
 import com.solfini.sbe.encoder.HeartbeatDecoder;
@@ -80,6 +81,7 @@ public class DecoderThread implements Runnable, Constants {
   private final NetworkStatusDecoder networkStatusDecoder = new NetworkStatusDecoder();
   private final MarketDataFeedDecoder marketDataFeedDecoder = new MarketDataFeedDecoder();
   private final MassCancelOrderDecoder massCancelOrderDecoder = new MassCancelOrderDecoder();
+  private final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
 
   private final TransactionalInputManyToOneConcurrentArrayQueue fixDRToMatcherQueue = Context.getReceiverToMatcherQueue();
   private final OneToOneConcurrentArrayQueueCustom<RecieverData> decoderQueue;
@@ -228,6 +230,15 @@ public class DecoderThread implements Runnable, Constants {
           message = marketDataFeed;
           return message;
 
+        case AssetGroupDecoder.TEMPLATE_ID:
+          assetGroupDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+              headerDecoder.version());
+          AssetGroup assetGroup = new AssetGroup();
+          assetGroup.set(assetGroupDecoder);
+
+          message = assetGroup;
+          return message;
+
         case MassCancelOrderDecoder.TEMPLATE_ID:
           massCancelOrderDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
               headerDecoder.version());
@@ -235,9 +246,9 @@ public class DecoderThread implements Runnable, Constants {
           MassCancelOrder massCancelOrder = new MassCancelOrder(massCancelOrderDecoder);
 
           // Update from cancel id
-          NewOrderSingleHandler.setOrderIdIfGreater(massCancelOrder .getCancelId());
+          NewOrderSingleHandler.setOrderIdIfGreater(massCancelOrder.getCancelId());
 
-          message = massCancelOrder ;
+          message = massCancelOrder;
           return message;
 
         case HeartbeatDecoder.TEMPLATE_ID:

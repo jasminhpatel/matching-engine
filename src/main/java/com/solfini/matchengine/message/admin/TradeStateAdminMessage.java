@@ -2,7 +2,6 @@ package com.solfini.matchengine.message.admin;
 
 import java.util.Iterator;
 import java.util.Map;
-
 import com.solfini.common.AdminMessage;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -12,6 +11,7 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.MarketStatus;
 import com.solfini.internal.admin.schema.TradeStateAdminMessageDecoder;
 import com.solfini.internal.schema.PayloadType;
+import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.matchengine.controller.Mode;
 import com.solfini.matchengine.orderbook.GlobalOrderBook;
 import com.solfini.report.check.ReconciliationResult;
@@ -148,6 +148,9 @@ public class TradeStateAdminMessage extends AdminMessage {
       LOGGER.debug(LOG_FMT_8, ">>2onMatcher TradeStateAdminMessage=", this, " t=", StringUtil.getCurrentDateYYYYMMDDHHMMSSsss(),
           ", snapId=", snapId, T0_EQ, System.currentTimeMillis());
     }
+
+    // restateAllAssetGroups
+    AssetGroupCache.restateAllAssetGroups(snapId);
 
     // restate all positions
     UserCache.restateAllUserPositions(snapId);
