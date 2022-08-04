@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.solfini</groupId>
 	<artifactId>solfini-match-engine</artifactId>
-	<version>v1.1.0-snapshot</version>
+	<version>v1.2.0-snapshot</version>
   <dependencyManagement>
     <dependencies>
       <dependency>
