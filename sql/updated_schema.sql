@@ -953,7 +953,7 @@ CREATE TABLE withdraw_request (
  address varchar(64) NULL,
  updatetype int2 NULL,
  userid int8 NULL,
- assetid int4 NULL,
+ securityid int4 NULL,
  symbol varchar(16) NULL,
  balance_change int8 NULL,
  balance_change_scale int4 NULL,
@@ -965,12 +965,15 @@ CREATE TABLE withdraw_request (
  signature varchar(256) NULL,
  status int4 NULL,
  ip varchar(32) NULL,
+ assetid int8 NULL,
+ tokenid int8 NULL,
+ groupid int8 NULL,
  CONSTRAINT withdraw_request_pkey PRIMARY KEY (id)
 );
 CREATE INDEX withdraw_request1 ON public.withdraw_request USING btree (userid);
-CREATE INDEX withdraw_request2 ON public.withdraw_request USING btree (assetid);
+CREATE INDEX withdraw_request2 ON public.withdraw_request USING btree (securityid);
 CREATE INDEX withdraw_request3 ON public.withdraw_request USING btree (status);
-
+CREATE INDEX withdraw_request4 ON public.withdraw_request USING btree (assetid);
 
 
 
