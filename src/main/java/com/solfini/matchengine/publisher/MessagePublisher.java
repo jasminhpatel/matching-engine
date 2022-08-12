@@ -1182,9 +1182,9 @@ public class MessagePublisher implements Constants {
     AssetGroupEncoder.PositionsAssetIdGroupEncoder positionsAssetIdGroupEncoder =
         assetGroupEncoder.positionsAssetIdGroupCount(assetIdGroup.size());
     for (final long[] assetTokenId : assetIdGroup) {
+      positionsAssetIdGroupEncoder.next();
       positionsAssetIdGroupEncoder.assetId(assetTokenId[0]);
       positionsAssetIdGroupEncoder.tokenId((int) assetTokenId[1]);
-      positionsAssetIdGroupEncoder.next();
     }
 
     // convert and publish
