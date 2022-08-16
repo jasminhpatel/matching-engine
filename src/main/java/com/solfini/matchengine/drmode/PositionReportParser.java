@@ -3,6 +3,7 @@ package com.solfini.matchengine.drmode;
 import java.util.List;
 
 import com.solfini.common.Constants;
+import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.OneToOneConcurrentArrayQueueCustom;
 import com.solfini.instrument.Balance;
@@ -23,6 +24,7 @@ import com.solfini.util.StringUtil;
  *
  */
 public class PositionReportParser implements Constants {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(PositionReportParser.class);
   private final int START_CAPACITY = Integer.parseInt(PropertyReader.getProperty("POSITION_REPORT_PARSER_START_CAPACITY", "131072"));
   private final OneToOneConcurrentArrayQueueCustom<BalanceAdminMessage> pool =
       new OneToOneConcurrentArrayQueueCustom<>(START_CAPACITY, "PositionReportParser");
@@ -48,12 +50,13 @@ public class PositionReportParser implements Constants {
     balanceList.clear();
 
     balanceAdminMessage.setAccount(positionReportDecoder.userId());
-    PositionsGroupDecoder positionsDecoder = positionReportDecoder.positionsGroup();
-    while (positionsDecoder != null) {
-      if (positionsDecoder.hasNext())
+    //PositionsGroupDecoder positionsDecoder = positionReportDecoder.positionsGroup();
+    //while (positionsDecoder != null) {
+    for (PositionsGroupDecoder positionsDecoder : positionReportDecoder.positionsGroup()) {
+/*      if (positionsDecoder.hasNext())
         positionsDecoder = positionsDecoder.next();
       else
-        break;
+        break;*/
 
       final int securityId = positionsDecoder.instrumentId();
       final Balance balance = balanceAdminMessage.getCachedBalance();
@@ -76,7 +79,8 @@ public class PositionReportParser implements Constants {
           balance.setBalance(quantityLong, instrument.getQuantityScale());
         }
       }
-
+      LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + securityId +
+          " balance: " + positionsDecoder.quantity());
       balance.setBalance(positionsDecoder.quantity(), positionsDecoder.quantityScale());
       balance.setUsdAvgCostBasis(StringUtil.toDouble(positionsDecoder.usdAvgCostBasis(), positionsDecoder.usdAvgCostBasisScale()));
       balance.setUsdCostBasis(StringUtil.toDouble(positionsDecoder.usdCostBasis(), positionsDecoder.usdCostBasisScale()));
