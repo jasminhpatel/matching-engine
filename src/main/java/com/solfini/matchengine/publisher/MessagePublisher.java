@@ -273,7 +273,8 @@ public class MessagePublisher implements Constants {
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
         assetGroupEncoder.groupAssetId(0);
-      } else {
+      } else {//dummy to support positionsGroupCount
+        groupEncoder.instrumentId(0);
         PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
         assetGroupEncoder.assetId(0);
