@@ -129,7 +129,7 @@ public class BalanceAdminMessage extends AdminMessage {
         final int tokenId = assetIdGroupDecoder.tokenId();
         final long groupAssetId = assetIdGroupDecoder.groupAssetId();
         if (assetId == 228 || assetId == 229) {
-          LOGGER.info("Position>>>1 assetId: " + assetId2 + " tokenId: " + tokenId);
+          LOGGER.info("Position update. userId: " + userId + " assetId: " + assetId2 + " tokenId: " + tokenId);
         }
         final long[] arrvalue = new long[] {assetId2, tokenId, groupAssetId};
         assetIdtreeSet.add(arrvalue);

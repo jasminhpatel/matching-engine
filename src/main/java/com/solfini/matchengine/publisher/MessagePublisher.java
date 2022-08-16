@@ -187,11 +187,12 @@ public class MessagePublisher implements Constants {
       groupEncoder = groupEncoder.next();
 
       final Position position = positionArr[i];
-      LOGGER.info(Constants.LOG_FMT_2, "Position update. userId: ", user.getId(), " securityId: ", position.getInstrumentId(), " quantityLong: ", position.getQuantity(),
-          " availableQuantityLong: ", position.getAvailableQuantity(), " positions.length: ", positionsLength-1);
 
       final Instrument instrument = (position == null) ? null : InstrumentCache.get(position.getInstrumentId());
       final InstrumentPair pair = (position == null) ? null : InstrumentCache.getPair(position.getInstrumentId());
+      LOGGER.info(Constants.LOG_FMT_2, "Position update. userId: ", user.getId(), " securityId: ", position.getInstrumentId(), " quantityLong: ", position.getQuantity(),
+          " availableQuantityLong: ", position.getAvailableQuantity(), " positions.length: ", positionsLength-1,
+          " instrument: ", instrument, " pair:", pair);
 
       if (instrument != null) {
         groupEncoder.assetType(AssetType.ASSET);
