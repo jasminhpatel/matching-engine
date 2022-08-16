@@ -118,7 +118,7 @@ public class BalanceAdminMessage extends AdminMessage {
       final int assetId = balanceGroupDecoder.assetId();
       final long value = balanceGroupDecoder.balance().value();
       final int scale = balanceGroupDecoder.balance().scale();
-
+      LOGGER.info("Position update. userId: " + userId + " securityId: " + assetId);
       // add assetId,tokenId,groupAssetId set
       Set<long[]> assetIdtreeSet = null;
       for (BalanceGroupDecoder.PositionsAssetIdGroupDecoder assetIdGroupDecoder : balanceGroupDecoder.positionsAssetIdGroup()) {
@@ -128,9 +128,9 @@ public class BalanceAdminMessage extends AdminMessage {
         final long assetId2 = assetIdGroupDecoder.assetId();
         final int tokenId = assetIdGroupDecoder.tokenId();
         final long groupAssetId = assetIdGroupDecoder.groupAssetId();
-        if (assetId == 228 || assetId == 229) {
-          LOGGER.info("Position update. userId: " + userId + " assetId: " + assetId2 + " tokenId: " + tokenId);
-        }
+        //if (assetId == 228 || assetId == 229) {
+          LOGGER.info("Position update. userId: " + userId + " securityId: " + assetId + " assetId: " + assetId2 + " tokenId: " + tokenId);
+        //}
         final long[] arrvalue = new long[] {assetId2, tokenId, groupAssetId};
         assetIdtreeSet.add(arrvalue);
       }
