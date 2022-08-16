@@ -127,7 +127,7 @@ public final class Context implements Constants {
   private static final int AUCTION_FIX_MAX_ATTEMPTS = PropertyReader.getProperty("AUCTION_FIX_MAX_ATTEMPTS", 6);
 
   private static final long CIRCUIT_BREAKER_TIME_INTERVAL = PropertyReader.getProperty("CIRCUIT_BREAKER_TIME_INTERVAL", 300_000); // 5 mins
-
+  private static final String ASSET_GROUPS_COMPACTION_TOPIC = PropertyReader.getProperty("ASSET_GROUPS_COMPACTION_TOPIC", null);
 
   // same
   private static final String CHRONICLE_PRICING_OUTPUT_DIRECTORY =
@@ -723,5 +723,9 @@ public final class Context implements Constants {
 
   public static int getMarketMakerUserid() {
     return MARKET_MAKER_USERID;
+  }
+
+  public static String getAssetGroupsCompactionTopic() {
+    return ASSET_GROUPS_COMPACTION_TOPIC;
   }
 }

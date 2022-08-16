@@ -1194,6 +1194,10 @@ public class MessagePublisher implements Constants {
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, assetGroup);
 
+    if (Context.getAssetGroupsCompactionTopic() != null) {
+      Context.getKafkaPublisher().sendDirect(String.valueOf(assetGroup.getId()), bytesWithKafkaOffset, Context.getAssetGroupsCompactionTopic());
+    }
+
     // return to pool
     // AssetGroupObjectPool.returnObject(assetGroup);
   }

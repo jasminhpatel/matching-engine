@@ -207,6 +207,14 @@ public class KafkaPublisher implements Constants {
     return future;
   }
 
+  public final Future<RecordMetadata> sendDirect(final String key, final byte[] bytes, final String customTopic) {
+    if (bytes.length >= 32_768) {
+      LOGGER.error(LOG_FMT_2, "error 2, kafka bytes send length=", bytes.length, StringUtil.fixToString(bytes));
+    }
+
+    return producer.send(new ProducerRecord<String, byte[]>(customTopic, key, bytes));
+  }
+
   public void close() {
     producer.flush();
     producer.close();
