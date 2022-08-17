@@ -51,7 +51,6 @@ public class PositionReportParser implements Constants {
 
     balanceAdminMessage.setAccount(positionReportDecoder.userId());
     for (PositionsGroupDecoder positionsDecoder : positionReportDecoder.positionsGroup()) {
-
       final int securityId = positionsDecoder.instrumentId();
       final long quantity = positionsDecoder.quantity();
       final short quantityScale = positionsDecoder.quantityScale();
@@ -90,6 +89,9 @@ public class PositionReportParser implements Constants {
       balance.setSettleCoinRealized(StringUtil.toDouble(positionsDecoder.settleCoinRealized(), positionsDecoder.settleCoinRealizedScale()));
 
       balanceList.add(balance);
+      for (PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder : positionsDecoder.positionsAssetIdGroup()) {
+        positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
+      }
     }
 
     return balanceAdminMessage;
