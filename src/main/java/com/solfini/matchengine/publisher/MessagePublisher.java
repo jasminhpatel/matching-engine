@@ -454,10 +454,6 @@ public class MessagePublisher implements Constants {
     addRiskDataToPositionMessage(positionReportEncoder, user);
 
     // add position data
-    // if ((user.getId() == 18) && (positionArr.length > 31) && (positionArr[31] != null)) {
-    // LOGGER.info(LOG_FMT_6, "TRACK USD ", positionArr[31].getQuantity(), " ", positionArr[31].getAvailableQuantity(),
-    // " ", positionArr[31].getQuantity() - positionArr[31].getAvailableQuantity());
-    // }
     addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength);
 
     if (LOGGER.isDebugEnabled() && (user.getId() == 18)) {
@@ -501,6 +497,10 @@ public class MessagePublisher implements Constants {
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
+  }
+
+  private static void decode() {
+
   }
 
   public void publish(final BalanceAdminMessage balanceAdminMessage) {
@@ -1490,7 +1490,6 @@ public class MessagePublisher implements Constants {
     headerEncoder.transactionEnd((short) (message.isLastMessageInTransaction() ? 1 : 0));
   }
 
-
   // accepts any messageType, normal or admin
   private void publishAndCache(final byte[] bytesWithKafkaOffset, final byte messageType, final Message message) {
     PublisherEncoderCache.blockWaitGetLock();
@@ -1530,6 +1529,11 @@ public class MessagePublisher implements Constants {
         }
       } else {
         snapUtil.snap(bytesWithKafkaOffset, messageType, message);
+        //todo remove logger
+        if (message instanceof PositionReportMessage) {
+          PositionReportMessage p = (PositionReportMessage) message;
+          LOGGER.info("Position update. after snap: " + p.toJSON());
+        }
         return;
       }
     }
