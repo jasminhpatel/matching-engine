@@ -470,8 +470,10 @@ public class MessagePublisher implements Constants {
     directBuffer.limit(encodedLength);
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
-
+    // todo remove logs
+    LOGGER.info("Position update. snapId: " + balanceAdminMessage.getSnapId());
     if (balanceAdminMessage.getSnapId() == 0) {
+
       // for normal case with no snap, reuse the balanceAdminMessage in publish
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
 
@@ -480,6 +482,7 @@ public class MessagePublisher implements Constants {
       }
     } else {
       // todo remove logs
+      LOGGER.info("Position update. array: " + (balanceAdminMessage.getPositionArr() != null ? balanceAdminMessage.getPositionArr().length : -1));
       for(Position p : balanceAdminMessage.getPositionArr()) {
         LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + p.getInstrumentId() +
             " balance: " + p.getQuantity() + " isTouched: " + p.isTouched());
