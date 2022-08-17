@@ -136,6 +136,8 @@ public class User implements Appendable, Serializable, Constants {
         final Balance balance = balanceAdminMessage.getCachedBalance();
         balance.set(position, scale);
         balanceList.add(balance);
+        LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + balance.getAssetId() +
+            " balance: " + balance.getBalance().value());
       }
     }
     return balanceAdminMessage;
