@@ -479,10 +479,10 @@ public class MessagePublisher implements Constants {
     } else {
       // todo remove logs
       LOGGER.info("Position update. array: " + (balanceAdminMessage.getPositionArr() != null ? balanceAdminMessage.getPositionArr().length : -1));
-      for(Position p : balanceAdminMessage.getPositionArr()) {
+/*      for(Position p : balanceAdminMessage.getPositionArr()) {
         LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + p.getInstrumentId() +
             " balance: " + p.getQuantity() + " isTouched: " + p.isTouched());
-      }
+      }*/
       final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(posReqResult, user,
           balanceAdminMessage.getSenderCompId(), balanceAdminMessage.getPositionArr(), balanceAdminMessage.getPositionsLength(), 0, 0);
       positionReportMessage.setSnapId(balanceAdminMessage.getSnapId());
