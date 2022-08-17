@@ -50,38 +50,34 @@ public class PositionReportParser implements Constants {
     balanceList.clear();
 
     balanceAdminMessage.setAccount(positionReportDecoder.userId());
-    //PositionsGroupDecoder positionsDecoder = positionReportDecoder.positionsGroup();
-    //while (positionsDecoder != null) {
     for (PositionsGroupDecoder positionsDecoder : positionReportDecoder.positionsGroup()) {
-/*      if (positionsDecoder.hasNext())
-        positionsDecoder = positionsDecoder.next();
-      else
-        break;*/
 
       final int securityId = positionsDecoder.instrumentId();
+      final long quantity = positionsDecoder.quantity();
+      final short quantityScale = positionsDecoder.quantityScale();
       final Balance balance = balanceAdminMessage.getCachedBalance();
       balance.setAssetId(securityId);
 
       // normalize and set quantity
-      long quantityLong = positionsDecoder.quantity();
+      long normalizedQuantity = quantity;
       final InstrumentPair pair = InstrumentCache.getPair(securityId);
       if (pair != null) {
-        for (int i = 0; i < pair.getQuantityScale() - positionsDecoder.quantityScale(); i++)
-          quantityLong *= 10;
+        for (int i = 0; i < pair.getQuantityScale() - quantityScale; i++)
+          normalizedQuantity *= 10;
 
-        balance.setBalance(quantityLong, pair.getQuantityScale());
+        balance.setBalance(normalizedQuantity, pair.getQuantityScale());
       } else {
         final Instrument instrument = InstrumentCache.get(securityId);
         if (instrument != null) {
-          for (int i = 0; i < instrument.getQuantityScale() - positionsDecoder.quantityScale(); i++)
-            quantityLong *= 10;
+          for (int i = 0; i < instrument.getQuantityScale() - quantityScale; i++)
+            normalizedQuantity *= 10;
 
-          balance.setBalance(quantityLong, instrument.getQuantityScale());
+          balance.setBalance(normalizedQuantity, instrument.getQuantityScale());
         }
       }
       LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + securityId +
-          " balance: " + positionsDecoder.quantity());
-      balance.setBalance(positionsDecoder.quantity(), positionsDecoder.quantityScale());
+          " balance: " + quantity);
+      balance.setBalance(quantity, quantityScale);
       balance.setUsdAvgCostBasis(StringUtil.toDouble(positionsDecoder.usdAvgCostBasis(), positionsDecoder.usdAvgCostBasisScale()));
       balance.setUsdCostBasis(StringUtil.toDouble(positionsDecoder.usdCostBasis(), positionsDecoder.usdCostBasisScale()));
       balance.setUsdValue(StringUtil.toDouble(positionsDecoder.usdValue(), positionsDecoder.usdValueScale()));
