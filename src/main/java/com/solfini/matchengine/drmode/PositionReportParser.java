@@ -88,7 +88,8 @@ public class PositionReportParser implements Constants {
 
       balanceList.add(balance);
       for (PositionReportDecoder.PositionsGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder : positionsDecoder.positionsAssetIdGroup()) {
-        positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
+        if (positionsAssetIdGroupDecoder.hasNext())
+          positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
       }
     }
 
