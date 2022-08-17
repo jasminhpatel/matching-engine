@@ -1530,10 +1530,8 @@ public class MessagePublisher implements Constants {
       } else {
         snapUtil.snap(bytesWithKafkaOffset, messageType, message);
         //todo remove logger
-        if (message instanceof PositionReportMessage) {
-          PositionReportMessage p = (PositionReportMessage) message;
-          LOGGER.info("Position update. after snap: " + p.toJSON());
-        }
+        LOGGER.info("Position update. after snap: " + message.toJSON());
+
         return;
       }
     }
