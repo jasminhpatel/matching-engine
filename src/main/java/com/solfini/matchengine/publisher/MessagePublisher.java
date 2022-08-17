@@ -190,9 +190,6 @@ public class MessagePublisher implements Constants {
 
       final Instrument instrument = (position == null) ? null : InstrumentCache.get(position.getInstrumentId());
       final InstrumentPair pair = (position == null) ? null : InstrumentCache.getPair(position.getInstrumentId());
-      LOGGER.info(Constants.LOG_FMT_2, "Position update. userId: ", user.getId(), " securityId: ", position.getInstrumentId(), " quantityLong: ", position.getQuantity(),
-          " availableQuantityLong: ", position.getAvailableQuantity(), " positions.length: ", positionsLength-1,
-          " instrument: ", instrument, " pair:", pair);
 
       if (instrument != null) {
         groupEncoder.assetType(AssetType.ASSET);
@@ -466,10 +463,7 @@ public class MessagePublisher implements Constants {
     directBuffer.limit(encodedLength);
     unsafeBuffer.putShort(0, encodedLength);
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
-    // todo remove logs
-    LOGGER.info("Position update. snapId: " + balanceAdminMessage.getSnapId());
     if (balanceAdminMessage.getSnapId() == 0) {
-
       // for normal case with no snap, reuse the balanceAdminMessage in publish
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
 
@@ -477,12 +471,6 @@ public class MessagePublisher implements Constants {
         LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, EXECUTIONREPORT_EQ, balanceAdminMessage);
       }
     } else {
-      // todo remove logs
-      LOGGER.info("Position update. array: " + (balanceAdminMessage.getPositionArr() != null ? balanceAdminMessage.getPositionArr().length : -1));
-/*      for(Position p : balanceAdminMessage.getPositionArr()) {
-        LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + p.getInstrumentId() +
-            " balance: " + p.getQuantity() + " isTouched: " + p.isTouched());
-      }*/
       final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(posReqResult, user,
           balanceAdminMessage.getSenderCompId(), balanceAdminMessage.getPositionArr(), balanceAdminMessage.getPositionsLength(), 0, 0);
       positionReportMessage.setSnapId(balanceAdminMessage.getSnapId());
@@ -1529,9 +1517,6 @@ public class MessagePublisher implements Constants {
         }
       } else {
         snapUtil.snap(bytesWithKafkaOffset, messageType, message);
-        //todo remove logger
-        LOGGER.info("Position update. after snap: " + message.toJSON());
-
         return;
       }
     }

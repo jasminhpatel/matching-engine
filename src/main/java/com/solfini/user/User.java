@@ -136,8 +136,6 @@ public class User implements Appendable, Serializable, Constants {
         final Balance balance = balanceAdminMessage.getCachedBalance();
         balance.set(position, scale);
         balanceList.add(balance);
-        LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + balance.getAssetId() +
-            " balance: " + balance.getBalance().value());
       }
     }
     return balanceAdminMessage;
@@ -729,10 +727,8 @@ public class User implements Appendable, Serializable, Constants {
       final Position position = positionArr[i];
       if (position == null)
         continue;
-      LOGGER.info("Position update. all: " + position.toJSON());
       if (position.getQuantity() == 0 && !position.isTouched() && i > 3)
         continue;
-      LOGGER.info("Position update. selected: " + position.toJSON());
       if (cloneIndex >= cloneArr.length) {
         cloneArr = balanceAdminMessage.reservePositionArrSize(positionArr.length);
       }

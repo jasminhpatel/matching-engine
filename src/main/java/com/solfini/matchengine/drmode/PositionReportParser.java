@@ -74,8 +74,6 @@ public class PositionReportParser implements Constants {
           balance.setBalance(normalizedQuantity, instrument.getQuantityScale());
         }
       }
-      LOGGER.info("Position update. userId: " + balanceAdminMessage.getUserId() + " securityId: " + securityId +
-          " balance: " + quantity);
       balance.setBalance(quantity, quantityScale);
       balance.setUsdAvgCostBasis(StringUtil.toDouble(positionsDecoder.usdAvgCostBasis(), positionsDecoder.usdAvgCostBasisScale()));
       balance.setUsdCostBasis(StringUtil.toDouble(positionsDecoder.usdCostBasis(), positionsDecoder.usdCostBasisScale()));
