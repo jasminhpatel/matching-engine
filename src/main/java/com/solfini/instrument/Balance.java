@@ -257,7 +257,7 @@ public class Balance implements Appendable, Constants {
       return;
 
     if (assetIdtreeSet == null)
-      assetIdtreeSet = new TreeSet<>(new AssetIdComparator());
+      assetIdtreeSet = new TreeSet<>(assetIdComparator);
 
     final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.add(value);
