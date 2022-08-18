@@ -424,13 +424,35 @@ public class Position implements Appendable, Constants {
 
   public String toJSON() {
     final StringBuilder sb = new StringBuilder();
-    sb.append("{\"class\":\"Position\"").append(",\"instrumentId\":").append(instrumentId).append(",\"quantity\":").append(quantity)
-        .append(",\"availableQuantity\":").append(availableQuantity).append(",\"assetType\":").append(assetType.value())
-        .append(",\"usdCostBasis\":").append(usdCostBasis).append(",\"usdAvgCostBasis\":").append(getUsdAvgCostBasisDouble())
-        .append(",\"usdValue\":").append(usdValue).append(",\"usdUnrealized\":").append(usdUnrealized).append(",\"usdRealized\":")
-        .append(usdRealized).append(",\"quotedUsdMark\":").append(quotedUsdMark).append(",\"settleCoinUsdMark\":").append(settleCoinUsdMark)
-        .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized).append(",\"settleCoinRealized\":").append(settleCoinRealized)
-        .append(",\"bankruptPriceInt\":").append(bankruptPriceInt);
+    sb.append("{\"class\":\"Position\"")
+        .append(",\"instrumentId\":").append(instrumentId)
+        .append(",\"quantity\":").append(quantity)
+        .append(",\"availableQuantity\":").append(availableQuantity)
+        .append(",\"isTouched\":").append(isTouched)
+        .append(",\"assetType\":").append(assetType.value())
+        .append(",\"usdCostBasis\":").append(usdCostBasis)
+        .append(",\"usdAvgCostBasis\":").append(getUsdAvgCostBasisDouble())
+        .append(",\"usdValue\":").append(usdValue)
+        .append(",\"usdUnrealized\":").append(usdUnrealized)
+        .append(",\"usdRealized\":").append(usdRealized)
+        .append(",\"quotedUsdMark\":").append(quotedUsdMark)
+        .append(",\"settleCoinUsdMark\":").append(settleCoinUsdMark)
+        .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized)
+        .append(",\"settleCoinRealized\":").append(settleCoinRealized)
+        .append(",\"bankruptPriceInt\":").append(bankruptPriceInt)
+        .append(",\"markAsReturned\":").append(markAsReturned);
+    if (assetIdtreeSet != null) {
+      sb.append(",\"assetIdtreeSet\":");
+      sb.append("[");
+      String separator = "";
+      System.out.println("assetIdtreeSet.size()" + assetIdtreeSet.size());
+      System.out.println("assetIdtreeSet" + assetIdtreeSet);
+      for (long[] assetIds : assetIdtreeSet) {
+        sb.append(separator).append("[").append(assetIds[0]).append(",").append(assetIds[1]).append(",").append(assetIds[2]).append("]");
+        separator = ",";
+      }
+      sb.append("]");
+    }
     sb.append("}");
     return sb.toString();
   }
@@ -447,12 +469,11 @@ public class Position implements Appendable, Constants {
         return -1;
       if (o1[1] > o2[1])
         return 1;
-      if (o1.length > 2 && o2.length > 2) {
-        if (o1[2] < o2[2])
-          return -1;
-        if (o1[2] > o2[2])
-          return 1;
-      }
+
+      if (o1[2] < o2[2])
+        return -1;
+      if (o1[2] > o2[2])
+        return 1;
 
       return 0;
     }

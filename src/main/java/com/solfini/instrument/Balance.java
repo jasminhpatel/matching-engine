@@ -320,6 +320,7 @@ public class Balance implements Appendable, Constants {
         return -1;
       if (o1[1] > o2[1])
         return 1;
+
       if (o1.length > 2 && o2.length > 2) {
         if (o1[2] < o2[2])
           return -1;
