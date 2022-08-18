@@ -136,6 +136,14 @@ public class User implements Appendable, Serializable, Constants {
         final Balance balance = balanceAdminMessage.getCachedBalance();
         balance.set(position, scale);
         balanceList.add(balance);
+        if (position.getAssetIdtreeSet() != null) {
+          for (long[] assetIds : position.getAssetIdtreeSet()) {
+            final long assetId = assetIds[0];
+            final int tokenId = (int) assetIds[1];
+            final long groupAssetId = assetIds[2];;
+            balance.addAssetId(assetId, tokenId, groupAssetId);
+          }
+        }
       }
     }
     return balanceAdminMessage;
