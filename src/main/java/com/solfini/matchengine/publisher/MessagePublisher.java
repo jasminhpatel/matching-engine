@@ -487,10 +487,6 @@ public class MessagePublisher implements Constants {
     }
   }
 
-  private static void decode() {
-
-  }
-
   public void publish(final BalanceAdminMessage balanceAdminMessage) {
     try {
       if (LOGGER.isTraceEnabled()) {
