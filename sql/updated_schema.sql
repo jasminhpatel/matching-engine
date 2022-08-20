@@ -1102,3 +1102,14 @@ CREATE INDEX ASSET_DETAILS_STATE3 ON public.ASSET_DETAILS_STATE USING btree (tok
 CREATE INDEX ASSET_DETAILS_STATE4 ON public.ASSET_DETAILS_STATE USING btree (securityId);
 
 
+CREATE TABLE AML_LOG(
+	id BIGSERIAL PRIMARY KEY NOT NULL,
+	userId INT,
+	direction VARCHAR(16),
+	chainType VARCHAR(16),
+	score double precision,
+	publicAddress VARCHAR(256),
+	txnId VARCHAR(256),
+	response VARCHAR(2048),
+	created TIMESTAMP default now()
+);
