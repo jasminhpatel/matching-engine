@@ -12,6 +12,7 @@ import com.solfini.internal.admin.schema.SecurityDefinitionAdminMessageDecoder;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.orderbook.OrderBook;
+import com.solfini.util.MbxMath;
 import com.solfini.util.StringUtil;
 
 /**
@@ -132,6 +133,12 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.limitOnlyMode = SECURITY_DEFINITION_DECODER.limitOnlyMode() == 1;
 
     this.usdStrikePrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdStrikePrice()); // for options, calculated from strikePrice
+    if (usdStrikePrice == 0 && strikePrice > 0) {
+      usdStrikePrice = MbxMath.roundToBestPrecision(strikePrice / (double) MbxMath.multiplier(priceScale));
+    } else if (strikePrice == 0 && usdStrikePrice > 0){
+      strikePrice = (int) (usdStrikePrice * MbxMath.multiplier(priceScale));
+    }
+
     this.usdUnderlyerPrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdUnderlyerPrice()); // stock price
     this.usdModelPrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdModelPrice()); // model option price
     this.interestRate = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.interestRate()); // interestRate used for option calc
@@ -205,6 +212,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.circuitBreakerThreshold = instrumentPair.getCircuitBreakerThreshold();
 
     this.strikePrice = instrumentPair.getStrikePrice();
+
     this.underlyerId = instrumentPair.getUnderlyerId();
     this.expireTimeMillis = instrumentPair.getContractExpireTime();
     this.contractExpireTime = instrumentPair.getContractExpireTime();
@@ -217,6 +225,11 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.auctionFixingWaitTime = instrumentPair.getAuctionFixingWaitTime();
 
     this.usdStrikePrice = instrumentPair.getUsdStrikePrice(); // for options, calculated from strikePrice
+    if (usdStrikePrice == 0 && strikePrice > 0) {
+      usdStrikePrice = MbxMath.roundToBestPrecision(strikePrice / (double) MbxMath.multiplier(priceScale));
+    } else if (strikePrice == 0 && usdStrikePrice > 0){
+      strikePrice = (int) (usdStrikePrice * MbxMath.multiplier(priceScale));
+    }
     this.usdUnderlyerPrice = instrumentPair.getUsdUnderlyerPrice(); // stock price
     this.usdModelPrice = instrumentPair.getUsdModelPrice(); // model option price
     this.interestRate = instrumentPair.getInterestRate(); // interestRate used for option calc
