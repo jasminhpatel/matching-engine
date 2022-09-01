@@ -136,6 +136,7 @@ public class AssetGroupCache implements Constants {
       final AssetGroup assetGroup = new AssetGroup();
       assetGroup.copySet(assetGroupSrc);
       assetGroup.addAll(assetGroupSrc.getAssetIdGroupTreeSet());
+      assetGroup.setSnapId(snapId);
 
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_6, RESTATEALL_ASSET_GROUPS_EQ, assetGroup);

@@ -55,7 +55,6 @@ public class AssetGroup extends Message {
     AssetGroupDecoder.PositionsAssetIdGroupDecoder positionsAssetIdGroupDecoder = decoder.positionsAssetIdGroup();
     final int positionsAssetIdGroupCount = positionsAssetIdGroupDecoder.count();
     for (int k = 0; k < positionsAssetIdGroupCount; k++) {
-      // if (positionsAssetIdGroupDecoder.hasNext()) {
       positionsAssetIdGroupDecoder = positionsAssetIdGroupDecoder.next();
       final long assetId = positionsAssetIdGroupDecoder.assetId();
       final int tokenId = positionsAssetIdGroupDecoder.tokenId();
