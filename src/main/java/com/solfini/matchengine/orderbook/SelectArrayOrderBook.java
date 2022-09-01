@@ -2170,6 +2170,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     takerAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
     takerAssetGroup.setId(0);
     takerAssetGroup.setGroupAssetId(0);
+    takerAssetGroup.setOwnerUserId(takerUserId);
 
     final ConcurrentSkipListSet<long[]> set = sellGroup.getAssetIdGroupTreeSet();
     long allocated = 0;
@@ -2181,7 +2182,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       takerAssetGroup.addAssetId(value[0], (int) value[1]);
     }
-
+    //todo is this needed
     if (allocated < quantityFilled) { // try using otherGroups with the same seller and securityId
       LOGGER.error(LOG_FMT_2, "allocateGroupAssets allocated=", allocated, ", quantityFilled=", quantityFilled, ", sellGroup=", sellGroup);
       final Collection<AssetGroup> otherGroups = AssetGroupCache.getByUserId(makerUserId, id);
