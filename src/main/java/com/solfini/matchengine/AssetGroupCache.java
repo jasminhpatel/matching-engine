@@ -132,7 +132,6 @@ public class AssetGroupCache implements Constants {
 
   // called for snapshots
   public static final void restateAllAssetGroups(final long snapId) {
-    LOGGER.info("Restate Asset Groups: " + idToAssetGroupMap.size());
     for (final AssetGroup assetGroupSrc : idToAssetGroupMap.values()) {
       final AssetGroup assetGroup = new AssetGroup();
       assetGroup.copySet(assetGroupSrc);

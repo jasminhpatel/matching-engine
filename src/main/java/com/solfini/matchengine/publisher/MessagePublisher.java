@@ -1194,6 +1194,7 @@ public class MessagePublisher implements Constants {
       Context.getKafkaPublisher().sendDirect(String.valueOf(assetGroup.getId()), bytesWithKafkaOffset, Context.getAssetGroupsCompactionTopic());
     }
 
+    //todo publish positions
     // return to pool
     // AssetGroupObjectPool.returnObject(assetGroup);
   }

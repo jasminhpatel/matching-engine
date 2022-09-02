@@ -7,10 +7,12 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.MessageType;
+import com.solfini.instrument.Position;
 import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.UpdateType;
+import com.solfini.user.UserCache;
 
 /**
  *
@@ -163,6 +165,18 @@ public class AssetGroup extends Message {
   @Override
   public void onMatcher() {
     AssetGroupCache.onModel(this);
+    final int userId = (int) this.ownerUserId;
+    final int securityId = (int) this.securityId;
+    final Position position = UserCache.get(userId).getPosition(securityId);
+    if (position != null) {
+      for (final long[] assetToken : this.assetIdGroupTreeSet) {
+        for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
+          if (assetToken[0] == assetTokenInPositions[0] && assetToken[1] == assetTokenInPositions[1]) {
+            assetTokenInPositions[2] = this.groupAssetId; //assetTokenInPositions[2] = group id
+          }
+        }
+      }
+    }
   }
 
   @Override
