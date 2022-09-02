@@ -168,7 +168,7 @@ public class AssetGroup extends Message {
     final int userId = (int) this.ownerUserId;
     final int securityId = (int) this.securityId;
     final Position position = UserCache.get(userId).getPosition(securityId);
-    if (position != null) {
+    if (position != null && position.getAssetIdtreeSet() != null) {
       for (final long[] assetToken : this.assetIdGroupTreeSet) {
         for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
           if (assetToken[0] == assetTokenInPositions[0] && assetToken[1] == assetTokenInPositions[1]) {
