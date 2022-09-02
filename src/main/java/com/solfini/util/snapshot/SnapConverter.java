@@ -446,7 +446,6 @@ public class SnapConverter implements Constants {
         }
         break;
       case AssetGroupDecoder.TEMPLATE_ID:
-        final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
         assetGroupDecoder.wrap(decoderUnsafeBuffer, ADMIN_API_OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
             headerDecoder.version());
 
@@ -707,7 +706,6 @@ public class SnapConverter implements Constants {
         builder.registerTypeAdapter(SecurityDefinitionAdminMessage.class, new SecurityDefinitionAdminMessageJsonDeserializer());
         message = builder.create().fromJson(json, SecurityDefinitionAdminMessage.class);
         ((SecurityDefinitionAdminMessage) message).setSnapConverterMode(true);
-
         break;
       case "SnapResponseAdminMessage":
         message = builder.create().fromJson(json, SnapResponseAdminMessage.class);
@@ -715,6 +713,10 @@ public class SnapConverter implements Constants {
       case "Order":
         builder.registerTypeAdapter(ExecutionReportMessage.class, new ExecutionReportMessageJsonDeserializer());
         message = builder.create().fromJson(json, ExecutionReportMessage.class);
+        break;
+      case "AssetGroup":
+        builder.registerTypeAdapter(AssetGroup.class, new AssetGroupJsonDeserializer());
+        message = builder.create().fromJson(json, AssetGroup.class);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported message: class=" + type + MESSAGE_EQ + json);

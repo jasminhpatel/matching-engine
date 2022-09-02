@@ -21,3 +21,5 @@ src/test/resources/queues/*
 .project
 .gradle/*
 .vscode/
+snap/*
+chronicle/*
