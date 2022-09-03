@@ -246,13 +246,13 @@ public class BlackScholes {
 
   public static void main(String[] args) {
     try {
-      double stockPrice = 9141;
-      double strikePrice = 8000;
+      double stockPrice = 20400;
+      double strikePrice = 20000;
       double rate = .02; // interest rate 2%
-      double time = 0.08562498515981735; // one month and a day
-      double sigma = .67; // 1=100% implied volatility
+      double time = 0.3315; // 121 days
+      double sigma = 5.00; // 1=100% implied volatility
       double div = 0;
-      // call price = 23.161958985583023
+      // call price = 3533.59
       double[] result = calc(stockPrice, strikePrice, rate, sigma, time, div);
 
 

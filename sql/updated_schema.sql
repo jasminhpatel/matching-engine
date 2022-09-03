@@ -1113,3 +1113,6 @@ CREATE TABLE AML_LOG(
 	response VARCHAR(2048),
 	created TIMESTAMP default now()
 );
+
+alter table USER_STATE add subscribeRFQ SMALLINT DEFAULT 0;
+
