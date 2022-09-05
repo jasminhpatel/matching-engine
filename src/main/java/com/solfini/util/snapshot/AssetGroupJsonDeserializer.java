@@ -23,10 +23,12 @@ public class AssetGroupJsonDeserializer implements JsonDeserializer<AssetGroup> 
     message.setGroupAssetId(json.get("groupAssetId").getAsLong());
     message.setName(json.get("name").getAsString());
     message.setUpdateType(UpdateType.PUT);
-    final JsonArray assetIdGroupArray = json.get("assetIdGroupTreeSet").getAsJsonArray();
-    for (int i = 0; i < assetIdGroupArray.size(); ++i) {
-      JsonArray assetIdGroup = assetIdGroupArray.get(i).getAsJsonArray();
-      message.addAssetId(assetIdGroup.get(0).getAsLong(), assetIdGroup.get(1).getAsInt());
+    if (json.has("assetIdGroupTreeSet")) {
+      final JsonArray assetIdGroupArray = json.get("assetIdGroupTreeSet").getAsJsonArray();
+      for (int i = 0; i < assetIdGroupArray.size(); ++i) {
+        JsonArray assetIdGroup = assetIdGroupArray.get(i).getAsJsonArray();
+        message.addAssetId(assetIdGroup.get(0).getAsLong(), assetIdGroup.get(1).getAsInt());
+      }
     }
 
     return message;
