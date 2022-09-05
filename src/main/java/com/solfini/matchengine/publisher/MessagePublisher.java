@@ -228,6 +228,9 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
             assetGroupEncoder.groupAssetId(value[2]);
+            LOGGER.info("Update GroupId: SecurityId: " + (pair != null ? pair : instrument));
+            LOGGER.info("Update GroupId: Asset group updated: assetId: " + value[0] + " tokenId: " + value[1] + " groupId: " + value[2]);
+
           }
         } else {
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
