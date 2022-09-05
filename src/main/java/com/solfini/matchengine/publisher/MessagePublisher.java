@@ -181,8 +181,6 @@ public class MessagePublisher implements Constants {
     }
     if (positionsLength == 0 || positionArr == null || positionArr.length == 0) // skip if no positions to add
       return;
-    //todo remove this log and sb
-    StringBuilder sb = new StringBuilder();
 
     PositionsGroupEncoder groupEncoder = positionReportEncoder.positionsGroupCount(positionsLength - 1); // we skip 0
     for (int i = 1; i < positionsLength; i++) {
@@ -230,7 +228,6 @@ public class MessagePublisher implements Constants {
             assetGroupEncoder.assetId(value[0]);
             assetGroupEncoder.tokenId((int) value[1]);
             assetGroupEncoder.groupAssetId(value[2]);
-            sb.append("instrumentId: ").append(instrument.getId()).append("assetId: ").append(value[0]).append(" tokenId: ").append(value[1]).append(" groupId: ").append(value[2]);
           }
         } else {
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
@@ -282,7 +279,6 @@ public class MessagePublisher implements Constants {
         assetGroupEncoder.groupAssetId(0);
       }
     }
-    LOGGER.info(sb.toString());
   }
 
   public static final int POSITION_DATA_COUNT = 10;
