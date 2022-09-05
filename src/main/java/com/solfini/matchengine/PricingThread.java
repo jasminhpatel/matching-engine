@@ -87,6 +87,9 @@ public class PricingThread implements Runnable, Constants {
 
   private final double calcUsdUnderlyerPrice(final int underlyerId) {
     final InstrumentPair pair = InstrumentCache.getPair(underlyerId);
+    if (pair == null) {
+      LOGGER.warn(Constants.LOG_FMT_2, "Pair not found. pairId: ", underlyerId);
+    }
     return pair.getIndexFeedUsdMark();
   }
 
