@@ -535,7 +535,12 @@ public class InstrumentCache implements Constants {
       final InstrumentPair instrumentPair = InstrumentCache.getPair(i);
       if (instrumentPair == null)
         continue;
+      //todo remove test logs
+      LOGGER.info(Constants.LOG_FMT_2, "Sec Def from instrument pair: getSecurityId: ", instrumentPair.getSymbol(), " getUnderlyerId: ", instrumentPair.getUnderlyerId(),
+          " getContractExpireTime: ", instrumentPair.getContractExpireTime());
       final SecurityDefinitionAdminMessage security = new SecurityDefinitionAdminMessage(instrumentPair);
+      LOGGER.info(Constants.LOG_FMT_2, "Sec Def from instrument pair: getSecurityId: ", security.getSecurityId(), " getUnderlyerId: ", security.getUnderlyerId(),
+          " getContractExpireTime: ", security.getContractExpireTime()," getArrSize: ", security.getArrSize());
       security.setSnapId(snapId);
       if (instrumentPair.getOrderBook() != null) {
         security.setSecondaryOrderId(instrumentPair.getOrderBook().getSecondaryOrderId());

@@ -3,6 +3,7 @@ package com.solfini.matchengine.message.admin;
 import java.util.Iterator;
 import java.util.Map;
 import com.solfini.common.AdminMessage;
+import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.MessageType;
@@ -106,6 +107,9 @@ public class TradeStateAdminMessage extends AdminMessage {
       if (securityId > 0) {
         final InstrumentPair instrumentPair = InstrumentCache.getPair(securityId);
         if (instrumentPair != null) {
+          //todo remove test logs
+          LOGGER.info(Constants.LOG_FMT_2, "Before change state instrument pair: getSecurityId: ", instrumentPair.getSymbol(), " getUnderlyerId: ", instrumentPair.getUnderlyerId(),
+              " getContractExpireTime: ", instrumentPair.getContractExpireTime());
           instrumentPair.changeState(marketStatus, snapId, this);
           Context.getMatcherToPublisherQueue().addGuaranteed(this);
         }
