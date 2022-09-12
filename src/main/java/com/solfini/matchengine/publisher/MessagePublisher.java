@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+
+import com.solfini.sbe.encoder.QuoteType;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -714,7 +716,7 @@ public class MessagePublisher implements Constants {
     executionReportEncoder.assetId(executionReport.getAssetId());
     executionReportEncoder.tokenId(executionReport.getTokenId());
     executionReportEncoder.selectId(executionReport.getSelectId());
-    executionReportEncoder.quoteType(executionReport.getQuoteType());
+    executionReportEncoder.quoteType(executionReport.getQuoteType() != null ? executionReport.getQuoteType() : QuoteType.NULL_VAL);
     executionReportEncoder.quoteTargetUserId(executionReport.getQuoteTargetUserId());
 
     executionReportEncoder.openOrderCount(executionReport.getOpenOrderCount());
