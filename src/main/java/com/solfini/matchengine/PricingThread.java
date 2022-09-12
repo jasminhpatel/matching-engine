@@ -197,8 +197,6 @@ public class PricingThread implements Runnable, Constants {
         final InstrumentPair pair = InstrumentCache.getPair(i);
         if (pair == null || (AssetType.OPTION_CALL != pair.getAssetType() && AssetType.OPTION_PUT != pair.getAssetType()))
           continue;
-        //todo remove after testing
-        LOGGER.info(Constants.LOG_FMT_2, " Options pair>>>>>>>: ", pair.toString());
         calcOptionPricing(pair, now, updateType);
       }
     } catch (Exception e) {

@@ -882,7 +882,7 @@ public class InstrumentPair implements Appendable, Constants {
     s.append("InstrumentPair [id=").append(id).append(SYMBOL_EQ).append(symbol).append(NAME_EQ).append(name).append(BASE_EQ).append(base)
         .append(QUOTED_EQ).append(quoted).append(BASEID_EQ).append(baseId).append(QUOTEID_EQ).append(quotedId)
         .append(", contractExpireTime=").append(contractExpireTime).append(", strikePrice=").append(strikePrice).append(", underlyerId=")
-        .append(underlyerId).append(quotedId).append(MARGINCURVEID_EQ).append(marginCurveId).append(PRICESCALE_EQ).append(priceScale)
+        .append(underlyerId).append(QUOTEID_EQ).append(quotedId).append(MARGINCURVEID_EQ).append(marginCurveId).append(PRICESCALE_EQ).append(priceScale)
         .append(QUANTITYSCALE_EQ).append(quantityScale).append(", orderBook=").append(orderBook).append(", marketStatus=")
         .append(marketStatus).append(SETTLETYPE_EQ).append(", indexFeedUsdMark=").append(indexFeedUsdMark).append(", estFundingRate=")
         .append(estFundingRate).append(", fundingRateTime=").append(fundingRateTime).append(settleType).append(", assetType=")
