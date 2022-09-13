@@ -2185,6 +2185,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     takerAssetGroup.setGroupAssetId(0);
     takerAssetGroup.setOwnerUserId(takerUserId);
 
+    final long[][] assetsTaken = new long[(int) quantityFilled][];
+
     final ConcurrentSkipListSet<long[]> set = sellGroup.getAssetIdGroupTreeSet();
     long allocated = 0;
     for (; allocated < quantityFilled; allocated++) {
@@ -2194,6 +2196,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         break;
       }
       takerAssetGroup.addAssetId(value[0], (int) value[1]);
+      long[] asset = {value[0], value[1], sellGroup.getId()};
+      assetsTaken[(int) allocated] = asset;
     }
     //todo is this needed
     if (allocated < quantityFilled) { // try using otherGroups with the same seller and securityId
@@ -2208,6 +2212,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
             break;
           }
           takerAssetGroup.addAssetId(value[0], (int) value[1]);
+          long[] asset = {value[0], value[1], otherGroup.getId()};
+          assetsTaken[(int) allocated] = asset;
         }
         matcherToPublisherQueue.add(otherGroup);
 
@@ -2219,6 +2225,19 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     // publish changes
     AssetGroupCache.onModel(takerAssetGroup);
     matcherToPublisherQueue.add(sellGroup);
+    //update groupId in positions with new group id
+    if (!takerAssetGroup.getAssetIdGroupTreeSet().isEmpty()) {
+      //update groupId in positions with new group id
+      final Position makerPosition = makerOrder.getUser().getPosition(makerOrder.getSecurityId());
+      for (long[] takenAsset : assetsTaken) {
+        makerPosition.getAssetIdtreeSet().remove(takenAsset);
+      }
+      final Position takerPosition = makerOrder.getUser().getPosition(makerOrder.getSecurityId());
+      for (long[] takenAsset : assetsTaken) {
+        takenAsset[2] = takerAssetGroup.getId();
+        takerPosition.getAssetIdtreeSet().add(takenAsset);
+      }
+    }
 
     return takerAssetGroup;
   }
