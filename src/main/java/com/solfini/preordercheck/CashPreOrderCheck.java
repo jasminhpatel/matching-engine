@@ -11,6 +11,8 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.matchengine.AssetGroupCache;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.pool.PositionMatchThreadObjectPool;
@@ -18,6 +20,8 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
 import com.solfini.user.UserOpenOrdersByPair;
 import com.solfini.util.MbxMath;
+
+import java.util.Set;
 
 /**
  *
@@ -285,7 +289,25 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case SELL_SELECT:
         case STOP_SELL_LIMIT:
           basePosition.addQuantity(-normalizedQuantityLong); // fill
-          basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          //basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          if (execReport.getGroupAssetId() == 0) { // individual assets
+            basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          } else { // purchase group
+            final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
+            if (assetGroup != null) {
+              final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
+              long quantity = normalizedAmountLong;
+              for (long[] assetIds : assetIdSet) {
+                if (quantity > 0) {
+                  basePosition.removeAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
+                } else {
+                  break;
+                }
+                quantity--;
+              }
+            }
+          }
+
           quotedPosition.addQuantity(normalizedAmountLong); // fill
           quotedPosition.addAvailableQuantity(normalizedAmountLong); // fill
           feePosition.addQuantity(-feeQuantity);
@@ -343,7 +365,25 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_BUY_LIMIT:
           basePosition.addQuantity(normalizedQuantityLong); // fill
           basePosition.addAvailableQuantity(normalizedQuantityLong); // fill
-          basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          //basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          if (execReport.getGroupAssetId() == 0) { // individual assets
+            basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          } else { // purchase group
+            final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
+            if (assetGroup != null) {
+              final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
+              long quantity = normalizedAmountLong;
+              for (long[] assetIds : assetIdSet) {
+                if (quantity > 0) {
+                  basePosition.addAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
+                } else {
+                  break;
+                }
+                quantity--;
+              }
+            }
+          }
+
           quotedPosition.addQuantity(-normalizedAmountLong); // fill
 
           long adjustment = normalizedQuantityLong * order.getMarginCheckReferencePrice();
