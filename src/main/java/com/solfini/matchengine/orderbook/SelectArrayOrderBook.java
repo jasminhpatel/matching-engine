@@ -458,13 +458,26 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         newAssetGroup.setGroupAssetId(0);
 
         final long reallocCount = assetGroupSet.size() - order.getQuantityLong();
+        final long[][] reallocatedAssets = new long[(int) reallocCount][];
         for (int i = 0; i < reallocCount; i++) {
           final long[] value = assetGroupSet.pollFirst();
+          reallocatedAssets[i] = value;
           newAssetGroup.addAssetId(value[0], (int) value[1]);
         }
 
         // publish changes
         AssetGroupCache.onModel(newAssetGroup);
+        //update groupId in positions with new group id
+        final Position position = UserCache.get(order.getAccount()).getPosition(order.getSecurityId());
+        for (long[] reallocated: reallocatedAssets) {
+          for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
+            if (reallocated[0] == assetTokenInPositions[0] && reallocated[1] == assetTokenInPositions[1]) {
+              assetTokenInPositions[2] = newAssetGroup.getId();
+              break;
+            }
+          }
+        }
+
         matcherToPublisherQueue.add(assetGroup);
       }
     }
