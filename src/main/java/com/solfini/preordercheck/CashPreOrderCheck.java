@@ -368,6 +368,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           //basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           if (execReport.getGroupAssetId() == 0) { // individual assets
             basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+            LOGGER.info(Constants.LOG_FMT_2, "AAD Adding to user: ", user.getId(), " assetId: ", execReport.getAssetId(),
+                " tokenId: ", execReport.getTokenId(), " groupId: ",  execReport.getGroupAssetId());
           } else { // purchase group
             final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
             if (assetGroup != null) {
@@ -376,6 +378,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
               for (long[] assetIds : assetIdSet) {
                 if (quantity > 0) {
                   basePosition.addAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
+                  LOGGER.info(Constants.LOG_FMT_2, "AAC Adding to user: ", user.getId(), " assetId: ", assetIds[0],
+                      " tokenId: ", assetIds[1], " groupId: ",  execReport.getGroupAssetId());
                 } else {
                   break;
                 }

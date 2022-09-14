@@ -2177,8 +2177,11 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       //update groupId in positions
       for (long[] assetTaken : sellGroup.getAssetIdGroupTreeSet()) {
-        long[] asset = {assetTaken[0], assetTaken[1], sellGroup.getId()};
-        makerPosition.getAssetIdtreeSet().remove(asset);
+        LOGGER.info(Constants.LOG_FMT_2, "AAA Remove from user: ", makerUserId, " assetId: ", assetTaken[0],
+            " tokenId: ", assetTaken[1], " groupId: ",  sellGroup.getId());
+        makerPosition.removeAssetId(assetTaken[0], (int) assetTaken[1], sellGroup.getId());
+        LOGGER.info(Constants.LOG_FMT_2, "AAA Adding to user: ", takerUserId, " assetId: ", assetTaken[0],
+            " tokenId: ", assetTaken[1], " groupId: ",  sellGroup.getId());
         takerPosition.addAssetId(assetTaken[0], (int) assetTaken[1], sellGroup.getId());
       }
 
@@ -2239,12 +2242,15 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       //update groupId in positions with new group id
       final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       for (long[] takenAsset : assetsTaken) {
-        makerPosition.getAssetIdtreeSet().remove(takenAsset);
+        LOGGER.info(Constants.LOG_FMT_2, "AAB Remove from user: ", makerUserId, " assetId: ", takenAsset[0],
+            " tokenId: ", takenAsset[1], " groupId: ",  takenAsset[2]);
+        makerPosition.removeAssetId(takenAsset[0], (int) takenAsset[1], takenAsset[2]);
       }
       final Position takerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       for (long[] takenAsset : assetsTaken) {
-        takenAsset[2] = takerAssetGroup.getId();
-        takerPosition.getAssetIdtreeSet().add(takenAsset);
+        takerPosition.addAssetId(takenAsset[0], (int) takenAsset[1], takerAssetGroup.getId());
+        LOGGER.info(Constants.LOG_FMT_2, "AAB Adding to user: ", takerUserId, " assetId: ", takenAsset[0],
+            " tokenId: ", takenAsset[1], " groupId: ",  takerAssetGroup.getId());
       }
     }
 
