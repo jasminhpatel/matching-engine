@@ -2241,16 +2241,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     if (!takerAssetGroup.getAssetIdGroupTreeSet().isEmpty()) {
       //update groupId in positions with new group id
       final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-      for(long[] p : makerPosition.getAssetIdtreeSet()) {
-        LOGGER.info(Constants.LOG_FMT_2, "AAP List from user: ", makerUserId, " assetId: ", p[0],
-            " tokenId: ", p[1], " groupId: ",  p[2]);
-      }
       for (long[] takenAsset : assetsTaken) {
         LOGGER.info(Constants.LOG_FMT_2, "AAB Remove from user: ", makerUserId, " assetId: ", takenAsset[0],
             " tokenId: ", takenAsset[1], " groupId: ",  takenAsset[2]);
         makerPosition.removeAssetId(takenAsset[0], (int) takenAsset[1], takenAsset[2]);
       }
-      final Position takerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
+      final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       for (long[] takenAsset : assetsTaken) {
         takerPosition.addAssetId(takenAsset[0], (int) takenAsset[1], takerAssetGroup.getId());
         LOGGER.info(Constants.LOG_FMT_2, "AAB Adding to user: ", takerUserId, " assetId: ", takenAsset[0],
