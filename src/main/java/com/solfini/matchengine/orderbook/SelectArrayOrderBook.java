@@ -2173,6 +2173,15 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
     if (makerOrder.getQuantityLong() == 0) { // taker filled all of group
       sellGroup.setOwnerUserId(takerUserId);
+      final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
+      final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
+      //update groupId in positions
+      for (long[] assetTaken : sellGroup.getAssetIdGroupTreeSet()) {
+        long[] asset = {assetTaken[0], assetTaken[1], sellGroup.getId()};
+        makerPosition.getAssetIdtreeSet().remove(asset);
+        takerPosition.addAssetId(assetTaken[0], (int) assetTaken[1], sellGroup.getId());
+      }
+
       matcherToPublisherQueue.add(sellGroup);
       return sellGroup;
     }
