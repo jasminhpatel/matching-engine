@@ -55,6 +55,8 @@ public class MatchingThread implements Runnable, Constants {
             try {
               message.onMatcher();
             } catch (Exception e) {
+              //todo remove stack trace
+              LOGGER.error(Constants.ERROR_LOG, e);
               LOGGER.error(Constants.ERROR_LOG, "ReceiverToMatcherQueue message onMatch error ", e);
             }
             matcherToPublisherQueue.endTransaction();
