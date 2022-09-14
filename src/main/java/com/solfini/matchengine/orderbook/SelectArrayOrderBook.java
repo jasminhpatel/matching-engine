@@ -468,7 +468,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         // publish changes
         AssetGroupCache.onModel(newAssetGroup);
         //update groupId in positions with new group id
-        final Position position = UserCache.get(order.getAccount()).getPosition(order.getSecurityId());
+        final Position position = order.getUser().getPosition((int) assetGroup.getSecurityId());
         for (long[] reallocated: reallocatedAssets) {
           for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
             if (reallocated[0] == assetTokenInPositions[0] && reallocated[1] == assetTokenInPositions[1]) {
@@ -2228,11 +2228,11 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     //update groupId in positions with new group id
     if (!takerAssetGroup.getAssetIdGroupTreeSet().isEmpty()) {
       //update groupId in positions with new group id
-      final Position makerPosition = makerOrder.getUser().getPosition(makerOrder.getSecurityId());
+      final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       for (long[] takenAsset : assetsTaken) {
         makerPosition.getAssetIdtreeSet().remove(takenAsset);
       }
-      final Position takerPosition = makerOrder.getUser().getPosition(makerOrder.getSecurityId());
+      final Position takerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       for (long[] takenAsset : assetsTaken) {
         takenAsset[2] = takerAssetGroup.getId();
         takerPosition.getAssetIdtreeSet().add(takenAsset);
