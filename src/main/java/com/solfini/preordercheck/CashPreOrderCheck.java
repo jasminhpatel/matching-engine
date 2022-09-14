@@ -291,6 +291,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           basePosition.addQuantity(-normalizedQuantityLong); // fill
           //basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           if (execReport.getGroupAssetId() == 0) { // individual assets
+            LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", execReport.getAssetId(),
+                " tokenId: ", execReport.getTokenId(), " groupId: ",  execReport.getGroupAssetId());
             basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           } else { // purchase group
             final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
@@ -299,6 +301,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
               long quantity = normalizedAmountLong;
               for (long[] assetIds : assetIdSet) {
                 if (quantity > 0) {
+                  LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", assetIds[0],
+                      " tokenId: ", assetIds[1], " groupId: ",  execReport.getGroupAssetId(), " quantity: ", quantity);
                   basePosition.removeAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
                 } else {
                   break;
@@ -379,7 +383,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
                 if (quantity > 0) {
                   basePosition.addAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
                   LOGGER.info(Constants.LOG_FMT_2, "AAC Adding to user: ", user.getId(), " assetId: ", assetIds[0],
-                      " tokenId: ", assetIds[1], " groupId: ",  execReport.getGroupAssetId());
+                      " tokenId: ", assetIds[1], " groupId: ",  execReport.getGroupAssetId()," quantity: ", quantity);
                 } else {
                   break;
                 }
