@@ -168,17 +168,17 @@ public class AssetGroup extends Message {
     final int userId = (int) this.ownerUserId;
     final int securityId = (int) this.securityId;
     final Position position = UserCache.get(userId).getPosition(securityId);
-    LOGGER.info("Update GroupId: SecurityId: " + securityId + " userId: " + userId + " groupAssetId: " + this.groupAssetId);
-    LOGGER.info("Position: " + position);
-    LOGGER.info("PositionList size: " + (position.getAssetIdtreeSet() != null ? position.getAssetIdtreeSet().size() : 0));
-    LOGGER.info("assetIdGroupTreeSet: " + assetIdGroupTreeSet);
+    //LOGGER.info("Update GroupId: SecurityId: " + securityId + " userId: " + userId + " groupAssetId: " + this.groupAssetId);
+    //LOGGER.info("Position: " + position);
+    //LOGGER.info("PositionList size: " + (position.getAssetIdtreeSet() != null ? position.getAssetIdtreeSet().size() : 0));
+    //LOGGER.info("assetIdGroupTreeSet: " + assetIdGroupTreeSet);
     if (position != null && position.getAssetIdtreeSet() != null) {
       for (final long[] assetToken : this.assetIdGroupTreeSet) {
         for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
           if (assetToken[0] == assetTokenInPositions[0] && assetToken[1] == assetTokenInPositions[1]) {
-            LOGGER.info("Update GroupId: SecurityId: " + securityId);
-            LOGGER.info("Update GroupId: Asset group updated: assetId: " + assetToken[0] + " tokenId: " + assetToken[1] + " groupId: " +this.groupAssetId);
-            assetTokenInPositions[2] = this.groupAssetId; //assetTokenInPositions[2] = group id
+            //LOGGER.info("Update GroupId: SecurityId: " + securityId);
+            //LOGGER.info("Update GroupId: Asset group updated: assetId: " + assetToken[0] + " tokenId: " + assetToken[1] + " groupId: " +this.groupAssetId);
+            assetTokenInPositions[2] = this.groupAssetId;
             break;
           }
         }
