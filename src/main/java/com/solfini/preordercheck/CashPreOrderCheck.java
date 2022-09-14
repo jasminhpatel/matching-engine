@@ -298,7 +298,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
             final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
             if (assetGroup != null) {
               final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
-              long quantity = normalizedAmountLong;
+              long quantity = order.getQty();
               for (long[] assetIds : assetIdSet) {
                 if (quantity > 0) {
                   LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", assetIds[0],
@@ -378,7 +378,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
             final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
             if (assetGroup != null) {
               final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
-              long quantity = normalizedAmountLong;
+              long quantity = order.getQty();
               for (long[] assetIds : assetIdSet) {
                 if (quantity > 0) {
                   basePosition.addAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
