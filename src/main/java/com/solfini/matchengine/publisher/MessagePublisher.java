@@ -715,6 +715,7 @@ public class MessagePublisher implements Constants {
 
     executionReportEncoder.assetId(executionReport.getAssetId());
     executionReportEncoder.tokenId(executionReport.getTokenId());
+    executionReportEncoder.groupAssetId(executionReport.getGroupAssetId());
     executionReportEncoder.selectId(executionReport.getSelectId());
     executionReportEncoder.quoteType(executionReport.getQuoteType() != null ? executionReport.getQuoteType() : QuoteType.NULL_VAL);
     executionReportEncoder.quoteTargetUserId(executionReport.getQuoteTargetUserId());
