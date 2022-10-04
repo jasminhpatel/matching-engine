@@ -289,7 +289,9 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case SELL_SELECT:
         case STOP_SELL_LIMIT:
           basePosition.addQuantity(-normalizedQuantityLong); // fill
-          //basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          if (execReport.getAssetId() > 0) { // groups are handled separately
+            basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          }
 /*          if (execReport.getGroupAssetId() == 0) { // individual assets
             LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", execReport.getAssetId(),
                 " tokenId: ", execReport.getTokenId(), " groupId: ",  execReport.getGroupAssetId());
