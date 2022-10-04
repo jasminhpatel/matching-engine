@@ -118,6 +118,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
   private final TrailingStopContainer trailingStopContainer;
   private final ADLMakerContainer adlMakerContainer;
   private final SelectAuctionContainer auctionContainer;
+  private final SelectRFQContainer rfqContainer;
 
   private PreOrderCheck preOrderCheck;
   private final PreOrderCheck preOrderCheckOrig;
@@ -172,6 +173,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     this.trailingStopContainer = new TrailingStopContainer(pair);
     this.adlMakerContainer = new ADLMakerContainer(id);
     this.auctionContainer = new SelectAuctionContainer(pair);
+    this.rfqContainer = new SelectRFQContainer(pair);
 
     this.ARR_SIZE = arrSize > 0 ? arrSize : DEFAULT_ARR_SIZE;
     this.CACHE_DEPTH = cacheDepth > 0 ? cacheDepth : DEFAULT_CACHE_DEPTH;
@@ -376,8 +378,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       setSecondaryOrderIdIfGreater(order.getSecondaryOrderId());
     }
     // validate
-    if (order == null
-        || (order.getPriceInt() <= 0 && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket()))) {
+    if (order == null || (order.getPriceInt() <= 0
+        && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket() || order.isRFQ()))) {
       if (LOGGER.isTraceEnabled()) {
         LOGGER.trace(LOG_FMT_4, REJECT_ORDER_EQ, PRICE_IS_MISSING, ORDER_EQ, order);
       }
@@ -467,10 +469,10 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
         // publish changes
         AssetGroupCache.onModel(newAssetGroup);
-        //update groupId in positions with new group id
+        // update groupId in positions with new group id
         final Position position = order.getUser().getPosition((int) assetGroup.getSecurityId());
 
-        position.addAssetId(0,0, newAssetGroup.getId());// one record for the new group
+        position.addAssetId(0, 0, newAssetGroup.getId());// one record for the new group
 
         matcherToPublisherQueue.add(assetGroup);
       }
@@ -747,6 +749,22 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
       if (cancelOrder.getOrigOrderId() == 0)
         cancelOrder.setOrigOrderId(order.getOrderId());
+
+      // rfq
+      if (order.isRFQ()) {
+        boolean rc = false;
+        if (order.getSide() == Side.BUY)
+          rc = rfqContainer.removeBuyLimit(order);
+        else if (order.getSide() == Side.SELL)
+          rc = rfqContainer.removeSellLimit(order);
+
+        preOrderCheck.updateCancel(order);
+        matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
+            instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        OrderObjectPool.returnObject(order);
+        CancelOrderObjectPool.returnObject(cancelOrder);
+        return;
+      }
 
       // auction
       if (MarketStatus.OPEN_AUCTION == marketStatus) {
@@ -1362,6 +1380,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     newPtr.setSelectId(newPtr.getOrderId());
     idToOrderMap.put(newPtr.getOrderId(), newPtr);
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addBuyLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1491,6 +1515,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     newPtr.setSelectId(newPtr.getOrderId());
     idToOrderMap.put(newPtr.getOrderId(), newPtr);
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addSellLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addSellLimit(newPtr);
@@ -1609,6 +1639,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addBuyLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1666,6 +1702,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     if (!rebuildInProgress && publishAcks) {
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+    }
+
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addSellLimit(newPtr, this);
+      return;
     }
 
     // auction
@@ -2169,7 +2211,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       sellGroup.setOwnerUserId(takerUserId);
       final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-      //update groupId in positions
+      // update groupId in positions
       makerPosition.removeAssetId(0, 0, sellGroup.getId());
       takerPosition.addAssetId(0, 0, sellGroup.getId());
 
@@ -2195,7 +2237,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       takerAssetGroup.addAssetId(value[0], (int) value[1]);
     }
-    //todo is this needed
+    // todo is this needed
     if (allocated < quantityFilled) { // try using otherGroups with the same seller and securityId
       LOGGER.error(LOG_FMT_2, "allocateGroupAssets allocated=", allocated, ", quantityFilled=", quantityFilled, ", sellGroup=", sellGroup);
       final Collection<AssetGroup> otherGroups = AssetGroupCache.getByUserId(makerUserId, id);
@@ -2516,6 +2558,16 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
     }
 
+    // restate rfq limit orders
+    final ConcurrentSkipListSet<Order> buyTreeSet5 = rfqContainer.getBuyTreeSet();
+    for (final Order tmp : buyTreeSet5) {
+      matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
+    }
+
+    final ConcurrentSkipListSet<Order> sellTreeSet5 = rfqContainer.getSellTreeSet();
+    for (final Order tmp : sellTreeSet5) {
+      matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
+    }
 
     // restate outOfBounds orders
     final List<Order> outOfBoundsList = new ArrayList<>(outOfBoundsOrderMap.values());
@@ -2763,6 +2815,18 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         }
       }
       for (final Order order : trailingStopContainer.getSellTreeSet()) {
+        if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
+          orders.add(order);
+        }
+      }
+
+      // rfq orders
+      for (final Order order : rfqContainer.getBuyTreeSet()) {
+        if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
+          orders.add(order);
+        }
+      }
+      for (final Order order : rfqContainer.getSellTreeSet()) {
         if (order.getSubmitterId() == massCancelOrder.getSubmitterId()) {
           orders.add(order);
         }
@@ -3938,6 +4002,22 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
     }
 
+    // restate rfq orders
+    final ConcurrentSkipListSet<Order> buyTreeSet5 = auctionContainer.getBuyTreeSet();
+    while (!buyTreeSet5.isEmpty()) {
+      final Order order = buyTreeSet5.pollFirst();
+      if (order != null) {
+        target.addOrder(transform == null ? order : transform.transform(order));
+      }
+    }
+    final ConcurrentSkipListSet<Order> sellTreeSet5 = auctionContainer.getSellTreeSet();
+    while (!sellTreeSet5.isEmpty()) {
+      final Order order = sellTreeSet5.pollFirst();
+      if (order != null) {
+        target.addOrder(transform == null ? order : transform.transform(order));
+      }
+    }
+
     // restore publishing to output
     target.restoreOutputQueue();
   }
@@ -4252,6 +4332,24 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     }
 
     list = new FastArrayList<>(auctionContainer.getBuyTreeSet());
+    for (final Order order : list) {
+      final long cancelId = order.getOrderId();
+      final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();
+      cancelOrder.set(order, cancelId, cancelId);
+      cancelOrder.setUser(order.getUser());
+      cancelOrder(cancelOrder);
+    }
+
+    list = new FastArrayList<>(rfqContainer.getSellTreeSet());
+    for (final Order order : list) {
+      final long cancelId = order.getOrderId();
+      final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();
+      cancelOrder.set(order, cancelId, cancelId);
+      cancelOrder.setUser(order.getUser());
+      cancelOrder(cancelOrder);
+    }
+
+    list = new FastArrayList<>(rfqContainer.getBuyTreeSet());
     for (final Order order : list) {
       final long cancelId = order.getOrderId();
       final CancelOrder cancelOrder = CancelOrderMatchThreadObjectPool.get();

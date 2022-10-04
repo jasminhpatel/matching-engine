@@ -2221,12 +2221,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
     // restate rfq limit orders
     final ConcurrentSkipListSet<Order> buyTreeSet5 = rfqContainer.getBuyTreeSet();
-    for (final Order tmp : buyTreeSet3) {
+    for (final Order tmp : buyTreeSet5) {
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
     }
 
     final ConcurrentSkipListSet<Order> sellTreeSet5 = rfqContainer.getSellTreeSet();
-    for (final Order tmp : sellTreeSet3) {
+    for (final Order tmp : sellTreeSet5) {
       matcherToPublisherQueue.add(ExecutionReportMessage.createRestateExecutionReport(tmp, instrumentPair, reason, snapId, causingMessage));
     }
 
@@ -3601,15 +3601,15 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
     // restate rfq orders
     final ConcurrentSkipListSet<Order> buyTreeSet5 = auctionContainer.getBuyTreeSet();
-    while (!buyTreeSet3.isEmpty()) {
-      final Order order = buyTreeSet3.pollFirst();
+    while (!buyTreeSet5.isEmpty()) {
+      final Order order = buyTreeSet5.pollFirst();
       if (order != null) {
         target.addOrder(transform == null ? order : transform.transform(order));
       }
     }
     final ConcurrentSkipListSet<Order> sellTreeSet5 = auctionContainer.getSellTreeSet();
-    while (!sellTreeSet3.isEmpty()) {
-      final Order order = sellTreeSet3.pollFirst();
+    while (!sellTreeSet5.isEmpty()) {
+      final Order order = sellTreeSet5.pollFirst();
       if (order != null) {
         target.addOrder(transform == null ? order : transform.transform(order));
       }
