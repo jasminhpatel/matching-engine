@@ -3,6 +3,8 @@ package com.solfini.matchengine.message.internal;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.concurrent.ConcurrentSkipListSet;
+
+import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
@@ -164,26 +166,42 @@ public class AssetGroup extends Message {
 
   @Override
   public void onMatcher() {
-    AssetGroupCache.onModel(this);
+    //validate assets
     final int userId = (int) this.ownerUserId;
     final int securityId = (int) this.securityId;
     final Position position = UserCache.get(userId).getPosition(securityId);
-    //LOGGER.info("Update GroupId: SecurityId: " + securityId + " userId: " + userId + " groupAssetId: " + this.groupAssetId);
-    //LOGGER.info("Position: " + position);
-    //LOGGER.info("PositionList size: " + (position.getAssetIdtreeSet() != null ? position.getAssetIdtreeSet().size() : 0));
-    //LOGGER.info("assetIdGroupTreeSet: " + assetIdGroupTreeSet);
-    if (position != null && position.getAssetIdtreeSet() != null) {
-      for (final long[] assetToken : this.assetIdGroupTreeSet) {
-        for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
-          if (assetToken[0] == assetTokenInPositions[0] && assetToken[1] == assetTokenInPositions[1]) {
-            //LOGGER.info("Update GroupId: SecurityId: " + securityId);
-            //LOGGER.info("Update GroupId: Asset group updated: assetId: " + assetToken[0] + " tokenId: " + assetToken[1] + " groupId: " +this.groupAssetId);
-            assetTokenInPositions[2] = this.groupAssetId;
-            break;
-          }
+
+    if (position == null || position.getAssetIdtreeSet() == null) {
+      // todo reject
+      this.setId(0);
+      this.setError("User does not own any assets. Security id: " + securityId);
+      LOGGER.info(Constants.LOG_FMT_2, "User does not own any assets. security: ", securityId, " userId: " , userId, "");
+      return;
+    }
+
+    for (final long[] assetToken : this.assetIdGroupTreeSet) {
+      boolean ownsAsset = false;
+      for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
+        if (assetToken[0] == assetTokenInPositions[0] && assetToken[1] == assetTokenInPositions[1]) {
+          ownsAsset = true;
+          break;
         }
       }
+      if (!ownsAsset) {
+        // todo reject
+        LOGGER.info(Constants.LOG_FMT_2, "User does not own the asset. security: ", securityId, " userId: " , userId,
+            " assetId: ", assetToken[0], " tokenId: ", assetToken[1]);
+        return;
+      }
     }
+
+    AssetGroupCache.onModel(this);
+    //update positions
+    for (final long[] assetToken : this.assetIdGroupTreeSet) {
+      position.removeAssetId(assetToken[0], (int) assetToken[1], 0);// remove asset/token position
+    }
+    position.addAssetId(0,0, this.groupAssetId);// add group position. One record for the entire group
+    //no change in position quantity
   }
 
   @Override

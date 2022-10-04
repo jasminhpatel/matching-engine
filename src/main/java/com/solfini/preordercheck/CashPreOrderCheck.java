@@ -289,7 +289,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case SELL_SELECT:
         case STOP_SELL_LIMIT:
           basePosition.addQuantity(-normalizedQuantityLong); // fill
-          basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
+          //basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
 /*          if (execReport.getGroupAssetId() == 0) { // individual assets
             LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", execReport.getAssetId(),
                 " tokenId: ", execReport.getTokenId(), " groupId: ",  execReport.getGroupAssetId());
@@ -369,24 +369,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_BUY_LIMIT:
           basePosition.addQuantity(normalizedQuantityLong); // fill
           basePosition.addAvailableQuantity(normalizedQuantityLong); // fill
-          //basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
-          if (execReport.getGroupAssetId() == 0) { // individual assets
-            basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
-          } else { // purchase group
-            final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
-            if (assetGroup != null) {
-              final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
-              long quantity = order.getQty();
-              for (long[] assetIds : assetIdSet) {
-                if (quantity > 0) {
-                  basePosition.addAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
-                } else {
-                  break;
-                }
-                quantity--;
-              }
-            }
-          }
+          // (assetId, tokenId > 0 && groupId == 0) or (assetId, tokenId == 0 && groupId > 0)
+          basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
 
           quotedPosition.addQuantity(-normalizedAmountLong); // fill
 

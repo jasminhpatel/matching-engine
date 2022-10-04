@@ -469,14 +469,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         AssetGroupCache.onModel(newAssetGroup);
         //update groupId in positions with new group id
         final Position position = order.getUser().getPosition((int) assetGroup.getSecurityId());
-        for (long[] reallocated: reallocatedAssets) {
-          for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
-            if (reallocated[0] == assetTokenInPositions[0] && reallocated[1] == assetTokenInPositions[1]) {
-              assetTokenInPositions[2] = newAssetGroup.getId();
-              break;
-            }
-          }
-        }
+
+        position.addAssetId(0,0, newAssetGroup.getId());// one record for the new group
 
         matcherToPublisherQueue.add(assetGroup);
       }
@@ -2176,10 +2170,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
       //update groupId in positions
-      for (long[] assetTaken : sellGroup.getAssetIdGroupTreeSet()) {
-        makerPosition.removeAssetId(assetTaken[0], (int) assetTaken[1], sellGroup.getId());
-        takerPosition.addAssetId(assetTaken[0], (int) assetTaken[1], sellGroup.getId());
-      }
+      makerPosition.removeAssetId(0, 0, sellGroup.getId());
+      takerPosition.addAssetId(0, 0, sellGroup.getId());
 
       matcherToPublisherQueue.add(sellGroup);
       return sellGroup;
@@ -2193,8 +2185,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     takerAssetGroup.setGroupAssetId(0);
     takerAssetGroup.setOwnerUserId(takerUserId);
 
-    final long[][] assetsTaken = new long[(int) quantityFilled][];
-
     final ConcurrentSkipListSet<long[]> set = sellGroup.getAssetIdGroupTreeSet();
     long allocated = 0;
     for (; allocated < quantityFilled; allocated++) {
@@ -2204,8 +2194,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         break;
       }
       takerAssetGroup.addAssetId(value[0], (int) value[1]);
-      long[] asset = {value[0], value[1], sellGroup.getId()};
-      assetsTaken[(int) allocated] = asset;
     }
     //todo is this needed
     if (allocated < quantityFilled) { // try using otherGroups with the same seller and securityId
@@ -2220,8 +2208,6 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
             break;
           }
           takerAssetGroup.addAssetId(value[0], (int) value[1]);
-          long[] asset = {value[0], value[1], otherGroup.getId()};
-          assetsTaken[(int) allocated] = asset;
         }
         matcherToPublisherQueue.add(otherGroup);
 
@@ -2232,19 +2218,9 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
     // publish changes
     AssetGroupCache.onModel(takerAssetGroup);
+    final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
+    takerPosition.addAssetId(0, 0, takerAssetGroup.getId());
     matcherToPublisherQueue.add(sellGroup);
-    //update groupId in positions with new group id
-    if (!takerAssetGroup.getAssetIdGroupTreeSet().isEmpty()) {
-      //update groupId in positions with new group id
-      final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-      for (long[] takenAsset : assetsTaken) {
-        makerPosition.removeAssetId(takenAsset[0], (int) takenAsset[1], takenAsset[2]);
-      }
-      final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-      for (long[] takenAsset : assetsTaken) {
-        takerPosition.addAssetId(takenAsset[0], (int) takenAsset[1], takerAssetGroup.getId());
-      }
-    }
 
     return takerAssetGroup;
   }
