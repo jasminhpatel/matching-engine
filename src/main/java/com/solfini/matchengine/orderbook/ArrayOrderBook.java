@@ -1213,7 +1213,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       }
-
+      LOGGER.info("addBuyLimit ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
@@ -1342,7 +1342,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       }
-
+      LOGGER.info("addSellLimit ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
@@ -1680,7 +1680,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       }
-
+      LOGGER.info("addStopBuyLimit ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
