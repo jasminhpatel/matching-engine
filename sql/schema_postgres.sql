@@ -1298,4 +1298,7 @@ CREATE TABLE AML_LOG(
 	created TIMESTAMP default now()
 );
 
+
+ alter table security_definition_log add column marketType INT DEFAULT 2;
+
  
