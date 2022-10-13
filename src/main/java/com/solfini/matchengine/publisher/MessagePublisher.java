@@ -272,7 +272,7 @@ public class MessagePublisher implements Constants {
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
         assetGroupEncoder.groupAssetId(0);
-      } else {//dummy to support positionsGroupCount
+      } else {// dummy to support positionsGroupCount
         groupEncoder.instrumentId(0);
         PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
         assetGroupEncoder = assetGroupEncoder.next();
@@ -930,8 +930,8 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
 
     if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: " + businessRejectMessage.getPairId()
-          + " reason: " + businessRejectMessage.getText());
+      LOGGER.debug("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: "
+          + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
     }
 
     // convert and publish
@@ -1197,10 +1197,11 @@ public class MessagePublisher implements Constants {
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, assetGroup);
 
     if (Context.getAssetGroupsCompactionTopic() != null) {
-      Context.getKafkaPublisher().sendDirect(String.valueOf(assetGroup.getId()), bytesWithKafkaOffset, Context.getAssetGroupsCompactionTopic());
+      Context.getKafkaPublisher().sendDirect(String.valueOf(assetGroup.getId()), bytesWithKafkaOffset,
+          Context.getAssetGroupsCompactionTopic());
     }
 
-    //todo publish positions
+    // todo publish positions
     // return to pool
     // AssetGroupObjectPool.returnObject(assetGroup);
   }
@@ -1339,6 +1340,7 @@ public class MessagePublisher implements Constants {
       securityDefinitionAdminMessageEncoder.priceScale((short) securityDefinitionAdminMessage.getPriceScale());
       securityDefinitionAdminMessageEncoder.quantityScale((short) securityDefinitionAdminMessage.getQuantityScale());
       securityDefinitionAdminMessageEncoder.orderBookStrategy((short) securityDefinitionAdminMessage.getOrderBookStrategy());
+      securityDefinitionAdminMessageEncoder.marketType(securityDefinitionAdminMessage.getMarketType());
       securityDefinitionAdminMessageEncoder.preOrderCheckStrategy((short) securityDefinitionAdminMessage.getPreOrderCheckStrategy());
       securityDefinitionAdminMessageEncoder.symbol(securityDefinitionAdminMessage.getSymbol());
       securityDefinitionAdminMessageEncoder.name(securityDefinitionAdminMessage.getName());

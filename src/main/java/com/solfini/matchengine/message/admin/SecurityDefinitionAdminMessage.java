@@ -8,6 +8,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.MarketType;
 import com.solfini.internal.admin.schema.SecurityDefinitionAdminMessageDecoder;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.internal.schema.PayloadType;
@@ -27,6 +28,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
   private String name;
   private AssetType assetType;
   private MarketStatus marketStatus;
+  private MarketType marketType;
   private int baseId;
   private int quotedId;
   private short priceScale;
@@ -97,6 +99,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.name = SECURITY_DEFINITION_DECODER.name();
     this.assetType = SECURITY_DEFINITION_DECODER.assetType();
     this.marketStatus = SECURITY_DEFINITION_DECODER.marketStatus();
+    this.marketType = SECURITY_DEFINITION_DECODER.marketType();
     this.baseId = SECURITY_DEFINITION_DECODER.baseId();
     this.quotedId = SECURITY_DEFINITION_DECODER.quotedId();
     this.priceScale = SECURITY_DEFINITION_DECODER.priceScale();
@@ -135,7 +138,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.usdStrikePrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdStrikePrice()); // for options, calculated from strikePrice
     if (usdStrikePrice == 0 && strikePrice > 0) {
       usdStrikePrice = MbxMath.roundToBestPrecision(strikePrice / (double) MbxMath.multiplier(priceScale));
-    } else if (strikePrice == 0 && usdStrikePrice > 0){
+    } else if (strikePrice == 0 && usdStrikePrice > 0) {
       strikePrice = (int) (usdStrikePrice * MbxMath.multiplier(priceScale));
     }
 
@@ -195,6 +198,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.name = instrumentPair.getName();
     this.assetType = instrumentPair.getAssetType(); // was pair
     this.marketStatus = instrumentPair.getMarketStatus();
+    this.marketType = instrumentPair.getMarketType();
     this.baseId = instrumentPair.getBaseId();
     this.quotedId = instrumentPair.getQuotedId();
     this.priceScale = instrumentPair.getPriceScale();
@@ -227,7 +231,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.usdStrikePrice = instrumentPair.getUsdStrikePrice(); // for options, calculated from strikePrice
     if (usdStrikePrice == 0 && strikePrice > 0) {
       usdStrikePrice = MbxMath.roundToBestPrecision(strikePrice / (double) MbxMath.multiplier(priceScale));
-    } else if (strikePrice == 0 && usdStrikePrice > 0){
+    } else if (strikePrice == 0 && usdStrikePrice > 0) {
       strikePrice = (int) (usdStrikePrice * MbxMath.multiplier(priceScale));
     }
     this.usdUnderlyerPrice = instrumentPair.getUsdUnderlyerPrice(); // stock price
@@ -325,6 +329,14 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
 
   public final int getPreOrderCheckStrategy() {
     return preOrderCheckStrategy;
+  }
+
+  public final MarketType getMarketType() {
+    return marketType;
+  }
+
+  public final void setMarketType(final MarketType marketType) {
+    this.marketType = marketType;
   }
 
   public final void setUpdateType(final UpdateType updateType) {
@@ -772,23 +784,23 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
   public StringBuilder appendTo(final StringBuilder s) {
     s.append(SECURITYDEFINITIONADMINMESSAGE_UPDATETYPE_EQ).append(updateType).append(SECURITYID_EQ).append(securityId).append(SYMBOL_EQ)
         .append(symbol).append(NAME_EQ).append(name).append(ASSETTYPE_EQ).append(assetType).append(MARKETSTATUS_EQ).append(marketStatus)
-        .append(TRIGGERTIMEMILLIS_EQ).append(triggerTimeMillis).append(BASEID_EQ).append(baseId).append(QUOTEID_EQ).append(quotedId)
-        .append(PRICESCALE_EQ).append(priceScale).append(QUANTITYSCALE_EQ).append(quantityScale).append(BASE_EQ).append(base)
-        .append(QUOTED_EQ).append(quoted).append(ORDERBOOKSTRATEGY_EQ).append(orderBookStrategy).append(PREORDERCHECKSTRATEGY_EQ)
-        .append(preOrderCheckStrategy).append(ESTIMATEDUSERCOUNT_EQ).append(estimatedUserCount).append(DAYSFEEDISACTIVE_EQ)
-        .append(daysFeedIsActive).append(ESTIMATEDVOLATILITY_EQ).append(estimatedVolatility).append(ESTIMATEDVAR_EQ).append(estimatedVAR)
-        .append(SETTLETYPE_EQ).append(settleType).append(MAINTMARGINPERCENT_EQ).append(maintMarginBasisPoints)
-        .append(REQUIREDMARGINPERCENT_EQ).append(requiredMarginBasisPoints).append(MINQTY_EQ).append(minQty).append(MAXQTY_EQ)
-        .append(maxQty).append(MAXPRICE_EQ).append(maxPrice).append(SUPPORTORDERTYPE_EQ).append(supportOrderType).append(UNDERLYERID_EQ)
-        .append(underlyerId).append(STRIKEPRICE_EQ).append(strikePrice).append(EXPIRETIMEMILLIS_EQ).append(expireTimeMillis)
-        .append(MARGINCURVEID_EQ).append(marginCurveId).append(COMISSIONTYPE_EQ).append(commissionType).append(ROUTETODESTINATION_EQ)
-        .append(routeToDestination).append(INDEXFEEDUSDMARK_EQ).append(indexFeedUsdMark).append(COLLATERALMARGINPERCENTDISCOUNT_EQ)
-        .append(collateralMarginPercentDiscount).append(", secondaryOrderId=").append(secondaryOrderId).append(", secondaryExecId=")
-        .append(secondaryExecId).append(SOURCESEQNUM_EQ).append(sourceSeqNum).append(SOURCESENDTIME_EQ).append(sourceSendTime)
-        .append(ARRSIZE_EQ).append(arrSize).append(CACHEDEPTH_EQ).append(cacheDepth).append(TEXTDATA_EQ).append(textData)
-        .append(AUCTION_START_TIME_HR_GMT_EQ).append(auctionStartTimeHrGMT).append(AUCTION_DURATION_TIME_EQ).append(auctionDurationTime)
-        .append(AUCTION_FIXING_ATTEMPTS_EQ).append(auctionFixingAttempts).append(AUCTION_FIXING_WAIT_TIME_EQ).append(auctionFixingWaitTime)
-        .append(PYSICALSETTLE_EQ).append(physicalSettle).append(']');
+        .append(MARKETTYPE_EQ).append(marketType).append(TRIGGERTIMEMILLIS_EQ).append(triggerTimeMillis).append(BASEID_EQ).append(baseId)
+        .append(QUOTEID_EQ).append(quotedId).append(PRICESCALE_EQ).append(priceScale).append(QUANTITYSCALE_EQ).append(quantityScale)
+        .append(BASE_EQ).append(base).append(QUOTED_EQ).append(quoted).append(ORDERBOOKSTRATEGY_EQ).append(orderBookStrategy)
+        .append(PREORDERCHECKSTRATEGY_EQ).append(preOrderCheckStrategy).append(ESTIMATEDUSERCOUNT_EQ).append(estimatedUserCount)
+        .append(DAYSFEEDISACTIVE_EQ).append(daysFeedIsActive).append(ESTIMATEDVOLATILITY_EQ).append(estimatedVolatility)
+        .append(ESTIMATEDVAR_EQ).append(estimatedVAR).append(SETTLETYPE_EQ).append(settleType).append(MAINTMARGINPERCENT_EQ)
+        .append(maintMarginBasisPoints).append(REQUIREDMARGINPERCENT_EQ).append(requiredMarginBasisPoints).append(MINQTY_EQ).append(minQty)
+        .append(MAXQTY_EQ).append(maxQty).append(MAXPRICE_EQ).append(maxPrice).append(SUPPORTORDERTYPE_EQ).append(supportOrderType)
+        .append(UNDERLYERID_EQ).append(underlyerId).append(STRIKEPRICE_EQ).append(strikePrice).append(EXPIRETIMEMILLIS_EQ)
+        .append(expireTimeMillis).append(MARGINCURVEID_EQ).append(marginCurveId).append(COMISSIONTYPE_EQ).append(commissionType)
+        .append(ROUTETODESTINATION_EQ).append(routeToDestination).append(INDEXFEEDUSDMARK_EQ).append(indexFeedUsdMark)
+        .append(COLLATERALMARGINPERCENTDISCOUNT_EQ).append(collateralMarginPercentDiscount).append(", secondaryOrderId=")
+        .append(secondaryOrderId).append(", secondaryExecId=").append(secondaryExecId).append(SOURCESEQNUM_EQ).append(sourceSeqNum)
+        .append(SOURCESENDTIME_EQ).append(sourceSendTime).append(ARRSIZE_EQ).append(arrSize).append(CACHEDEPTH_EQ).append(cacheDepth)
+        .append(TEXTDATA_EQ).append(textData).append(AUCTION_START_TIME_HR_GMT_EQ).append(auctionStartTimeHrGMT)
+        .append(AUCTION_DURATION_TIME_EQ).append(auctionDurationTime).append(AUCTION_FIXING_ATTEMPTS_EQ).append(auctionFixingAttempts)
+        .append(AUCTION_FIXING_WAIT_TIME_EQ).append(auctionFixingWaitTime).append(PYSICALSETTLE_EQ).append(physicalSettle).append(']');
     return s;
   }
 
@@ -803,15 +815,15 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     sb.append(",\"routeToDestination\":").append("\"").append(routeToDestination).append("\"");
     sb.append(",\"securityId\":").append(securityId).append(",\"symbol\":").append("\"").append(symbol).append("\"").append(",\"name\":")
         .append("\"").append(name).append("\"").append(",\"assetType\":").append(assetType.value()).append(",\"marketStatus\":")
-        .append(marketStatus.value()).append(",\"baseId\":").append(baseId).append(",\"quotedId\":").append(quotedId)
-        .append(",\"priceScale\":").append(priceScale).append(",\"quantityScale\":").append(quantityScale).append(",\"underlyerId\":")
-        .append(underlyerId).append(",\"strikePrice\":").append(strikePrice).append(",\"expireTimeMillis\":").append(expireTimeMillis)
-        .append(",\"orderBookStrategy\":").append(orderBookStrategy).append(",\"preOrderCheckStrategy\":").append(preOrderCheckStrategy)
-        .append(",\"estimatedUserCount\":").append(estimatedUserCount).append(",\"daysFeedIsActive\":").append(daysFeedIsActive)
-        .append(",\"estimatedVolatility\":").append(estimatedVolatility).append(",\"estimatedVAR\":").append(estimatedVAR)
-        .append(",\"settleType\":").append(settleType).append(",\"maintMarginPercent\":").append(maintMarginBasisPoints)
-        .append(",\"requiredMarginPercent\":").append(requiredMarginBasisPoints).append(",\"minQty\":").append(minQty)
-        .append(",\"maxQty\":").append(maxQty).append(",\"maxPrice\":").append(maxPrice).append(",\"supportOrderType\":")
+        .append(marketStatus.value()).append(",\"marketType\":").append(marketType.value()).append(",\"baseId\":").append(baseId)
+        .append(",\"quotedId\":").append(quotedId).append(",\"priceScale\":").append(priceScale).append(",\"quantityScale\":")
+        .append(quantityScale).append(",\"underlyerId\":").append(underlyerId).append(",\"strikePrice\":").append(strikePrice)
+        .append(",\"expireTimeMillis\":").append(expireTimeMillis).append(",\"orderBookStrategy\":").append(orderBookStrategy)
+        .append(",\"preOrderCheckStrategy\":").append(preOrderCheckStrategy).append(",\"estimatedUserCount\":").append(estimatedUserCount)
+        .append(",\"daysFeedIsActive\":").append(daysFeedIsActive).append(",\"estimatedVolatility\":").append(estimatedVolatility)
+        .append(",\"estimatedVAR\":").append(estimatedVAR).append(",\"settleType\":").append(settleType).append(",\"maintMarginPercent\":")
+        .append(maintMarginBasisPoints).append(",\"requiredMarginPercent\":").append(requiredMarginBasisPoints).append(",\"minQty\":")
+        .append(minQty).append(",\"maxQty\":").append(maxQty).append(",\"maxPrice\":").append(maxPrice).append(",\"supportOrderType\":")
         .append(supportOrderType).append(",\"marginCurveId\":").append(marginCurveId).append(",\"commissionType\":").append(commissionType)
         .append(",\"indexFeedUsdMark\":").append(indexFeedUsdMark).append(",\"collateralMarginPercentDiscount\":")
         .append(collateralMarginPercentDiscount).append(",\"arrSize\":").append(arrSize).append(",\"cacheDepth\":").append(cacheDepth)

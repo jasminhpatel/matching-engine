@@ -453,6 +453,7 @@ public interface Constants {
   public static final String PRICESCALE_EQ = ", priceScale=";
   public static final String PRICE_SCALE_EQ = ", price_scale=";
   public static final String PRICE2_SCALE_EQ = ", price2_scale=";
+  public static final String MARKETTYPE_EQ = ", marketType=";
 
   public static final String QUANTITYSCALE_EQ = ", quantityScale=";
   public static final String BASE_EQ = ", base=";
