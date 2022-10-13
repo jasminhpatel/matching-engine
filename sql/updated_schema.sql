@@ -247,6 +247,31 @@ CREATE INDEX chain_transaction_log1 ON chain_transaction_log USING btree (userid
 CREATE INDEX chain_transaction_log2 ON chain_transaction_log USING btree (instrumentid);
 CREATE INDEX chain_transaction_log3 ON chain_transaction_log USING btree (address);
 
+CREATE TABLE chain_transaction2_log (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    userid int8 NULL,
+    instrumentId int4 NULL,
+    symbol varchar(64) NULL,
+    chain VARCHAR(64),
+    blockNumber VARCHAR(64),
+    address VARCHAR(256),
+    transactionHash VARCHAR(256),
+    contractType VARCHAR(64),
+    contractAddress VARCHAR(256),
+    tokenId VARCHAR(256),
+    fromAddress VARCHAR(256),
+    toAddress VARCHAR(256),
+    amount VARCHAR(64),
+    status INT,-- 0-Pending, 1-Successful, 2-Rejected
+    transactionTime VARCHAR(32),
+    created TIMESTAMP default now(),
+    transactionType VARCHAR(64),
+    note VARCHAR(256)
+);
+CREATE INDEX chain_transaction2_log1 ON chain_transaction2_log USING btree (userid);
+CREATE INDEX chain_transaction2_log2 ON chain_transaction2_log USING btree (instrumentId);
+CREATE INDEX chain_transaction2_log3 ON chain_transaction2_log USING btree (address);
+
 CREATE TABLE deribit_last_trade (
     id bigserial NOT NULL,
     pairid int4 NULL,
