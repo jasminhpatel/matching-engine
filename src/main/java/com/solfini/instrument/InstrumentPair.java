@@ -13,6 +13,7 @@ import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
 import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.MarketType;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -41,6 +42,7 @@ public class InstrumentPair implements Appendable, Constants {
   private final short quantityScale;
   private OrderBook orderBook;
   private MarketStatus marketStatus;
+  private MarketType marketType;
   private int settleType;
   private AssetType assetType;
   private int maintMarginBasisPoints;
@@ -259,6 +261,14 @@ public class InstrumentPair implements Appendable, Constants {
     this.marketStatus = marketStatus;
   }
 
+  public MarketType getMarketType() {
+    return marketType;
+  }
+
+  public void setMarketType(final MarketType marketType) {
+    this.marketType = marketType;
+  }
+
   public final int getSettleType() {
     return settleType;
   }
@@ -352,8 +362,8 @@ public class InstrumentPair implements Appendable, Constants {
         if (prevIndexFeedUsdMarkTime > 0 && System.currentTimeMillis() - prevIndexFeedUsdMarkTime > 600_000) {
           MarginPreOrderCheckAndSettle.setLIQUIDATON_MODE(false);
         }
-       // LOGGER.warn("price feed protection indexFeedUsdMark=" + indexFeedUsdMark + ", prevIndexFeedUsdMark=" + prevIndexFeedUsdMark
-       //     + ", pair=" + this);
+        // LOGGER.warn("price feed protection indexFeedUsdMark=" + indexFeedUsdMark + ", prevIndexFeedUsdMark=" + prevIndexFeedUsdMark
+        // + ", pair=" + this);
         return;
       }
     }
@@ -882,13 +892,14 @@ public class InstrumentPair implements Appendable, Constants {
     s.append("InstrumentPair [id=").append(id).append(SYMBOL_EQ).append(symbol).append(NAME_EQ).append(name).append(BASE_EQ).append(base)
         .append(QUOTED_EQ).append(quoted).append(BASEID_EQ).append(baseId).append(QUOTEID_EQ).append(quotedId)
         .append(", contractExpireTime=").append(contractExpireTime).append(", strikePrice=").append(strikePrice).append(", underlyerId=")
-        .append(underlyerId).append(QUOTEID_EQ).append(quotedId).append(MARGINCURVEID_EQ).append(marginCurveId).append(PRICESCALE_EQ).append(priceScale)
-        .append(QUANTITYSCALE_EQ).append(quantityScale).append(", orderBook=").append(orderBook).append(", marketStatus=")
-        .append(marketStatus).append(SETTLETYPE_EQ).append(", indexFeedUsdMark=").append(indexFeedUsdMark).append(", estFundingRate=")
-        .append(estFundingRate).append(", fundingRateTime=").append(fundingRateTime).append(settleType).append(", assetType=")
-        .append(assetType).append(MAINTMARGINPERCENT_EQ).append(maintMarginBasisPoints).append(REQUIREDMARGINPERCENT_EQ)
-        .append(requiredMarginBasisPoints).append(", externalFundingRate=").append(externalFundingRate).append(", makerFeeArr=")
-        .append(Arrays.toString(makerFeeArr)).append(", takerFeeArr=").append(Arrays.toString(takerFeeArr)).append("]");
+        .append(underlyerId).append(QUOTEID_EQ).append(quotedId).append(MARGINCURVEID_EQ).append(marginCurveId).append(PRICESCALE_EQ)
+        .append(priceScale).append(QUANTITYSCALE_EQ).append(quantityScale).append(", orderBook=").append(orderBook)
+        .append(", marketStatus=").append(marketStatus).append(SETTLETYPE_EQ).append(", indexFeedUsdMark=").append(indexFeedUsdMark)
+        .append(", estFundingRate=").append(estFundingRate).append(", fundingRateTime=").append(fundingRateTime).append(settleType)
+        .append(", assetType=").append(assetType).append(MAINTMARGINPERCENT_EQ).append(maintMarginBasisPoints)
+        .append(REQUIREDMARGINPERCENT_EQ).append(requiredMarginBasisPoints).append(", externalFundingRate=").append(externalFundingRate)
+        .append(", makerFeeArr=").append(Arrays.toString(makerFeeArr)).append(", takerFeeArr=").append(Arrays.toString(takerFeeArr))
+        .append("]");
     return s;
   }
 
