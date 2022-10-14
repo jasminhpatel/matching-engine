@@ -13,6 +13,7 @@ import com.solfini.common.CustomLogger;
 import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.MarketType;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
@@ -225,6 +226,7 @@ public class InstrumentCache implements Constants {
       final int preOrderCheckStrategy = securityDefinitionAdminMessage.getPreOrderCheckStrategy();
       final int settleType = securityDefinitionAdminMessage.getSettleType();
       final AssetType assetType = securityDefinitionAdminMessage.getAssetType();
+      final MarketType marketType = securityDefinitionAdminMessage.getMarketType();
       final int maintMarginPercent = securityDefinitionAdminMessage.getMaintMarginBasisPoints();
       final int requiredMarginPercent = securityDefinitionAdminMessage.getRequiredMarginBasisPoints();
       final int marginCurveId = securityDefinitionAdminMessage.getMarginCurveId();
@@ -313,7 +315,7 @@ public class InstrumentCache implements Constants {
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(), base, quoted, (short) priceScale,
           (short) quantityScale, settleType, assetType, maintMarginPercent, requiredMarginPercent, 0, marginCurveId, expireTimeMillis,
           strikePrice, underlyerId, minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts,
-          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode);
+          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType);
       if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
         instrumentPair.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
 
@@ -364,6 +366,7 @@ public class InstrumentCache implements Constants {
 
       final int settleType = securityDefinitionAdminMessage.getSettleType();
       final AssetType assetType = securityDefinitionAdminMessage.getAssetType();
+      final MarketType marketType = securityDefinitionAdminMessage.getMarketType();
       final int maintMarginPercent = securityDefinitionAdminMessage.getMaintMarginBasisPoints();
       final int requiredMarginPercent = securityDefinitionAdminMessage.getRequiredMarginBasisPoints();
       final int arrSize = securityDefinitionAdminMessage.getArrSize();
@@ -457,7 +460,7 @@ public class InstrumentCache implements Constants {
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(), base, quoted, (short) priceScale,
           (short) quantityScale, settleType, assetType, maintMarginPercent, requiredMarginPercent, 0, marginCurveId, expireTimeMillis,
           strikePrice, underlyerId, minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts,
-          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode);
+          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType);
 
       OrderBookFactory.recreateReplace(orderBookStrategy, preOrderCheckStrategy, currentPair, instrumentPair, arrSize, cacheDepth);
 

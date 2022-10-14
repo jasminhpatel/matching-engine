@@ -1,6 +1,8 @@
 package com.solfini.matchengine;
 
 import java.util.TimeZone;
+
+import com.solfini.internal.admin.schema.MarketType;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -272,7 +274,7 @@ public class PricingThread implements Runnable, Constants {
     final InstrumentPair pair = new InstrumentPair(id, symbol, name, base, quoted, priceScale, quantityScale, settleType, assetType,
         maintMarginBasisPoints, requiredMarginBasisPoints, usdMark, marginCurveId, expireTimeMillis, strikePrice, underlyerId,
         minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts, auctionFixingWaitTime, circuitBreakerThreshold,
-        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode);
+        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, MarketType.NONE);
 
     pricingThread.calcOptionPricing(pair, now, updateType);
   }
@@ -313,14 +315,14 @@ public class PricingThread implements Runnable, Constants {
     final InstrumentPair pair = new InstrumentPair(id, symbol, name, base, quoted, priceScale, quantityScale, settleType, assetType,
         maintMarginBasisPoints, requiredMarginBasisPoints, usdMark, marginCurveId, expireTimeMillis, strikePrice, underlyerId,
         minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts, auctionFixingWaitTime, circuitBreakerThreshold,
-        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode);
+        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, MarketType.NONE);
     pair.setOrderBook(new ArrayOrderBook(pair, new MarginPreOrderCheckAndSettle(), OrderBookFactory.DEFAULT_TEST_ORDER_BOOK,
         OrderBookFactory.MARGIN_PREORDER_CHECK));
 
     final InstrumentPair pair2 = new InstrumentPair(underlyerId, symbol, name, base, quoted, priceScale, quantityScale, settleType,
         assetType, maintMarginBasisPoints, requiredMarginBasisPoints, usdMark, marginCurveId, expireTimeMillis, strikePrice, underlyerId,
         minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts, auctionFixingWaitTime, circuitBreakerThreshold,
-        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode);
+        expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, MarketType.NONE);
     pair2.setIndexFeedUsdMark(9141.03);
     InstrumentCache.addPair(pair2);
 
