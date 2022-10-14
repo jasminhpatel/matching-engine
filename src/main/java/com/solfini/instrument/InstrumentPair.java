@@ -116,7 +116,7 @@ public class InstrumentPair implements Appendable, Constants {
       final short priceScale, final short quantityScale, final int settleType, final AssetType assetType, final int maintMarginBasisPoints,
       final int requiredMarginBasisPoints, final double usdMark, final int marginCurveId) {
     this(id, symbol, name, base, quoted, priceScale, quantityScale, settleType, assetType, maintMarginBasisPoints,
-        requiredMarginBasisPoints, usdMark, marginCurveId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false);
+        requiredMarginBasisPoints, usdMark, marginCurveId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false, MarketType.NONE);
   }
 
   public InstrumentPair(final int id, final String symbol, final String name, final Instrument base, final Instrument quoted,
@@ -125,7 +125,7 @@ public class InstrumentPair implements Appendable, Constants {
       final int strikePrice, final int underlyerId, final long minOrderQuantity, final int auctionStartTimeHrGMT,
       final long auctionDurationTime, final int auctionFixingAttempts, final long auctionFixingWaitTime,
       final double circuitBreakerThreshold, final long expireRollTimeMillis, final int symbolRollCount, final boolean physicalSettle,
-      final boolean limitOnlyMode) {
+      final boolean limitOnlyMode, final MarketType marketType) {
     this.id = id;
     this.symbol = symbol;
     this.name = name;
@@ -141,6 +141,7 @@ public class InstrumentPair implements Appendable, Constants {
     this.takerFeeDiscountedArr = new Fee[FEE_TIER_CAPACITY];
     this.settleType = settleType;
     this.assetType = assetType;
+    this.marketType = marketType;
     this.maintMarginBasisPoints = maintMarginBasisPoints;
     this.requiredMarginBasisPoints = requiredMarginBasisPoints;
     this.indexFeedUsdMark = usdMark;

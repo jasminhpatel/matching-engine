@@ -177,6 +177,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.name = instrument.getName();
     this.assetType = AssetType.ASSET;
     this.marketStatus = MarketStatus.OPEN;
+    this.marketType = MarketType.NONE;
     this.baseId = 0; // ?
     this.quotedId = instrument.getQuotedInstrumentId();
     this.priceScale = instrument.getPriceScale();

@@ -6,6 +6,8 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.MarketType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import java.lang.reflect.Type;
@@ -20,6 +22,8 @@ public class SecurityDefinitionAdminMessageJsonDeserializer implements JsonDeser
     SecurityDefinitionAdminMessage message = new Gson().fromJson(json, SecurityDefinitionAdminMessage.class);
     message.setUpdateType(UpdateType.PUT);
     message.setAssetType(AssetType.get(json.get("assetType").getAsShort()));
+    message.setMarketStatus(MarketStatus.get(json.get("marketStatus").getAsShort()));
+    message.setMarketType(MarketType.get(json.get("marketType").getAsShort()));
 
     // base?
     // quoted?
