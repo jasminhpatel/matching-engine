@@ -757,11 +757,13 @@ CREATE TABLE trade_history_log (
 CREATE TABLE upload_file (
 id bigserial NOT NULL,
 userid int8 NULL,
-file_key varchar(128) NULL,
+fileKey varchar(128) NULL,
 filename varchar(128) NULL,
-content_type varchar(32) NULL,
-proxy_location varchar(128) NULL,
+contenttype varchar(32) NULL,
+proxylocation varchar(128) NULL,
 created timestamp NULL DEFAULT now(),
+referenceId int8 NULL,
+uploadedBy int8 NULL,
 CONSTRAINT upload_file_pkey PRIMARY KEY (id)
 );
 CREATE INDEX upload_file1 ON upload_file USING btree (file_key);
