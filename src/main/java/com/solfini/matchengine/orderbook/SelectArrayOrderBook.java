@@ -1755,6 +1755,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
       return;
     }
+    if (counterOrder.getSide() != Side.SELL) {
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
 
     final int marketOrderRiskPrice = counterOrder.getPrice2Int();
     if ((askLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
@@ -1810,6 +1816,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     final Order counterOrder = idToOrderMap.get(newPtr.getSelectId());
 
     if (counterOrder == null || counterOrder.getQty() <= 0) {
+      matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
+          Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+      return;
+    }
+    if (counterOrder.getSide() != Side.BUY) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
