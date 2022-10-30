@@ -1788,6 +1788,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
     }
 
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addBuyLimit(newPtr, this);
+      return;
+    }
+
     // auction
     if (MarketStatus.OPEN_AUCTION == marketStatus) {
       auctionContainer.addBuyLimit(newPtr);
@@ -1851,6 +1857,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     if (!rebuildInProgress && publishAcks) {
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(newPtr, instrumentPair);
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
+    }
+
+    // RFQ
+    if (newPtr.isRFQ()) {
+      rfqContainer.addSellLimit(newPtr, this);
+      return;
     }
 
     // auction

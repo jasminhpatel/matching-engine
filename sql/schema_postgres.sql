@@ -1300,5 +1300,6 @@ CREATE TABLE AML_LOG(
 
 
  alter table security_definition_log add column marketType INT DEFAULT 2;
+ alter table asset_details_state add  assetLogoUrl varchar(256) null;
 
  

@@ -1124,7 +1124,8 @@ CREATE TABLE asset_details_state(
     supportDoc5Url varchar(256) null,
     longitude double precision,
     latitude double precision,
-    marketType INT DEFAULT 2
+    marketType INT DEFAULT 2,
+    assetLogoUrl varchar(256) null
 );
 CREATE INDEX ASSET_DETAILS_STATE1 ON public.ASSET_DETAILS_STATE USING btree (ownerUserId);
 CREATE INDEX ASSET_DETAILS_STATE2 ON public.ASSET_DETAILS_STATE USING btree (assetid);
