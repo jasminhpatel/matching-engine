@@ -369,6 +369,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     if (order.isRFQ() && order.getOrigOrderId() > 0) {
       final QuoteType newQuoteType = order.getQuoteType();
       final long newPrice = order.getPrice();
+      final int newPriceInt = order.getPriceInt();
       final long newOrdQty = order.getQty();
       final short newPriceScale = order.getPriceScale();
       final short newQtyScale = order.getQtyScale();
@@ -388,6 +389,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         order.setQuoteType(newQuoteType);//update quoteType
         order.setOrderModified(true);
         order.setPrice(newPrice, newPriceScale);
+        order.setPriceInt(newPriceInt);
         order.setQty(newOrdQty, newQtyScale);
       }
     }

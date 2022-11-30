@@ -386,6 +386,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       final QuoteType newQuoteType = order.getQuoteType();
       final long newSelectId = order.getSelectId();
       final long newPrice = order.getPrice();
+      final int newPriceInt = order.getPriceInt();
       final long newOrdQty = order.getQty();
       final short newPriceScale = order.getPriceScale();
       final short newQtyScale = order.getQtyScale();
@@ -408,6 +409,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         order.setSelectId(newSelectId);
         order.setOrderModified(true);
         order.setPrice(newPrice, newPriceScale);
+        order.setPriceInt(newPriceInt);
         order.setQty(newOrdQty, newQtyScale);
         if (newSelectId > 0) {
           order.setOrdType(OrdType.SELECT);
