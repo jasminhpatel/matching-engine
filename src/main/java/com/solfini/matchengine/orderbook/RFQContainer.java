@@ -1,7 +1,10 @@
 package com.solfini.matchengine.orderbook;
 
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import org.agrona.collections.Long2ObjectHashMap;
 import com.solfini.common.Constants;
@@ -71,8 +74,19 @@ public class RFQContainer implements Constants {
   }
 
   public final void addBuyLimit(final Order order, final ArrayOrderBook orderBook) {
+    printTreeSet(sellTreeSet, "sellTreeSet(before): ");
+    printTreeSet(buyTreeSet, "buyTreeSet(before): ");
     // expireOld orders
     expireOld(orderBook);
+    // if prev order exists, treat as cancel replace
+    final Order prevOrder = idToOrderMap.remove(order.getOrderId());
+    if (prevOrder != null) { // cancel replace
+      if (prevOrder.getQuoteType() != QuoteType.INDICATIVE) { // once prev order is tradeable don't allow qty to change
+        buyTreeSet.remove(prevOrder);// only non-indicative orders are in treeSet
+        order.setQuantityLong(prevOrder.getQuantityLong());
+        order.setQty(prevOrder.getQty(), prevOrder.getQtyScale());
+      }
+    }
 
     // INDICATIVE can't be filled
     if (QuoteType.TRADEABLE != order.getQuoteType() && QuoteType.COUNTER_TRADEABLE != order.getQuoteType()
@@ -84,53 +98,71 @@ public class RFQContainer implements Constants {
     if (order.getOrdType() == OrdType.SELECT) { // MATCH SELECT orders
       final Order selectedOrder = idToOrderMap.remove(order.getSelectId());
       final boolean isFound = sellTreeSet.remove(selectedOrder);
+
       if (selectedOrder == null || !isFound) {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(order.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSelectId(), order.getSecurityId()));
+            order.getSourceSeqNum(), order.getSelectId(), order.getSecurityId(), order.getSubmitterId()));
 
         return;
       }
-
-      final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
-      final boolean isFilled = fillMatch(order, selectedOrder, fillPrice, orderBook);
-      if (!isFilled) { // if fill failed, add selected order back
+      if (order.getOrdType() == OrdType.MARKET || order.getPriceInt() >= selectedOrder.getPriceInt()) {
+        final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
+        fillMatch(selectedOrder, order, fillPrice, orderBook);
+        if (selectedOrder.getQuantityLong() > 0) { // if not filled, add selected order back
+          idToOrderMap.put(selectedOrder.getOrderId(), selectedOrder);
+          sellTreeSet.add(selectedOrder);
+        }
+      } else {
         idToOrderMap.put(selectedOrder.getOrderId(), selectedOrder);
-        sellTreeSet.add(order);
+        sellTreeSet.add(selectedOrder);
       }
     } else { // sweep orderbook
       while (!sellTreeSet.isEmpty()) {
-        if (order.getQty() <= 0)
+        if (order.getQuantityLong() <= 0)
           break;
 
-        final Order selectedOrder = sellTreeSet.pollFirst();
-
+        final Order selectedOrder = sellTreeSet.first();
         // filled
-        if (order.getOrdType() == OrdType.MARKET || order.getPrice() >= selectedOrder.getPrice()) {
+        if (order.getOrdType() == OrdType.MARKET || order.getPriceInt() >= selectedOrder.getPriceInt()) {
           final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
           if (fillPrice <= 0)
             break;
 
-          fillMatch(order, selectedOrder, fillPrice, orderBook);
-          if (selectedOrder.getQty() <= 0) {
-            idToOrderMap.remove(selectedOrder.getOrderId());
+          fillMatch(selectedOrder, order, fillPrice, orderBook);
+          if (selectedOrder.getQuantityLong() <= 0) {
             sellTreeSet.remove(selectedOrder);
+            idToOrderMap.remove(selectedOrder.getOrderId());
           }
+        } else {
+          break;// sell prices are too high
         }
       }
     }
 
-
     // post resting order
-    buyTreeSet.add(order);
-    idToOrderMap.put(order.getOrderId(), order);
+    if (order.getQuantityLong() > 0) {
+      buyTreeSet.add(order);
+      idToOrderMap.put(order.getOrderId(), order);
+    }
+    printTreeSet(sellTreeSet, "sellTreeSet(after): ");
+    printTreeSet(buyTreeSet, "buyTreeSet(after): ");
   }
 
-
   public final void addSellLimit(final Order order, final ArrayOrderBook orderBook) {
+    printTreeSet(sellTreeSet, "sellTreeSet(before): ");
+    printTreeSet(buyTreeSet, "buyTreeSet(before): ");
     // expireOld orders
     expireOld(orderBook);
 
+    final Order prevOrder = idToOrderMap.remove(order.getOrderId());
+    if (prevOrder != null) { // cancel replace
+      if (prevOrder.getQuoteType() != QuoteType.INDICATIVE) { // once prev order is tradeable don't allow qty to change
+        sellTreeSet.remove(prevOrder);
+        order.setQuantityLong(prevOrder.getQuantityLong());
+        order.setQty(prevOrder.getQty(), prevOrder.getQtyScale());
+      }
+    }
     // INDICATIVE can't be filled
     if (QuoteType.TRADEABLE != order.getQuoteType() && QuoteType.COUNTER_TRADEABLE != order.getQuoteType()
         && QuoteType.RESTRICTED_TRADEABLE != order.getQuoteType()) {
@@ -144,42 +176,51 @@ public class RFQContainer implements Constants {
       if (selectedOrder == null || !isFound) {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(order.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSelectId(), order.getSecurityId()));
+            order.getSourceSeqNum(), order.getSelectId(), order.getSecurityId(), order.getSubmitterId()));
 
         return;
       }
-
-      final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
-      final boolean isFilled = fillMatch(order, selectedOrder, fillPrice, orderBook);
-      if (!isFilled) { // if fill failed, add selected order back
+      if (order.getOrdType() == OrdType.MARKET || order.getPriceInt() <= selectedOrder.getPriceInt()) {
+        final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
+        fillMatch(selectedOrder, order, fillPrice, orderBook);
+        if (selectedOrder.getQuantityLong() > 0) {
+          idToOrderMap.put(selectedOrder.getOrderId(), selectedOrder);
+          buyTreeSet.add(selectedOrder);
+        }
+      } else {
         idToOrderMap.put(selectedOrder.getOrderId(), selectedOrder);
-        buyTreeSet.add(order);
+        buyTreeSet.add(selectedOrder);
       }
     } else { // sweep orderbook
       while (!buyTreeSet.isEmpty()) {
-        if (order.getQty() <= 0)
+        if (order.getQuantityLong() <= 0)
           break;
 
-        final Order selectedOrder = buyTreeSet.pollFirst();
-
+        final Order selectedOrder = buyTreeSet.first();
         // filled
-        if (order.getOrdType() == OrdType.MARKET || order.getPrice() <= selectedOrder.getPrice()) {
+        if (order.getOrdType() == OrdType.MARKET || order.getPriceInt() <= selectedOrder.getPriceInt()) {
           final long fillPrice = selectedOrder.getPrice() > 0 ? selectedOrder.getPrice() : order.getPrice();
           if (fillPrice <= 0)
             break;
 
-          fillMatch(order, selectedOrder, fillPrice, orderBook);
-          if (selectedOrder.getQty() <= 0) {
-            idToOrderMap.remove(selectedOrder.getOrderId());
+          fillMatch(selectedOrder, order, fillPrice, orderBook);
+          if (selectedOrder.getQuantityLong() <= 0) {
             buyTreeSet.remove(selectedOrder);
+            idToOrderMap.remove(selectedOrder.getOrderId());
           }
+        } else {
+          break; // buy prices are too low
         }
       }
     }
 
     // post resting order
-    sellTreeSet.add(order);
-    idToOrderMap.put(order.getOrderId(), order);
+    if (order.getQuantityLong() > 0) {
+      sellTreeSet.add(order);
+      idToOrderMap.put(order.getOrderId(), order);
+    }
+    printTreeSet(sellTreeSet, "sellTreeSet(after): ");
+    printTreeSet(buyTreeSet, "buyTreeSet(after): ");
   }
 
   private final boolean fillMatch(final Order makerOrder, final Order takerOrder, final long fillPrice, final ArrayOrderBook orderBook) {
@@ -193,11 +234,8 @@ public class RFQContainer implements Constants {
     return true;
   }
 
-
-
   public final boolean removeBuyLimit(final Order order) {
     final Order order2 = idToOrderMap.remove(order.getOrderId());
-
     final boolean rc = buyTreeSet.remove(order);
     if (LOGGER.isInfoEnabled()) {
       LOGGER.info(LOG_FMT_6, ">>RFQContainer.removeBuyLimit rc=" + rc + ", order=", order);
@@ -207,7 +245,6 @@ public class RFQContainer implements Constants {
 
   public final boolean removeSellLimit(final Order order) {
     final Order order2 = idToOrderMap.remove(order.getOrderId());
-
     final boolean rc = sellTreeSet.remove(order);
     if (LOGGER.isInfoEnabled()) {
       LOGGER.info(LOG_FMT_6, ">>RFQContainer.removeBuyLimit rc=" + rc + ", order=", order);
@@ -352,6 +389,10 @@ public class RFQContainer implements Constants {
     }
   };
 
+  public Order getOrder(final long orderId) {
+    return idToOrderMap.get(orderId);
+  }
+
   @Override
   public String toString() {
     StringBuilder s = new StringBuilder();
@@ -372,4 +413,10 @@ public class RFQContainer implements Constants {
     return s;
   }
 
+  private void printTreeSet(final Set<Order> set, final String prefix) {
+    for (final Order o : set) {
+      LOGGER.info("=============" + prefix + " orderId: " + o.getOrderId() + " qty: " + o.getQuantityLong() + " price: "
+          + o.getPriceInt() + " selectId: " + o.getSelectId());
+    }
+  }
 }

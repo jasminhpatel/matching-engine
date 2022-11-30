@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+
+import com.solfini.sbe.encoder.QuoteType;
 import org.agrona.collections.Long2ObjectHashMap;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -371,6 +373,50 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
   @Override
   public final void addOrder(final Order order) {
+    if (order.isRFQ() && order.getSelectId() > 0) {
+      final Order selectOrder = rfqContainer.getOrder(order.getSelectId());
+      if (selectOrder != null && (selectOrder.getSide() == order.getSide() || selectOrder.getSecurityId() != order.getSecurityId())) {
+        LOGGER.info(Constants.LOG_FMT_2, "Invalid order side/security. orderId: ", order.getOrderId(), " side: ", order.getSide()
+            , " securityId: ", order.getSecurityId(), " selectOrderId: ",
+            selectOrder.getSelectId(), " side: ", selectOrder.getSide(), " securityId: ", selectOrder.getSecurityId());
+        return;
+      }
+    }
+    if (order.isRFQ() && order.getOrigOrderId() > 0) {
+      final QuoteType newQuoteType = order.getQuoteType();
+      final long newSelectId = order.getSelectId();
+      final long newPrice = order.getPrice();
+      final long newOrdQty = order.getQty();
+      final short newPriceScale = order.getPriceScale();
+      final short newQtyScale = order.getQtyScale();
+      final Order prev = rfqContainer.getOrder(order.getOrigOrderId());
+      if (prev != null) {//accept order
+        LOGGER.info(Constants.LOG_FMT_2, "RFQ edit. orderId: ", prev.getOrderId(),
+            " prevQuoteType: ", prev.getQuoteType(), " newQuoteType: ", newQuoteType,
+            " prevPrice: ", prev.getPrice(), " newPrice: ", newPrice, " prevQty: ", prev.getQty(),
+            " newQty: ", newOrdQty);
+        order.set(prev, prev.getOrderId(), prev.getSecondaryOrderId());
+        if (prev.getSide() == Side.BUY)
+          rfqContainer.removeBuyLimit(prev);
+        else if (prev.getSide() == Side.SELL)
+          rfqContainer.removeSellLimit(prev);
+
+        preOrderCheck.updateCancel(prev); //cancel and re-allocate
+
+        order.setOrderId(prev.getOrderId());
+        order.setQuoteType(newQuoteType);//update quoteType
+        order.setSelectId(newSelectId);
+        order.setOrderModified(true);
+        order.setPrice(newPrice, newPriceScale);
+        order.setQty(newOrdQty, newQtyScale);
+        if (newSelectId > 0) {
+          order.setOrdType(OrdType.SELECT);
+        }
+
+      } else {
+        LOGGER.info(Constants.LOG_FMT_2, "No prev RFQ order. orderId: " + order.getOrigOrderId());
+      }
+    }
 
     // update ids
     if ((order != null) && (order.getSecurityId() == id)) {
@@ -386,7 +432,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order == null ? "" : order.getSenderCompId(),
           MsgType.ORDER_SINGLE, Long.toString(order == null ? 0 : order.getOrderId()), BusinessRejectReason.PRICE_IS_MISSING,
           PRICE_IS_MISSING, order == null ? 0 : order.getOrderId(), order == null ? 0 : order.getSourceSeqNum(),
-          order == null ? 0 : order.getSecondaryOrderId(), order == null ? 0 : order.getSecurityId()));
+          order == null ? 0 : order.getSecondaryOrderId(), order == null ? 0 : order.getSecurityId(), order.getSubmitterId()));
       return;
     } else if (order.getQuantityLong() <= 0) {
       if (LOGGER.isTraceEnabled()) {
@@ -394,7 +440,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.QUANTITY_IS_MISSING, QUANTITY_IS_MISSING, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     } else if (MarketStatus.CLOSE == marketStatus || MarketStatus.PAUSE == marketStatus) {
       if (LOGGER.isTraceEnabled()) {
@@ -402,7 +448,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.MARKET_IS_PAUSED_OR_CLOSED, MARKET_IS_PAUSED_OR_CLOSED,
-          order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
     if (order.getSecurityId() != id) {
@@ -411,7 +457,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.INVALID_ORDER_SECURITY, INVALID_ORDER_SECURITY, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
     if (instrumentPair.isLimitOnlyMode() && order.getOrdType() != OrdType.LIMIT) {
@@ -420,7 +466,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.ONLY_LIMIT_ORDERS_ALLOWED, ONLY_LIMIT_ORDERS_ALLOWED, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
     if (order.getOrdType() == OrdType.SELECT && order.getSelectId() <= 0) {
@@ -428,8 +474,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         LOGGER.trace(LOG_FMT_4, "adding invalid selectId in order. id=", id, ORDER_EQ, order);
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
-          Long.toString(order.getOrderId()), BusinessRejectReason.INVALID_ORDER_SECURITY, INVALID_ORDER_SELECT, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          Long.toString(order.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, order.getOrderId(),
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
     if (order.getSide() == Side.SELL && order.getGroupAssetId() > 0) {
@@ -439,7 +485,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       if (assetGroup == null) {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(order.getOrderId()), BusinessRejectReason.ASSET_GROUP_NOT_FOUND, ASSET_GROUP_NOT_FOUND, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
         return;
       }
 
@@ -447,7 +493,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       if (assetGroupSet.size() < order.getQuantityLong()) {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(order.getOrderId()), BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
         return;
       }
 
@@ -480,14 +526,15 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
     // ack - moved to after preordercheck
 
-    orderCount++;
+    if (!order.isOrderModified())
+      orderCount++;
 
     // TWAP special case
     if (order.isTWAP() && !rebuildInProgress) {
       if (order.getPrice2() < 1000) {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(order.getOrderId()), BusinessRejectReason.UNABLE_TO_PARSE_ORDER, INVALID_ALGO_ORDER_INTERVAL, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
         return;
       }
       Context.getTimeTriggerThread().registerMessage(order);
@@ -672,7 +719,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessRejectWithCancelId(cancelOrder.getSenderCompId(),
           MsgType.ORDER_CANCEL_REQUEST, Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.MARKET_IS_CLOSED, MARKET_IS_CLOSED,
           cancelOrder.getOrigOrderId(), cancelOrder.getSourceSeqNum(), cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId(),
-          cancelOrder.getCancelId()));
+          cancelOrder.getCancelId(), cancelOrder.getSubmitterId()));
       return;
     }
 
@@ -1345,7 +1392,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -1366,7 +1413,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1481,7 +1528,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -1502,7 +1549,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -1516,8 +1563,9 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
     // used for select id orders
     // todo write cleanup logic
-    newPtr.setSelectId(newPtr.getOrderId());
+    //newPtr.setSelectId(newPtr.getOrderId());
     idToOrderMap.put(newPtr.getOrderId(), newPtr);
+    LOGGER.info(Constants.LOG_FMT_2, "Indicative RFQ order add to idToOrderMap, orderId: ", newPtr.getOrderId());
 
     // RFQ
     if (newPtr.isRFQ()) {
@@ -1612,7 +1660,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1631,7 +1679,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
               askLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
               askLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
-              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -1678,7 +1726,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1697,7 +1745,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
               bidLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
               bidLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
-              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       return;
     }
@@ -1744,7 +1792,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1752,19 +1800,19 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     if (counterOrder == null || counterOrder.getQty() <= 0) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
     if (counterOrder.getSide() != Side.SELL) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
     final int marketOrderRiskPrice = counterOrder.getPrice2Int();
-    if ((askLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
-        && marketStatus != MarketStatus.OPEN_AUCTION) {
+    final boolean checkOrderStatus = preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice);
+    if ((/*askLevelCachePtrArr[0] == 0 || */!checkOrderStatus) && marketStatus != MarketStatus.OPEN_AUCTION) {
       // ack
       if (Context.isAckRejectMessages()) {
         final ExecutionReportMessage executionReportMessage =
@@ -1776,7 +1824,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
               askLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
               askLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
-              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -1815,7 +1863,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1824,18 +1872,18 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     if (counterOrder == null || counterOrder.getQty() <= 0) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
     if (counterOrder.getSide() != Side.BUY) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID_ORDER_SELECT, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
     final int marketOrderRiskPrice = counterOrder.getPrice2Int();
-    if ((bidLevelCachePtrArr[0] == 0 || !preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
+    if ((/*bidLevelCachePtrArr[0] == 0 || */!preOrderCheck.checkOrder(newPtr, marketOrderRiskPrice))
         && marketStatus != MarketStatus.OPEN_AUCTION) {
       // ack
       if (Context.isAckRejectMessages()) {
@@ -1848,7 +1896,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(newPtr.getOrderId()),
               bidLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
               bidLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
-              newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+              newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       return;
     }
@@ -1886,7 +1934,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1896,7 +1944,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.STOP_PRICE_IS_MISSING, STOP_PRICE_IS_MISSING, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -1915,7 +1963,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
             return;
           }
@@ -1932,7 +1980,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
             return;
           }
         }
@@ -1949,7 +1997,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-            newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+            newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
         OrderObjectPool.returnObject(newPtr);
         return;
@@ -1968,7 +2016,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       OrderObjectPool.returnObject(newPtr);
       return;
@@ -2001,7 +2049,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.CIRCUIT_BREAKER, MARKET_CIRCUIT_BREAKER, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
       return;
     }
 
@@ -2011,7 +2059,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.STOP_PRICE_IS_MISSING, STOP_PRICE_IS_MISSING, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
       return;
     }
@@ -2031,7 +2079,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
             return;
           }
         } else if (newPtr.isTrailingStop()) { // stop profit
@@ -2047,7 +2095,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
             return;
           }
         }
@@ -2064,7 +2112,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
 
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-            newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+            newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSecurityId()));
 
         OrderObjectPool.returnObject(newPtr);
         return;
@@ -2619,7 +2667,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
           cancelReplaceOrder.getSenderCompId(), MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()),
           BusinessRejectReason.MARKET_IS_CLOSED, MARKET_IS_CLOSED, cancelReplaceOrder.getOrigOrderId(),
           cancelReplaceOrder.getSourceSeqNum(), cancelReplaceOrder.getSecondaryOrderId(), cancelReplaceOrder.getSecurityId(),
-          cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId()));
+          cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId(), cancelReplaceOrder.getSubmitterId()));
 
       return;
     }
@@ -2701,7 +2749,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessRejectWithCancelId(massCancelOrder.getSenderCompId(),
           MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(massCancelOrder.getCancelId()), BusinessRejectReason.MARKET_IS_CLOSED,
           MARKET_IS_CLOSED, massCancelOrder.getOrigOrderId(), massCancelOrder.getSourceSeqNum(), massCancelOrder.getSecondaryOrderId(),
-          massCancelOrder.getSecurityId(), massCancelOrder.getCancelId()));
+          massCancelOrder.getSecurityId(), massCancelOrder.getCancelId(), massCancelOrder.getSubmitterId()));
 
       return;
     }
@@ -2928,7 +2976,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       bidAssetIdArr[bidIndex] = temp.getAssetId();
       bidTokenIdArr[bidIndex] = temp.getTokenId();
       bidGroupAssetIdArr[bidIndex] = temp.getGroupAssetId();
-      bidSelectIdArr[bidIndex] = temp.getSelectId();
+      //bidSelectIdArr[bidIndex] = temp.getSelectId();
+      bidSelectIdArr[bidIndex] = temp.getOrderId();
 
 
       if (!temp.isHidden())
@@ -2945,7 +2994,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
             bidAssetIdArr[bidIndex] = temp.getAssetId();
             bidTokenIdArr[bidIndex] = temp.getTokenId();
             bidGroupAssetIdArr[bidIndex] = temp.getGroupAssetId();
-            bidSelectIdArr[bidIndex] = temp.getSelectId();
+            //bidSelectIdArr[bidIndex] = temp.getSelectId();
+            bidSelectIdArr[bidIndex] = temp.getOrderId();
           }
           bidQuantityArr[bidIndex] += temp.getQuantityLong();
         }
@@ -2982,7 +3032,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
       askAssetIdArr[askIndex] = temp.getAssetId();
       askTokenIdArr[askIndex] = temp.getTokenId();
       askGroupAssetIdArr[askIndex] = temp.getGroupAssetId();
-      askSelectIdArr[askIndex] = temp.getSelectId();
+      //askSelectIdArr[askIndex] = temp.getSelectId();
+      askSelectIdArr[askIndex] = temp.getOrderId();
 
       if (!temp.isHidden())
         askQuantityArr[askIndex] = temp.getQuantityLong();
@@ -2998,7 +3049,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
             askAssetIdArr[askIndex] = temp.getAssetId();
             askTokenIdArr[askIndex] = temp.getTokenId();
             askGroupAssetIdArr[askIndex] = temp.getGroupAssetId();
-            askSelectIdArr[askIndex] = temp.getSelectId();
+            //askSelectIdArr[askIndex] = temp.getSelectId();
+            askSelectIdArr[askIndex] = temp.getOrderId();
           }
           askQuantityArr[askIndex] += temp.getQuantityLong();
         }

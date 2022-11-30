@@ -177,7 +177,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order == null ? "" : order.getSenderCompId(),
           MsgType.ORDER_SINGLE, Long.toString(order == null ? 0 : order.getOrderId()), BusinessRejectReason.PRICE_IS_MISSING,
           PRICE_IS_MISSING, order == null ? 0 : order.getOrderId(), order == null ? 0 : order.getSourceSeqNum(),
-          order == null ? 0 : order.getSecondaryOrderId(), order == null ? 0 : order.getSecurityId()));
+          order == null ? 0 : order.getSecondaryOrderId(), order == null ? 0 : order.getSecurityId(), order.getSubmitterId()));
       return;
     } else if (order.getQuantityLong() <= 0) {
       if (LOGGER.isDebugEnabled()) {
@@ -185,7 +185,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.QUANTITY_IS_MISSING, QUANTITY_IS_MISSING, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     } else if (MarketStatus.CLOSE == marketStatus || MarketStatus.PAUSE == marketStatus) {
       if (LOGGER.isDebugEnabled()) {
@@ -193,7 +193,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.MARKET_IS_PAUSED_OR_CLOSED, MARKET_IS_PAUSED_OR_CLOSED,
-          order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
     if (order.getSecurityId() != id) {
@@ -202,7 +202,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(order.getOrderId()), BusinessRejectReason.INVALID_ORDER_SECURITY, INVALID_ORDER_SECURITY, order.getOrderId(),
-          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId()));
+          order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
       return;
     }
 
@@ -356,7 +356,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
       return;
     }
 
@@ -435,7 +435,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
       }
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
       return;
     }
 
@@ -619,7 +619,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
       return;
     }
 
@@ -677,7 +677,7 @@ public final class LinkedListOrderBook extends GlobalOrderBook implements OrderB
 
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
-          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId()));
+          newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
       return;
     }
 

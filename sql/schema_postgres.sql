@@ -1301,5 +1301,19 @@ CREATE TABLE AML_LOG(
 
  alter table security_definition_log add column marketType INT DEFAULT 2;
  alter table asset_details_state add  assetLogoUrl varchar(256) null;
+ 
+ 
+  alter table asset_details_state add      aboutOrg varchar(1024) null;
+  alter table asset_details_state add     sdgId varchar(32) null;
+  alter table asset_details_state add     standardsVersion varchar(64) null;
+  alter table asset_details_state add     methodology varchar(256) null;
+  alter table asset_details_state add     projectScale varchar(32) null;
+   alter table asset_details_state add    annualEstCredits BIGINT;
+   alter table asset_details_state add    marketType varchar(32) null;
+   alter table asset_details_state add    sdgImpactList varchar(256) null;
+   alter table asset_details_state add    projectFromTime BIGINT;
+   alter table asset_details_state add    projectToTime BIGINT;
+   alter table asset_details_state add    floorPrice double precision;
+   alter table asset_details_state add    ceilingPrice double precision;
 
  

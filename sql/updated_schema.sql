@@ -1125,7 +1125,21 @@ CREATE TABLE asset_details_state(
     longitude double precision,
     latitude double precision,
     marketType INT DEFAULT 2,
-    assetLogoUrl varchar(256) null
+    assetLogoUrl varchar(256) null,
+    
+    aboutOrg varchar(1024) null,
+    sdgId varchar(32) null,
+    standardsVersion varchar(64) null,
+    methodology varchar(256) null,
+    projectScale varchar(32) null,
+    annualEstCredits BIGINT,
+    marketType varchar(32) null,
+    sdgImpactList varchar(256) null,
+    projectFromTime BIGINT,
+    projectToTime BIGINT,
+    floorPrice double precision,
+    ceilingPrice double precision
+    
 );
 CREATE INDEX ASSET_DETAILS_STATE1 ON public.ASSET_DETAILS_STATE USING btree (ownerUserId);
 CREATE INDEX ASSET_DETAILS_STATE2 ON public.ASSET_DETAILS_STATE USING btree (assetid);

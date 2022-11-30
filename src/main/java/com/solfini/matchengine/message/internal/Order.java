@@ -3,6 +3,7 @@ package com.solfini.matchengine.message.internal;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.MessageType;
@@ -74,6 +75,10 @@ public class Order extends Message implements Constants {
   private QuoteType quoteType;
   private int quoteTargetUserId;
 
+  //for inmemory use only
+  private boolean orderModified;
+
+
   public Order() {
     // default constructor
   }
@@ -131,6 +136,10 @@ public class Order extends Message implements Constants {
 
     quoteType = newOrderSingleDecoder.quoteType();
     quoteTargetUserId = newOrderSingleDecoder.quoteTargetUserId();
+    if (quoteType != null && quoteType != QuoteType.NULL_VAL) {
+      this.origOrderId = newOrderSingleDecoder.orderId();//for RFQ
+      if (this.origOrderId > 0) this.orderId = origOrderId;
+    }
   }
 
   // copy set order, used for stop limit orders
@@ -201,6 +210,7 @@ public class Order extends Message implements Constants {
     feeAccumulatedQuantity = source.feeAccumulatedQuantity;
     availableEstimatedQuantity = source.availableEstimatedQuantity;
     availableAccumulatedQuantity = source.availableAccumulatedQuantity;
+    orderModified = source.orderModified;
   }
 
   public final int getSecurityId() {
@@ -704,6 +714,14 @@ public class Order extends Message implements Constants {
     this.availableAccumulatedQuantity = availableAccumulatedQuantity;
   }
 
+  public boolean isOrderModified() {
+    return orderModified;
+  }
+
+  public void setOrderModified(final boolean orderModified) {
+    this.orderModified = orderModified;
+  }
+
   public final void incrementAvailableAccumulatedQuantity(final long quantity) {
     this.availableAccumulatedQuantity += quantity;
   }
@@ -761,7 +779,9 @@ public class Order extends Message implements Constants {
         return;
       }
     }
-
+    //todo remove after testing
+    if (account != Context.getMarketMakerUserid())
+      LOGGER.info("Order received: " + this.toJSON());
     final InstrumentPair instrument = InstrumentCache.getPair(securityId);
     if (null != instrument) {
       final OrderBook orderbook = instrument.getOrderBook();
@@ -894,6 +914,9 @@ public class Order extends Message implements Constants {
         .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity).append(",\"assetId\":").append(assetId)
         .append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":")
         .append(selectId);
+    if (quoteType != null) {
+      sb.append(",\"quoteType\":").append(quoteType);
+    }
 
     sb.append("}");
     return sb.toString();

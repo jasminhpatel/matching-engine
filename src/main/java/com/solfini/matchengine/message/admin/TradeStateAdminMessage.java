@@ -107,9 +107,6 @@ public class TradeStateAdminMessage extends AdminMessage {
       if (securityId > 0) {
         final InstrumentPair instrumentPair = InstrumentCache.getPair(securityId);
         if (instrumentPair != null) {
-          //todo remove test logs
-          LOGGER.info(Constants.LOG_FMT_2, "Before change state instrument pair: getSecurityId: ", instrumentPair.getSymbol(), " getUnderlyerId: ", instrumentPair.getUnderlyerId(),
-              " getContractExpireTime: ", instrumentPair.getContractExpireTime());
           instrumentPair.changeState(marketStatus, snapId, this);
           Context.getMatcherToPublisherQueue().addGuaranteed(this);
         }

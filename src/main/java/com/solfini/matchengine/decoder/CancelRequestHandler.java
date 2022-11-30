@@ -35,7 +35,8 @@ public class CancelRequestHandler implements Constants {
       if (cancelOrderDecoder.securityId() == 0) {
         return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(), MsgType.ORDER_CANCEL_REQUEST,
             cancelOrderDecoder.clOrdID(), BusinessRejectReason.SECURITY_ID_IS_MISSING, SECURITY_ID_IS_MISSING,
-            cancelOrderDecoder.cancelId(), 0, cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId);
+            cancelOrderDecoder.cancelId(), 0, cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(),
+            newCancelOrderId, cancelOrderDecoder.submitterId());
       }
 
       final CancelOrder cancelOrder = CancelOrderObjectPool.get();
@@ -50,7 +51,7 @@ public class CancelRequestHandler implements Constants {
 
     return BusinessRejectMessage.createBusinessRejectWithCancelId(headerDecoder.senderCompId(), MsgType.ORDER_CANCEL_REQUEST,
         headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, cancelOrderDecoder.cancelId(), 0,
-        cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId);
+        cancelOrderDecoder.secondaryOrderId(), cancelOrderDecoder.securityId(), newCancelOrderId, cancelOrderDecoder.submitterId());
   }
 
   public static final Message parseCancelOrder(final CancelOrder cancelOrder) {
@@ -60,7 +61,8 @@ public class CancelRequestHandler implements Constants {
       if (instrumentPair == null) {
         return BusinessRejectMessage.createBusinessRejectWithCancelId(cancelOrder.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(cancelOrder.getOrigOrderId()), BusinessRejectReason.UNKNOWN_SECURITY, INSTRUMENT_NOT_FOUND,
-            cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId(), cancelOrder.getCancelId());
+            cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId(),
+            cancelOrder.getCancelId(), cancelOrder.getSubmitterId());
       }
 
       final long priceLong = cancelOrder.getPrice();
@@ -87,13 +89,13 @@ public class CancelRequestHandler implements Constants {
         else {
           return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(), MsgType.ORDER_CANCEL_REQUEST,
               Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND, cancelOrder.getOrigOrderId(),
-              0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
+              0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId(), cancelOrder.getSubmitterId());
         }
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
         return BusinessRejectMessage.createBusinessReject(cancelOrder.getSenderCompId(), MsgType.ORDER_CANCEL_REQUEST,
             Long.toString(cancelOrder.getCancelId()), BusinessRejectReason.UNABLE_TO_LOAD_USER, UNABLE_TO_LOAD_USER,
-            cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId());
+            cancelOrder.getOrigOrderId(), 0, cancelOrder.getSecondaryOrderId(), cancelOrder.getSecurityId(), cancelOrder.getSubmitterId());
       }
 
 

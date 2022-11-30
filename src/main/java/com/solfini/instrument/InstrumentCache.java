@@ -192,7 +192,7 @@ public class InstrumentCache implements Constants {
     if (instrumentPair == null) {
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(feeAdminMessage.getSenderCompId(),
           MsgType.SECURITY_STATUS, Long.toString(feeAdminMessage.getAssetId()), BusinessRejectReason.INSTRUMENT_NOT_FOUND,
-          INSTRUMENT_NOT_FOUND, 0, feeAdminMessage.getSourceSeqNum(), 0, feeAdminMessage.getAssetId()));
+          INSTRUMENT_NOT_FOUND, 0, feeAdminMessage.getSourceSeqNum(), 0, feeAdminMessage.getAssetId(), 0));
     } else {
       final Fee fee = new Fee(feeAdminMessage);
       instrumentPair.setFee(fee);
@@ -266,7 +266,7 @@ public class InstrumentCache implements Constants {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(securityDefinitionAdminMessage.getSenderCompId(),
             MsgType.SECURITY_STATUS, Long.toString(securityDefinitionAdminMessage.getSecurityId()),
             BusinessRejectReason.BASE_OR_QUOTED_INSTRUMENT_NOT_FOUND, BASE_OR_QUOTED_INSTRUMENT_NOT_FOUND, 0,
-            securityDefinitionAdminMessage.getSourceSeqNum(), 0, securityDefinitionAdminMessage.getSecurityId()));
+            securityDefinitionAdminMessage.getSourceSeqNum(), 0, securityDefinitionAdminMessage.getSecurityId(), 0));
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug("updateSecurityDefinition: pair error base={}, quoted={}, message={}", base, quoted, securityDefinitionAdminMessage);
         }
@@ -348,7 +348,7 @@ public class InstrumentCache implements Constants {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(securityDefinitionAdminMessage.getSenderCompId(),
             MsgType.SECURITY_STATUS, Long.toString(securityDefinitionAdminMessage.getSecurityId()),
             BusinessRejectReason.INSTRUMENT_NOT_FOUND, INSTRUMENT_NOT_FOUND, 0, securityDefinitionAdminMessage.getSourceSeqNum(), 0,
-            securityDefinitionAdminMessage.getSecurityId()));
+            securityDefinitionAdminMessage.getSecurityId(), 0));
         return;
       }
 
@@ -409,7 +409,7 @@ public class InstrumentCache implements Constants {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(securityDefinitionAdminMessage.getSenderCompId(),
             MsgType.SECURITY_STATUS, Long.toString(securityDefinitionAdminMessage.getSecurityId()),
             BusinessRejectReason.BASE_OR_QUOTED_INSTRUMENT_NOT_FOUND, BASE_OR_QUOTED_INSTRUMENT_NOT_FOUND, 0,
-            securityDefinitionAdminMessage.getSourceSeqNum(), 0, securityDefinitionAdminMessage.getSecurityId()));
+            securityDefinitionAdminMessage.getSourceSeqNum(), 0, securityDefinitionAdminMessage.getSecurityId(), 0));
         return;
       }
 
@@ -478,7 +478,7 @@ public class InstrumentCache implements Constants {
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(securityDefinitionAdminMessage.getSenderCompId(),
             MsgType.SECURITY_STATUS, Long.toString(securityDefinitionAdminMessage.getSecurityId()),
             BusinessRejectReason.INSTRUMENT_NOT_FOUND, INSTRUMENT_NOT_FOUND, 0, securityDefinitionAdminMessage.getSourceSeqNum(), 0,
-            securityDefinitionAdminMessage.getSecurityId()));
+            securityDefinitionAdminMessage.getSecurityId(), 0));
         return;
       }
 
@@ -539,8 +539,8 @@ public class InstrumentCache implements Constants {
       if (instrumentPair == null)
         continue;
       final SecurityDefinitionAdminMessage security = new SecurityDefinitionAdminMessage(instrumentPair);
-      LOGGER.info(Constants.LOG_FMT_2, "Sec Def from instrument pair: getSecurityId: ", security.getSecurityId(), " getUnderlyerId: ", security.getUnderlyerId(),
-          " getContractExpireTime: ", security.getContractExpireTime()," getArrSize: ", security.getArrSize());
+      //LOGGER.info(Constants.LOG_FMT_2, "Sec Def from instrument pair: getSecurityId: ", security.getSecurityId(), " getUnderlyerId: ", security.getUnderlyerId(),
+      //    " getContractExpireTime: ", security.getContractExpireTime()," getArrSize: ", security.getArrSize());
       security.setSnapId(snapId);
       if (instrumentPair.getOrderBook() != null) {
         security.setSecondaryOrderId(instrumentPair.getOrderBook().getSecondaryOrderId());

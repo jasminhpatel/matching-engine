@@ -34,7 +34,7 @@ public class CancelReplaceRequestHandler implements Constants {
         return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(headerDecoder.senderCompId(),
             MsgType.ORDER_CANCEL_REPLACE_REQUEST, headerDecoder.senderCompId(), BusinessRejectReason.SECURITY_ID_IS_MISSING,
             SECURITY_ID_IS_MISSING, cancelReplaceOrderDecoder.cancelId(), 0, cancelReplaceOrderDecoder.secondaryOrderId(),
-            cancelReplaceOrderDecoder.securityId(), newCancelOrderId, newOrderId);
+            cancelReplaceOrderDecoder.securityId(), newCancelOrderId, newOrderId, cancelReplaceOrderDecoder.submitterId());
       }
 
       final CancelReplaceOrder cancelReplaceOrder = new CancelReplaceOrder(cancelReplaceOrderDecoder, newCancelOrderId,
@@ -51,7 +51,7 @@ public class CancelReplaceRequestHandler implements Constants {
     return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(headerDecoder.senderCompId(),
         MsgType.ORDER_CANCEL_REPLACE_REQUEST, headerDecoder.senderCompId(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE,
         cancelReplaceOrderDecoder.cancelId(), 0, cancelReplaceOrderDecoder.secondaryOrderId(), cancelReplaceOrderDecoder.securityId(),
-        newCancelOrderId, newOrderId);
+        newCancelOrderId, newOrderId, cancelReplaceOrderDecoder.submitterId());
   }
 
   public static final Message parseCancelOrder(final CancelReplaceOrder cancelReplaceOrder) {
@@ -116,14 +116,16 @@ public class CancelReplaceRequestHandler implements Constants {
           return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(cancelReplaceOrder.getSenderCompId(),
               MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()), BusinessRejectReason.USER_NOT_FOUND,
               USER_NOT_FOUND, cancelReplaceOrder.getOrigOrderId(), 0, cancelReplaceOrder.getSecondaryOrderId(),
-              cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
+              cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId(),
+              cancelReplaceOrder.getSubmitterId());
         }
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
         return BusinessRejectMessage.createBusinessRejectWithCancelReplacelId(cancelReplaceOrder.getSenderCompId(),
             MsgType.ORDER_CANCEL_REPLACE_REQUEST, Long.toString(cancelReplaceOrder.getCancelId()), BusinessRejectReason.UNABLE_TO_LOAD_USER,
             UNABLE_TO_LOAD_USER, cancelReplaceOrder.getOrigOrderId(), 0, cancelReplaceOrder.getSecondaryOrderId(),
-            cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId());
+            cancelReplaceOrder.getSecurityId(), cancelReplaceOrder.getCancelId(), cancelReplaceOrder.getNewOrderId(),
+            cancelReplaceOrder.getSubmitterId());
       }
 
 

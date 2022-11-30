@@ -44,7 +44,8 @@ public class MassCancelRequestHandler implements Constants {
 
     return BusinessRejectMessage.createBusinessReject(headerDecoder.senderCompId(),
         MsgType.ORDER_MASS_CANCEL_REQUEST, massCancelOrderDecoder.clOrdID(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE,
-        massCancelOrderDecoder.cancelId(), 0, massCancelOrderDecoder.secondaryOrderId(), massCancelOrderDecoder.securityId());
+        massCancelOrderDecoder.cancelId(), 0, massCancelOrderDecoder.secondaryOrderId(), massCancelOrderDecoder.securityId(),
+        massCancelOrderDecoder.submitterId());
   }
 
 }

@@ -113,7 +113,7 @@ public class NewOrderSingleHandler implements Constants {
     }
     return BusinessRejectMessage.createBusinessRejectWithClOrdId(senderCompId, MsgType.ORDER_SINGLE, newOrderSingleDecoder.clOrdID(),
         BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, 0, 0, newOrderSingleDecoder.secondaryOrderId(),
-        newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()));
+        newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()), newOrderSingleDecoder.submitterId());
   }
 
   public final Message buildNewLiquidationOrder(final User user, final String senderCompId, final int securityId, final String clOrdId,
@@ -143,7 +143,7 @@ public class NewOrderSingleHandler implements Constants {
     }
     return BusinessRejectMessage.createBusinessRejectWithClOrdId(senderCompId, MsgType.ORDER_SINGLE, newOrderSingleDecoder.clOrdID(),
         BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, 0, 0, newOrderSingleDecoder.secondaryOrderId(),
-        newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()));
+        newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()), newOrderSingleDecoder.submitterId());
   }
 
   public final Message buildNewCollateralSwapLiquidationOrder(final User user, final int securityId, final long price,
@@ -172,7 +172,8 @@ public class NewOrderSingleHandler implements Constants {
     }
     return BusinessRejectMessage.createBusinessRejectWithClOrdId("" + 1_000_000_000 + user.getId(), MsgType.ORDER_SINGLE,
         newOrderSingleDecoder.clOrdID(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, 0, 0,
-        newOrderSingleDecoder.secondaryOrderId(), newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()));
+        newOrderSingleDecoder.secondaryOrderId(), newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()),
+        newOrderSingleDecoder.submitterId());
   }
 
   public Message decodeNewOrderSingle(final MessageHeaderDecoder headerDecoder, final NewOrderSingleDecoder newOrderSingleDecoder) {
@@ -182,7 +183,8 @@ public class NewOrderSingleHandler implements Constants {
       if (newOrderSingleDecoder.securityId() == 0) {
         return BusinessRejectMessage.createBusinessReject(headerDecoder.senderCompId(), MsgType.ORDER_SINGLE,
             newOrderSingleDecoder.clOrdID(), BusinessRejectReason.SECURITY_ID_IS_MISSING, SECURITY_ID_IS_MISSING,
-            newOrderSingleDecoder.orderId(), 0, newOrderSingleDecoder.secondaryOrderId(), newOrderSingleDecoder.securityId());
+            newOrderSingleDecoder.orderId(), 0, newOrderSingleDecoder.secondaryOrderId(), newOrderSingleDecoder.securityId(),
+            newOrderSingleDecoder.submitterId());
       }
 
       final Order order =
@@ -197,7 +199,7 @@ public class NewOrderSingleHandler implements Constants {
     }
     return BusinessRejectMessage.createBusinessReject(headerDecoder.senderCompId(), MsgType.ORDER_SINGLE, newOrderSingleDecoder.clOrdID(),
         BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, newOrderSingleDecoder.orderId(), 0, newOrderSingleDecoder.secondaryOrderId(),
-        newOrderSingleDecoder.securityId());
+        newOrderSingleDecoder.securityId(), newOrderSingleDecoder.submitterId());
   }
 
   public static final Message parseOrder(final Order order) {
@@ -206,7 +208,7 @@ public class NewOrderSingleHandler implements Constants {
       if (instrumentPair == null) {
         return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
             BusinessRejectReason.INSTRUMENT_NOT_FOUND, INSTRUMENT_NOT_FOUND, order.getOrderId(), 0, order.getSecondaryOrderId(),
-            order.getSecurityId());
+            order.getSecurityId(), order.getSubmitterId());
       }
 
       long priceLong = order.getPrice();
@@ -256,7 +258,7 @@ public class NewOrderSingleHandler implements Constants {
         LOGGER.error(ERROR_LOG, e);
         return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
             BusinessRejectReason.UNABLE_TO_LOAD_USER, UNABLE_TO_LOAD_USER, order.getOrderId(), 0, order.getSecondaryOrderId(),
-            order.getSecurityId());
+            order.getSecurityId(), order.getSubmitterId());
       }
 
       final OrdType ordType = order.getOrdType();
@@ -290,7 +292,7 @@ public class NewOrderSingleHandler implements Constants {
       LOGGER.error(ERROR_LOG, e);
       return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
           BusinessRejectReason.UNABLE_TO_PARSE_ORDER, UNABLE_TO_PARSE_ORDER, order.getOrderId(), 0, order.getSecondaryOrderId(),
-          order.getSecurityId());
+          order.getSecurityId(), order.getSubmitterId());
     }
     return order;
   }
@@ -302,7 +304,7 @@ public class NewOrderSingleHandler implements Constants {
     if (stopPriceLong == 0 && !order.isTrailingStop()) {
       return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
           BusinessRejectReason.STOP_PRICE_IS_MISSING, STOP_PRICE_IS_MISSING, order.getOrderId(), 0, order.getSecondaryOrderId(),
-          order.getSecurityId());
+          order.getSecurityId(), order.getSubmitterId());
     }
 
 
@@ -326,13 +328,14 @@ public class NewOrderSingleHandler implements Constants {
         order.setUser(user);
       else {
         return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
-            BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND, order.getOrderId(), 0, order.getSecondaryOrderId(), order.getSecurityId());
+            BusinessRejectReason.USER_NOT_FOUND, USER_NOT_FOUND, order.getOrderId(), 0, order.getSecondaryOrderId(),
+            order.getSecurityId(), order.getSubmitterId());
       }
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);
       return BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
           BusinessRejectReason.UNABLE_TO_LOAD_USER, UNABLE_TO_LOAD_USER, order.getOrderId(), 0, order.getSecondaryOrderId(),
-          order.getSecurityId());
+          order.getSecurityId(), order.getSubmitterId());
     }
 
     return null;

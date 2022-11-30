@@ -31,7 +31,7 @@ public class BusinessRejectMessage extends Message {
 
   public static BusinessRejectMessage createBusinessReject(final String senderCompId, final MsgType refMsgType,
       final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
-      final long sourceSeqNum, final long secondaryOrderId, final int pairId) {
+      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final int submitterId) {
     final BusinessRejectMessage businessRejectMessage = BusinessRejectObjectPool.get();
 
     businessRejectMessage.senderCompId = senderCompId;
@@ -43,15 +43,16 @@ public class BusinessRejectMessage extends Message {
     businessRejectMessage.sourceSeqNum = sourceSeqNum;
     businessRejectMessage.secondaryOrderId = secondaryOrderId;
     businessRejectMessage.pairId = pairId;
+    businessRejectMessage.submitterId = submitterId;
 
     return businessRejectMessage;
   }
 
   public static BusinessRejectMessage createBusinessRejectWithCancelId(final String senderCompId, final MsgType refMsgType,
       final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
-      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long cancelId) {
+      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long cancelId, final int submitterId) {
     final BusinessRejectMessage message = createBusinessReject(senderCompId, refMsgType, businessRejectRefID, businessRejectReason, text,
-        orderId, sourceSeqNum, secondaryOrderId, pairId);
+        orderId, sourceSeqNum, secondaryOrderId, pairId, submitterId);
 
     message.cancelId = cancelId;
     return message;
@@ -59,9 +60,9 @@ public class BusinessRejectMessage extends Message {
 
   public static BusinessRejectMessage createBusinessRejectWithCancelReplacelId(final String senderCompId, final MsgType refMsgType,
       final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
-      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long cancelId, final long cancelReplaceId) {
+      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long cancelId, final long cancelReplaceId, final int submitterId) {
     final BusinessRejectMessage message = createBusinessReject(senderCompId, refMsgType, businessRejectRefID, businessRejectReason, text,
-        orderId, sourceSeqNum, secondaryOrderId, pairId);
+        orderId, sourceSeqNum, secondaryOrderId, pairId, submitterId);
 
     message.cancelId = cancelId;
     message.cancelReplaceId = cancelReplaceId;
@@ -70,9 +71,9 @@ public class BusinessRejectMessage extends Message {
 
   public static BusinessRejectMessage createBusinessRejectWithClOrdId(final String senderCompId, final MsgType refMsgType,
       final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
-      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long clOrdId) {
+      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final long clOrdId, final int submitterId) {
     final BusinessRejectMessage message = createBusinessReject(senderCompId, refMsgType, businessRejectRefID, businessRejectReason, text,
-        orderId, sourceSeqNum, secondaryOrderId, pairId);
+        orderId, sourceSeqNum, secondaryOrderId, pairId, submitterId);
 
     message.clOrdId = clOrdId;
     return message;
@@ -221,7 +222,7 @@ public class BusinessRejectMessage extends Message {
     sb.append(",\"businessRejectReason\":").append("\"").append(businessRejectReason).append("\"").append(",\"text\":").append("\"")
         .append(text).append("\"").append(",\"refMsgType\":").append("\"").append(refMsgType).append("\"")
         .append(",\"businessRejectRefID\":").append("\"").append(businessRejectRefID).append("\"").append(",\"orderId\":").append(orderId)
-        .append(",\"secondaryOrderId\":").append(secondaryOrderId).append(",\"pairId\":").append(pairId);
+        .append(",\"secondaryOrderId\":").append(secondaryOrderId).append(",\"pairId\":").append(pairId).append(",\"submitterId\":").append(submitterId);
     sb.append("}");
     return sb.toString();
   }

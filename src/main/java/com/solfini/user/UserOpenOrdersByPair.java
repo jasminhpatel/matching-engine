@@ -158,7 +158,7 @@ public class UserOpenOrdersByPair implements Appendable, Constants {
 
   public boolean add(final Order order, final int marginCheckReferencePrice) {
     if (Context.isRejectDuplicateClorIdsEnabled() && order.getClOrdId() != null && order.getClOrdId().length() > 1
-        && isClOrdIdUsed(order.getClOrdId())) {
+        && isClOrdIdUsed(order.getClOrdId()) && !order.isRFQ()) {
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(LOG_FMT_6, ">> reject ClOrdId order=", order, REFERENCEPRICE_EQ, marginCheckReferencePrice, TOSTRING_EQ, this);
       }

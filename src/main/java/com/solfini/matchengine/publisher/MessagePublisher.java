@@ -933,6 +933,10 @@ public class MessagePublisher implements Constants {
       LOGGER.debug("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: "
           + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
     }
+    //log business rejects
+    if (businessRejectMessage.getSubmitterId() > 0 && businessRejectMessage.getSubmitterId() != Context.getMarketMakerUserid()) {
+      LOGGER.info(businessRejectMessage.toJSON());
+    }
 
     // convert and publish
     encodedLength += businessRejectEncoder.encodedLength();

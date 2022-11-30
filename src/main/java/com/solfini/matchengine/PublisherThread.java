@@ -76,8 +76,8 @@ public class PublisherThread implements Runnable, Constants {
            if (Context.isPersistModeEnabled() && (message.getSnapId() == 0)) {
             persisterQueue.add(message);
            } else {
-             LOGGER.info("Context.isPersistModeEnabled() " + Context.isPersistModeEnabled());
-             LOGGER.info("message.getSnapId() " + message.getSnapId());
+             //LOGGER.info("Context.isPersistModeEnabled() " + Context.isPersistModeEnabled());
+             //LOGGER.info("message.getSnapId() " + message.getSnapId());
            }
         }
 
