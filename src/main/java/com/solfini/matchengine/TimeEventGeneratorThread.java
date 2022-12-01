@@ -50,9 +50,9 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
 
   // default 24 hours, daily for dated futures and options
   public static final long CONTRACT_EXPIRE_MILLIS_SPAN =
-      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_EXPIRE_MILLIS_SPAN", "300000")); // "86400000"
+      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_EXPIRE_MILLIS_SPAN", "86400000")); // "86400000"
   public static final long CONTRACT_RATE_MILLIS_START_OFFSET =
-      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_RATE_MILLIS_START_OFFSET", "0")); // 144000000
+      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_RATE_MILLIS_START_OFFSET", "86400000")); // 144000000
   public static final long HOUR_23_MIN_59_SEC_55 = 86_395_000;
   public static final long ONE_DAY = 86_400_000;
 
