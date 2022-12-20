@@ -6,6 +6,7 @@ import com.solfini.common.MessageType;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.GlobalStateAdminMessage;
@@ -287,9 +288,9 @@ public class IntegrationTest {
 
   public List<Balance> createBalanceList(long quotedBalance, long quoteBalance, long pairBalance) {
     List<Balance> balanceList = new ArrayList<>();
-    balanceList.add(new Balance(SECURITY_ID_QUOTED, quotedBalance, 0, 0, 0, null));
-    balanceList.add(new Balance(SECURITY_ID_QUOTE, quoteBalance, 0, 0, 0, null));
-    balanceList.add(new Balance(SECURITY_ID_PAIR, pairBalance, 0, 0, 0, null));
+    balanceList.add(new Balance(SECURITY_ID_QUOTED, quotedBalance, 0, 0, 0, null,0, TokenType.ERC20));
+    balanceList.add(new Balance(SECURITY_ID_QUOTE, quoteBalance, 0, 0, 0, null,0, TokenType.ERC20));
+    balanceList.add(new Balance(SECURITY_ID_PAIR, pairBalance, 0, 0, 0, null,0, TokenType.ERC20));
     return balanceList;
   }
 

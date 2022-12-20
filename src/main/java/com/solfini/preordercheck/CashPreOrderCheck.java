@@ -11,6 +11,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.Order;
@@ -471,7 +472,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
 
       Position postion = user.getPositionArr()[order.getSecurityId()];
       if (postion == null) {
-        postion = user.setPosition(order.getSecurityId(), 0, null);
+        postion = user.setPosition(order.getSecurityId(), 0, null, 0, null, TokenType.ERC20);
       }
 
       final UserOpenOrdersByPair userOpenOrdersByPair = postion.getUserOpenOrdersByPair();
@@ -850,7 +851,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
 
       Position postion = user.getPositionArr()[order.getSecurityId()];
       if (postion == null) {
-        postion = user.setPosition(order.getSecurityId(), 0, null);
+        postion = user.setPosition(order.getSecurityId(), 0, null, 0, null, TokenType.ERC20);
       }
 
       final Fee fee = instrumentPair.getFee(user.getFeeTier(), IS_MAKER_DEFAULT, null);

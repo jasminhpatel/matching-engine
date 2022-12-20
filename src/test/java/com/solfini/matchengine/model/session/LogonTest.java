@@ -3,6 +3,7 @@ package com.solfini.matchengine.model.session;
 import java.io.IOException;
 import java.util.Properties;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.session.LogonMessage;
 import com.solfini.matchengine.model.ModelTest;
@@ -78,9 +79,9 @@ public class LogonTest extends ModelTest {
     createInstruments();
 
     User user = createUser(18);
-    user.addPosition(USDT, 10_000_00, null);
-    user.addPosition(BTC, 10_000_00, null);
-    user.addPosition(BTC_USDT_F, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
+    user.addPosition(BTC, 10_000_00, null, 0, TokenType.ERC20);
+    user.addPosition(BTC_USDT_F, 10_000_00, null, 0, TokenType.ERC20);
 
     SessionInfo sessionInfo = new SessionInfo();
     sessionInfo.setConnectionId(0);

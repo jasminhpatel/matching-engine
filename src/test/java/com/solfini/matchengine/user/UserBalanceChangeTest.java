@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -95,8 +97,8 @@ public class UserBalanceChangeTest implements Constants {
     createInstruments();
 
     final User user = createUser(18);
-    Position position1 = user.addPosition(1, 10_000_000, null);
-    Position position14 = user.addPosition(14, 1_000_000, null);
+    Position position1 = user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    Position position14 = user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
     user.setUsdValue(1000);
 

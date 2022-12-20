@@ -1,5 +1,6 @@
 package com.solfini.matchengine.model.orderbook;
 
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Test;
 import com.solfini.user.User;
 import com.solfini.sbe.encoder.Side;
@@ -11,7 +12,7 @@ public class OrderBookChangeQueueTest extends OrderBookTest {
   @Test
   public void disableEnable() {
     User user = createUser(50);
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=50");
 
     orderBook.disableOutputQueue();

@@ -8,6 +8,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
@@ -43,7 +44,7 @@ public class StateConsistencyTest extends OrderBookTest {
       final int userId = USER_START + i;
       final User user = createUser(userId);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }
@@ -174,7 +175,7 @@ public class StateConsistencyTest extends OrderBookTest {
           balanceAdminMessage.setUpdateType(UpdateType.PUT);
           balanceAdminMessage.setUserId(user.getId());
           balanceAdminMessage.setTxType(TX_ADJUSTMENT);
-          balanceAdminMessage.addBalance(new Balance(USDT, 0, 0, 0, 0, null));
+          balanceAdminMessage.addBalance(new Balance(USDT, 0, 0, 0, 0, null,0, TokenType.ERC20));
           UserCache.addBalance(balanceAdminMessage);
 
           final List<Order> liquidationOrders = new ArrayList<Order>();

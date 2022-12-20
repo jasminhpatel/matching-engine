@@ -3,6 +3,8 @@ package com.solfini.binance.consistency;
 import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.common.Context;
@@ -57,7 +59,7 @@ public class MultiPairStateConsistencyTest extends BinanceOrderBookTest {
         user.setFeeTier(random.nextInt(5));
       }
 
-      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null);
+      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }

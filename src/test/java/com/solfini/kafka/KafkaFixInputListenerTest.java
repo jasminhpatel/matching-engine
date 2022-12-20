@@ -21,6 +21,8 @@ import static com.solfini.util.benchmark.TestEncoder.encodeTradeState;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -97,7 +99,7 @@ public class KafkaFixInputListenerTest extends ModelTest {
 
     pair = InstrumentCache.getPair(BTC_USDT_F);
     user = createUser(28);
-    user.addPosition(pair.getId(), 10_000, null);
+    user.addPosition(pair.getId(), 10_000, null, 0, TokenType.ERC20);
     expectMessage("userId=28");
     assertMessages();
   }
@@ -132,7 +134,7 @@ public class KafkaFixInputListenerTest extends ModelTest {
   @Test
   public void decodeLogonMessage() {
     User newUser = createUser(29);
-    newUser.addPosition(pair.getId(), 10_000, null);
+    newUser.addPosition(pair.getId(), 10_000, null, 0, TokenType.ERC20);
     expectMessage("userId=29");
     assertMessages();
 

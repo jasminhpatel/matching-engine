@@ -1,12 +1,8 @@
 package com.solfini.sbe;
 
-import com.solfini.common.Context;
-import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.sbe.encoder.AssetGroupDecoder;
 import com.solfini.sbe.encoder.AssetGroupEncoder;
-import com.solfini.sbe.encoder.ExecutionReportDecoder;
-import com.solfini.sbe.encoder.ExecutionReportEncoder;
 import com.solfini.sbe.encoder.MessageHeaderDecoder;
 import com.solfini.sbe.encoder.MessageHeaderEncoder;
 import com.solfini.util.StringUtil;
@@ -39,10 +35,10 @@ public class AssetGroupEncoderTest {
   public static void main(String[] args) {
     final AssetGroup assetGroup = new AssetGroup();
     assetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
-    assetGroup.setGroupAssetId(1);
+    assetGroup.setQuantity(1);
     assetGroup.setOwnerUserId(2);
     assetGroup.setName("Test GroupName");
-    assetGroup.addAssetId(101, 1);
+    assetGroup.addAssetIdToList(101, 1);
 
     byte[] encoded = encode(assetGroup);
 
@@ -64,7 +60,7 @@ public class AssetGroupEncoderTest {
       assetGroupEncoder.updateType(assetGroup.getUpdateType());
       assetGroupEncoder.id(assetGroup.getId());
       assetGroupEncoder.ownerUserId(assetGroup.getOwnerUserId());
-      assetGroupEncoder.groupAssetId(assetGroup.getGroupAssetId());
+      assetGroupEncoder.quantity(assetGroup.getQuantity());
       assetGroupEncoder.securityId(assetGroup.getSecurityId());
       assetGroupEncoder.updateType(assetGroup.getUpdateType());
       assetGroupEncoder.name(assetGroup.getName());

@@ -4,6 +4,7 @@ import com.solfini.instrument.Fee;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
@@ -44,8 +45,8 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
   @Override
   protected void createUsers() {
     super.createUsers();
-    user.addPosition(BTC, 10_000_00, null);
-    user.addPosition(BTC_USDT, 10_000_00, null);
+    user.addPosition(BTC, 10_000_00, null, 0, TokenType.ERC20);
+    user.addPosition(BTC_USDT, 10_000_00, null, 0, TokenType.ERC20);
 
     user.getPosition(BTC_USDT).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT));
   }
@@ -715,9 +716,9 @@ public class OrderBookCashPreOrderCheckTest extends OrderBookTest {
   @Test
   public void cancelSellOrderFilled() {
     User userk = createUser(301);
-    userk.addPosition(BTC, 10_000_00, null);
-    userk.addPosition(USDT, 10_000_00, null);
-    userk.addPosition(BTC_USDT, 10_000_00, null);
+    userk.addPosition(BTC, 10_000_00, null, 0, TokenType.ERC20);
+    userk.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
+    userk.addPosition(BTC_USDT, 10_000_00, null, 0, TokenType.ERC20);
 
     expectMessage("userId=301");
     expectOutput("userId=301");

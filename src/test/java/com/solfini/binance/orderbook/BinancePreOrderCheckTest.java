@@ -1,6 +1,8 @@
 package com.solfini.binance.orderbook;
 
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.sbe.encoder.Side;
@@ -18,7 +20,7 @@ public class BinancePreOrderCheckTest extends BinanceOrderBookTest {
     User user = createUser(1015);
     expectMessage("userId=1015");
 
-    user.addPosition(USDT, 99982205_07280441L, null);
+    user.addPosition(USDT, 99982205_07280441L, null, 0, TokenType.ERC20);
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getQuantity());
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getAvailableQuantity());
 
@@ -35,7 +37,7 @@ public class BinancePreOrderCheckTest extends BinanceOrderBookTest {
     User user = createUser(1016);
     expectMessage("userId=1016");
 
-    user.addPosition(USDT, 99982205_07280441L, null);
+    user.addPosition(USDT, 99982205_07280441L, null, 0, TokenType.ERC20);
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getQuantity());
     Assert.assertEquals(99982205_07280441L, user.getPosition(USDT).getAvailableQuantity());
 

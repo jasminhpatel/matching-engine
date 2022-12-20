@@ -1,5 +1,6 @@
 package com.solfini.matchengine.model.orderbook;
 
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.instrument.InstrumentCache;
@@ -39,7 +40,7 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
   @Test
   public void addBuyOrder_ValidateOpenOrders() {
     User user = createUser(50);
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=50");
 
     orderBook.addOrder(createOrder(1, user, pair.getId(), 1011, 500, Side.BUY, DAY));
@@ -792,7 +793,7 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
   @Test
   public void cancelFirstBuyOrderResting() {
     User user = createUser(401);
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=401");
 
     orderBook.addOrder(createOrder(1, user, pair.getId(), 1011, 500, Side.BUY, DAY));
@@ -815,7 +816,7 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
   @Test
   public void cancelFirstSellOrderResting() {
     User user = createUser(402);
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=402");
 
     orderBook.addOrder(createOrder(110, user, pair.getId(), 1011, 500, Side.SELL, DAY));
@@ -887,7 +888,7 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
   @Test
   public void cancelSellOrderFilled() {
     User userk = createUser(301);
-    userk.addPosition(USDT, 10_000_00, null);
+    userk.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
 
     expectMessage("userId=301");
     expectOutput("userId=301");
@@ -928,7 +929,7 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
   @Test
   public void cancelMatchedOrders() {
     User user = createUser(400);
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=400");
 
     // Add 2 buy orders
@@ -1442,8 +1443,8 @@ public class OrderBookLimitOrderTest2 extends OrderBookTest {
     assertMessages();
 
     // Give some positions to the user
-    user.addPosition(pair.getQuotedId(), 5000, null);
-    user.addPosition(pair.getId(), 50, null);
+    user.addPosition(pair.getQuotedId(), 5000, null, 0, TokenType.ERC20);
+    user.addPosition(pair.getId(), 50, null, 0, TokenType.ERC20);
 
     // Add 2 sell orders that should pass preorder checks
     orderBook.addOrder(createOrder(2, user, pair.getId(), 1011, 5000, Side.SELL, DAY));

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import org.junit.Assert;
@@ -37,7 +39,7 @@ public class PositionContractConsistencyTest5 extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }

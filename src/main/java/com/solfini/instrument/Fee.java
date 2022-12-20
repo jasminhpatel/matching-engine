@@ -5,6 +5,7 @@ import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
@@ -160,7 +161,7 @@ public class Fee implements Appendable, Constants {
   public final void transferToExchange(final long feeQuantity) {
     if (collectingUser == null)
       collectingUser = UserCache.getExchangeUser();
-    collectingUser.addPosition(feeInstrumentId, feeQuantity, null);
+    collectingUser.addPosition(feeInstrumentId, feeQuantity, null, 0, TokenType.ERC20);
 
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(LOG_FMT_8, TRANSFERTOEXCHANGE_FEEID_EQ, feeInstrumentId, VALUE_EQ, feeQuantity, ISPAIDTOINSURANCE_EQ, isPaidToInsurance,

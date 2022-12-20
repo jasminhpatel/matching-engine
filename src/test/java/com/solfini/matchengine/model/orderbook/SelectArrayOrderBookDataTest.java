@@ -6,6 +6,7 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -112,23 +113,23 @@ public class SelectArrayOrderBookDataTest {
     InstrumentCache.addPair(instrumentPair);
 
 
-    user1.addPosition(0, 1000000000, null);
-    user2.addPosition(0, 1000000000, null);
+    user1.addPosition(0, 1000000000, null, 0, TokenType.ERC20);
+    user2.addPosition(0, 1000000000, null, 0, TokenType.ERC20);
 
     TreeSet assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {101, 1});
 
-    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 101, tokenId 1
+    user2.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);//deposit assetId 101, tokenId 1
 
     assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {101, 2});
 
-    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 101, tokenId 2
+    user2.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);//deposit assetId 101, tokenId 2
 
     assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {102, 5});
 
-    user2.addPosition(228, 1, assetIdTreeSet);//deposit assetId 102, tokenId 5
+    user2.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);//deposit assetId 102, tokenId 5
   }
 
 

@@ -1,6 +1,7 @@
 package com.solfini.matchengine.model.orderbook;
 
 import com.solfini.instrument.Balance;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.internal.MassCancelOrder;
@@ -15,7 +16,7 @@ public class MassCancelTest extends OrderBookTest {
   private static int nextUserId = 2000;
 
   protected void resetBalance(User user) {
-    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 0, 0, 0, 0, null));
+    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 0, 0, 0, 0, null, 0, TokenType.ERC20));
     expectMessage("userId=" + user.getId());
     assertMessages();
     Assert.assertEquals(0, user.getPositionArr()[BTC_USDT_F].getQuantity());
@@ -46,8 +47,8 @@ public class MassCancelTest extends OrderBookTest {
   }
 
   protected User nextUser() {
-    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
+    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null, 0, TokenType.ERC20), new Balance(USDT, 200, 0, 0, 0, null, 0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null, 0, TokenType.ERC20));
 
     expectMessage("UserAdminMessage", "userId=" + user.getId());
     assertMessages();
@@ -160,7 +161,7 @@ public class MassCancelTest extends OrderBookTest {
 
     Assert.assertEquals(20_000, user.getPositionArr()[BTC_USDT_F].getQuantity());
 
-    updateBalance(user.getId(), UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, 30, 2, null));
+    updateBalance(user.getId(), UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, 30, 2, null, 0, TokenType.ERC20));
     expectMessage("userId=" + user.getId()
         + ", updateType=PATCH, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=200.30, balance_change=.30, "
         + "eventType=0, orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0,"
@@ -200,7 +201,7 @@ public class MassCancelTest extends OrderBookTest {
 
     Assert.assertEquals(20_000, user.getPositionArr()[BTC_USDT_F].getQuantity());
 
-    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 30, 2, 0, 0, null));
+    updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 30, 2, 0, 0, null, 0, TokenType.ERC20));
     expectMessage("userId=" + user.getId()
         + ", updateType=PUT, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=.30, balance_change=0, eventType=0,"
         + " orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0, "

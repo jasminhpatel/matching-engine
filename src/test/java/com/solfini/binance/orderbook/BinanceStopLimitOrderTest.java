@@ -1,5 +1,6 @@
 package com.solfini.binance.orderbook;
 
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Test;
 import com.solfini.instrument.Balance;
 import com.solfini.matchengine.message.internal.Order;
@@ -198,8 +199,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Assert that the stop limit order is triggered and filled
   @Test
   public void sellStopLimitTriggeredByBuyLimitWithEqualPrice() {
-    User user = createUser(600, new Balance(USDT, 10000, 0, 0, 0, null));
-    User user2 = createUser(601, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user = createUser(600, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
+    User user2 = createUser(601, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=600");
     expectMessage("userId=601");
 
@@ -1340,8 +1341,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Buy stop limits should trigger in stop price order (lowest first)
   @Test
   public void buyStopLimitTriggeringOrder1() {
-    User user = createUser(602, new Balance(USDT, 10000, 0, 0, 0, null));
-    User user2 = createUser(603, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user = createUser(602, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
+    User user2 = createUser(603, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=602");
     expectMessage("userId=603");
 
@@ -1368,8 +1369,8 @@ public class BinanceStopLimitOrderTest extends BinanceOrderBookTest {
   // Buy stop limits should trigger in stop price order (lowest first)
   @Test
   public void buyStopLimitTriggeringOrder2() {
-    User user = createUser(604, new Balance(USDT, 10000, 0, 0, 0, null));
-    User user2 = createUser(605, new Balance(USDT, 10000, 0, 0, 0, null));
+    User user = createUser(604, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
+    User user2 = createUser(605, new Balance(USDT, 10000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=604");
     expectMessage("userId=605");
 

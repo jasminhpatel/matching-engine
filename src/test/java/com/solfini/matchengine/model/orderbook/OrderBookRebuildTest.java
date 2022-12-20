@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
@@ -27,7 +28,7 @@ public class OrderBookRebuildTest extends ModelTest {
   public void before() {
     super.before();
 
-    user = createUser(100, new Balance(USDT, 1_000_000, 0, 0, 0, null));
+    user = createUser(100, new Balance(USDT, 1_000_000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=100");
 
     InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 2));

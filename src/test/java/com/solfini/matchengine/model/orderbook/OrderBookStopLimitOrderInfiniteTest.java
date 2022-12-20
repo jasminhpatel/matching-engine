@@ -1,6 +1,8 @@
 package com.solfini.matchengine.model.orderbook;
 
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.sbe.encoder.Side;
 import org.junit.Test;
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
@@ -11,7 +13,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTrigger() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     Random random = new Random();
     for (int i = 0; i < 1000; i++) {
       orderBook.addOrder(
@@ -29,7 +31,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_BS_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createOrder(201, user, BTC_USDT_F, 8000, 10000, Side.SELL, DAY));
@@ -57,7 +59,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_BSB_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(102, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
@@ -90,7 +92,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_BSS_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(102, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
@@ -124,7 +126,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_SB_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createOrder(102, user, BTC_USDT_F, 8000, 11000, Side.BUY, DAY));
@@ -152,7 +154,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_SBB_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(102, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
@@ -184,7 +186,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoop_SBS_TriggerByBuyOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(100, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(101, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(102, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
@@ -218,7 +220,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTriggerBySellOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(1, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(2, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createOrder(3, user, BTC_USDT_F, 8000, 10000, Side.SELL, DAY));
@@ -228,7 +230,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTriggerByBuyMarketOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(1, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(2, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createMarketOrder(3, user, BTC_USDT_F, 10000, Side.BUY, DAY));
@@ -238,7 +240,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTriggerBySellMarketOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(1, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(2, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createMarketOrder(3, user, BTC_USDT_F, 10000, Side.SELL, DAY));
@@ -248,7 +250,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTriggerByBuyMultipleOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(1, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(2, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(3, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
@@ -264,7 +266,7 @@ public class OrderBookStopLimitOrderInfiniteTest extends OrderBookTest {
   public void infiniteLoopOnTriggerBySellMultipleOrder() {
     orderBook.clearOrderBook();
 
-    user.setPosition(USDT, 100_000_000_00L, null);
+    user.setPosition(USDT, 100_000_000_00L, null, 0, null, TokenType.ERC20);
     orderBook.addOrder(createStopLimitOrder(1, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));
     orderBook.addOrder(createStopLimitOrder(2, user, BTC_USDT_F, 8000, 8000, 5000, Side.SELL, DAY));
     orderBook.addOrder(createStopLimitOrder(3, user, BTC_USDT_F, 8000, 8000, 5000, Side.BUY, DAY));

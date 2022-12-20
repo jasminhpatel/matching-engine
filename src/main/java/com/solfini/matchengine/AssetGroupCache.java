@@ -10,15 +10,18 @@ import com.solfini.common.CustomLogger;
 import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
 import com.solfini.matchengine.message.internal.AssetGroup;
+import com.solfini.sbe.encoder.TokenType;
 import com.solfini.sbe.encoder.UpdateType;
 import com.solfini.util.FastArrayList;
 
 public class AssetGroupCache implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(AssetGroupCache.class);
-
+  //<groupId, AssetGroup>
   private static final ConcurrentHashMap<Long, AssetGroup> idToAssetGroupMap = new ConcurrentHashMap<>();
+  //<userId, <groupId, AssetGroup>>
   private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, AssetGroup>> userIdToAssetGroupsMap = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, AssetGroup>> securityIdToAssetGroupsMap = new ConcurrentHashMap<>();
+  //<userId, <assetId, AssetGroup>> ERC 20
+  private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, AssetGroup>> userIdToAssetIdToAssetGroupsMap = new ConcurrentHashMap<>();
 
   private static long nextId = 1;
   private static long lastUpdatedTime = 0;
@@ -32,35 +35,43 @@ public class AssetGroupCache implements Constants {
       nextId = assetGroup.getId() + 1;
 
     // cache by userId
-    ConcurrentHashMap<Long, AssetGroup> assetGroupsForUser = userIdToAssetGroupsMap.get((long) assetGroup.getOwnerUserId());
-    if (assetGroupsForUser == null) {
-      assetGroupsForUser = new ConcurrentHashMap<>();
-      userIdToAssetGroupsMap.put((long) assetGroup.getOwnerUserId(), assetGroupsForUser);
-    }
+    final ConcurrentHashMap<Long, AssetGroup> assetGroupsForUser = userIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(),
+        v -> new ConcurrentHashMap<>());
     assetGroupsForUser.put(assetGroup.getId(), assetGroup);
 
     // cache by securityId
-    ConcurrentHashMap<Long, AssetGroup> assetGroupsForSecurityId = securityIdToAssetGroupsMap.get(assetGroup.getSecurityId());
-    if (assetGroupsForSecurityId == null) {
-      assetGroupsForSecurityId = new ConcurrentHashMap<>();
-      securityIdToAssetGroupsMap.put(assetGroup.getSecurityId(), assetGroupsForSecurityId);
+    if (TokenType.ERC20 == assetGroup.getTokenType()) {
+      final ConcurrentHashMap<Long, AssetGroup> userIdToERC20AssetGroupsMap =
+          userIdToAssetIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(), v -> new ConcurrentHashMap<>());
+      userIdToERC20AssetGroupsMap.put(assetGroup.getAssetId(), assetGroup);
     }
-    assetGroupsForSecurityId.put(assetGroup.getId(), assetGroup);
   }
 
   // update model
   public static final AssetGroup onModel(final AssetGroup assetGroup) {
     if (assetGroup.getId() == 0) { // assign new id
       assetGroup.setId(nextId);
-      assetGroup.setGroupAssetId(nextId);
       nextId++;
     }
 
     final AssetGroup prevAssetGroup = idToAssetGroupMap.get(assetGroup.getId());
     if (prevAssetGroup == null) { // new add
       if (UpdateType.DELETE != assetGroup.getUpdateType())
-        AssetGroupCache.onLoad(assetGroup);
+        onLoad(assetGroup);
     } else {
+      //if owner has changed
+      if (prevAssetGroup.getOwnerUserId() != assetGroup.getOwnerUserId()) {
+        ConcurrentHashMap<Long, AssetGroup> userAssetGroups = userIdToAssetGroupsMap.get(prevAssetGroup.getOwnerUserId());
+        if (userAssetGroups != null) {
+          userAssetGroups.remove(prevAssetGroup.getId());
+        }
+        if (TokenType.ERC20 == prevAssetGroup.getTokenType()) {
+          userAssetGroups = userIdToAssetIdToAssetGroupsMap.get(prevAssetGroup.getOwnerUserId());
+          if (userAssetGroups != null) {
+            userAssetGroups.remove(prevAssetGroup.getAssetId());
+          }
+        }
+      }
       prevAssetGroup.copySet(assetGroup);
 
       if (UpdateType.DELETE == assetGroup.getUpdateType())
@@ -80,7 +91,6 @@ public class AssetGroupCache implements Constants {
       return assetGroup;
 
     return null;
-    // return loadFromDBWithId(id);
   }
 
   // getAll with filters
@@ -88,24 +98,8 @@ public class AssetGroupCache implements Constants {
     return idToAssetGroupMap.values();
   }
 
-  public static final Collection<AssetGroup> getByUserId(final int userId) {
-    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetGroupsMap.get((long) userId);
-    if (userAssetGroupMap != null && userAssetGroupMap.size() > 0) {
-      return userAssetGroupMap.values();
-    }
-    return new ArrayList<>();
-  }
-
-  public static final Collection<AssetGroup> getBySecurityId(final int securityId) {
-    final ConcurrentHashMap<Long, AssetGroup> securityIdAssetGroupMap = securityIdToAssetGroupsMap.get(securityId);
-    if (securityIdAssetGroupMap != null && securityIdAssetGroupMap.size() > 0) {
-      return securityIdAssetGroupMap.values();
-    }
-    return new ArrayList<>();
-  }
-
-  public static final Collection<AssetGroup> getByUserId(final int userId, final int securityId) {
-    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetGroupsMap.get((long) userId);
+  public static final Collection<AssetGroup> getByUserId(final long userId, final int securityId) {
+    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetGroupsMap.get(userId);
     if (userAssetGroupMap != null && userAssetGroupMap.size() > 0) {
       final ArrayList<AssetGroup> list = new ArrayList<>();
       for (AssetGroup assetGroup : userAssetGroupMap.values()) {
@@ -118,16 +112,13 @@ public class AssetGroupCache implements Constants {
     return new ArrayList<>();
   }
 
-  public static final Collection<AssetGroup> getByIds(final long[] assetGroupIds) {
-    if (assetGroupIds != null && assetGroupIds.length > 0) {
-      final FastArrayList<AssetGroup> assetGroups = new FastArrayList<>(assetGroupIds.length);
-      for (final long assetGroupId : assetGroupIds) {
-        assetGroups.add(idToAssetGroupMap.get(assetGroupId));
-      }
-      return assetGroups;
-    } else {
-      return null;
+  public static final AssetGroup getByUserIdAndERC20Asset(final long userId, final long assetId) {
+    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetIdToAssetGroupsMap.get(userId);
+    if (userAssetGroupMap != null) {
+      return userAssetGroupMap.get(assetId);
     }
+
+    return null;
   }
 
   // called for snapshots
@@ -145,44 +136,4 @@ public class AssetGroupCache implements Constants {
     }
 
   }
-
-  /*
-   * public static final int loadFromDB() { int count = 0; final long t0 = System.currentTimeMillis(); lastUpdatedTime = t0; try (final
-   * Connection conn = DBManager.getConnection(); final PreparedStatement userPS = conn.prepareStatement(SELECT); final ResultSet rs =
-   * userPS.executeQuery();) { while (rs.next()) { final AssetGroup assetGroup = new AssetGroup(); // pk not used
-   * assetGroup.setId(rs.getLong(2)); assetGroup.setSecurityId(rs.getInt(4));
-   * 
-   * onLoad(assetGroup); count++; } rs.close(); } catch (final Exception e) { LOGGER.error("error", e); } if (LOGGER.isInfoEnabled())
-   * LOGGER.info(LOG_FMT_1, "AssetGroupCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0); return count; }
-   * 
-   * public static final AssetGroup loadFromDBWithId(final long id) { return loadFromDBWithQuery(SELECT_BY_ID, id); }
-   * 
-   * public static final void loadFromDBWithUpdatedTime() { final long t0 = System.currentTimeMillis(); loadFromDBWithQuery(SELECT_BY_ID,
-   * lastUpdatedTime - TIME_THRESHOLD); lastUpdatedTime = t0; }
-   * 
-   * private static final AssetGroup loadFromDBWithQuery(final String query, final long id) { final long t0 = System.currentTimeMillis();
-   * AssetGroup assetGroup = null; try (final Connection conn = DBManager.getConnection(); final PreparedStatement userPS =
-   * conn.prepareStatement(query);) { userPS.setLong(1, id); final ResultSet rs = userPS.executeQuery(); while (rs.next()) { assetGroup =
-   * new AssetGroup(); // pk not used assetGroup.setId(rs.getLong(2)); assetGroup.setSecurityId(rs.getInt(4));
-   * 
-   * onLoad(assetGroup); } rs.close(); } catch (final Exception e) { LOGGER.error("error", e); } if (LOGGER.isInfoEnabled())
-   * LOGGER.info(LOG_FMT_1, "AssetGroupCache.loadFromDB id=", (long) id, ", time=", System.currentTimeMillis() - t0); return assetGroup; }
-   * 
-   * public static final void addToDB(final AssetGroup assetGroup) { final String timestamp = StringUtil.getCurrentDateYYYMMDDHHMMSSsss();
-   * try (final Connection conn = DBManager.getConnection(); final PreparedStatement ps = conn.prepareStatement(INSERT); final
-   * PreparedStatement selectAssetGroupPS = conn.prepareStatement(SELECT_ASSET_ID);) { ps.setInt(1, assetGroup.getTokenId()); ps.setInt(2,
-   * assetGroup.getSecurityId()); ps.executeUpdate();
-   * 
-   * selectAssetGroupPS.setInt(1, assetGroup.getSecurityId()); final ResultSet rs = selectAssetGroupPS.executeQuery(); if (rs.next()) { int
-   * id = rs.getInt(1); assetGroup.setId(id); } rs.close(); } catch (final Exception e) { LOGGER.error(ERROR_LOG, e); } }
-   * 
-   * public static final void updateDB(final AssetGroup assetGroup) { // final String timestamp =
-   * StringUtil.getCurrentDateYYYMMDDHHMMSSsss(); try (final Connection conn = DBManager.getConnection(); final PreparedStatement ps =
-   * conn.prepareStatement(UPDATE);) {
-   * 
-   * ps.setInt(3, assetGroup.getOwnerUserId());
-   * 
-   * 
-   * ps.setLong(62, assetGroup.getId()); ps.executeUpdate(); } catch (final Exception e) { LOGGER.error(ERROR_LOG, e); } }
-   */
 }

@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -84,21 +86,21 @@ public class BankruptcyPriceTest extends OrderBookTest {
   @Override
   protected void createUsers() {
     user = createUser(18);
-    user.addPosition(pair.getQuotedId(), 200_00000000L, null); // $200
-    user.addPosition(BTC_USDT_F, 0, null); // 0
+    user.addPosition(pair.getQuotedId(), 200_00000000L, null, 0, TokenType.ERC20); // $200
+    user.addPosition(BTC_USDT_F, 0, null, 0, TokenType.ERC20); // 0
 
     expectMessage("userId=18");
     expectOutput("userId=18");
 
     user2 = createUser(19);
-    user2.addPosition(pair.getQuotedId(), 200000_00000000L, null); // $200,000
-    user2.addPosition(BTC_USDT_F, 0, null); // 0
+    user2.addPosition(pair.getQuotedId(), 200000_00000000L, null, 0, TokenType.ERC20); // $200,000
+    user2.addPosition(BTC_USDT_F, 0, null, 0, TokenType.ERC20); // 0
     expectMessage("userId=19");
     expectOutput("userId=19");
 
     user3 = createUser(20);
-    user3.addPosition(pair.getQuotedId(), 300000_00000000L, null); // $300,000
-    user3.addPosition(BTC_USDT_F, 0, null); // 0
+    user3.addPosition(pair.getQuotedId(), 300000_00000000L, null, 0, TokenType.ERC20); // $300,000
+    user3.addPosition(BTC_USDT_F, 0, null, 0, TokenType.ERC20); // 0
 
     expectMessage("userId=20");
     expectOutput("userId=20");

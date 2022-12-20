@@ -2,6 +2,7 @@ package com.solfini.matchengine.model.orderbook;
 
 import com.solfini.common.Context;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
@@ -45,9 +46,9 @@ public class OrderBookMarginCalcTest5 extends OrderBookTest {
   }
 
   private void setPositions(final long usdt, final long btc, final long btc_usdt_f) {
-    user.setPosition(USDT, usdt * 100, null);
-    user.setPosition(BTC, btc * 1000, null);
-    user.setPosition(BTC_USDT_F, btc_usdt_f * 100, null);
+    user.setPosition(USDT, usdt * 100, null, 0, null, TokenType.ERC20);
+    user.setPosition(BTC, btc * 1000, null, 0, null, TokenType.ERC20);
+    user.setPosition(BTC_USDT_F, btc_usdt_f * 100, null, 0, null, TokenType.ERC20);
 
     InstrumentCache.get(USDT).setIndexFeedUsdMark(1.0);
     InstrumentCache.get(BTC).setIndexFeedUsdMark(10000.0);

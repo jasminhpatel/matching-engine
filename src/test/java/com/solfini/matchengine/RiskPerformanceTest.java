@@ -5,6 +5,7 @@ import com.solfini.common.Constants;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
@@ -70,8 +71,8 @@ public class RiskPerformanceTest implements Constants {
     System.out.println("Creating users");
     final Random random = new Random();
     for (int i = 1; i <= 1_000_000; i++) {
-      createUser(100 + i, new Balance(USDT, random.nextInt(10_000), 2, 0, 0, null),
-          new Balance(BTC_USDT_F, random.nextInt(10_000), 2, 0, 0, null));
+      createUser(100 + i, new Balance(USDT, random.nextInt(10_000), 2, 0, 0, null,0, TokenType.ERC20),
+          new Balance(BTC_USDT_F, random.nextInt(10_000), 2, 0, 0, null,0, TokenType.ERC20));
       if (i % 100_000 == 0) {
         System.out.println("  ... " + i);
       }

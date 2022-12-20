@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,15 +83,15 @@ public class RiskThreadTest extends OrderBookTest {
   protected void createUsers() {
     user = createUser(18);
 
-    user.addPosition(USDT, 10_000_00, null);
+    user.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=18");
 
     user2 = createUser(19);
-    user2.addPosition(USDT, 10_000_00, null);
+    user2.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=19");
 
     user3 = createUser(20);
-    user3.addPosition(USDT, 10_000_00, null);
+    user3.addPosition(USDT, 10_000_00, null, 0, TokenType.ERC20);
     expectMessage("userId=20");
   }
 

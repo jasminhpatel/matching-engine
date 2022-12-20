@@ -3,6 +3,8 @@ package com.solfini.report;
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,8 +89,8 @@ public class ReportTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
 

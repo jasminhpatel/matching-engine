@@ -1179,10 +1179,13 @@ public class MessagePublisher implements Constants {
     assetGroupEncoder.updateType(assetGroup.getUpdateType());
     assetGroupEncoder.id(assetGroup.getId());
     assetGroupEncoder.ownerUserId(assetGroup.getOwnerUserId());
-    assetGroupEncoder.groupAssetId(assetGroup.getGroupAssetId());
-    assetGroupEncoder.securityId(assetGroup.getSecurityId());
-    assetGroupEncoder.updateType(assetGroup.getUpdateType());
+    assetGroupEncoder.quantity(assetGroup.getQuantity());
     assetGroupEncoder.name(assetGroup.getName());
+    assetGroupEncoder.securityId(assetGroup.getSecurityId());
+    assetGroupEncoder.assetId(assetGroup.getAssetId());
+    assetGroupEncoder.tokenType(assetGroup.getTokenType());
+
+    LOGGER.info(assetGroup.toJSON());
 
     final ConcurrentSkipListSet<long[]> assetIdGroup = assetGroup.getAssetIdGroupTreeSet();
     AssetGroupEncoder.PositionsAssetIdGroupEncoder positionsAssetIdGroupEncoder =

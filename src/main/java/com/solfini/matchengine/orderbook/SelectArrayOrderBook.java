@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 import com.solfini.sbe.encoder.QuoteType;
+import com.solfini.sbe.encoder.TokenType;
 import org.agrona.collections.Long2ObjectHashMap;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -491,39 +492,49 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         return;
       }
 
-      final ConcurrentSkipListSet<long[]> assetGroupSet = assetGroup.getAssetIdGroupTreeSet();
-      if (assetGroupSet.size() < order.getQuantityLong()) {
-        matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
-            Long.toString(order.getOrderId()), BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(),
-            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
-        return;
-      }
-
-      if (assetGroupSet.size() > order.getQuantityLong()) {
-        // split group moving quantityFilled assets to taker group
-        final AssetGroup newAssetGroup = new AssetGroup();
-        newAssetGroup.copySet(assetGroup);
-        newAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
-        newAssetGroup.setId(0);
-        newAssetGroup.setGroupAssetId(0);
-
-        final long reallocCount = assetGroupSet.size() - order.getQuantityLong();
-        final long[][] reallocatedAssets = new long[(int) reallocCount][];
-        for (int i = 0; i < reallocCount; i++) {
-          final long[] value = assetGroupSet.pollFirst();
-          reallocatedAssets[i] = value;
-          newAssetGroup.addAssetId(value[0], (int) value[1]);
+      if (assetGroup.getTokenType() == TokenType.ERC20) {
+        if (assetGroup.getQuantity() < order.getQuantityLong()) {
+          matcherToPublisherQueue.addGuaranteed(
+              BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
+                  BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
+          return;
         }
+        //todo should we block assets
+      } else {
+        final ConcurrentSkipListSet<long[]> assetGroupSet = assetGroup.getAssetIdGroupTreeSet();
+        if (assetGroupSet.size() < order.getQuantityLong()) {
+          matcherToPublisherQueue.addGuaranteed(
+              BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
+                  BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
+          return;
+        }
+        if (assetGroupSet.size() > order.getQuantityLong()) {
+          // split group moving quantityFilled assets to taker group
+          final AssetGroup newAssetGroup = new AssetGroup();
+          newAssetGroup.copySet(assetGroup);
+          newAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
+          newAssetGroup.setId(0);
 
-        // publish changes
-        AssetGroupCache.onModel(newAssetGroup);
-        // update groupId in positions with new group id
-        final Position position = order.getUser().getPosition((int) assetGroup.getSecurityId());
+          final long reallocCount = assetGroupSet.size() - order.getQuantityLong();
+          final long[][] reallocatedAssets = new long[(int) reallocCount][];
+          for (int i = 0; i < reallocCount; i++) {
+            final long[] value = assetGroupSet.pollFirst();
+            reallocatedAssets[i] = value;
+            newAssetGroup.addAssetIdToList(value[0], (int) value[1]);
+          }
 
-        position.addAssetId(0, 0, newAssetGroup.getId());// one record for the new group
+          // publish changes
+          AssetGroupCache.onModel(newAssetGroup);
+          // update groupId in positions with new group id
+          final Position position = order.getUser().getPosition((int) assetGroup.getSecurityId());
 
-        matcherToPublisherQueue.add(assetGroup);
+          position.addAssetId(0, 0, newAssetGroup.getId());// one record for the new group
+
+          matcherToPublisherQueue.add(assetGroup);
+        }
       }
+
+
     }
 
     // ack - moved to after preordercheck
@@ -1567,7 +1578,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     // todo write cleanup logic
     //newPtr.setSelectId(newPtr.getOrderId());
     idToOrderMap.put(newPtr.getOrderId(), newPtr);
-    LOGGER.info(Constants.LOG_FMT_2, "Indicative RFQ order add to idToOrderMap, orderId: ", newPtr.getOrderId());
+    LOGGER.info(Constants.LOG_FMT_2, "Order add to idToOrderMap, orderId: ", newPtr.getOrderId());
 
     // RFQ
     if (newPtr.isRFQ()) {
@@ -2277,50 +2288,76 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     updateAskLevelCacheAfterOrderRemoval(tmpPtr.getPriceInt());
   }
 
-  public final AssetGroup allocateGroupAssets(final long quantityFilled, final Order makerOrder, final Order takerOrder) {
-    final AssetGroup sellGroup = AssetGroupCache.get(makerOrder.getGroupAssetId());
-    if (sellGroup == null) {
+  public final AssetGroup allocateGroupAssets(final long quantityFilled, final Order makerOrder, final Order takerOrder,
+      final long sellGroupId) {
+    final AssetGroup sellerGroup = AssetGroupCache.get(sellGroupId);
+    if (sellerGroup == null) {
       LOGGER.error(LOG_FMT_2, "allocateGroupAssets AssetGroup not found=", makerOrder);
       return null;
     }
+    final Order sellOrder = (makerOrder.getSide() == Side.SELL) ? makerOrder : takerOrder;
+    final Order buyOrder = (takerOrder.getSide() == Side.SELL) ? makerOrder : takerOrder;
 
-    final int takerUserId = takerOrder.getUser().getId();
-    final int makerUserId = makerOrder.getUser().getId();
+    final int buyerUserId = buyOrder.getUser().getId();
+    final int sellerUserId = sellOrder.getUser().getId();
 
-    if (makerOrder.getQuantityLong() == 0) { // taker filled all of group
-      sellGroup.setOwnerUserId(takerUserId);
-      final Position makerPosition = makerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-      final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
+    if (sellerGroup.getTokenType() == TokenType.ERC20) {
+      AssetGroup buyerAssetGroup = AssetGroupCache.getByUserIdAndERC20Asset(buyerUserId, sellerGroup.getAssetId());
+      if (buyerAssetGroup == null) {
+        buyerAssetGroup = new AssetGroup();
+        buyerAssetGroup.copySet(sellerGroup);
+        //override
+        buyerAssetGroup.setId(0);
+        buyerAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.PUT);
+        buyerAssetGroup.setOwnerUserId(buyerUserId);
+        buyerAssetGroup.setQuantity(0);
+      }
+      sellerGroup.setQuantity(sellerGroup.getQuantity() - quantityFilled);
+      buyerAssetGroup.setQuantity(buyerAssetGroup.getQuantity() + quantityFilled);
+      AssetGroupCache.onModel(buyerAssetGroup);
+      buyOrder.setGroupAssetId(buyerAssetGroup.getId());
+
+      final Position buyerPosition = buyOrder.getUser().getPosition((int) buyerAssetGroup.getSecurityId());
+      buyerPosition.addAssetId(0, 0, buyerAssetGroup.getId());
+
+      matcherToPublisherQueue.add(sellerGroup);
+
+      return buyerAssetGroup;
+    }
+
+    if (sellOrder.getQuantityLong() == 0) { // taker filled all of group
+      sellerGroup.setOwnerUserId(buyerUserId);
+      final Position sellerPosition = sellOrder.getUser().getPosition(sellOrder.getSecurityId());
+      final Position buyerPosition = buyOrder.getUser().getPosition(sellOrder.getSecurityId());
       // update groupId in positions
-      makerPosition.removeAssetId(0, 0, sellGroup.getId());
-      takerPosition.addAssetId(0, 0, sellGroup.getId());
+      sellerPosition.removeAssetId(0, 0, sellerGroup.getId());
+      buyerPosition.addAssetId(0, 0, sellerGroup.getId());
 
-      matcherToPublisherQueue.add(sellGroup);
-      return sellGroup;
+      matcherToPublisherQueue.add(sellerGroup);
+      return sellerGroup;
     }
 
     // split group moving quantityFilled assets to taker group
-    final AssetGroup takerAssetGroup = new AssetGroup();
-    takerAssetGroup.copySet(sellGroup);
-    takerAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
-    takerAssetGroup.setId(0);
-    takerAssetGroup.setGroupAssetId(0);
-    takerAssetGroup.setOwnerUserId(takerUserId);
+    final AssetGroup buyerAssetGroup = new AssetGroup();
+    buyerAssetGroup.copySet(sellerGroup);
+    buyerAssetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.POST);
+    buyerAssetGroup.setId(0);
+    buyerAssetGroup.setOwnerUserId(buyerUserId);
 
-    final ConcurrentSkipListSet<long[]> set = sellGroup.getAssetIdGroupTreeSet();
+    final ConcurrentSkipListSet<long[]> set = sellerGroup.getAssetIdGroupTreeSet();
     long allocated = 0;
     for (; allocated < quantityFilled; allocated++) {
       long[] value = set.pollFirst();
       if (value == null) {
-        LOGGER.error(LOG_FMT_2, "allocateGroupAssets Asset not found=", sellGroup);
+        LOGGER.error(LOG_FMT_2, "allocateGroupAssets Asset not found=", sellerGroup);
         break;
       }
-      takerAssetGroup.addAssetId(value[0], (int) value[1]);
+      buyerAssetGroup.addAssetIdToList(value[0], (int) value[1]);
     }
     // todo is this needed
     if (allocated < quantityFilled) { // try using otherGroups with the same seller and securityId
-      LOGGER.error(LOG_FMT_2, "allocateGroupAssets allocated=", allocated, ", quantityFilled=", quantityFilled, ", sellGroup=", sellGroup);
-      final Collection<AssetGroup> otherGroups = AssetGroupCache.getByUserId(makerUserId, id);
+      LOGGER.error(LOG_FMT_2, "allocateGroupAssets allocated=", allocated, ", quantityFilled=", quantityFilled, ", sellGroup=", sellerGroup);
+      final Collection<AssetGroup> otherGroups = AssetGroupCache.getByUserId(sellerUserId, id);
       for (final AssetGroup otherGroup : otherGroups) {
         final ConcurrentSkipListSet<long[]> set2 = otherGroup.getAssetIdGroupTreeSet();
         for (; allocated < quantityFilled; allocated++) {
@@ -2329,7 +2366,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
             LOGGER.error(LOG_FMT_2, "allocateGroupAssets Asset not found=", otherGroup);
             break;
           }
-          takerAssetGroup.addAssetId(value[0], (int) value[1]);
+          buyerAssetGroup.addAssetIdToList(value[0], (int) value[1]);
         }
         matcherToPublisherQueue.add(otherGroup);
 
@@ -2339,12 +2376,12 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     }
 
     // publish changes
-    AssetGroupCache.onModel(takerAssetGroup);
-    final Position takerPosition = takerOrder.getUser().getPosition((int) sellGroup.getSecurityId());
-    takerPosition.addAssetId(0, 0, takerAssetGroup.getId());
-    matcherToPublisherQueue.add(sellGroup);
+    AssetGroupCache.onModel(buyerAssetGroup);
+    final Position buyerPosition = buyOrder.getUser().getPosition((int) sellerGroup.getSecurityId());
+    buyerPosition.addAssetId(0, 0, buyerAssetGroup.getId());
+    matcherToPublisherQueue.add(sellerGroup);
 
-    return takerAssetGroup;
+    return buyerAssetGroup;
   }
 
   public final void filled(final long quantityFilled, final Order makerOrder, final Order takerOrder, final int orderType) {
@@ -2365,17 +2402,33 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    long takerGroupAssetId = makerOrder.getGroupAssetId();
+/*    long takerGroupAssetId = makerOrder.getGroupAssetId();
     if (makerOrder.getGroupAssetId() > 0) {
       final AssetGroup newAssetGroup = allocateGroupAssets(quantityFilled, makerOrder, takerOrder);
       if (newAssetGroup != null)
-        takerGroupAssetId = newAssetGroup.getGroupAssetId();
+        takerGroupAssetId = newAssetGroup.getId();
+    }*/
+
+    long sellerGroupAssetId = (makerOrder.getSide() == Side.SELL) ? makerOrder.getGroupAssetId() : takerOrder.getGroupAssetId();
+    long buyerGroupAssetId = sellerGroupAssetId;
+    if (sellerGroupAssetId > 0) {
+      final AssetGroup newAssetGroup = allocateGroupAssets(quantityFilled, makerOrder, takerOrder, sellerGroupAssetId);
+      if (newAssetGroup != null) {
+        buyerGroupAssetId = newAssetGroup.getId();
+        LOGGER.info("========= New Group: " + newAssetGroup.toJSON());
+      }
     }
+    LOGGER.info("========= Seller Group: " + sellerGroupAssetId);
+    LOGGER.info("========= Buyer Group: " + buyerGroupAssetId);
+    long makerGroupAssetId = (makerOrder.getSide() == Side.SELL) ? sellerGroupAssetId : buyerGroupAssetId;
+    long takerGroupAssetId = (takerOrder.getSide() == Side.SELL) ? sellerGroupAssetId : buyerGroupAssetId;
+    LOGGER.info("========= Maker Group: " + makerGroupAssetId);
+    LOGGER.info("========= Taker Group: " + takerGroupAssetId);
 
     final ExecutionReportMessage execMaker =
         ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
             quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false,
-            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerGroupAssetId, takerOrder.getSelectId());
     final ExecutionReportMessage execTaker =
         ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
             quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false,
@@ -2402,17 +2455,27 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     final int takerUserId = takerOrder.getUser().getId();
     final int makerUserId = makerOrder.getUser().getId();
 
-    long takerGroupAssetId = makerOrder.getGroupAssetId();
+/*    long takerGroupAssetId = makerOrder.getGroupAssetId();
     if (makerOrder.getGroupAssetId() > 0) {
       final AssetGroup newAssetGroup = allocateGroupAssets(quantityFilled, makerOrder, takerOrder);
       if (newAssetGroup != null)
-        takerGroupAssetId = newAssetGroup.getGroupAssetId();
+        takerGroupAssetId = newAssetGroup.getId();
+    }*/
+
+    long sellerGroupAssetId = (makerOrder.getSide() == Side.SELL) ? makerOrder.getGroupAssetId() : takerOrder.getGroupAssetId();
+    long buyerGroupAssetId = sellerGroupAssetId;
+    if (sellerGroupAssetId > 0) {
+      final AssetGroup newAssetGroup = allocateGroupAssets(quantityFilled, makerOrder, takerOrder, sellerGroupAssetId);
+      if (newAssetGroup != null)
+        buyerGroupAssetId = newAssetGroup.getId();
     }
+    long makerGroupAssetId = (makerOrder.getSide() == Side.SELL) ? sellerGroupAssetId : buyerGroupAssetId;
+    long takerGroupAssetId = (takerOrder.getSide() == Side.SELL) ? sellerGroupAssetId : buyerGroupAssetId;
 
     final ExecutionReportMessage execMaker =
         ExecutionReportMessage.createTradeExecutionReport(makerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
             quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, takerUserId, false,
-            makerOrder.getAssetId(), makerOrder.getTokenId(), makerOrder.getGroupAssetId(), takerOrder.getSelectId());
+            makerOrder.getAssetId(), makerOrder.getTokenId(), makerGroupAssetId, takerOrder.getSelectId());
     final ExecutionReportMessage execTaker =
         ExecutionReportMessage.createTradeExecutionReport(takerOrder, instrumentPair, makerOrder.getPrice(), makerOrder.getPriceScale(),
             quantityFilled, instrumentPair.getQuantityScale(), filledCountGlobal, filledCount, takerOrder, makerUserId, false,
@@ -3949,7 +4012,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         from.setTxType(Constants.TX_FROM_BANKRUPT_REMAINDER);
         from.setTxId(instrumentPair.getId());
         from.addBalance(
-            new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet()));
+            new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
+                0, com.solfini.internal.admin.schema.TokenType.ERC20));
 
         final BalanceAdminMessage to = new BalanceAdminMessage();
         to.setUpdateType(UpdateType.PATCH);
@@ -3961,7 +4025,8 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         to.setTxType(Constants.TX_TO_BANKRUPT_REMAINDER);
         to.setTxId(instrumentPair.getId());
         to.addBalance(
-            new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet()));
+            new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
+                0, com.solfini.internal.admin.schema.TokenType.ERC20));
 
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug(LOG_FMT_4, "liquidation2 balanceTransferRemainingCollateral=", USER_EQ, user, ", from=", from, ", to=", to);

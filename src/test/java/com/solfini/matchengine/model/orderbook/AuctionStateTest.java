@@ -7,6 +7,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.TimeEventGeneratorThread;
 import com.solfini.matchengine.message.admin.ExpireContractMessage;
@@ -144,11 +145,11 @@ public class AuctionStateTest extends OrderBookTest {
   @Test
   public void testOpenAuctionWithOrders() {
     try {
-      user.setPosition(USDT, 100_00000000L, null);
-      user.setPosition(BTC_USDT_DF, 0, null);
+      user.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user.setPosition(BTC_USDT_DF, 0, null, 0, null, TokenType.ERC20);
 
-      user2.setPosition(USDT, 100_00000000L, null);
-      user2.setPosition(BTC_USDT_DF, 0, null);
+      user2.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user2.setPosition(BTC_USDT_DF, 0, null, 0, null, TokenType.ERC20);
 
       long now = System.currentTimeMillis();
       final InstrumentPair pair = InstrumentCache.getPair(BTC_USDT);

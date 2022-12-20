@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
+import com.solfini.internal.admin.schema.TokenType;
 import org.slf4j.event.Level;
 import org.junit.Before;
 import org.junit.Test;
@@ -110,8 +111,8 @@ public class UserTest implements Constants {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    Position position = user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    Position position = user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
 
@@ -172,15 +173,15 @@ public class UserTest implements Constants {
     createCarbonInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
     Set<long[]> assetIdTreeSet = new HashSet<>();
     long[] token = {100l, 1};
     assetIdTreeSet.add(token);
     token = new long[]{100l, 2};
     assetIdTreeSet.add(token);
-    Position position = user.addPosition(228, 1, assetIdTreeSet);
+    Position position = user.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);
     user.setActive(true);
-    user.addPosition(228, 1, assetIdTreeSet);
+    user.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);
     user.setActive(true);
 
     BalanceAdminMessage balanceAdminMessage = user.buildBalanceAdminMessage();

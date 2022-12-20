@@ -7,6 +7,7 @@ import com.solfini.common.Message;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
@@ -63,10 +64,11 @@ public class RiskTest extends OrderBookTest {
     instrumentPair = InstrumentCache.getPair(BTC_USDT_F);
     Assert.assertNotNull(instrumentPair);
 
-    user100 = createUser(USER_ID_ONE, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
-    user101 = createUser(USER_ID_TWO, new Balance(BTC, 40, 0, 0, 0, null), new Balance(USDT, 40, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, 40, 0, 0, 0, null));
+    user100 = createUser(USER_ID_ONE, new Balance(BTC, 200, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(USDT, 200, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null,0, TokenType.ERC20));
+    user101 = createUser(USER_ID_TWO, new Balance(BTC, 40, 0, 0, 0, null,0, TokenType.ERC20), new Balance(USDT, 40, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, 40, 0, 0, 0, null,0, TokenType.ERC20));
 
     expectMessage("userId=100");
     expectMessage("userId=101");
@@ -125,8 +127,8 @@ public class RiskTest extends OrderBookTest {
   }
 
   protected User nextUser() {
-    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null), new Balance(USDT, 200, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, 200, 0, 0, 0, null));
+    User user = createUser(nextUserId++, new Balance(BTC, 200, 0, 0, 0, null,0, TokenType.ERC20), new Balance(USDT, 200, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, 200, 0, 0, 0, null,0, TokenType.ERC20));
 
     expectMessage("UserAdminMessage", "userId=" + user.getId());
     assertMessages();
@@ -160,8 +162,8 @@ public class RiskTest extends OrderBookTest {
   }
 
   protected void resetBalance(User user) {
-    updateBalance(user, UpdateType.PUT, new Balance(BTC, 0, 0, 0, 0, null), new Balance(USDT, 0, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, 0, 0, 0, 0, null));
+    updateBalance(user, UpdateType.PUT, new Balance(BTC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(USDT, 0, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, 0, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=" + user.getId());
     assertMessages();
 

@@ -3,6 +3,8 @@ package com.solfini.matchengine.message;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Assert;
 import org.junit.Before;
@@ -101,7 +103,7 @@ public class EncodeDecodeTest extends ModelTest {
 
     pair = InstrumentCache.getPair(BTC_USDT_F);
     user = createUser(38);
-    user.addPosition(pair.getId(), 10_000, null);
+    user.addPosition(pair.getId(), 10_000, null, 0, TokenType.ERC20);
     expectMessage("userId=38");
     assertMessages();
   }

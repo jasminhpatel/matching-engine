@@ -1161,3 +1161,5 @@ CREATE TABLE AML_LOG(
 
 alter table USER_STATE add subscribeRFQ SMALLINT DEFAULT 0;
 
+alter table asset_state add tokenType SMALLINT DEFAULT 0;
+

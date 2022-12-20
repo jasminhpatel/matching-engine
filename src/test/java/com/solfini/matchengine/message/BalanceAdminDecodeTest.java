@@ -10,6 +10,7 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.SnapResponseAdminMessageEncoder;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.PublisherEncoderCache;
 import com.solfini.matchengine.drmode.PositionReportParser;
 import com.solfini.matchengine.kafka.KafkaPublisher;
@@ -148,8 +149,8 @@ public class BalanceAdminDecodeTest {
     InstrumentCache.addInstrument(base);
     InstrumentCache.addPair(instrumentPair);
 
-    user.addPosition(0, 1000000000, null);
-    user.addPosition(1, 1000000000, null);
+    user.addPosition(0, 1000000000, null, 0, TokenType.ERC20);
+    user.addPosition(1, 1000000000, null, 0, TokenType.ERC20);
 
     TreeSet assetIdTreeSet = new TreeSet<>(assetIdComparator);
     assetIdTreeSet.add(new long[] {101, 1, 0});
@@ -158,7 +159,7 @@ public class BalanceAdminDecodeTest {
     assetIdTreeSet.add(new long[] {104, 4, 0});
     assetIdTreeSet.add(new long[] {105, 5, 0});
 
-    user.addPosition(228, 1, assetIdTreeSet);
+    user.addPosition(228, 1, assetIdTreeSet, 0, TokenType.ERC20);
   }
 
   @Test

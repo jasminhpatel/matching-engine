@@ -7,6 +7,7 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.message.admin.CollateralSwapMessage;
@@ -51,7 +52,7 @@ public class CollateralSwapMessageTest extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDC, USDC_BALANCE * USDC_SCALE_MULT, null);
+      user.addPosition(USDC, USDC_BALANCE * USDC_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
 
@@ -173,8 +174,8 @@ public class CollateralSwapMessageTest extends OrderBookTest {
   }
 
   private static void setPositions(final User user, final long usdc, final long btc) {
-    user.setPosition(USDC, usdc, null);
-    user.setPosition(BTC, btc, null);
+    user.setPosition(USDC, usdc, null, 0, null, TokenType.ERC20);
+    user.setPosition(BTC, btc, null, 0, null, TokenType.ERC20);
   }
 
   private static void assertPosition(final User user, final int instrumentId, final long quantity, final long available) {

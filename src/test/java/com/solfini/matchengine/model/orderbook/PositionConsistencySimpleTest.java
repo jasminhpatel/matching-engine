@@ -7,6 +7,7 @@ import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.Position;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.ArrayOrderBook;
@@ -31,7 +32,7 @@ public class PositionConsistencySimpleTest extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }

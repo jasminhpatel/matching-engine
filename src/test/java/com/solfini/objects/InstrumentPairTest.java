@@ -3,6 +3,7 @@ package com.solfini.objects;
 import com.solfini.instrument.*;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
@@ -90,8 +91,8 @@ public class InstrumentPairTest {
     InstrumentCache.addPair(pair);
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
     assertEquals(pair.getBase(), spy);

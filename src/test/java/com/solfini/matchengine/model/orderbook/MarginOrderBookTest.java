@@ -3,6 +3,7 @@ package com.solfini.matchengine.model.orderbook;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import org.junit.Test;
@@ -60,11 +61,11 @@ public class MarginOrderBookTest extends OrderBookTest {
     orderBook.setMark(125_000);
     base.setIndexFeedUsdMark(6_000);
 
-    user1.setPosition(USDT, 1_000_000, null);
-    user1.setPosition(BTC, 5_000, null);
-    user1.setPosition(BTC_USDT_F, 300, null);
-    user2.setPosition(USDT, 1_000_000, null);
-    user2.setPosition(BTC, 5_000, null);
+    user1.setPosition(USDT, 1_000_000, null, 0, null, TokenType.ERC20);
+    user1.setPosition(BTC, 5_000, null, 0, null, TokenType.ERC20);
+    user1.setPosition(BTC_USDT_F, 300, null, 0, null, TokenType.ERC20);
+    user2.setPosition(USDT, 1_000_000, null, 0, null, TokenType.ERC20);
+    user2.setPosition(BTC, 5_000, null, 0, null, TokenType.ERC20);
 
     int orderId = 0;
     orderBook.setMark(120_000);
@@ -142,11 +143,11 @@ public class MarginOrderBookTest extends OrderBookTest {
     orderBook.setMark(125_000);
     base.setIndexFeedUsdMark(6_000);
 
-    user1.setPosition(USDT, 1_000_000, null);
-    user1.setPosition(BTC, 5_000, null);
-    user1.setPosition(BTC_USDT_F, 300, null);
-    user2.setPosition(USDT, 1_000_000, null);
-    user2.setPosition(BTC, 5_000, null);
+    user1.setPosition(USDT, 1_000_000, null, 0, null, TokenType.ERC20);
+    user1.setPosition(BTC, 5_000, null, 0, null, TokenType.ERC20);
+    user1.setPosition(BTC_USDT_F, 300, null, 0, null, TokenType.ERC20);
+    user2.setPosition(USDT, 1_000_000, null, 0, null, TokenType.ERC20);
+    user2.setPosition(BTC, 5_000, null, 0, null, TokenType.ERC20);
 
     preOrderCheck.updateRisk(user, null);
     System.out.println("user=" + user);

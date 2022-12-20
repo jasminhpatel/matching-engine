@@ -1,6 +1,7 @@
 package com.solfini.matchengine.model.risk;
 
 import com.solfini.instrument.Balance;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.risk.UserRiskCache;
 import com.solfini.user.User;
@@ -164,8 +165,8 @@ public class RiskCalculationTest extends RiskTest {
     double instrumentQtyScaleFactor = 0.01;
     setIndexFeedUsdMark(btcMark, usdtMark, contractMark);
 
-    User user = nextUser(new Balance(BTC, btcPosition, 0, 0, 0, null), new Balance(USDT, usdtPosition, 0, 0, 0, null),
-        new Balance(BTC_USDT_F, btcusdtPosition, 0, 0, 0, null));
+    User user = nextUser(new Balance(BTC, btcPosition, 0, 0, 0, null,0, TokenType.ERC20), new Balance(USDT, usdtPosition, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, btcusdtPosition, 0, 0, 0, null,0, TokenType.ERC20));
     // TODO Add control user at various buckets
 
     assertPositions(user, (long) (btcPosition / instrumentQtyScaleFactor), (long) (usdtPosition / instrumentQtyScaleFactor),
@@ -207,7 +208,7 @@ public class RiskCalculationTest extends RiskTest {
     // Assert.assertEquals(((500_000) * 500 * .0001 ) + ((4950 * 20000 * 0.01 * 1 - 500_000) * 500 * .0001 ) * 2 ,
     // user.getUsdMarginRequiredValue(), 2);
 
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, balanceUpdateQty, 0, null));
+    updateBalance(user, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, balanceUpdateQty, 0, null,0, TokenType.ERC20));
     expectMessage("BalanceAdminMessage", "userId=" + user.getId() + ", updateType=PATCH, assetId=" + BTC_USDT_F + ", balance="
         + (btcusdtPosition + balanceUpdateQty) + ", balance_change=" + balanceUpdateQty);
 

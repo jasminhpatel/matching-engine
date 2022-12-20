@@ -12,6 +12,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.internal.LiquidationOrder;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
@@ -368,7 +369,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       // calc open orders required
       Position position = user.getPosition(order.getSecurityId());
       if (position == null)
-        position = user.setPosition(order.getSecurityId(), 0, null);
+        position = user.setPosition(order.getSecurityId(), 0, null, 0, null, TokenType.ERC20);
       final UserOpenOrdersByPair userOpenOrdersByPair = position.getUserOpenOrdersByPair();
 
       if (order.isReduceOnly() && !checkReduceOnlyOrder(order, referencePrice, position)) {
@@ -429,7 +430,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       User user = order.getUser();
       Position position = user.getPosition(order.getSecurityId());
       if (position == null) {
-        position = user.setPosition(order.getSecurityId(), 0, null);
+        position = user.setPosition(order.getSecurityId(), 0, null, 0, null, TokenType.ERC20);
       }
 
       UserOpenOrdersByPair userOpenOrdersByPair = position.getUserOpenOrdersByPair();
@@ -886,7 +887,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       }
       Position postion = user.getPosition(order.getSecurityId());
       if (postion == null)
-        postion = user.setPosition(order.getSecurityId(), 0, null);
+        postion = user.setPosition(order.getSecurityId(), 0, null, 0, null, TokenType.ERC20);
       final UserOpenOrdersByPair userOpenOrdersByPair = postion.getUserOpenOrdersByPair();
       userOpenOrdersByPair.remove(order);
       userOpenOrdersByPair.calcNotionalRequiredMargin(usdMark);

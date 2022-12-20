@@ -17,7 +17,7 @@ import com.solfini.user.UserOpenOrdersByPair;
  * @author Chris Mack
  *
  */
-public class Position implements Appendable, Constants {
+public class  Position implements Appendable, Constants {
   private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
   public static final int DEFAULT_COST_BASIS_SCALE = 6;
   public static final int DEFAULT_COST_BASIS_SCALE_MULT = 1_000_000;

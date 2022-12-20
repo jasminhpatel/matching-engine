@@ -3491,7 +3491,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         from.setTxType(Constants.TX_FROM_BANKRUPT_REMAINDER);
         from.setTxId(instrumentPair.getId());
         from.addBalance(
-            new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet()));
+            new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
+                0, null));
 
         final BalanceAdminMessage to = new BalanceAdminMessage();
         to.setUpdateType(UpdateType.PATCH);
@@ -3503,7 +3504,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         to.setTxType(Constants.TX_TO_BANKRUPT_REMAINDER);
         to.setTxId(instrumentPair.getId());
         to.addBalance(
-            new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet()));
+            new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
+                0, null));
 
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug(LOG_FMT_4, "liquidation2 balanceTransferRemainingCollateral=", USER_EQ, user, ", from=", from, ", to=", to);

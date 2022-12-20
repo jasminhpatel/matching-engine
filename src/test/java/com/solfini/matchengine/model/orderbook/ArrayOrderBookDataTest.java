@@ -6,6 +6,7 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.BusinessRejectMessage;
@@ -102,10 +103,10 @@ public class ArrayOrderBookDataTest {
     InstrumentCache.addPair(instrumentPair);
 
 
-    user1.addPosition(1, 1000000000, null);
-    user2.addPosition(1, 1000000000, null);
+    user1.addPosition(1, 1000000000, null, 0, TokenType.ERC20);
+    user2.addPosition(1, 1000000000, null, 0, TokenType.ERC20);
 
-    user2.addPosition(3, 20, null);
+    user2.addPosition(3, 20, null, 0, TokenType.ERC20);
   }
 
 

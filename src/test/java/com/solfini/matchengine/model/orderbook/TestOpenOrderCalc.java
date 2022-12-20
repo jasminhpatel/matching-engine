@@ -5,6 +5,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -31,8 +32,8 @@ public class TestOpenOrderCalc extends OrderBookTest {
     InstrumentCache.addPair(pair);
 
     User user = new User(18);
-    Position position = user.setPosition(1, 10_000_000_000_000L, null);
-    Position position2 = user.setPosition(14, 20_000_000, null);
+    Position position = user.setPosition(1, 10_000_000_000_000L, null, 0, null, TokenType.ERC20);
+    Position position2 = user.setPosition(14, 20_000_000, null, 0, null, TokenType.ERC20);
     UserOpenOrdersByPair userOpenOrdersByPair = position2.getUserOpenOrdersByPair();
     MarginPreOrderCheckAndSettle marginPreOrderCheck = new MarginPreOrderCheckAndSettle();
     // position.getUserOpenOrdersByPair()

@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
+import com.solfini.internal.admin.schema.TokenType;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 import static com.solfini.instrument.Position.assetIdComparator;
 
@@ -35,6 +36,8 @@ public class Balance implements Appendable, Constants {
   private double settleCoinRealized;
 
   private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId, groupAssetId]
+  private long assetId2;//ERC20 type assets
+  private TokenType tokenType;
 
 
   public Balance() {}
@@ -68,21 +71,27 @@ public class Balance implements Appendable, Constants {
   }
 
   public Balance(final int assetId, final long balance, final int balance_scale, final long balance_change, final int balance_change_scale,
-      final Set<long[]> sourceAssetIdtreeSet) {
+      final Set<long[]> sourceAssetIdtreeSet, final long assetId2, final TokenType tokenType) {
     this.assetId = assetId;
     this.balanceAmount.value(balance);
     this.balanceAmount.scale(balance_scale);
     this.balanceChange.value(balance_change);
     this.balanceChange.scale(balance_change_scale);
     this.hasPositionBasisData = false;
+    this.tokenType = tokenType;
 
-    if (sourceAssetIdtreeSet != null) {
-      if (this.assetIdtreeSet == null) {
-        this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
-      }
-      this.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
-    } else
-      this.assetIdtreeSet = null;
+    if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+      this.assetId2 = assetId2;
+
+    } else {
+      if (sourceAssetIdtreeSet != null) {
+        if (this.assetIdtreeSet == null) {
+          this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+        }
+        this.assetIdtreeSet.addAll(sourceAssetIdtreeSet);
+      } else
+        this.assetIdtreeSet = null;
+    }
   }
 
   public final void set(final Position position, final int scale) {
@@ -272,6 +281,22 @@ public class Balance implements Appendable, Constants {
 
     final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.remove(value);
+  }
+
+  public long getAssetId2() {
+    return assetId2;
+  }
+
+  public void setAssetId2(final long assetId2) {
+    this.assetId2 = assetId2;
+  }
+
+  public TokenType getTokenType() {
+    return tokenType;
+  }
+
+  public void setTokenType(final TokenType tokenType) {
+    this.tokenType = tokenType;
   }
 
   @Override

@@ -4,6 +4,7 @@ import com.solfini.instrument.Fee;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import org.junit.Test;
@@ -40,8 +41,8 @@ public class OrderBookCashPreOrderCheckMarketOrderTest extends OrderBookTest {
   @Override
   protected void createUsers() {
     super.createUsers();
-    user.addPosition(BTC, 10_000_00, null);
-    user2.addPosition(BTC, 10_000_00, null);
+    user.addPosition(BTC, 10_000_00, null, 0, TokenType.ERC20);
+    user2.addPosition(BTC, 10_000_00, null, 0, TokenType.ERC20);
   }
 
   // Add buy order without enough funds, assert business reject

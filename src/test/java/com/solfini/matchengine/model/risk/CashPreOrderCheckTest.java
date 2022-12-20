@@ -5,6 +5,7 @@ import com.solfini.instrument.Fee;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.model.orderbook.OrderBookTest;
 import com.solfini.matchengine.orderbook.ArrayOrderBook;
@@ -179,8 +180,8 @@ public class CashPreOrderCheckTest extends OrderBookTest {
       boolean expectReject) {
     int feeInstrument = setFeeInstrument(side, feeInstrumentId);
 
-    User user = createUser(userId, new Balance(BTC, btcPosition, 2, 0, 0, null), new Balance(USDT, usdtPosition, 2, 0, 0, null),
-        new Balance(BTC_USDT_F, btcusdtPosition, 2, 0, 0, null), new Balance(ETH, btcusdtPosition, 2, 0, 0, null));
+    User user = createUser(userId, new Balance(BTC, btcPosition, 2, 0, 0, null, 0, TokenType.ERC20), new Balance(USDT, usdtPosition, 2, 0, 0, null, 0, TokenType.ERC20),
+        new Balance(BTC_USDT_F, btcusdtPosition, 2, 0, 0, null, 0, TokenType.ERC20), new Balance(ETH, btcusdtPosition, 2, 0, 0, null, 0, TokenType.ERC20));
     user.getPosition(BTC_USDT_F).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDT_F));
     expectMessage("UserAdminMessage", "userId=" + userId);
     assertMessages();

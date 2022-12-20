@@ -7,6 +7,8 @@ import static com.solfini.sbe.encoder.TimeInForce.IMMEDIATE_OR_CANCEL;
 import static com.solfini.sbe.encoder.TimeInForce.POST_ONLY;
 import java.util.ArrayList;
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.common.Context;
@@ -43,7 +45,7 @@ public class StateConsistencyTest2 extends OrderBookTest {
       final int userId = USER_START + i;
       final User user = createUser(userId);
       user.setFeeTier(random.nextInt(5));
-      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT, null);
+      user.addPosition(USDT, USDT_BALANCE * USDT_QTY_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }

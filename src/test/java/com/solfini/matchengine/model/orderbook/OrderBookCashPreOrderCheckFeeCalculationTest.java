@@ -6,6 +6,7 @@ import com.solfini.instrument.Fee;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
@@ -49,13 +50,13 @@ public class OrderBookCashPreOrderCheckFeeCalculationTest extends OrderBookTest 
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
+    user = createUser(18, new Balance(USDC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 0, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
+    user2 = createUser(19, new Balance(USDC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 0, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null));
+    user3 = createUser(20, new Balance(USDC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 0, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=20");
 
     user.getPosition(BTC_USDC).getUserOpenOrdersByPair().set(user, InstrumentCache.getPair(BTC_USDC));

@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -89,8 +91,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
 
@@ -115,8 +117,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
 
@@ -144,8 +146,8 @@ public class InstrumentTest {
     createInstruments();
 
     final User user = createUser(18);
-    user.addPosition(1, 10_000_000, null);
-    user.addPosition(14, 1_000_000, null);
+    user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
+    user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
     user.setActive(true);
 
 

@@ -5,6 +5,7 @@ import com.solfini.instrument.Fee;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.FeeType;
 import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import org.junit.Assert;
@@ -42,10 +43,10 @@ public class OrderBookCashPreOrderCheckTest4 extends OrderBookTest {
 
   @Override
   protected void createUsers() {
-    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
+    user = createUser(18, new Balance(USDT, 50000, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 1000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=18");
 
-    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null));
+    user2 = createUser(19, new Balance(USDT, 50000, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 1000, 0, 0, 0, null,0, TokenType.ERC20));
     expectMessage("userId=19");
   }
 

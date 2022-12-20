@@ -8,6 +8,8 @@ import static com.solfini.common.Constants.STOP_BUY_LIMIT;
 import static com.solfini.common.Constants.STOP_SELL_LIMIT;
 import java.text.NumberFormat;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -94,8 +96,8 @@ public class MarginTest {
     InstrumentCache.addInstrument(base);
     InstrumentCache.addPair(pair);
 
-    Position position1 = user1.setPosition(1, 999999_00000000L, null);
-    Position position2 = user2.setPosition(1, 160_000_000_000L, null);
+    Position position1 = user1.setPosition(1, 999999_00000000L, null, 0, null, TokenType.ERC20);
+    Position position2 = user2.setPosition(1, 160_000_000_000L, null, 0, null, TokenType.ERC20);
   }
 
   @Test

@@ -4,6 +4,7 @@ import com.solfini.common.MessageType;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.user.UserCache;
@@ -41,7 +42,7 @@ public class CommonTests extends IntegrationTest {
           + "firmId=0, feeTier=1, status=0, accountType=0, lmm=false, routeToDestination=, useDiscountFeesCoin=false");
     }
 
-    publisher.send(balanceAdminMessage(101, 1, 1, 1, new Balance(1, 50_000, 2, 0, 0, null)));
+    publisher.send(balanceAdminMessage(101, 1, 1, 1, new Balance(1, 50_000, 2, 0, 0, null, 0, TokenType.ERC20)));
     primary.expectMessage("BalanceAdminMessage", "userType=0, updateType=PUT, userId=101, firmId=0, txType=0, txId=0, feeTier=0");
   }
 

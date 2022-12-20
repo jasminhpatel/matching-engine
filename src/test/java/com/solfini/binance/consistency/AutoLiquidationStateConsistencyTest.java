@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.agrona.concurrent.NoOpIdleStrategy;
 import org.junit.Assert;
 import org.junit.Test;
@@ -59,7 +61,7 @@ public class AutoLiquidationStateConsistencyTest extends BinanceOrderBookTest {
         user.setFeeTier(random.nextInt(5));
       }
 
-      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null);
+      user.addPosition(USDC, USDC_BALANCE * QTY_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }
@@ -210,7 +212,7 @@ public class AutoLiquidationStateConsistencyTest extends BinanceOrderBookTest {
           balanceAdminMessage.setUpdateType(UpdateType.PUT);
           balanceAdminMessage.setUserId(user.getId());
           balanceAdminMessage.setTxType(TX_ADJUSTMENT);
-          balanceAdminMessage.addBalance(new Balance(USDC, 0, 0, 0, 0, null));
+          balanceAdminMessage.addBalance(new Balance(USDC, 0, 0, 0, 0, null,0, TokenType.ERC20));
           UserCache.addBalance(balanceAdminMessage);
 
           final List<Order> liquidationOrders = new ArrayList<Order>();

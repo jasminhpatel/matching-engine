@@ -6,6 +6,7 @@ import com.solfini.instrument.AssetFundingRate;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.ExpireContractMessage;
 import com.solfini.matchengine.message.internal.Order;
@@ -158,11 +159,11 @@ public class ExpireContractMessageScale8Test extends OrderBookTest {
   @Test
   public void testExpireDatedFutureContractMessageWithOrders() {
     try {
-      user.setPosition(USDT, 100_00000000L, null);
-      user.setPosition(BTC_USDT_DF, 0, null);
+      user.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user.setPosition(BTC_USDT_DF, 0, null, 0, null, TokenType.ERC20);
 
-      user2.setPosition(USDT, 100_00000000L, null);
-      user2.setPosition(BTC_USDT_DF, 0, null);
+      user2.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user2.setPosition(BTC_USDT_DF, 0, null, 0, null, TokenType.ERC20);
 
       long now = System.currentTimeMillis();
       final InstrumentPair pair = InstrumentCache.getPair(BTC_USDT_DF);
@@ -217,11 +218,11 @@ public class ExpireContractMessageScale8Test extends OrderBookTest {
   @Test
   public void testExpireCallOptionContractMessageWithOrders() {
     try {
-      user.setPosition(USDT, 100_00000000L, null);
-      user.setPosition(BTC_USDT_CALL_6000, 0, null);
+      user.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user.setPosition(BTC_USDT_CALL_6000, 0, null, 0, null, TokenType.ERC20);
 
-      user2.setPosition(USDT, 100_00000000L, null);
-      user2.setPosition(BTC_USDT_CALL_6000, 0, null);
+      user2.setPosition(USDT, 100_00000000L, null, 0, null, TokenType.ERC20);
+      user2.setPosition(BTC_USDT_CALL_6000, 0, null, 0, null, TokenType.ERC20);
 
       long now = System.currentTimeMillis();
       final InstrumentPair pair = InstrumentCache.getPair(BTC_USDT_CALL_6000);

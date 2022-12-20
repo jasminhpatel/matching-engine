@@ -5,6 +5,7 @@ import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.ExpireContractMessage;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
@@ -59,18 +60,18 @@ public class ExpiryTest extends OrderBookTest {
 
   @Override
   protected void createUsers() {
-    user1 = createUser(18, new Balance(USDC, 1000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null),
-        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
+    user1 = createUser(18, new Balance(USDC, 1000, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 1000, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null,0, TokenType.ERC20));
     user1.setOpenOrderCount(0);
     expectMessage("userId=18");
 
     user2 =
-        createUser(19, new Balance(USDC, 0, 0, 0, 0, null), new Balance(BTC, 0, 0, 0, 0, null), new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
+        createUser(19, new Balance(USDC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 0, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC_USDC_DF, 0, 0, 0, 0, null,0, TokenType.ERC20));
     user2.setOpenOrderCount(0);
     expectMessage("userId=19");
 
-    user3 = createUser(20, new Balance(USDC, 1000, 0, 0, 0, null), new Balance(BTC, 1000, 0, 0, 0, null),
-        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null));
+    user3 = createUser(20, new Balance(USDC, 1000, 0, 0, 0, null,0, TokenType.ERC20), new Balance(BTC, 1000, 0, 0, 0, null,0, TokenType.ERC20),
+        new Balance(BTC_USDC_DF, 0, 0, 0, 0, null,0, TokenType.ERC20));
     user3.setOpenOrderCount(0);
     expectMessage("userId=20");
 

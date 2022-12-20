@@ -8,6 +8,7 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.risk.InsuranceState;
@@ -53,7 +54,7 @@ public class OrderBookMarginCalcWithSpotTest5 extends OrderBookTest {
     for (int i = 0; i < USER_COUNT; i++) {
       final int userId = USER_START + i;
       final User user = createUser(userId);
-      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null);
+      user.addPosition(USDT, USDT_BALANCE * USDT_SCALE_MULT, null, 0, TokenType.ERC20);
       expectMessage("userId=" + userId);
     }
   }
@@ -178,23 +179,23 @@ public class OrderBookMarginCalcWithSpotTest5 extends OrderBookTest {
 
       InstrumentPair spotPair = InstrumentCache.getPair(BTC_USDT);
       user = createUser(24);
-      user.setPosition(spotPair.getQuotedId(), 100000_00000000L, null); // $100,000
-      user.setPosition(BTC_USDT_F, 0, null); // 0
-      user.setPosition(BTC_USDT_F, 0, null); // 0
+      user.setPosition(spotPair.getQuotedId(), 100000_00000000L, null, 0, null, TokenType.ERC20); // $100,000
+      user.setPosition(BTC_USDT_F, 0, null, 0, null, TokenType.ERC20); // 0
+      user.setPosition(BTC_USDT_F, 0, null, 0, null, TokenType.ERC20); // 0
 
       expectMessage("userId=18");
       expectOutput("userId=18");
 
       user2 = createUser(25);
-      user2.setPosition(USDT, 200000000_00000000L, null); // $200,000
-      user2.setPosition(BTC, 200000_00000000L, null); // $200,000
-      user2.setPosition(BTC_USDT_F, 0, null); // 0
+      user2.setPosition(USDT, 200000000_00000000L, null, 0, null, TokenType.ERC20); // $200,000
+      user2.setPosition(BTC, 200000_00000000L, null, 0, null, TokenType.ERC20); // $200,000
+      user2.setPosition(BTC_USDT_F, 0, null, 0, null, TokenType.ERC20); // 0
       expectMessage("userId=19");
       expectOutput("userId=19");
 
       user3 = createUser(26);
-      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L, null); // $300,000
-      user3.setPosition(BTC_USDT_F, 0, null); // 0
+      user3.setPosition(spotPair.getQuotedId(), 300000_00000000L, null, 0, null, TokenType.ERC20); // $300,000
+      user3.setPosition(BTC_USDT_F, 0, null, 0, null, TokenType.ERC20); // 0
       InsuranceState.setUser(user3);
 
       long now = System.currentTimeMillis();

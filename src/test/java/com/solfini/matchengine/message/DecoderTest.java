@@ -3,6 +3,8 @@ package com.solfini.matchengine.message;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -88,7 +90,7 @@ public class DecoderTest extends MessageTest {
   public void measurePositionReportDecoderPerformance() {
     final User user = new User(18);
     for (int i = 0; i < user.getPositionArr().length; ++i) {
-      user.addPosition(i, i % 2 == 0 ? 0 : 100, null);
+      user.addPosition(i, i % 2 == 0 ? 0 : 100, null, 0, TokenType.ERC20);
     }
 
     final PositionReportMessage positionReport = makePositionReport(user);

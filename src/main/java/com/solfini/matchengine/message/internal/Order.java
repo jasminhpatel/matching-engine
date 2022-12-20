@@ -10,6 +10,7 @@ import com.solfini.common.MessageType;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -480,7 +481,7 @@ public class Order extends Message implements Constants {
         // calc open orders required
         Position position = user.getPositionArr()[securityId];
         if (position == null)
-          position = user.setPosition(securityId, 0, null);
+          position = user.setPosition(securityId, 0, null, 0, null, TokenType.ERC20);
 
         if (Side.BUY == side) {
           if (position.getQuantity() >= 0) {

@@ -1,6 +1,8 @@
 package com.solfini.matchengine.model.orderbook;
 
 import java.util.Properties;
+
+import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Test;
 import com.solfini.instrument.InstrumentCache;
@@ -47,17 +49,17 @@ public class OrderBookSettleOrder8Test extends OrderBookTest {
 
   protected void createUsers() {
     user = createUser(18);
-    user.addPosition(pair.getQuotedId(), 1_00000000, null);
+    user.addPosition(pair.getQuotedId(), 1_00000000, null, 0, TokenType.ERC20);
     expectMessage("userId=18");
     expectOutput("userId=18");
 
     user2 = createUser(19);
-    user2.addPosition(pair.getQuotedId(), 1_00000000, null);
+    user2.addPosition(pair.getQuotedId(), 1_00000000, null, 0, TokenType.ERC20);
     expectMessage("userId=19");
     expectOutput("userId=19");
 
     user3 = createUser(20);
-    user3.addPosition(pair.getQuotedId(), 1_00000000, null);
+    user3.addPosition(pair.getQuotedId(), 1_00000000, null, 0, TokenType.ERC20);
     expectMessage("userId=20");
     expectOutput("userId=20");
   }

@@ -1,6 +1,7 @@
 package com.solfini.matchengine.model.orderbook;
 
 import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.user.User;
 import org.junit.Assert;
@@ -183,7 +184,7 @@ public class OrderBookOutOfBoundsOrderTest extends OrderBookTest {
   public void updateRiskOnOutOfBoundsOrders() {
 
     User newUser = createUser(28);
-    newUser.addPosition(pair.getId(), 10_000, null);
+    newUser.addPosition(pair.getId(), 10_000, null, 0, TokenType.ERC20);
     expectMessage("userId=28");
 
     newUser.setUsdValue(0.0); // set USD value to zero

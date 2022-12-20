@@ -16,9 +16,12 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.RequestStatus;
+import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
+import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.matchengine.message.outbound.PositionReportMessage;
@@ -205,7 +208,11 @@ public class User implements Appendable, Serializable, Constants {
         long quantityLong = quantityDecimal.value();
         final int quantityScale = quantityDecimal.scale();
         final Instrument instrument = InstrumentCache.get(balance.getAssetId());
+        final TokenType tokenType = balance.getTokenType();
+        String name = null;
+
         if (instrument != null) {
+          name = instrument.getName();
           if (instrument.getQuantityScale() > quantityScale) {
             for (int i = 0; i < (instrument.getQuantityScale() - quantityScale); i++)
               quantityLong = quantityLong * 10;
@@ -216,6 +223,7 @@ public class User implements Appendable, Serializable, Constants {
         } else {
           final InstrumentPair pair = InstrumentCache.getPair(balance.getAssetId());
           if (null != pair) {
+            name = pair.getName();
             if (pair.getQuantityScale() > quantityScale) {
               for (int i = 0; i < (pair.getQuantityScale() - quantityScale); i++)
                 quantityLong = quantityLong * 10;
@@ -226,7 +234,7 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+        setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), name, tokenType);
       }
     }
   }
@@ -292,7 +300,7 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       }
     }
   }
@@ -310,7 +318,10 @@ public class User implements Appendable, Serializable, Constants {
         long quantityLong = quantityDecimal.value();
         final int quantityScale = quantityDecimal.scale();
         final Instrument instrument = InstrumentCache.get(balance.getAssetId());
+        final TokenType tokenType = balance.getTokenType();
+        String name = null;
         if (instrument != null) {
+          name = instrument.getName();
           if (instrument.getQuantityScale() > quantityScale) {
             for (int i = 0; i < (instrument.getQuantityScale() - quantityScale); i++)
               quantityLong = quantityLong * 10;
@@ -321,6 +332,7 @@ public class User implements Appendable, Serializable, Constants {
         } else {
           final InstrumentPair pair = InstrumentCache.getPair(balance.getAssetId());
           if (null != pair) {
+            name = pair.getName();
             if (pair.getQuantityScale() > quantityScale) {
               for (int i = 0; i < (pair.getQuantityScale() - quantityScale); i++)
                 quantityLong = quantityLong * 10;
@@ -331,7 +343,9 @@ public class User implements Appendable, Serializable, Constants {
           }
         }
 
-        final Position position = setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+        final Position position = setPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId(), name,
+            tokenType);
+
         position.setUsdUnrealized(balance.getUsdUnrealized());
         position.setUsdRealized(balance.getUsdRealized());
         position.setUsdAvgCostBasisDouble(balance.getUsdAvgCostBasis());
@@ -365,7 +379,6 @@ public class User implements Appendable, Serializable, Constants {
     } else if (balanceAdminMessage.getTxType() == 2) {
       balanceAdminMessage.setTxType(TX_WITHDRAW);
     }
-
     if (quantityLong <= 0 && Context.isEnableBalanceWithdrawExactLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       // if withdrawing with limits, must be exact don't reduce amounts
       final Position position = getPosition(balance.getAssetId());
@@ -382,7 +395,7 @@ public class User implements Appendable, Serializable, Constants {
         tempQuantityLong = 0;
 
       if (tempQuantityLong == quantityLong) // accepted
-        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       else { // rejected
         quantityLong = 0;
         balanceAdminMessage.setTxType(TX_ADMIN_WITHDRAW_REJECTED);
@@ -402,13 +415,13 @@ public class User implements Appendable, Serializable, Constants {
           quantityLong = -Math.min(Math.abs(quantityLong), Math.abs(usdAvailableAdjusted));
         }
 
-        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+        addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       } else
         quantityLong = 0;
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
     } else { // original addPosition without checks
-      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
     }
@@ -430,11 +443,11 @@ public class User implements Appendable, Serializable, Constants {
     // if withdrawing with checks don't allow withdraw pairs
     if (Context.isEnableBalanceWithdrawLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       quantityLong = 0;
-      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       balance.setBalance(position.getQuantity(), pair.getQuantityScale());
       balance.setBalanceChange(quantityLong, pair.getQuantityScale()); // update newly changed amount
     } else {
-      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet());
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       balance.setBalance(position.getQuantity(), pair.getQuantityScale());
       balance.setBalanceChange(quantityLong, pair.getQuantityScale()); // update newly changed amount
     }
@@ -847,7 +860,8 @@ public class User implements Appendable, Serializable, Constants {
   }
 
   // must be called from the matching engine thread
-  public final Position setPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
+  public final Position setPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet, final long assetId,
+      final String name, final TokenType tokenType) {
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
@@ -856,32 +870,71 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
-      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      if (tokenType == TokenType.ERC20) {
+        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        positionArr[instrumentId].addAssetId(0, 0, group.getId());
+      } else {
+        positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      }
+
+
       return positionArr[instrumentId];
     } else {
       positionArr[instrumentId].setQuantity(quantity);
       positionArr[instrumentId].setAvailableQuantity(quantity);
-      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      if (tokenType == TokenType.ERC20) {
+        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        positionArr[instrumentId].addAssetId(0, 0, group.getId());
+      } else {
+        positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      }
       positionArr[instrumentId].touched();
       return positionArr[instrumentId];
     }
   }
 
+  private final AssetGroup updateGroup(final int userId, final long assetId, final String name, final int securityId, final long quantity,
+      final com.solfini.sbe.encoder.TokenType tokenType) {
+    AssetGroup assetGroup = AssetGroupCache.getByUserIdAndERC20Asset(userId, assetId);
+    if (assetGroup == null) {
+      assetGroup = new AssetGroup();
+      assetGroup.setUpdateType(com.solfini.sbe.encoder.UpdateType.PUT);
+      assetGroup.setOwnerUserId(userId);
+      assetGroup.setName(name);
+      assetGroup.setSecurityId(securityId);
+      assetGroup.setAssetId(assetId);
+      assetGroup.setTokenType(tokenType);
+    }
+    assetGroup.setQuantity(assetGroup.getQuantity() + quantity);
+
+    AssetGroupCache.onModel(assetGroup);
+
+    return assetGroup;
+  }
+
   // must be called from the matching engine thread
   public final Position addPosition(final int instrumentId, final long quantity, final long assetId, final int tokenId,
       final long groupAssetId) {
-    if (assetId == 0)
-      return addPosition(instrumentId, quantity, null);
+    if (assetId == 0 && groupAssetId == 0)
+      return addPosition(instrumentId, quantity, null, 0, TokenType.ERC20);
     else {
-      final Set<long[]> assetIdtreeSet = new TreeSet<>(assetIdComparator);
-      final long[] value = {assetId, tokenId, groupAssetId};
-      assetIdtreeSet.add(value);
-      return addPosition(instrumentId, quantity, assetIdtreeSet);
+      AssetGroup group = groupAssetId > 0 ? AssetGroupCache.get(groupAssetId) : AssetGroupCache.getByUserIdAndERC20Asset(this.id, assetId);
+
+      if (group != null && group.getTokenType() == com.solfini.sbe.encoder.TokenType.ERC20) {
+        return addPosition(instrumentId, quantity, null, assetId, TokenType.ERC20);
+      } else {
+        final Set<long[]> assetIdtreeSet = new TreeSet<>(assetIdComparator);
+        final long[] value = {assetId, tokenId, groupAssetId};
+        assetIdtreeSet.add(value);
+
+        return addPosition(instrumentId, quantity, assetIdtreeSet, 0, TokenType.ERC20);
+      }
     }
   }
 
   // must be called from the matching engine thread
-  public final Position addPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet) {
+  public final Position addPosition(final int instrumentId, final long quantity, final Set<long[]> assetIdtreeSet, final long assetId2,
+      final TokenType tokenType) {
     if (instrumentId >= positionArr.length - 1)
       resizePositionArr(instrumentId + 1);
 
@@ -890,12 +943,29 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
-      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+        final Instrument instrument = InstrumentCache.get(instrumentId);
+        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        final long[] value = {0, 0, assetGroup.getId()};
+        final Set<long[]> treeSet = new TreeSet<>(assetIdComparator);
+        treeSet.add(value);
+        positionArr[instrumentId].setAssetIdtreeSet(treeSet);
+
+      } else {
+        positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      }
       return positionArr[instrumentId];
     } else {
       positionArr[instrumentId].addQuantity(quantity);
       positionArr[instrumentId].addAvailableQuantity(quantity);
-      positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+        final Instrument instrument = InstrumentCache.get(instrumentId);
+        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        final long[] value = {0, 0, assetGroup.getId()};
+        positionArr[instrumentId].getAssetIdtreeSet().add(value);
+      } else {
+        positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
+      }
       positionArr[instrumentId].touched();
 
       return positionArr[instrumentId];
