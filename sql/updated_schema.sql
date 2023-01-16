@@ -1163,3 +1163,13 @@ alter table USER_STATE add subscribeRFQ SMALLINT DEFAULT 0;
 
 alter table asset_state add tokenType SMALLINT DEFAULT 0;
 
+ALTER TABLE chain_transaction2_log ADD decimals int NULL DEFAULT 18;
+
+ALTER TABLE contract_state ADD depositallowed bool NULL DEFAULT false;
+ALTER TABLE contract_state ADD retireallowed bool NULL DEFAULT false;
+
+CREATE TABLE INDEX_MANAGER (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    managerUserId INT,
+    instrumentId INT
+);
