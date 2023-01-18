@@ -870,8 +870,8 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
-      if (tokenType == TokenType.ERC20) {
-        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+      if (tokenType == TokenType.ERC20_GROUP) {
+        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
       } else {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
@@ -882,8 +882,8 @@ public class User implements Appendable, Serializable, Constants {
     } else {
       positionArr[instrumentId].setQuantity(quantity);
       positionArr[instrumentId].setAvailableQuantity(quantity);
-      if (tokenType == TokenType.ERC20) {
-        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+      if (tokenType == TokenType.ERC20_GROUP) {
+        final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
       } else {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
@@ -920,14 +920,14 @@ public class User implements Appendable, Serializable, Constants {
     else {
       AssetGroup group = groupAssetId > 0 ? AssetGroupCache.get(groupAssetId) : AssetGroupCache.getByUserIdAndERC20Asset(this.id, assetId);
 
-      if (group != null && group.getTokenType() == com.solfini.sbe.encoder.TokenType.ERC20) {
-        return addPosition(instrumentId, quantity, null, assetId, TokenType.ERC20);
+      if (group != null && group.getTokenType() == com.solfini.sbe.encoder.TokenType.ERC20_GROUP) {
+        return addPosition(instrumentId, quantity, null, assetId, TokenType.ERC20_GROUP);
       } else {
         final Set<long[]> assetIdtreeSet = new TreeSet<>(assetIdComparator);
         final long[] value = {assetId, tokenId, groupAssetId};
         assetIdtreeSet.add(value);
 
-        return addPosition(instrumentId, quantity, assetIdtreeSet, 0, TokenType.ERC20);
+        return addPosition(instrumentId, quantity, assetIdtreeSet, 0, TokenType.ERC20_GROUP);
       }
     }
   }
@@ -943,9 +943,9 @@ public class User implements Appendable, Serializable, Constants {
 
     if (positionArr[instrumentId] == null) {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
-      if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+      if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
         final Instrument instrument = InstrumentCache.get(instrumentId);
-        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         final long[] value = {0, 0, assetGroup.getId()};
         final Set<long[]> treeSet = new TreeSet<>(assetIdComparator);
         treeSet.add(value);
@@ -958,9 +958,9 @@ public class User implements Appendable, Serializable, Constants {
     } else {
       positionArr[instrumentId].addQuantity(quantity);
       positionArr[instrumentId].addAvailableQuantity(quantity);
-      if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+      if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
         final Instrument instrument = InstrumentCache.get(instrumentId);
-        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20);
+        final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         final long[] value = {0, 0, assetGroup.getId()};
         positionArr[instrumentId].getAssetIdtreeSet().add(value);
       } else {

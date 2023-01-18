@@ -80,7 +80,7 @@ public class Balance implements Appendable, Constants {
     this.hasPositionBasisData = false;
     this.tokenType = tokenType;
 
-    if (tokenType == TokenType.ERC20 && assetId2 > 0) {
+    if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
       this.assetId2 = assetId2;
 
     } else {
