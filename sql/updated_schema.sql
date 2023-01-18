@@ -1173,3 +1173,4 @@ CREATE TABLE INDEX_MANAGER (
     managerUserId INT,
     instrumentId INT
 );
+ALTER TABLE asset_state ADD symbol varchar(32) NULL;
