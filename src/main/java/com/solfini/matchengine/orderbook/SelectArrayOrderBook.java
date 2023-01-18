@@ -492,7 +492,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
         return;
       }
 
-      if (assetGroup.getTokenType() == TokenType.ERC20) {
+      if (assetGroup.getTokenType() == TokenType.ERC20_GROUP) {
         if (assetGroup.getQuantity() < order.getQuantityLong()) {
           matcherToPublisherQueue.addGuaranteed(
               BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
