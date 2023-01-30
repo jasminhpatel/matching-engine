@@ -82,7 +82,11 @@ public class Balance implements Appendable, Constants {
 
     if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
       this.assetId2 = assetId2;
-
+      if (this.assetIdtreeSet == null) {
+        this.assetIdtreeSet = new TreeSet<long[]>(assetIdComparator);
+      }
+      long[] arr = {assetId2, 0, 0};
+      this.assetIdtreeSet.add(arr);
     } else {
       if (sourceAssetIdtreeSet != null) {
         if (this.assetIdtreeSet == null) {
@@ -328,7 +332,18 @@ public class Balance implements Appendable, Constants {
         .append(",\"usdCostBasis\":").append(usdCostBasis).append(",\"usdAvgCostBasis\":").append(usdAvgCostBasis).append(",\"usdValue\":")
         .append(usdValue).append(",\"usdUnrealized\":").append(usdUnrealized).append(",\"usdRealized\":").append(usdRealized)
         .append(",\"quotedUsdMark\":").append(quotedUsdMark).append(",\"settleCoinUsdMark\":").append(settleCoinUsdMark)
-        .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized).append(",\"settleCoinRealized\":").append(settleCoinRealized);
+        .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized).append(",\"settleCoinRealized\":").append(settleCoinRealized)
+        .append(",\"assetId2\":").append(assetId2).append(",\"tokenType\":").append(tokenType.value());
+    if (assetIdtreeSet != null) {
+      sb.append(",\"assetIdtreeSet\":[");
+      boolean addComma = false;
+      for (long[] arr : assetIdtreeSet) {
+        if (addComma) sb.append(",");
+        sb.append("[").append(arr[0]).append(",").append(arr[1]).append(",").append(arr[2]).append("]");
+        addComma = true;
+      }
+      sb.append("]");
+    }
     sb.append("}");
     return sb.toString();
   }

@@ -40,7 +40,7 @@ public class AssetGroupCache implements Constants {
     assetGroupsForUser.put(assetGroup.getId(), assetGroup);
 
     // cache by securityId
-    if (TokenType.ERC20 == assetGroup.getTokenType()) {
+    if (TokenType.ERC20_GROUP == assetGroup.getTokenType()) {
       final ConcurrentHashMap<Long, AssetGroup> userIdToERC20AssetGroupsMap =
           userIdToAssetIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(), v -> new ConcurrentHashMap<>());
       userIdToERC20AssetGroupsMap.put(assetGroup.getAssetId(), assetGroup);
@@ -65,7 +65,7 @@ public class AssetGroupCache implements Constants {
         if (userAssetGroups != null) {
           userAssetGroups.remove(prevAssetGroup.getId());
         }
-        if (TokenType.ERC20 == prevAssetGroup.getTokenType()) {
+        if (TokenType.ERC20_GROUP == prevAssetGroup.getTokenType()) {
           userAssetGroups = userIdToAssetIdToAssetGroupsMap.get(prevAssetGroup.getOwnerUserId());
           if (userAssetGroups != null) {
             userAssetGroups.remove(prevAssetGroup.getAssetId());

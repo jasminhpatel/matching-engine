@@ -176,7 +176,7 @@ public class AssetGroup extends Message {
     final int securityId = (int) this.securityId;
     final Position position = UserCache.get(userId).getPosition(securityId);
 
-    if (TokenType.ERC20 == this.tokenType) {
+    if (TokenType.ERC20_GROUP == this.tokenType) {
       this.setId(0);
       this.setError("Can npt create groups for ERC20 type tokens. Security id: " + securityId);
       LOGGER.info(Constants.LOG_FMT_2, "Can npt create groups for ERC20 type tokens. security: ", securityId, " userId: " , userId, "");
@@ -191,7 +191,7 @@ public class AssetGroup extends Message {
       return;
     }
 
-    if (TokenType.ERC20 != this.tokenType) {
+    if (TokenType.ERC20_GROUP != this.tokenType) {
       for (final long[] assetToken : this.assetIdGroupTreeSet) {//validate ownership
         boolean ownsAsset = false;
         for (final long[] assetTokenInPositions : position.getAssetIdtreeSet()) {
@@ -211,7 +211,7 @@ public class AssetGroup extends Message {
 
     AssetGroupCache.onModel(this);
 
-    if (TokenType.ERC20 != this.tokenType) {
+    if (TokenType.ERC20_GROUP != this.tokenType) {
       //update positions
       for (final long[] assetToken : this.assetIdGroupTreeSet) {
         position.removeAssetId(assetToken[0], (int) assetToken[1], 0);// remove asset/token position

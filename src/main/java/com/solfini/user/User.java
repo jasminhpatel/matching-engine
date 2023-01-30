@@ -307,6 +307,7 @@ public class User implements Appendable, Serializable, Constants {
 
   // must be called from the matching engine thread
   public void override(final BalanceAdminMessage balanceAdminMessage) {
+    LOGGER.info("override.balanceAdminMessage: " + balanceAdminMessage.toJSON());
     this.externalId = balanceAdminMessage.getExternalId();
     if (positionArr == null) // only recreate if null
       this.positionArr = new Position[Math.max(InstrumentCache.getInstrumentCapacity(), InstrumentCache.getPairCapacity())];
@@ -361,6 +362,8 @@ public class User implements Appendable, Serializable, Constants {
   // must be called from the matching engine thread
   private final void updateIncrementInstrument(final BalanceAdminMessage balanceAdminMessage, final Balance balance,
       final Instrument instrument) {
+    LOGGER.info("updateIncrementInstrument.balanceAdminMessage: " + balanceAdminMessage.toJSON());
+    LOGGER.info("updateIncrementInstrument.balance: " + balance.toJSON());
     final DecimalFloat quantityDecimal = balance.getBalanceChange();
     long quantityLong = quantityDecimal.value();
     final int quantityScale = quantityDecimal.scale();
@@ -873,7 +876,7 @@ public class User implements Appendable, Serializable, Constants {
       if (tokenType == TokenType.ERC20_GROUP) {
         final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
-      } else {
+      } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
 
@@ -885,7 +888,7 @@ public class User implements Appendable, Serializable, Constants {
       if (tokenType == TokenType.ERC20_GROUP) {
         final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
-      } else {
+      } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
       positionArr[instrumentId].touched();
@@ -951,7 +954,7 @@ public class User implements Appendable, Serializable, Constants {
         treeSet.add(value);
         positionArr[instrumentId].setAssetIdtreeSet(treeSet);
 
-      } else {
+      } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
       return positionArr[instrumentId];
@@ -963,7 +966,7 @@ public class User implements Appendable, Serializable, Constants {
         final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
         final long[] value = {0, 0, assetGroup.getId()};
         positionArr[instrumentId].getAssetIdtreeSet().add(value);
-      } else {
+      } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
       positionArr[instrumentId].touched();

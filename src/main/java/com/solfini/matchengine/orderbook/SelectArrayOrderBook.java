@@ -2301,7 +2301,7 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
     final int buyerUserId = buyOrder.getUser().getId();
     final int sellerUserId = sellOrder.getUser().getId();
 
-    if (sellerGroup.getTokenType() == TokenType.ERC20) {
+    if (sellerGroup.getTokenType() == TokenType.ERC20_GROUP) {
       AssetGroup buyerAssetGroup = AssetGroupCache.getByUserIdAndERC20Asset(buyerUserId, sellerGroup.getAssetId());
       if (buyerAssetGroup == null) {
         buyerAssetGroup = new AssetGroup();

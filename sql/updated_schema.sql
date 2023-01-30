@@ -1174,3 +1174,5 @@ CREATE TABLE INDEX_MANAGER (
     instrumentId INT
 );
 ALTER TABLE asset_state ADD symbol varchar(32) NULL;
+
+ALTER TABLE withdraw_request ADD withdrawType int default 0;
