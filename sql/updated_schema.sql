@@ -1165,6 +1165,20 @@ alter table asset_state add tokenType SMALLINT DEFAULT 0;
 
 ALTER TABLE chain_transaction2_log ADD decimals int NULL DEFAULT 18;
 
+CREATE TABLE contract_state (
+   id bigserial NOT NULL,
+   "chain" varchar(64) NULL,
+   contractaddress varchar(256) NULL,
+   verificationstatus int4 NULL,
+   created timestamp NULL DEFAULT now(),
+   name varchar(256) NULL,
+   symbol varchar(256) NULL,
+   contracttype varchar(64) NULL,
+   instrumentid int4 NULL,
+   decimals varchar(16) NULL,
+   CONSTRAINT contract_state_pkey PRIMARY KEY (id)
+);
+
 ALTER TABLE contract_state ADD depositallowed bool NULL DEFAULT false;
 ALTER TABLE contract_state ADD retireallowed bool NULL DEFAULT false;
 
@@ -1176,3 +1190,19 @@ CREATE TABLE INDEX_MANAGER (
 ALTER TABLE asset_state ADD symbol varchar(32) NULL;
 
 ALTER TABLE withdraw_request ADD withdrawType int default 0;
+
+CREATE TABLE retire_event (
+    id bigserial PRIMARY KEY NOT NULL,
+
+                        userId INT,
+                        direction VARCHAR(16),
+                        chainType VARCHAR(16),
+                        score double precision,
+                        publicAddress VARCHAR(256),
+                        txnId VARCHAR(256),
+                        response VARCHAR(2048),
+                        created TIMESTAMP default now()
+);
+
+ALTER TABLE user_role ADD updated_by int4 NULL;
+ALTER TABLE user_role ADD updated timestamp NULL;
