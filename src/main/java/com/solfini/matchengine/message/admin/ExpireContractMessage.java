@@ -37,6 +37,8 @@ public class ExpireContractMessage extends AdminMessage {
 
   public static final long ONE_DAY = 86_400_000;
   public static final long TWO_DAYS = 172_800_000;
+  public static final long ONE_WEEK = 604_800_000;
+  public static final long TWO_WEEKS = 1_209_600_000;
   public static final long ONE_MONTH = 2_592_000_000L;
   public static final long ONE_QUARTER = 7_862_400_000L;
   public static final long ONE_YEAR = 22_896_000_000L;
@@ -213,6 +215,13 @@ public class ExpireContractMessage extends AdminMessage {
     return calendar;
   }
 
+  public static final Calendar getNextFridayOfWeek(final Calendar calendar) {
+    int add = 7 - (calendar.get(Calendar.DAY_OF_WEEK) + 1) % 7;
+    calendar.add(Calendar.DAY_OF_WEEK, add);
+
+    return calendar;
+  }
+
   private static final String buildNewSymbol(final InstrumentPair instrumentPair) {
     final GregorianCalendar calendar = new GregorianCalendar();
     calendar.setTimeZone(GMT);
@@ -224,6 +233,14 @@ public class ExpireContractMessage extends AdminMessage {
 
     if (instrumentPair.getExpireRollTimeMillis() <= ONE_DAY || instrumentPair.getExpireRollTimeMillis() == TWO_DAYS) {
       instrumentPair.setContractExpireTime(instrumentPair.getContractExpireTime() + instrumentPair.getExpireRollTimeMillis());
+    } else if (instrumentPair.getExpireRollTimeMillis() == ONE_WEEK) {
+      calendar.add(Calendar.WEEK_OF_YEAR, 1);
+      getNextFridayOfWeek(calendar);
+      instrumentPair.setContractExpireTime(calendar.getTimeInMillis());
+    } else if (instrumentPair.getExpireRollTimeMillis() == TWO_WEEKS) {
+      calendar.add(Calendar.WEEK_OF_YEAR, 2);
+      getNextFridayOfWeek(calendar);
+      instrumentPair.setContractExpireTime(calendar.getTimeInMillis());
     } else if (instrumentPair.getExpireRollTimeMillis() == ONE_MONTH) {
       calendar.add(Calendar.MONTH, 1);
       getLastFridayOfMonth(calendar);
