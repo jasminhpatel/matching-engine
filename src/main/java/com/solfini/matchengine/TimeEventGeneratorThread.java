@@ -105,7 +105,7 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
             pair.setFundingRateTime(nextFundingRateTime);
           }
         } else if (pair.getAssetType() != AssetType.PAIR) { // set test contracts expire time
-          if (pair.getSymbol() != null && pair.getSymbol().indexOf("Now") > 0
+          if (pair.getSymbol() != null /*&& pair.getSymbol().indexOf("Now") > 0*/
               && pair.getContractExpireTime() < System.currentTimeMillis()) {
 
             // for testing set to PhysicalSettle
