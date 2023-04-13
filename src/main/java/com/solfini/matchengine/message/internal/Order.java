@@ -781,8 +781,9 @@ public class Order extends Message implements Constants {
       }
     }
     //todo remove after testing
-    if (account != Context.getMarketMakerUserid())
+    if (account != Context.getMarketMakerUserid()) {
       LOGGER.info("Order received: " + this.toJSON());
+    }
     final InstrumentPair instrument = InstrumentCache.getPair(securityId);
     if (null != instrument) {
       final OrderBook orderbook = instrument.getOrderBook();

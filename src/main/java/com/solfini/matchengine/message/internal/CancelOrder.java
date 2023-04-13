@@ -1,5 +1,7 @@
 package com.solfini.matchengine.message.internal;
 
+import com.solfini.common.Context;
+import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.MessageType;
 import com.solfini.instrument.InstrumentCache;
@@ -18,6 +20,8 @@ import com.solfini.user.UserCache;
  *
  */
 public class CancelOrder extends Message {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(CancelOrder.class);
+
 
   protected int securityId;
   private long price;
@@ -311,6 +315,9 @@ public class CancelOrder extends Message {
 
   @Override
   public void onMatcher() {
+    if (account != Context.getMarketMakerUserid()) {
+      LOGGER.info("CancelOrder received: " + this.toJSON());
+    }
     GlobalOrderBook.setOrderIdIfGreater(8, cancelId);
 
     final InstrumentPair instrumentPair = InstrumentCache.getPair(securityId);

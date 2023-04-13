@@ -1,6 +1,7 @@
 package com.solfini.matchengine.message.internal;
 
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.MessageType;
@@ -405,6 +406,9 @@ public class CancelReplaceOrder extends Message implements Constants {
   public void onMatcher() {
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace(LOG_FMT_2, ">>> onMatcher", this);
+    }
+    if (account != Context.getMarketMakerUserid()) {
+      LOGGER.info("CancelReplaceOrder received: " + this.toJSON());
     }
 
     // if neither origOrderId or secondaryOrderId are provided, attempt to lookup using clOrdId
