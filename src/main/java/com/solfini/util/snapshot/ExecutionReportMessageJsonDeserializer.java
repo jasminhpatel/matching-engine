@@ -61,7 +61,9 @@ public class ExecutionReportMessageJsonDeserializer implements JsonDeserializer<
     } else {
       order.setQuoteType(QuoteType.NULL_VAL);
     }
-    order.setQuoteTargetUserId(json.get("quoteTargetUserId").getAsInt());
+    if (json.has("quoteTargetUserId")) {
+      order.setQuoteTargetUserId(json.get("quoteTargetUserId").getAsInt());
+    }
 
     order.setSenderCompId(json.get("senderCompAsString").getAsString());
 
