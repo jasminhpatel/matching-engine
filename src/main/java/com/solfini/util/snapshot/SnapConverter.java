@@ -469,7 +469,7 @@ public class SnapConverter implements Constants {
       validator.process(message);
     }
 
-    if (!(message instanceof Order)) {
+    if (!(message instanceof Order || message instanceof AssetGroup)) {
       message.onMatcher();
     }
 
