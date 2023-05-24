@@ -221,6 +221,9 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       final Position[] positionArr = user.getPositionArr();
       final Fee fee = instrumentPair.getFee(user.getFeeTier(), isMaker, null);
 
+      if (LOGGER.isDebugEnabled()) {
+        LOGGER.debug("Fee: fee: " + fee.toString());
+      }
       // calc usdNotional
       final double adjReferenceQuantity = MbxMath.roundToBestPrecision(referenceQuantity * instrumentPair.getQuantityScaleFactor());
       final double notional = MbxMath.roundToBestPrecision(referencePrice * adjReferenceQuantity * instrumentPair.getPriceScaleFactor());

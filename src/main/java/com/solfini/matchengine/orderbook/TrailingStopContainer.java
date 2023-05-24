@@ -195,8 +195,8 @@ public class TrailingStopContainer implements Constants {
   };
 
   public static void main2(String args[]) {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0);
     TrailingStopContainer container = new TrailingStopContainer(pair);
     FastArrayList<Order> list = new FastArrayList<>(4096);
@@ -233,8 +233,8 @@ public class TrailingStopContainer implements Constants {
   }
 
   public static void main(String args[]) {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0);
     TrailingStopContainer container = new TrailingStopContainer(pair);
     FastArrayList<Order> list = new FastArrayList<>(4096);

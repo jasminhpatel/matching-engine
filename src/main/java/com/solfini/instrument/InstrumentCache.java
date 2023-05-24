@@ -209,7 +209,8 @@ public class InstrumentCache implements Constants {
       final Instrument instrument = new Instrument(securityDefinitionAdminMessage.getSecurityId(),
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(),
           (short) securityDefinitionAdminMessage.getPriceScale(), (short) securityDefinitionAdminMessage.getQuantityScale(), 0,
-          securityDefinitionAdminMessage.getCollateralMarginPercentDiscount());
+          securityDefinitionAdminMessage.getCollateralMarginPercentDiscount(), securityDefinitionAdminMessage.getWithdrawFee(),
+          securityDefinitionAdminMessage.isWithdrawFeePercent(), securityDefinitionAdminMessage.getWithdrawFeeInstrument());
       if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
         instrument.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
       InstrumentCache.addInstrument(instrument);

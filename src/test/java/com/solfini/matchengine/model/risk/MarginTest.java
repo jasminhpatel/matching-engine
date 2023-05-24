@@ -84,8 +84,8 @@ public class MarginTest {
   public void init() {
     initProp();
 
-    quote = new Instrument(1, "USDT", "USDT", (short) 2, (short) 8, 1, 1000);
-    base = new Instrument(2, "BTC", "BTC", (short) 2, (short) 8, 1, 1000);
+    quote = new Instrument(1, "USDT", "USDT", (short) 2, (short) 8, 1, 1000, 0,false, 1);
+    base = new Instrument(2, "BTC", "BTC", (short) 2, (short) 8, 1, 1000, 0,false, 2);
 
     pair = new InstrumentPair(3, "BTCUSDT", "BTCUSDT", base, quote, (short) 2, (short) 3, 1, AssetType.PAIR, 250, 500, 9880, 0);
 

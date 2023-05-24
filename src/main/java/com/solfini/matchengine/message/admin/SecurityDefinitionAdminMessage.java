@@ -87,7 +87,9 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
   public boolean snapConverterMode = false;
   public boolean physicalSettle = false;
   public boolean limitOnlyMode = false;
-
+  private double withdrawFee;
+  private boolean isWithdrawFeePercent;
+  private int withdrawFeeInstrument;
 
   public SecurityDefinitionAdminMessage() {}
 
@@ -136,10 +138,10 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.limitOnlyMode = SECURITY_DEFINITION_DECODER.limitOnlyMode() == 1;
 
     this.usdStrikePrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdStrikePrice()); // for options, calculated from strikePrice
-    if (usdStrikePrice == 0 && strikePrice > 0) {
-      usdStrikePrice = MbxMath.roundToBestPrecision(strikePrice / (double) MbxMath.multiplier(priceScale));
-    } else if (strikePrice == 0 && usdStrikePrice > 0) {
-      strikePrice = (int) (usdStrikePrice * MbxMath.multiplier(priceScale));
+    if (this.usdStrikePrice == 0 && this.strikePrice > 0) {
+      this.usdStrikePrice = MbxMath.roundToBestPrecision(this.strikePrice / (double) MbxMath.multiplier(this.priceScale));
+    } else if (this.strikePrice == 0 && this.usdStrikePrice > 0) {
+      this.strikePrice = (int) (this.usdStrikePrice * MbxMath.multiplier(this.priceScale));
     }
 
     this.usdUnderlyerPrice = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.usdUnderlyerPrice()); // stock price
@@ -158,16 +160,19 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.vega = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.vega());
     this.sigma = StringUtil.toDouble(SECURITY_DEFINITION_DECODER.sigma());
 
-    indexFeedUsdMark = SECURITY_DEFINITION_DECODER.indexFeedUsdMark().value();
+    this.indexFeedUsdMark = SECURITY_DEFINITION_DECODER.indexFeedUsdMark().value();
     for (int i = 0; i < SECURITY_DEFINITION_DECODER.indexFeedUsdMark().scale(); i++) {
-      indexFeedUsdMark *= 0.1;
+      this.indexFeedUsdMark *= 0.1;
     }
 
     // default
-    if (maintMarginBasisPoints == 0)
-      maintMarginBasisPoints = 40;
-    if (requiredMarginBasisPoints == 0)
-      requiredMarginBasisPoints = 80;
+    if (this.maintMarginBasisPoints == 0)
+      this.maintMarginBasisPoints = 40;
+    if (this.requiredMarginBasisPoints == 0)
+      this.requiredMarginBasisPoints = 80;
+    this.withdrawFee = SECURITY_DEFINITION_DECODER.withdrawFee();
+    this.isWithdrawFeePercent = SECURITY_DEFINITION_DECODER.isWithdrawFeePercent() == 1;
+    this.withdrawFeeInstrument = SECURITY_DEFINITION_DECODER.withdrawFeeInstrument();
   }
 
   public SecurityDefinitionAdminMessage(final Instrument instrument) {
@@ -190,6 +195,9 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.marginCurveId = 0;
     this.indexFeedUsdMark = instrument.getIndexFeedUsdMark();
     this.collateralMarginPercentDiscount = instrument.getCollateralMarginPercentDiscount();
+    this.withdrawFee = instrument.getWithdrawFee();
+    this.isWithdrawFeePercent = instrument.isWithdrawFeePercent();
+    this.withdrawFeeInstrument = instrument.getWithdrawFeeInstrument();
   }
 
   public SecurityDefinitionAdminMessage(final InstrumentPair instrumentPair) {
@@ -764,6 +772,30 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.limitOnlyMode = limitOnlyMode;
   }
 
+  public double getWithdrawFee() {
+    return withdrawFee;
+  }
+
+  public void setWithdrawFee(final double withdrawFee) {
+    this.withdrawFee = withdrawFee;
+  }
+
+  public boolean isWithdrawFeePercent() {
+    return isWithdrawFeePercent;
+  }
+
+  public void setWithdrawFeePercent(final boolean withdrawFeePercent) {
+    isWithdrawFeePercent = withdrawFeePercent;
+  }
+
+  public int getWithdrawFeeInstrument() {
+    return withdrawFeeInstrument;
+  }
+
+  public void setWithdrawFeeInstrument(final int withdrawFeeInstrument) {
+    this.withdrawFeeInstrument = withdrawFeeInstrument;
+  }
+
   @Override
   public final void onMatcher() {
     InstrumentCache.updateSecurityDefinition(this);
@@ -801,7 +833,10 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
         .append(SOURCESENDTIME_EQ).append(sourceSendTime).append(ARRSIZE_EQ).append(arrSize).append(CACHEDEPTH_EQ).append(cacheDepth)
         .append(TEXTDATA_EQ).append(textData).append(AUCTION_START_TIME_HR_GMT_EQ).append(auctionStartTimeHrGMT)
         .append(AUCTION_DURATION_TIME_EQ).append(auctionDurationTime).append(AUCTION_FIXING_ATTEMPTS_EQ).append(auctionFixingAttempts)
-        .append(AUCTION_FIXING_WAIT_TIME_EQ).append(auctionFixingWaitTime).append(PYSICALSETTLE_EQ).append(physicalSettle).append(']');
+        .append(AUCTION_FIXING_WAIT_TIME_EQ).append(auctionFixingWaitTime).append(PYSICALSETTLE_EQ).append(physicalSettle)
+        .append(WITHDRAW_FEE_EQ).append(withdrawFee).append(IS_WITHDRAW_FEE_PERCENT_EQ).append(isWithdrawFeePercent)
+        .append(WITHDRAW_FEE_INSTRUMENT_EQ).append(withdrawFeeInstrument)
+        .append(']');
     return s;
   }
 
@@ -833,7 +868,8 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
         .append(",\"auctionDurationTime\":").append(auctionDurationTime).append(",\"auctionFixingAttempts\":").append(auctionFixingAttempts)
         .append(",\"auctionFixingWaitTime\":").append(auctionFixingWaitTime).append(",\"expireRollTimeMillis\":")
         .append(expireRollTimeMillis).append(",\"symbolRollCount\":").append(symbolRollCount).append(",\"physicalSettle\":")
-        .append(physicalSettle);
+        .append(physicalSettle).append(",\"withdrawFee\":").append(withdrawFee).append(",\"isWithdrawFeePercent\":")
+        .append(isWithdrawFeePercent).append(",\"withdrawFeeInstrument\":").append(withdrawFeeInstrument);
     sb.append("}");
     return sb.toString();
   }

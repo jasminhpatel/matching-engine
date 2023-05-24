@@ -23,9 +23,14 @@ public class Instrument implements Appendable, Constants {
   private double collateralPremiumFactor; // converted to double
   private final int priceMultiplier;
   private final int quantityMultiplier;
+  private double withdrawFee;
+  private boolean isWithdrawFeePercent;
+  private int withdrawFeeInstrument;
 
   public Instrument(final int id, final String symbol, final String name, final short priceScale, final short quantityScale,
-      final double usdMark, final int collateralMarginPercentDiscount) {
+      final double usdMark, final int collateralMarginPercentDiscount, final double withdrawFee, final boolean isWithdrawFeePercent,
+      final int withdrawFeeInstrument
+  ) {
     this.id = id;
     this.symbol = symbol;
     this.name = name;
@@ -65,6 +70,10 @@ public class Instrument implements Appendable, Constants {
 
     this.collateralMarginPercentDiscount = collateralMarginPercentDiscount;
     this.collateralPremiumFactor = collateralMarginPercentDiscount * .0001;
+
+    this.withdrawFee = withdrawFee;
+    this.isWithdrawFeePercent = isWithdrawFeePercent;
+    this.withdrawFeeInstrument = withdrawFeeInstrument;
   }
 
   public final int getId() {
@@ -140,6 +149,30 @@ public class Instrument implements Appendable, Constants {
 
   public final void setCollateralMarginPercentDiscount(final int collateralMarginPercentDiscount) {
     this.collateralMarginPercentDiscount = collateralMarginPercentDiscount;
+  }
+
+  public final double getWithdrawFee() {
+    return withdrawFee;
+  }
+
+  public final void setWithdrawFee(final double withdrawFee) {
+    this.withdrawFee = withdrawFee;
+  }
+
+  public final boolean isWithdrawFeePercent() {
+    return isWithdrawFeePercent;
+  }
+
+  public final void setWithdrawFeePercent(final boolean withdrawFeePercent) {
+    isWithdrawFeePercent = withdrawFeePercent;
+  }
+
+  public int getWithdrawFeeInstrument() {
+    return withdrawFeeInstrument;
+  }
+
+  public void setWithdrawFeeInstrument(final int withdrawFeeInstrument) {
+    this.withdrawFeeInstrument = withdrawFeeInstrument;
   }
 
   // given a quantity and scale adjust to this scale

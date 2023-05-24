@@ -100,8 +100,8 @@ public class SelectArrayOrderBookDataTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0);
-    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0);
+    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0, 0,false, 1);
+    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0, 0,false, 1);
     instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0);
 
     orderBook = OrderBookFactory.create(OrderBookFactory.SELECT_ARRAY_ORDER_BOOK, OrderBookFactory.CASH_PREORDER_CHECK, instrumentPair,

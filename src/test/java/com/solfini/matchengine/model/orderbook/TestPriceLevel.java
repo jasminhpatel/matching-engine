@@ -46,8 +46,8 @@ public class TestPriceLevel {
   }
 
   protected static void createInstruments() {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     InstrumentCache.addInstrument(base);
     InstrumentCache.addInstrument(quoted);
 

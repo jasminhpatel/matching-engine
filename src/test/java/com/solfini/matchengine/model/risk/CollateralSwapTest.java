@@ -68,7 +68,7 @@ public class CollateralSwapTest {
   }
 
   protected static void createInstruments() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 

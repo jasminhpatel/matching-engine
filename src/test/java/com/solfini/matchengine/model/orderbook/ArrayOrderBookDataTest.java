@@ -90,8 +90,8 @@ public class ArrayOrderBookDataTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(1, "USDT", "USDT", (short) 6, (short) 6, 3500, 1000);
-    base = new Instrument(2, "BTC", "BTC", (short) 6, (short) 6, 1, 1000);
+    quoted = new Instrument(1, "USDT", "USDT", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    base = new Instrument(2, "BTC", "BTC", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     instrumentPair = new InstrumentPair(3, "BTC/USDT", "BTC/USDT", base, quoted, (short) 2, (short) 2, 0, AssetType.PAIR, 10, 20, 3500, 0);
 
     orderBook = OrderBookFactory.create(OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, instrumentPair,

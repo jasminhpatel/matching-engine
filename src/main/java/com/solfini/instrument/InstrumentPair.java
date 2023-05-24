@@ -769,6 +769,7 @@ public class InstrumentPair implements Appendable, Constants {
   }
 
   public final Fee getFee(final int tier, final boolean isMaker, final Order causingMessage) {
+    //LOGGER.info("Fee.getFee() tier: " + tier + " isMaker: " + isMaker + " causingMessage: " + causingMessage);
     if (Fee.LIQUIDATION_FEE_ID == tier)
       return Fee.LIQUIDATION_FEE;
 

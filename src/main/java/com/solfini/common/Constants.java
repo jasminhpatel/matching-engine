@@ -678,5 +678,8 @@ public interface Constants {
   public static final String REMOVE_SELL_ORDER_EQ = "removeSellOrder=";
   public static final String ONPERSIST_MESSAGE_EQ = "onPersist message=";
   public static final String REDUCE_ONLY_EQ = ">> REDUCE_ONLY reducing, order=";
+  public static final String WITHDRAW_FEE_EQ = ", withdrawFee=";
+  public static final String IS_WITHDRAW_FEE_PERCENT_EQ = ", isWithdrawFeePercent=";
+  public static final String WITHDRAW_FEE_INSTRUMENT_EQ = ", withdrawFeeInstrument=";
 
 }

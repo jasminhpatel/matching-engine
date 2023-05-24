@@ -933,6 +933,9 @@ public class MessagePublisher implements Constants {
       LOGGER.debug("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: "
           + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
     }
+
+    LOGGER.info("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: "
+        + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
     //log business rejects
     if (businessRejectMessage.getSubmitterId() > 0 && businessRejectMessage.getSubmitterId() != Context.getMarketMakerUserid()) {
       LOGGER.info(businessRejectMessage.toJSON());
@@ -1397,6 +1400,9 @@ public class MessagePublisher implements Constants {
       securityDefinitionAdminMessageEncoder.vega().value((long) (securityDefinitionAdminMessage.getVega() * 1000000)).scale(6);
       securityDefinitionAdminMessageEncoder.sigma().value((long) (securityDefinitionAdminMessage.getSigma() * 1000000)).scale(6);
 
+      securityDefinitionAdminMessageEncoder.withdrawFee(securityDefinitionAdminMessage.getWithdrawFee());
+      securityDefinitionAdminMessageEncoder.isWithdrawFeePercent((short) (securityDefinitionAdminMessage.isWithdrawFeePercent() ? 1 : 0));
+      securityDefinitionAdminMessageEncoder.withdrawFeeInstrument(securityDefinitionAdminMessage.getWithdrawFeeInstrument());
 
       final DecimalFloatEncoder indexFeedUsdMarkEncoder = securityDefinitionAdminMessageEncoder.indexFeedUsdMark();
       indexFeedUsdMarkEncoder.value((long) (securityDefinitionAdminMessage.getIndexFeedUsdMark() * 100));

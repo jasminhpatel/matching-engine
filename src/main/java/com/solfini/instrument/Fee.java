@@ -159,6 +159,7 @@ public class Fee implements Appendable, Constants {
 
   // must be called from the matching engine thread
   public final void transferToExchange(final long feeQuantity) {
+    //LOGGER.info("Fee: feeQuantity: " + feeQuantity);
     if (collectingUser == null)
       collectingUser = UserCache.getExchangeUser();
     collectingUser.addPosition(feeInstrumentId, feeQuantity, null, 0, TokenType.ERC20);
@@ -180,7 +181,7 @@ public class Fee implements Appendable, Constants {
   public StringBuilder appendTo(final StringBuilder s) {
     return s.append("Fee [instrumentPairId=").append(instrumentPairId).append(FEE_EQ).append(feeAmount).append(FEEINSTRUMENTID_EQ)
         .append(feeInstrumentId).append(FEETYPE_EQ).append(feeType).append(MAKERTAKER_EQ).append(makerTaker).append(TIER_EQ).append(tier)
-        .append("]");
+        .append(ISPAIDTOINSURANCE_EQ).append(isPaidToInsurance).append("]");
   }
 }
 

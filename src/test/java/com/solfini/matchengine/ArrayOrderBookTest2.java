@@ -256,8 +256,8 @@ public class ArrayOrderBookTest2 {
     FastArrayList<Order> orderList2 = loadTestOrders3(1_0_000); // (testOrdersPath);
     System.out.println("loaded orders2 " + orderList.size());
 
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     // InstrumentCache.addInstrument(base);
     // InstrumentCache.addInstrument(quoted);
 

@@ -74,11 +74,11 @@ public class InstrumentPairTest {
 
   @Test
   public void createInstrumentPairTest() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 
-    final Instrument spy = new Instrument(10, "SPY", "SPY", (short) 2, (short) 6, 1, 1000);
+    final Instrument spy = new Instrument(10, "SPY", "SPY", (short) 2, (short) 6, 1, 1000, 0,false, 2);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(spy);
 
