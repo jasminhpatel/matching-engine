@@ -1206,3 +1206,8 @@ CREATE TABLE retire_event (
 
 ALTER TABLE user_role ADD updated_by int4 NULL;
 ALTER TABLE user_role ADD updated timestamp NULL;
+
+ALTER TABLE withdraw_request ADD transactionhash varchar(256) NULL;
+ALTER TABLE withdraw_request ADD "chain" varchar(16) NULL;
+ALTER TABLE withdraw_request ADD updated timestamp NOT NULL DEFAULT now();
+
