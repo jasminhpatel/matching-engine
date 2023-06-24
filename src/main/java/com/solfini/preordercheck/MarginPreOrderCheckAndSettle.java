@@ -199,6 +199,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
           otherCoinCollateralValue);
 
     } catch (Exception e) {
+      e.printStackTrace();
       LOGGER.error("error in updateRisk e=" + e + USER_EQ + user, e);
       LOGGER.error("error in updateRisk " + user, e);
     }
