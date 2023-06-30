@@ -10,6 +10,7 @@ import com.solfini.common.CustomLogger;
 import com.solfini.common.IdleStrategyFactory;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.marketdata.InactiveMarketDataPublisherThread;
 import com.solfini.marketdata.MarketDataOutputBuilderThread;
 import com.solfini.internal.admin.schema.MarketStatus;
 import com.solfini.internal.admin.schema.TradeStateAdminMessageEncoder;
@@ -187,6 +188,9 @@ public class ControllerThread implements Runnable, Constants {
     if (Context.isPublishMarketData()) {
       final MarketDataOutputBuilderThread marketDataBuilderThread = new MarketDataOutputBuilderThread();
       new Thread(marketDataBuilderThread, "marketDataBuilderThread").start();
+
+      final InactiveMarketDataPublisherThread inactiveMarketDataPublisherThread = new InactiveMarketDataPublisherThread();
+      new Thread(inactiveMarketDataPublisherThread, "inactiveMarketDataPublisherThread").start();
     }
   }
 
