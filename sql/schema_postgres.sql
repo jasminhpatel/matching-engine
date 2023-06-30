@@ -1298,6 +1298,16 @@ CREATE TABLE AML_LOG(
 	created TIMESTAMP default now()
 );
 
+CREATE TABLE public.notification_state (
+   id BIGSERIAL PRIMARY KEY NOT NULL,
+   sender varchar(64) NULL,
+   recipients varchar(512) NULL,
+   subject varchar(256) NULL,
+   message text NULL,
+   kafkaoffset int8 NULL,
+   updated timestamp default now()
+);
+
 
  alter table security_definition_log add column marketType INT DEFAULT 2;
  alter table asset_details_state add  assetLogoUrl varchar(256) null;
@@ -1316,4 +1326,3 @@ CREATE TABLE AML_LOG(
    alter table asset_details_state add    floorPrice double precision;
    alter table asset_details_state add    ceilingPrice double precision;
 
- 
