@@ -1298,14 +1298,21 @@ CREATE TABLE AML_LOG(
 	created TIMESTAMP default now()
 );
 
-CREATE TABLE public.notification_state (
+CREATE TABLE notification_state (
    id BIGSERIAL PRIMARY KEY NOT NULL,
    sender varchar(64) NULL,
    recipients varchar(512) NULL,
    subject varchar(256) NULL,
    message text NULL,
    kafkaoffset int8 NULL,
-   updated timestamp default now()
+
+);
+
+CREATE TABLE reconciliation_state (
+    id BIGSERIAL PRIMARY KEY NOT NULL,
+    name varchar(64) NULL,
+    path varchar(512) NULL,
+    updated timestamp default now()
 );
 
 

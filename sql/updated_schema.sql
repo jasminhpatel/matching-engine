@@ -1210,4 +1210,7 @@ ALTER TABLE user_role ADD updated timestamp NULL;
 ALTER TABLE withdraw_request ADD transactionhash varchar(256) NULL;
 ALTER TABLE withdraw_request ADD "chain" varchar(16) NULL;
 ALTER TABLE withdraw_request ADD updated timestamp NOT NULL DEFAULT now();
+ALTER TABLE withdraw_request ADD "bank" varchar(64) NULL;
+ALTER TABLE withdraw_request ADD "bankAccount" varchar(32) NULL;
+ALTER TABLE withdraw_request ADD "swiftCode" varchar(16) NULL;
 
