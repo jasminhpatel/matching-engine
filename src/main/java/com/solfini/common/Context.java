@@ -146,6 +146,8 @@ public final class Context implements Constants {
   private static final String PUBLISHER_THREAD_IDLE = PropertyReader.getProperty("PUBLISHER_THREAD_IDLE", NO_OP_IDLE_STATEGY);
   private static final String RISK_THREAD_IDLE = PropertyReader.getProperty("RISK_THREAD_IDLE", NO_OP_IDLE_STATEGY);
 
+  private static final int INACTIVE_MARKET_DATA_PUBLISH_TIME = PropertyReader.getProperty("INACTIVE_MARKET_DATA_PUBLISH_TIME", 300_000);
+
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "controlQueue");
 
@@ -727,5 +729,9 @@ public final class Context implements Constants {
 
   public static String getAssetGroupsCompactionTopic() {
     return ASSET_GROUPS_COMPACTION_TOPIC;
+  }
+
+  public static int getInactiveMarketDataPublishTime() {
+    return INACTIVE_MARKET_DATA_PUBLISH_TIME;
   }
 }

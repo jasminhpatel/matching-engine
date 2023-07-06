@@ -23,7 +23,7 @@ import com.solfini.sbe.encoder.MarketDataFeedDecoder.MdEntrieGroupDecoder;
  *
  */
 public class MarketDataFeed extends Message implements Constants {
-  private static final CustomLogger LOGGER = CustomLogger.getLogger(CancelReplaceOrder.class);
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(MarketDataFeed.class);
 
   private long sentTime;
   private double[] usdMarkArr;

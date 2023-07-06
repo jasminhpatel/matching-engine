@@ -780,7 +780,7 @@ public class Order extends Message implements Constants {
         return;
       }
     }
-    //todo remove after testing
+
     if (account != Context.getMarketMakerUserid()) {
       LOGGER.info("Order received: " + this.toJSON());
     }

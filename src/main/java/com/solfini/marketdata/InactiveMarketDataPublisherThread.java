@@ -31,7 +31,7 @@ public class InactiveMarketDataPublisherThread implements Runnable {
           LOGGER.error(ERROR_LOG, e);
         } finally {
           try {
-            Thread.sleep( 5 * 60 * 1000);
+            Thread.sleep(Context.getInactiveMarketDataPublishTime());
           } catch (InterruptedException e) {
             LOGGER.error(ERROR_LOG, e);
           }
