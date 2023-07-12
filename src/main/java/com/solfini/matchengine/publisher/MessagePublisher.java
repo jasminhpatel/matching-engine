@@ -210,8 +210,14 @@ public class MessagePublisher implements Constants {
         groupEncoder.usdUnrealizedScale(RISK_PUBLISH_SCALE);
         groupEncoder.usdRealized((long) (position.getUsdRealizedDouble() * RISK_PUBLISH_MULT));
         groupEncoder.usdRealizedScale(RISK_PUBLISH_SCALE);
-        groupEncoder.quotedUsdMark((long) (position.getQuotedUsdMark() * RISK_PUBLISH_MULT));
-        groupEncoder.quotedUsdMarkScale(RISK_PUBLISH_SCALE);
+        if (instrument.getPriceScale() > RISK_PUBLISH_SCALE) {
+          groupEncoder.quotedUsdMark((long) (position.getQuotedUsdMark() * MbxMath.multiplier(instrument.getPriceScale())));
+          groupEncoder.quotedUsdMarkScale(instrument.getPriceScale());
+        } else {
+          groupEncoder.quotedUsdMark((long) (position.getQuotedUsdMark() * RISK_PUBLISH_MULT));
+          groupEncoder.quotedUsdMarkScale(RISK_PUBLISH_SCALE);
+        }
+
         groupEncoder.settleCoinUsdMark((long) (position.getSettleCoinUsdMark() * RISK_PUBLISH_MULT));
         groupEncoder.settleCoinUsdMarkScale(RISK_PUBLISH_SCALE);
         groupEncoder.settleCoinUnrealized((long) (position.getSettleCoinUnrealized() * RISK_PUBLISH_MULT));
