@@ -1612,7 +1612,13 @@ public class ExecutionReportMessage extends Message {
   @Override
   public final void onPersist() {
     if (!Context.isPersistMarketMakerOrders() && Context.getMarketMakerUserid() == this.account) {
-      return;
+      InstrumentPair pair = InstrumentCache.getPair(securityId);
+      if (pair != null && (USDC.equals(pair.getBase().getSymbol()) || USDT.equals(pair.getBase().getSymbol()))) {
+        //persist
+      } else {
+        return;
+      }
+
     }
     if (Context.isUserStatsEnabled()) {
       UserStats.onMessage(this);

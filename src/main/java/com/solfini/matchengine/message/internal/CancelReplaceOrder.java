@@ -412,12 +412,14 @@ public class CancelReplaceOrder extends Message implements Constants {
     }
 
     // if neither origOrderId or secondaryOrderId are provided, attempt to lookup using clOrdId
-    if (origOrderId <= 0 && secondaryOrderId <= 0 && user != null && clOrdId != null) {
+    // secondaryOrderId is auto generated when decoding and is always > 0,
+    if (origOrderId <= 0 /*&& secondaryOrderId <= 0*/ && user != null && clOrdId != null) {
       final Order orderByClorid = user.lookupOrderByClorid(clOrdId, securityId, side);
 
       if (orderByClorid != null && orderByClorid.getUser() != null && account == orderByClorid.getUser().getId()) {
         origOrderId = orderByClorid.getOrderId();
         secondaryOrderId = orderByClorid.getSecondaryOrderId();
+        priceInt = orderByClorid.getPriceInt();//set previous order price
       }
     }
 
