@@ -176,7 +176,7 @@ public class AssetGroup extends Message {
     final int securityId = (int) this.securityId;
     final Position position = UserCache.get(userId).getPosition(securityId);
 
-    if (TokenType.ERC20_GROUP == this.tokenType) {
+    if (TokenType.ERC20 == this.tokenType) {
       this.setId(0);
       this.setError("Can npt create groups for ERC20 type tokens. Security id: " + securityId);
       LOGGER.info(Constants.LOG_FMT_2, "Can npt create groups for ERC20 type tokens. security: ", securityId, " userId: " , userId, "");
