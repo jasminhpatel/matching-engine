@@ -35,7 +35,7 @@ public class AssetGroupJsonDeserializer implements JsonDeserializer<AssetGroup> 
         message.addAssetIdToList(assetIdGroup.get(0).getAsLong(), assetIdGroup.get(1).getAsInt());
       }
     }
-    System.out.println(message.toJSON());
+    //System.out.println(message.toJSON());
     return message;
   }
 }
