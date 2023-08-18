@@ -506,6 +506,7 @@ public class SnapLoader implements Constants {
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(LOG_FMT_2, DECODED_ASSETGROUP_EQ, message);
           }
+          LOGGER.info("AssetGroup loaded: " + assetGroup.toJSON());
           return message;
 
         case NetworkStatusDecoder.TEMPLATE_ID:

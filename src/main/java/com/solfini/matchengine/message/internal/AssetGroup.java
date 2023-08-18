@@ -184,10 +184,13 @@ public class AssetGroup extends Message {
     }
 
     if (position == null || position.getAssetIdtreeSet() == null) {
-      // todo reject
-      this.setId(0);
-      this.setError("User does not own any assets. Security id: " + securityId);
-      LOGGER.info(Constants.LOG_FMT_2, "User does not own any assets. security: ", securityId, " userId: " , userId, "");
+      //this happens during snap file loading, positions are not loaded at the time of asset group loading
+      //so keep the group in the cache
+      AssetGroupCache.onModel(this);
+
+      //this.setId(0);
+      //this.setError("User does not own any assets. Security id: " + securityId);
+      //LOGGER.info(Constants.LOG_FMT_2, "User does not own any assets. security: ", securityId, " userId: " , userId, "");
       return;
     }
 
