@@ -158,10 +158,10 @@ CREATE TABLE asset_state(
     "label" varchar(16) null,
     exchangeFee double precision
 );
-CREATE INDEX ASSET_STATE1 ON public.ASSET_STATE USING btree (ownerUserId);
-CREATE INDEX ASSET_STATE2 ON public.ASSET_STATE USING btree (assetid);
-CREATE INDEX ASSET_STATE3 ON public.ASSET_STATE USING btree (tokeniId);
-CREATE INDEX ASSET_STATE4 ON public.ASSET_STATE USING btree (securityId);
+CREATE INDEX ASSET_STATE1 ON ASSET_STATE USING btree (ownerUserId);
+CREATE INDEX ASSET_STATE2 ON ASSET_STATE USING btree (assetid);
+CREATE INDEX ASSET_STATE3 ON ASSET_STATE USING btree (tokeniId);
+CREATE INDEX ASSET_STATE4 ON ASSET_STATE USING btree (securityId);
 
 CREATE TABLE balance_log (
     id bigserial NOT NULL,
@@ -395,7 +395,7 @@ CREATE TABLE execution_report (
  groupAssetId int8 NULL DEFAULT 0,
  selectId int8 NULL DEFAULT 0,
  quoteType varchar(32) NULL,
- quoteTargetUserId int8 NULL DEFAULT 0
+ quoteTargetUserId int8 NULL DEFAULT 0,
  CONSTRAINT execution_report_pkey PRIMARY KEY (id)
 );
 CREATE INDEX execution_report1 ON execution_report USING btree (userid);
@@ -766,7 +766,7 @@ referenceId int8 NULL,
 uploadedBy int8 NULL,
 CONSTRAINT upload_file_pkey PRIMARY KEY (id)
 );
-CREATE INDEX upload_file1 ON upload_file USING btree (file_key);
+CREATE INDEX upload_file1 ON upload_file USING btree (filekey);
 
 CREATE TABLE user_log (
  id bigserial NOT NULL,
@@ -997,10 +997,10 @@ CREATE TABLE withdraw_request (
  groupid int8 NULL,
  CONSTRAINT withdraw_request_pkey PRIMARY KEY (id)
 );
-CREATE INDEX withdraw_request1 ON public.withdraw_request USING btree (userid);
-CREATE INDEX withdraw_request2 ON public.withdraw_request USING btree (securityid);
-CREATE INDEX withdraw_request3 ON public.withdraw_request USING btree (status);
-CREATE INDEX withdraw_request4 ON public.withdraw_request USING btree (assetid);
+CREATE INDEX withdraw_request1 ON withdraw_request USING btree (userid);
+CREATE INDEX withdraw_request2 ON withdraw_request USING btree (securityid);
+CREATE INDEX withdraw_request3 ON withdraw_request USING btree (status);
+CREATE INDEX withdraw_request4 ON withdraw_request USING btree (assetid);
 
 
 
@@ -1141,10 +1141,10 @@ CREATE TABLE asset_details_state(
     ceilingPrice double precision
     
 );
-CREATE INDEX ASSET_DETAILS_STATE1 ON public.ASSET_DETAILS_STATE USING btree (ownerUserId);
-CREATE INDEX ASSET_DETAILS_STATE2 ON public.ASSET_DETAILS_STATE USING btree (assetid);
-CREATE INDEX ASSET_DETAILS_STATE3 ON public.ASSET_DETAILS_STATE USING btree (tokeniId);
-CREATE INDEX ASSET_DETAILS_STATE4 ON public.ASSET_DETAILS_STATE USING btree (securityId);
+CREATE INDEX ASSET_DETAILS_STATE1 ON ASSET_DETAILS_STATE USING btree (ownerUserId);
+CREATE INDEX ASSET_DETAILS_STATE2 ON ASSET_DETAILS_STATE USING btree (assetid);
+CREATE INDEX ASSET_DETAILS_STATE3 ON ASSET_DETAILS_STATE USING btree (tokeniId);
+CREATE INDEX ASSET_DETAILS_STATE4 ON ASSET_DETAILS_STATE USING btree (securityId);
 
 
 CREATE TABLE AML_LOG(
@@ -1213,4 +1213,5 @@ ALTER TABLE withdraw_request ADD updated timestamp NOT NULL DEFAULT now();
 ALTER TABLE withdraw_request ADD "bank" varchar(64) NULL;
 ALTER TABLE withdraw_request ADD "bankAccount" varchar(32) NULL;
 ALTER TABLE withdraw_request ADD "swiftCode" varchar(16) NULL;
-
+ALTER TABLE asset_state ADD isupdatedimageurl bool DEFAULT false;
+ALTER TABLE asset_state ADD isupdatedmetadatajson bool DEFAULT false;
