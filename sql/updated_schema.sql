@@ -1215,3 +1215,4 @@ ALTER TABLE withdraw_request ADD "bankAccount" varchar(32) NULL;
 ALTER TABLE withdraw_request ADD "swiftCode" varchar(16) NULL;
 ALTER TABLE asset_state ADD isupdatedimageurl bool DEFAULT false;
 ALTER TABLE asset_state ADD isupdatedmetadatajson bool DEFAULT false;
+ALTER TABLE asset_state ADD detailId int8 DEFAULT 0;
