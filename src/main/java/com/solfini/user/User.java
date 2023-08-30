@@ -424,6 +424,50 @@ public class User implements Appendable, Serializable, Constants {
       } else {
         LOGGER.info("Withdraw fee is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
       }
+    } else if (balanceAdminMessage.getTxType() == 12) { // cancel withdraw
+      balanceAdminMessage.setTxType(TX_DEPOSIT);
+      //refund withdraw fee
+      final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
+      final User exchangeUser = UserCache.getExchangeUser();
+      if (feeInstrument != null && exchangeUser != null) {
+        double withdrawFee = instrument.getWithdrawFee();
+        LOGGER.info("Instrument withdraw fee refund. symbol: " + instrument.getSymbol() + " withdrawFee: " + withdrawFee);
+        if (withdrawFee > 0) {
+          if (feeInstrument.getQuantityScale() > 0) {//qty scale is zero
+            for (int i = 0; i < (feeInstrument.getQuantityScale()); i++)
+              withdrawFee = withdrawFee * 10;
+          }
+          Position feePosition = getPosition(feeInstrument.getId());
+          Position exchangePosition = exchangeUser.getPosition(feeInstrument.getId());
+
+          DecimalFormat df = new DecimalFormat("###,###,###.##");
+          String balBeforeWF = df.format(feePosition.getQuantity());
+          String availBalBeforeWF = df.format(feePosition.getAvailableQuantity());
+
+          String exBalBeforeWF = df.format(exchangePosition.getQuantity());
+          String exAvailBalBeforeWF = df.format(exchangePosition.getAvailableQuantity());
+
+          LOGGER.info("Withdraw fee refund. userId: " + balanceAdminMessage.getUserId() + " withdrawFee: " + withdrawFee);
+          feePosition = addPosition(feeInstrument.getId(), (long) withdrawFee, null, 0, TokenType.ERC20_GROUP);
+          exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), (long) -withdrawFee, null, 0, TokenType.ERC20_GROUP);
+
+          String balAfterWF = df.format(feePosition.getQuantity());
+          String availBalAfterWF = df.format(feePosition.getAvailableQuantity());
+
+          String exBalAfterWF = df.format(exchangePosition.getQuantity());
+          String exAvailBalAfterWF = df.format(exchangePosition.getAvailableQuantity());
+
+          LOGGER.info("\nbalBeforeWF\t\t\t:" + balBeforeWF + "\nexBalAfterWF\t\t:" + exBalAfterWF
+              + "\navailBalBeforeWF\t:" + availBalBeforeWF + "\navailBalAfterWF\t\t:" + availBalAfterWF
+              + "\nexBalBeforeWF\t\t:" + exBalBeforeWF + "\nbalAfterWF\t\t\t:" + balAfterWF
+              + "\nexAvailBalBeforeWF\t:" + exAvailBalBeforeWF + "\nexAvailBalAfterWF\t:" + exAvailBalAfterWF);
+
+        } else {
+          LOGGER.info("Zero withdraw fee. symbol: " + instrument.getSymbol());
+        }
+      } else {
+        LOGGER.info("Withdraw fee refund is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
+      }
     }
     if (quantityLong <= 0 && Context.isEnableBalanceWithdrawExactLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       // if withdrawing with limits, must be exact don't reduce amounts
