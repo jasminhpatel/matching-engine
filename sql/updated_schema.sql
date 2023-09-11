@@ -1216,3 +1216,6 @@ ALTER TABLE withdraw_request ADD "swiftCode" varchar(16) NULL;
 ALTER TABLE asset_state ADD isupdatedimageurl bool DEFAULT false;
 ALTER TABLE asset_state ADD isupdatedmetadatajson bool DEFAULT false;
 ALTER TABLE asset_state ADD detailId int8 DEFAULT 0;
+ALTER TABLE asset_state ADD vintage int8 null;
+ALTER TABLE withdraw_request ADD "serials" text NULL;
+ALTER TABLE withdraw_request ADD "certificateName" varchar(128) null;
