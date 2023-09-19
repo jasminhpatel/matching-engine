@@ -127,6 +127,10 @@ public class CancelReplaceOrder extends Message implements Constants {
     order.setDecodedTime(decodedTime);
     order.setSubmitterId(submitterId);
     order.setKafkaRecordOffset(kafkaRecordOffset);
+    order.setAssetId(assetId);
+    order.setTokenId(tokenId);
+    order.setGroupAssetId(groupAssetId);
+    order.setSelectId(selectId);
 
     Message message = NewOrderSingleHandler.parseOrder(order);
     if (!(message instanceof Order)) {
