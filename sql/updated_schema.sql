@@ -1221,3 +1221,5 @@ ALTER TABLE withdraw_request ADD "serials" text NULL;
 ALTER TABLE withdraw_request ADD "certificateName" varchar(128) null;
 ALTER TABLE asset_state ADD retiredContractAddress varchar(64) null;
 ALTER TABLE asset_state ADD toVintage int8 null;
+ALTER TABLE withdraw_request ADD "registryName" varchar(128) null;
+ALTER TABLE withdraw_request ADD "accountNumber" varchar(128) null;
