@@ -1224,3 +1224,5 @@ ALTER TABLE asset_state ADD toVintage int8 null;
 ALTER TABLE withdraw_request ADD "registryName" varchar(128) null;
 ALTER TABLE withdraw_request ADD "accountNumber" varchar(128) null;
 ALTER TABLE withdraw_request ADD memo varchar(256) NULL;
+ALTER TABLE asset_state ADD certificateName varchar(64) null;
+
