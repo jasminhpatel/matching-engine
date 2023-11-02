@@ -123,6 +123,7 @@ public class AssetGroup extends Message {
   }
 
   public void setAvailableQuantity(final long availableQuantity) {
+    LOGGER.info("Asset Group old quantity: " + this.availableQuantity + " new quantity: " + availableQuantity);
     this.availableQuantity = availableQuantity;
   }
 
