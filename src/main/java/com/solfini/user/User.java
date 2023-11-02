@@ -962,22 +962,24 @@ public class User implements Appendable, Serializable, Constants {
       positionArr[instrumentId] = Position.set(PositionMatchThreadObjectPool.get(), this, instrumentId, quantity, quantity);
       if (tokenType == TokenType.ERC20_GROUP) {
         final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
+        positionArr[instrumentId].setAvailableQuantity(quantity, this.id, group.getId());
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
       } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
-
 
       return positionArr[instrumentId];
     } else {
+      long groupId = 0;
       positionArr[instrumentId].setQuantity(quantity);
-      positionArr[instrumentId].setAvailableQuantity(quantity);
       if (tokenType == TokenType.ERC20_GROUP) {
         final AssetGroup group = updateGroup(this.id, assetId, name, instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
+        groupId = group.getId();
         positionArr[instrumentId].addAssetId(0, 0, group.getId());
       } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
+      positionArr[instrumentId].setAvailableQuantity(quantity, this.id, groupId);
       positionArr[instrumentId].touched();
       return positionArr[instrumentId];
     }
@@ -1046,16 +1048,18 @@ public class User implements Appendable, Serializable, Constants {
       }
       return positionArr[instrumentId];
     } else {
+      long groupId = 0;
       positionArr[instrumentId].addQuantity(quantity);
-      positionArr[instrumentId].addAvailableQuantity(quantity);
       if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
         final Instrument instrument = InstrumentCache.get(instrumentId);
         final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
+        groupId = assetGroup.getId();
         final long[] value = {0, 0, assetGroup.getId()};
         positionArr[instrumentId].getAssetIdtreeSet().add(value);
       } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }
+      positionArr[instrumentId].addAvailableQuantity(quantity, this.id, groupId);
       positionArr[instrumentId].touched();
 
       return positionArr[instrumentId];

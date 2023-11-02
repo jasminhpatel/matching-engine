@@ -28,6 +28,7 @@ public class AssetGroup extends Message {
   private long id;//groupId
   private long ownerUserId;
   private long quantity;
+  private long availableQuantity;
   private String name;
   private long securityId;
   private long assetId;
@@ -115,6 +116,14 @@ public class AssetGroup extends Message {
 
   public void setQuantity(final long quantity) {
     this.quantity = quantity;
+  }
+
+  public long getAvailableQuantity() {
+    return availableQuantity;
+  }
+
+  public void setAvailableQuantity(final long availableQuantity) {
+    this.availableQuantity = availableQuantity;
   }
 
   public final ConcurrentSkipListSet<long[]> getAssetIdGroupTreeSet() {

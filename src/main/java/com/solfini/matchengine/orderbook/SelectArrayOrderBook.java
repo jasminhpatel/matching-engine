@@ -499,6 +499,15 @@ public class SelectArrayOrderBook extends GlobalOrderBook implements OrderBook, 
                   BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
           return;
         }
+        //todo above condition (assetGroup.getQuantity() < order.getQuantityLong()) is redundant after checking available quantity
+        // remove the above check after completing the test
+        if (assetGroup.getAvailableQuantity() < order.getQuantityLong()) {
+          LOGGER.info("Insufficient available quantity. available: " + assetGroup.getAvailableQuantity() + " requested: " + order.getQuantityLong());
+          matcherToPublisherQueue.addGuaranteed(
+              BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE, Long.toString(order.getOrderId()),
+                  BusinessRejectReason.ASSET_GROUP_NOT_ENOUGH, ASSET_GROUP_NOT_ENOUGH, order.getOrderId(), order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
+          return;
+        }
         //todo should we block assets
       } else {
         final ConcurrentSkipListSet<long[]> assetGroupSet = assetGroup.getAssetIdGroupTreeSet();

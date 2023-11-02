@@ -497,7 +497,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
         settleQuantityChange = (long) (MbxMath.roundToBestPrecision(settleCoinRealized * SETTLE_INSTRUMENT_QUANTITY_SCALE_MULT));
         settlePosition.addQuantity(settleQuantityChange);
-        settlePosition.addAvailableQuantity(settleQuantityChange);
+        settlePosition.addAvailableQuantity(settleQuantityChange, user.getId(), order.getGroupAssetId());
         pairPosition.addUsdRealized(MbxMath.roundToBestPrecision(settleCoinRealized));
 
         if (Context.isDebugLogRisk() && 18 == user.getId()) {
@@ -640,7 +640,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
         settleQuantityChange = (long) (MbxMath.roundToBestPrecision(settleCoinRealized * SETTLE_INSTRUMENT_QUANTITY_SCALE_MULT));
         settlePosition.addQuantity(settleQuantityChange);
-        settlePosition.addAvailableQuantity(settleQuantityChange);
+        settlePosition.addAvailableQuantity(settleQuantityChange, user.getId(), order.getGroupAssetId());
         pairPosition.addUsdRealized(MbxMath.roundToBestPrecision(settleCoinRealized));
 
         if (Context.isDebugLogRisk() && 18 == user.getId()) {

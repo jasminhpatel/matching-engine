@@ -3,6 +3,10 @@ package com.solfini.instrument;
 import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
+
+import com.solfini.matchengine.AssetGroupCache;
+import com.solfini.matchengine.message.internal.AssetGroup;
+import com.solfini.sbe.encoder.TokenType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.solfini.common.Appendable;
@@ -182,6 +186,12 @@ public class  Position implements Appendable, Constants {
     this.availableQuantity = availableQuantity;
   }
 
+  public final void setAvailableQuantity(final long availableQuantity, final long userId, final long groupId) {
+    setAvailableQuantity(availableQuantity);
+    if (groupId > 0)
+      setGroupAvailableBalance(userId, groupId, availableQuantity);
+  }
+
   public final int getInstrumentId() {
     return instrumentId;
   }
@@ -194,9 +204,25 @@ public class  Position implements Appendable, Constants {
     this.availableQuantity += quantity;
   }
 
+  public final void addAvailableQuantity(final long quantity, final long userId, final long groupId) {
+    addAvailableQuantity(quantity);
+    if (groupId > 0)
+      updateGroupAvailableBalance(userId, groupId, quantity);
+  }
+
   public final boolean subtractAvailableQuantity(final long quantity) {
     if (availableQuantity >= quantity) {
       this.availableQuantity -= quantity;
+      return true;
+    }
+    return false;
+  }
+
+  public final boolean subtractAvailableQuantity(final long quantity, final long userId, final long groupId) {
+    if (availableQuantity >= quantity) {
+      this.availableQuantity -= quantity;
+      if (groupId > 0)
+        updateGroupAvailableBalance(userId, groupId, -quantity);
       return true;
     }
     return false;
@@ -403,6 +429,48 @@ public class  Position implements Appendable, Constants {
 
     final long[] value = {assetId, tokenId, groupAssetId};
     assetIdtreeSet.remove(value);
+  }
+
+  public final long updateGroupAvailableBalance(final long userId, final long groupId, final long quantity) {
+    AssetGroup referenceGroup = AssetGroupCache.get(groupId);
+    if (referenceGroup != null) {
+      AssetGroup group = AssetGroupCache.getByUserIdAndERC20Asset(userId, referenceGroup.getAssetId());
+      if (group == null) {
+        group = new AssetGroup();
+        group.setUpdateType(com.solfini.sbe.encoder.UpdateType.PUT);
+        group.setOwnerUserId(userId);
+        group.setName(referenceGroup.getName());
+        group.setSecurityId(referenceGroup.getSecurityId());
+        group.setAssetId(referenceGroup.getAssetId());
+        group.setTokenType(referenceGroup.getTokenType());
+      }
+      group.setAvailableQuantity(group.getAvailableQuantity() + quantity);
+      AssetGroupCache.onModel(group);
+
+      return group.getId();
+    }
+    return 0;
+  }
+
+  public final long setGroupAvailableBalance(final long userId, final long groupId, final long quantity) {
+    AssetGroup referenceGroup = AssetGroupCache.get(groupId);
+    if (referenceGroup != null) {
+      AssetGroup group = AssetGroupCache.getByUserIdAndERC20Asset(userId, referenceGroup.getAssetId());
+      if (group == null) {
+        group = new AssetGroup();
+        group.setUpdateType(com.solfini.sbe.encoder.UpdateType.PUT);
+        group.setOwnerUserId(userId);
+        group.setName(referenceGroup.getName());
+        group.setSecurityId(referenceGroup.getSecurityId());
+        group.setAssetId(referenceGroup.getAssetId());
+        group.setTokenType(referenceGroup.getTokenType());
+      }
+      group.setAvailableQuantity(quantity);
+      AssetGroupCache.onModel(group);
+
+      return group.getId();
+    }
+    return 0;
   }
 
   @Override

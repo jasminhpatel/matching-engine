@@ -1,9 +1,7 @@
 package com.solfini.matchengine;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -12,16 +10,16 @@ import com.solfini.common.Message;
 import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.sbe.encoder.TokenType;
 import com.solfini.sbe.encoder.UpdateType;
-import com.solfini.util.FastArrayList;
+import org.agrona.collections.Long2ObjectHashMap;
 
 public class AssetGroupCache implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(AssetGroupCache.class);
   //<groupId, AssetGroup>
-  private static final ConcurrentHashMap<Long, AssetGroup> idToAssetGroupMap = new ConcurrentHashMap<>();
+  private static final Long2ObjectHashMap<AssetGroup> idToAssetGroupMap = new Long2ObjectHashMap<>();
   //<userId, <groupId, AssetGroup>>
-  private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, AssetGroup>> userIdToAssetGroupsMap = new ConcurrentHashMap<>();
+  private static final Long2ObjectHashMap<Long2ObjectHashMap<AssetGroup>> userIdToAssetGroupsMap = new Long2ObjectHashMap<>();
   //<userId, <assetId, AssetGroup>> ERC 20
-  private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, AssetGroup>> userIdToAssetIdToAssetGroupsMap = new ConcurrentHashMap<>();
+  private static final Long2ObjectHashMap<Long2ObjectHashMap<AssetGroup>> userIdToAssetIdToAssetGroupsMap = new Long2ObjectHashMap<>();
 
   private static long nextId = 1;
   private static long lastUpdatedTime = 0;
@@ -35,14 +33,14 @@ public class AssetGroupCache implements Constants {
       nextId = assetGroup.getId() + 1;
 
     // cache by userId
-    final ConcurrentHashMap<Long, AssetGroup> assetGroupsForUser = userIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(),
-        v -> new ConcurrentHashMap<>());
+    final Long2ObjectHashMap<AssetGroup> assetGroupsForUser = userIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(),
+        v -> new Long2ObjectHashMap<>());
     assetGroupsForUser.put(assetGroup.getId(), assetGroup);
 
     // cache by securityId
     if (TokenType.ERC20_GROUP == assetGroup.getTokenType()) {
-      final ConcurrentHashMap<Long, AssetGroup> userIdToERC20AssetGroupsMap =
-          userIdToAssetIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(), v -> new ConcurrentHashMap<>());
+      final Long2ObjectHashMap<AssetGroup> userIdToERC20AssetGroupsMap =
+          userIdToAssetIdToAssetGroupsMap.computeIfAbsent(assetGroup.getOwnerUserId(), v -> new Long2ObjectHashMap<>());
       userIdToERC20AssetGroupsMap.put(assetGroup.getAssetId(), assetGroup);
     }
   }
@@ -61,7 +59,7 @@ public class AssetGroupCache implements Constants {
     } else {
       //if owner has changed
       if (prevAssetGroup.getOwnerUserId() != assetGroup.getOwnerUserId()) {
-        ConcurrentHashMap<Long, AssetGroup> userAssetGroups = userIdToAssetGroupsMap.get(prevAssetGroup.getOwnerUserId());
+        Long2ObjectHashMap<AssetGroup> userAssetGroups = userIdToAssetGroupsMap.get(prevAssetGroup.getOwnerUserId());
         if (userAssetGroups != null) {
           userAssetGroups.remove(prevAssetGroup.getId());
         }
@@ -99,7 +97,7 @@ public class AssetGroupCache implements Constants {
   }
 
   public static final Collection<AssetGroup> getByUserId(final long userId, final int securityId) {
-    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetGroupsMap.get(userId);
+    final Long2ObjectHashMap<AssetGroup> userAssetGroupMap = userIdToAssetGroupsMap.get(userId);
     if (userAssetGroupMap != null && userAssetGroupMap.size() > 0) {
       final ArrayList<AssetGroup> list = new ArrayList<>();
       for (AssetGroup assetGroup : userAssetGroupMap.values()) {
@@ -113,7 +111,7 @@ public class AssetGroupCache implements Constants {
   }
 
   public static final AssetGroup getByUserIdAndERC20Asset(final long userId, final long assetId) {
-    final ConcurrentHashMap<Long, AssetGroup> userAssetGroupMap = userIdToAssetIdToAssetGroupsMap.get(userId);
+    final Long2ObjectHashMap<AssetGroup> userAssetGroupMap = userIdToAssetIdToAssetGroupsMap.get(userId);
     if (userAssetGroupMap != null) {
       return userAssetGroupMap.get(assetId);
     }

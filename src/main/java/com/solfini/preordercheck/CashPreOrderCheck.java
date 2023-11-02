@@ -12,8 +12,6 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.TokenType;
-import com.solfini.matchengine.AssetGroupCache;
-import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.pool.PositionMatchThreadObjectPool;
@@ -21,8 +19,6 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
 import com.solfini.user.UserOpenOrdersByPair;
 import com.solfini.util.MbxMath;
-
-import java.util.Set;
 
 /**
  *
@@ -129,20 +125,20 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
 
           if (basePosition != null && basePosition.getInstrumentId() == fee.getFeeInstrumentId()) {
-            if (basePosition.subtractAvailableQuantity(normalizedQuantityLong + feeQuantity)) {
+            if (basePosition.subtractAvailableQuantity(normalizedQuantityLong + feeQuantity, order.getUser().getId(), order.getGroupAssetId())) {
               order.setAvailableEstimatedQuantity(normalizedQuantityLong);
               return true;
             }
           } else if (basePosition != null && instrumentPair.getQuotedId() == fee.getFeeInstrumentId()) {
             // no need to block off for fees as we can recover it from proceeds of sale
-            if (basePosition.subtractAvailableQuantity(normalizedQuantityLong)) {
+            if (basePosition.subtractAvailableQuantity(normalizedQuantityLong, order.getUser().getId(), order.getGroupAssetId())) {
               order.setAvailableEstimatedQuantity(normalizedQuantityLong);
               order.setFeeEstimatedQuantity(0);
               return true;
             }
           } else {
             final Position feePosition = positionArr[fee.getFeeInstrumentId()];
-            if (basePosition != null && basePosition.subtractAvailableQuantity(normalizedQuantityLong)
+            if (basePosition != null && basePosition.subtractAvailableQuantity(normalizedQuantityLong, order.getUser().getId(), order.getGroupAssetId())
                 && (feeQuantity == 0 || feePosition.subtractAvailableQuantity(feeQuantity))) {
               order.setAvailableEstimatedQuantity(normalizedQuantityLong);
               return true;
@@ -190,10 +186,6 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         LOGGER.debug(LOG_FMT_10, ">>> checkOrder qtyLong=", order.getQuantityLong(), "order.getPriceInt()=", order.getPriceInt(),
             REFERENCEPRICE_EQ, referencePrice, ", basePosition=", basePosition, ", quotedPosition=", quotedPosition);
       }
-/*      LOGGER.info(">>> checkOrder: order: " + order);
-      LOGGER.info(">>> checkOrder: instrumentPair" + instrumentPair);
-      LOGGER.info(">>> checkOrder: basePosition" + basePosition);
-      LOGGER.info(">>> checkOrder: quotedPosition" + quotedPosition);*/
 
     } catch (Exception e) {
       LOGGER.error("error in checkOrder " + order + REFERENCEPRICE_EQ + referencePrice, e);
@@ -296,27 +288,6 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           if (execReport.getAssetId() > 0) { // groups are handled separately
             basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
           }
-/*          if (execReport.getGroupAssetId() == 0) { // individual assets
-            LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", execReport.getAssetId(),
-                " tokenId: ", execReport.getTokenId(), " groupId: ",  execReport.getGroupAssetId());
-            basePosition.removeAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
-          } else { // purchase group
-            final AssetGroup assetGroup = AssetGroupCache.get(execReport.getGroupAssetId());
-            if (assetGroup != null) {
-              final Set<long[]> assetIdSet = assetGroup.getAssetIdGroupTreeSet();
-              long quantity = order.getQty();
-              for (long[] assetIds : assetIdSet) {
-                if (quantity > 0) {
-                  LOGGER.info(Constants.LOG_FMT_2, "AAE Removing from user: ", user.getId(), " assetId: ", assetIds[0],
-                      " tokenId: ", assetIds[1], " groupId: ",  execReport.getGroupAssetId(), " quantity: ", quantity);
-                  basePosition.removeAssetId(assetIds[0], (int) assetIds[1], execReport.getGroupAssetId());
-                } else {
-                  break;
-                }
-                quantity--;
-              }
-            }
-          }*/
 
           quotedPosition.addQuantity(normalizedAmountLong); // fill
           quotedPosition.addAvailableQuantity(normalizedAmountLong); // fill
@@ -356,7 +327,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
               quotedPosition.addAvailableQuantity(order.getFeeUncollectedQuantity());
             }
             if (basePosition != null)
-              basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity());
+              basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity(), order.getUser().getId(), order.getGroupAssetId());
           }
 
           // copy positions to execReport after updateFill
@@ -374,7 +345,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case BUY_SELECT:
         case STOP_BUY_LIMIT:
           basePosition.addQuantity(normalizedQuantityLong); // fill
-          basePosition.addAvailableQuantity(normalizedQuantityLong); // fill
+          basePosition.addAvailableQuantity(normalizedQuantityLong, order.getUser().getId(), order.getGroupAssetId()); // fill
           // (assetId, tokenId > 0 && groupId == 0) or (assetId, tokenId == 0 && groupId > 0)
           basePosition.addAssetId(execReport.getAssetId(), execReport.getTokenId(), execReport.getGroupAssetId());
 
@@ -390,18 +361,6 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           order.incrementAvailableAccumulatedQuantity(normalizePrice(instrumentPair, adjustment - amount));
 
           fee.transferToExchange(feeQuantity);
-
-          // final double refNotional = MbxMath
-          // .roundToBestPrecision(order.getMarginCheckReferencePrice() * adjReferenceQuantity * instrumentPair.getPriceScaleFactor());
-          // final double refUsdNotional = MbxMath.roundToBestPrecision(Math.abs(refNotional * quotedCoinUsdMark));
-          // final double refUsdFee = MbxMath.roundToBestPrecision(fee.calcUsdFee(refUsdNotional));
-          // if (feeInstrument != null) {
-          // double refFeeQuantity = refUsdFee / feeInstrument.getIndexFeedUsdMark();
-          // for (int i = 0; i < feeInstrument.getQuantityScale(); i++)
-          // refFeeQuantity *= 10;
-          // adjustment = (long) refFeeQuantity - feeQuantity;
-          // feePosition.addAvailableQuantity((long) adjustment);
-          // }
 
           execReport.setBasePositionId(basePosition.getInstrumentId());
           execReport.setBasePositionQuantity(basePosition.getQuantity());
@@ -427,9 +386,9 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
             user.decrementOpenOrderCount();
             userOpenOrdersByPair.remove(order);
             if (feeInstrument != null)
-              feePosition.addAvailableQuantity(order.getFeeUncollectedQuantity());
+              feePosition.addAvailableQuantity(order.getFeeUncollectedQuantity(), 0, 0);
             if (quotedPosition != null)
-              quotedPosition.addAvailableQuantity(order.getAvailableUncollectedQuantity());
+              quotedPosition.addAvailableQuantity(order.getAvailableUncollectedQuantity(), order.getUser().getId(),order.getGroupAssetId());
           }
 
           // copy positions to execReport after updateFill
@@ -522,7 +481,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null)
-            basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity());
+            basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity(), order.getUser().getId(), order.getGroupAssetId());
           if (feePosition != null) {
             // only adjust if we blocked off fee
             if (instrumentPair.getQuotedId() != fee.getFeeInstrumentId()) {
@@ -615,7 +574,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
       final Position feePosition = positionArr[fee.getFeeInstrumentId()];
       if (feePosition != null && order.getFeeEstimatedQuantity() > 0
           && order.getFeeEstimatedQuantity() > order.getFeeAccumulatedQuantity()) {
-        feePosition.subtractAvailableQuantity(order.getFeeEstimatedQuantity() - order.getFeeAccumulatedQuantity());
+        feePosition.subtractAvailableQuantity((order.getFeeEstimatedQuantity() - order.getFeeAccumulatedQuantity()));
       }
 
       switch (order.getType()) {
@@ -625,7 +584,8 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null) {
-            basePosition.subtractAvailableQuantity(order.getAvailableEstimatedQuantity() - order.getAvailableAccumulatedQuantity());
+            basePosition.subtractAvailableQuantity((order.getAvailableEstimatedQuantity() - order.getAvailableAccumulatedQuantity()),
+                order.getUser().getId(), order.getGroupAssetId());
           }
           break;
         case BUY_LIMIT:
@@ -776,18 +736,18 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
 
           if (basePosition != null && basePosition.getInstrumentId() == fee.getFeeInstrumentId()) {
-            basePosition.addAvailableQuantity(-(normalizedQuantityLong + feeQuantity));
+            basePosition.addAvailableQuantity(-(normalizedQuantityLong + feeQuantity), order.getUser().getId(), order.getGroupAssetId());
             order.setAvailableEstimatedQuantity(normalizedQuantityLong);
             return true;
           } else if (basePosition != null && instrumentPair.getQuotedId() == fee.getFeeInstrumentId()) {
             // no need to block off for fees as we can recover it from proceeds of sale
-            basePosition.addAvailableQuantity(-(normalizedQuantityLong));
+            basePosition.addAvailableQuantity(-(normalizedQuantityLong), order.getUser().getId(), order.getGroupAssetId());
             order.setAvailableEstimatedQuantity(normalizedQuantityLong);
             order.setFeeEstimatedQuantity(0);
             return true;
           } else {
             final Position feePosition = positionArr[fee.getFeeInstrumentId()];
-            if (basePosition != null && basePosition.subtractAvailableQuantity(normalizedQuantityLong)
+            if (basePosition != null && basePosition.subtractAvailableQuantity(normalizedQuantityLong, order.getUser().getId(), order.getGroupAssetId())
                 && (feeQuantity == 0 || feePosition.subtractAvailableQuantity(feeQuantity))) {
               order.setAvailableEstimatedQuantity(normalizedQuantityLong);
               return true;
@@ -896,7 +856,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         case STOP_SELL_LIMIT:
           final Position basePosition = positionArr[instrumentPair.getBaseId()];
           if (basePosition != null)
-            basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity());
+            basePosition.addAvailableQuantity(order.getAvailableUncollectedQuantity(), order.getUser().getId(), order.getGroupAssetId());
           if (feePosition != null) {
             // only adjust if we blocked off fee
             if (instrumentPair.getQuotedId() != fee.getFeeInstrumentId()) {
