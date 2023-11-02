@@ -260,6 +260,7 @@ public class AssetGroup extends Message {
         .append(snapId).append(",\"kafkaRecordOffset\":").append(kafkaRecordOffset)
         .append(",\"id\":").append(id).append(",\"ownerUserId\":").append(ownerUserId).append(",\"quantity\":").append(quantity)
         .append(",\"name\":\"").append(name).append("\"").append(",\"securityId\":").append(securityId).append(",\"assetId\":").append(assetId)
+        .append(",\"quantity\":").append(quantity).append(",\"availableQuantity\":").append(availableQuantity)
         .append(",\"tokenType\":").append(tokenType.value()).append(",\"groups\":[");
 
     int count = 0;

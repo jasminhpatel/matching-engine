@@ -495,7 +495,7 @@ public class SnapLoader implements Constants {
 
           final AssetGroup assetGroup = new AssetGroup();
           assetGroup.set(assetGroupDecoder);
-
+          assetGroup.setAvailableQuantity(assetGroup.getQuantity());
           message = assetGroup;
           if (message != null) {
             message.setSenderCompId(headerDecoder.senderCompId());
