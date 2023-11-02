@@ -1226,3 +1226,4 @@ ALTER TABLE withdraw_request ADD "accountNumber" varchar(128) null;
 ALTER TABLE withdraw_request ADD memo varchar(256) NULL;
 ALTER TABLE asset_state ADD certificateName varchar(64) null;
 ALTER TABLE contract_state ADD contractVersion varchar(16) NULL DEFAULT 'V1';
+ALTER TABLE user_state ADD isInfluencer bool NULL DEFAULT FALSE;
