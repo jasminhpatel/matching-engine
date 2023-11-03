@@ -998,6 +998,7 @@ public class User implements Appendable, Serializable, Constants {
       assetGroup.setTokenType(tokenType);
     }
     assetGroup.setQuantity(assetGroup.getQuantity() + quantity);
+    assetGroup.setAvailableQuantity(assetGroup.getAvailableQuantity() + quantity);
 
     AssetGroupCache.onModel(assetGroup);
 

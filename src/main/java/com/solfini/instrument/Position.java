@@ -187,7 +187,6 @@ public class  Position implements Appendable, Constants {
   }
 
   public final void setAvailableQuantity(final long availableQuantity, final long userId, final long groupId) {
-    LOGGER.info("Position setAvailableQuantity, quantity:" + quantity + " groupId: " + groupId);
     setAvailableQuantity(availableQuantity);
     if (groupId > 0)
       setGroupAvailableBalance(userId, groupId, availableQuantity);
@@ -454,7 +453,6 @@ public class  Position implements Appendable, Constants {
   }
 
   public final long setGroupAvailableBalance(final long userId, final long groupId, final long quantity) {
-    LOGGER.info("Position setGroupAvailableBalance, quantity:" + quantity + " groupId: " + groupId);
     AssetGroup referenceGroup = AssetGroupCache.get(groupId);
     if (referenceGroup != null) {
       AssetGroup group = AssetGroupCache.getByUserIdAndERC20Asset(userId, referenceGroup.getAssetId());
