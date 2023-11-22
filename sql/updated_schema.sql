@@ -1227,3 +1227,21 @@ ALTER TABLE withdraw_request ADD memo varchar(256) NULL;
 ALTER TABLE asset_state ADD certificateName varchar(64) null;
 ALTER TABLE contract_state ADD contractVersion varchar(16) NULL DEFAULT 'V1';
 ALTER TABLE user_state ADD isInfluencer bool NULL DEFAULT FALSE;
+
+
+CREATE TABLE subscription_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    userId INT,
+    platform VARCHAR(64),
+    accountId VARCHAR(64),
+    exchange VARCHAR(64),
+    apiUser VARCHAR(128),
+    apiSecret VARCHAR(128),
+    percentage int,
+    maxAmount int8,
+    status int,
+    created int8,
+    expires int8
+);
+ALTER TABLE user_state ADD platform varchar(64) NULL;
+ALTER TABLE user_state ADD accountId varchar(64) NULL;
