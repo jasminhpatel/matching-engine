@@ -23,3 +23,4 @@ src/test/resources/queues/*
 .vscode/
 snap/*
 chronicle/*
+server/*
