@@ -396,10 +396,12 @@ public class ControllerThread implements Runnable, Constants {
         }
 
         // Start time events, risk, market data and pricing threads
-        startTimeEventGeneratorThread();
-        startRiskThreads();
-        startMarketDataThreads();
-        startPricingThread();
+        if (!Context.isCopyTradeOnly()) {
+          startTimeEventGeneratorThread();
+          startRiskThreads();
+          startMarketDataThreads();
+          startPricingThread();
+        }
 
         // Start the input listener, with replay if configured
         boolean replay = (ReplayMode.INPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY);

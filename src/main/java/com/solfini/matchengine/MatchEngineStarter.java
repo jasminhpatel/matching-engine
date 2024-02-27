@@ -4,6 +4,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.solfini.matchengine.copytrade.CopyTradeCache;
+import com.solfini.matchengine.copytrade.ExternalInstrumentCache;
+import com.solfini.matchengine.copytrade.InfluencerSubscriptionCache;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -151,6 +156,39 @@ public class MatchEngineStarter implements Constants {
     return true;
   }
 
+  private void loadCachesFromDB() {
+    final AtomicInteger loaderCounter = new AtomicInteger(3);
+    new Thread(() -> {
+      InfluencerSubscriptionCache.loadFromDB(loaderCounter);
+      while (true) {
+        try {
+          Thread.sleep(FIVE_MINUTE);
+          InfluencerSubscriptionCache.loadUpdated();
+        } catch (Exception e) {
+        }
+      }
+    }).start();
+
+    new Thread(() -> {
+      ExternalInstrumentCache.loadFromDB(loaderCounter);
+      ExternalInstrumentCache.loadFromExchange();//async loading
+      while (true) {
+        try {
+          Thread.sleep(ONE_DAY);
+          ExternalInstrumentCache.loadFromExchange();
+        } catch (Exception e) {
+        }
+      }
+    }).start();
+
+    new Thread(() -> {
+      CopyTradeCache.loadFromDB(loaderCounter);
+    }).start();
+
+    while (loaderCounter.get() != 0) {
+    }
+  }
+
   private void startPersistThread() {
     LOGGER.info(LOG_FMT_2, ">> startPersistThread, enabled=", Context.isPersistModeEnabled());
 
@@ -169,6 +207,9 @@ public class MatchEngineStarter implements Constants {
     }
 
     final LoggingThread loggingThread = Context.getLoggingThread();
+
+    loadCachesFromDB();
+
     final MatchingThread matchingThread = Context.getMatchingThread();
     final PublisherThread publisherThread = Context.getPublisherThread();
     final KafkaPublisherThread kafkaPublisherThread =

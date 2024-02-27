@@ -12,6 +12,7 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.schema.PayloadType;
+import com.solfini.matchengine.orderbook.CopyTradeOrderBook;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.sbe.encoder.BooleanType;
@@ -75,6 +76,9 @@ public class Order extends Message implements Constants {
   private long selectId;
   private QuoteType quoteType;
   private int quoteTargetUserId;
+  private String platform;
+  private String accountId;
+  private String symbol; //for copy trades
 
   //for inmemory use only
   private boolean orderModified;
@@ -97,50 +101,54 @@ public class Order extends Message implements Constants {
   public void set(final NewOrderSingleDecoder newOrderSingleDecoder, final long orderId, final long orderPriority) {
     this.clOrdId = newOrderSingleDecoder.clOrdID();
     this.securityId = newOrderSingleDecoder.securityId();
+    this.symbol = newOrderSingleDecoder.symbol();
     this.orderId = orderId;
     this.orderPriority = orderPriority;
     this.submitterId = newOrderSingleDecoder.submitterId();
-    targetStrategy = newOrderSingleDecoder.targetStrategy();
-    isHidden = BooleanType.TRUE == newOrderSingleDecoder.isHidden();
-    isLiquidation = BooleanType.TRUE == newOrderSingleDecoder.isLiquidation();
-    isLastLook = BooleanType.TRUE == newOrderSingleDecoder.isLastLook();
+    this.targetStrategy = newOrderSingleDecoder.targetStrategy();
+    this.isHidden = BooleanType.TRUE == newOrderSingleDecoder.isHidden();
+    this.isLiquidation = BooleanType.TRUE == newOrderSingleDecoder.isLiquidation();
+    this.isLastLook = BooleanType.TRUE == newOrderSingleDecoder.isLastLook();
 
-    account = newOrderSingleDecoder.userId();
-    price = newOrderSingleDecoder.price();
-    priceScale = newOrderSingleDecoder.priceScale();
-    qty = newOrderSingleDecoder.qty();
-    qtyScale = newOrderSingleDecoder.qtyScale();
-    side = newOrderSingleDecoder.side();
+    this.account = newOrderSingleDecoder.userId();
+    this.price = newOrderSingleDecoder.price();
+    this.priceScale = newOrderSingleDecoder.priceScale();
+    this.qty = newOrderSingleDecoder.qty();
+    this.qtyScale = newOrderSingleDecoder.qtyScale();
+    this.side = newOrderSingleDecoder.side();
 
-    ordType = newOrderSingleDecoder.ordType();
-    toClose = false;
+    this.ordType = newOrderSingleDecoder.ordType();
+    //this.toClose = false;
+    this.toClose = BooleanType.TRUE == newOrderSingleDecoder.isToClose();
 
-    price2 = newOrderSingleDecoder.price2();
-    price2Scale = newOrderSingleDecoder.price2Scale();
-    marginCheckReferencePrice = 0;
-    timeInForce = newOrderSingleDecoder.timeInForce(); // default to TimeInForce.GOOD_TILL_CANCEL
-    expireTime = newOrderSingleDecoder.expireTime();
+    this.price2 = newOrderSingleDecoder.price2();
+    this.price2Scale = newOrderSingleDecoder.price2Scale();
+    this.marginCheckReferencePrice = 0;
+    this.timeInForce = newOrderSingleDecoder.timeInForce(); // default to TimeInForce.GOOD_TILL_CANCEL
+    this.expireTime = newOrderSingleDecoder.expireTime();
 
-    stopPx = newOrderSingleDecoder.stopPx();
-    stopPxScale = newOrderSingleDecoder.stopPxScale();
+    this.stopPx = newOrderSingleDecoder.stopPx();
+    this.stopPxScale = newOrderSingleDecoder.stopPxScale();
 
-    assetId = newOrderSingleDecoder.assetId();
-    tokenId = newOrderSingleDecoder.tokenId();
-    groupAssetId = newOrderSingleDecoder.groupAssetId();
-    selectId = newOrderSingleDecoder.selectId();
+    this.assetId = newOrderSingleDecoder.assetId();
+    this.tokenId = newOrderSingleDecoder.tokenId();
+    this.groupAssetId = newOrderSingleDecoder.groupAssetId();
+    this.selectId = newOrderSingleDecoder.selectId();
 
-    fillCumNotional = 0;
-    feeEstimatedQuantity = 0;
-    feeAccumulatedQuantity = 0;
-    availableEstimatedQuantity = 0;
-    availableAccumulatedQuantity = 0;
+    this.fillCumNotional = 0;
+    this.feeEstimatedQuantity = 0;
+    this.feeAccumulatedQuantity = 0;
+    this.availableEstimatedQuantity = 0;
+    this.availableAccumulatedQuantity = 0;
 
-    quoteType = newOrderSingleDecoder.quoteType();
-    quoteTargetUserId = newOrderSingleDecoder.quoteTargetUserId();
-    if (quoteType != null && quoteType != QuoteType.NULL_VAL) {
+    this.quoteType = newOrderSingleDecoder.quoteType();
+    this.quoteTargetUserId = newOrderSingleDecoder.quoteTargetUserId();
+    if (this.quoteType != null && this.quoteType != QuoteType.NULL_VAL) {
       this.origOrderId = newOrderSingleDecoder.orderId();//for RFQ
-      if (this.origOrderId > 0) this.orderId = origOrderId;
+      if (this.origOrderId > 0) this.orderId = this.origOrderId;
     }
+    this.platform = newOrderSingleDecoder.platform();
+    this.accountId = newOrderSingleDecoder.accountId();
   }
 
   // copy set order, used for stop limit orders
@@ -149,69 +157,71 @@ public class Order extends Message implements Constants {
     this.secondaryOrderId = secondaryOrderId;
     this.orderPriority = source.orderPriority;
     this.submitterId = source.getSubmitterId();
-    securityId = source.securityId;
-    clOrdId = source.clOrdId;
-    price = source.price;
-    priceScale = source.priceScale;
-    priceInt = source.priceInt;
-    qty = source.qty;
-    qtyScale = source.qtyScale;
-    quantityLong = source.quantityLong;
-    quantityOrigLong = source.quantityOrigLong;
-    quantityOrigScale = source.quantityOrigScale;
-    side = source.side;
-    ordType = source.ordType;
-    senderCompId = source.senderCompId;
-    toClose = source.toClose;
+    this.securityId = source.securityId;
+    this.symbol = source.symbol;
+    this.clOrdId = source.clOrdId;
+    this.price = source.price;
+    this.priceScale = source.priceScale;
+    this.priceInt = source.priceInt;
+    this.qty = source.qty;
+    this.qtyScale = source.qtyScale;
+    this.quantityLong = source.quantityLong;
+    this.quantityOrigLong = source.quantityOrigLong;
+    this.quantityOrigScale = source.quantityOrigScale;
+    this.side = source.side;
+    this.ordType = source.ordType;
+    this.senderCompId = source.senderCompId;
+    this.toClose = source.toClose;
 
-    price2 = source.price2;
-    price2Scale = source.price2Scale;
-    price2Int = source.price2Int;
+    this.price2 = source.price2;
+    this.price2Scale = source.price2Scale;
+    this.price2Int = source.price2Int;
 
-    marginCheckReferencePrice = source.marginCheckReferencePrice;
-    timeInForce = source.timeInForce;
-    expireTime = source.expireTime;
-    account = source.account;
-    targetStrategy = source.targetStrategy;
-    isHidden = source.isHidden;
-    isLiquidation = source.isLiquidation;
-    isLastLook = source.isLastLook;
-    user = source.user;
-    senderCompId = source.senderCompId;
-    sourceSeqNum = source.sourceSeqNum;
-    sourceSendTime = source.sourceSendTime;
-    sequenceNumber = source.sequenceNumber;
-    snapId = source.snapId;
-    kafkaRecordOffset = source.kafkaRecordOffset;
-    inputTime = source.inputTime;
-    decodedTime = source.decodedTime;
-    matchTime = source.matchTime;
-    publishTime = source.publishTime;
+    this.marginCheckReferencePrice = source.marginCheckReferencePrice;
+    this.timeInForce = source.timeInForce;
+    this.expireTime = source.expireTime;
+    this.account = source.account;
+    this.targetStrategy = source.targetStrategy;
+    this.isHidden = source.isHidden;
+    this.isLiquidation = source.isLiquidation;
+    this.isLastLook = source.isLastLook;
+    this.user = source.user;
+    this.senderCompId = source.senderCompId;
+    this.sourceSeqNum = source.sourceSeqNum;
+    this.sourceSendTime = source.sourceSendTime;
+    this.sequenceNumber = source.sequenceNumber;
+    this.snapId = source.snapId;
+    this.kafkaRecordOffset = source.kafkaRecordOffset;
+    this.inputTime = source.inputTime;
+    this.decodedTime = source.decodedTime;
+    this.matchTime = source.matchTime;
+    this.publishTime = source.publishTime;
 
-    stopPx = source.stopPx;
-    stopPxScale = source.stopPxScale;
-    stopPxInt = source.stopPxInt;
+    this.stopPx = source.stopPx;
+    this.stopPxScale = source.stopPxScale;
+    this.stopPxInt = source.stopPxInt;
 
-    assetId = source.assetId;
-    tokenId = source.tokenId;
-    groupAssetId = source.groupAssetId;
+    this.assetId = source.assetId;
+    this.tokenId = source.tokenId;
+    this.groupAssetId = source.groupAssetId;
 
-    selectId = source.selectId;
-    quoteType = source.quoteType;
-    quoteTargetUserId = source.quoteTargetUserId;
+    this.selectId = source.selectId;
+    this.quoteType = source.quoteType;
+    this.quoteTargetUserId = source.quoteTargetUserId;
 
-    type = source.type;
-    ordType = source.ordType;
-    prev = null;
-    next = null;
+    this.type = source.type;
+    this.prev = null;
+    this.next = null;
 
-    origOrderId = source.orderId;
-    fillCumNotional = 0;
-    feeEstimatedQuantity = source.feeEstimatedQuantity;
-    feeAccumulatedQuantity = source.feeAccumulatedQuantity;
-    availableEstimatedQuantity = source.availableEstimatedQuantity;
-    availableAccumulatedQuantity = source.availableAccumulatedQuantity;
-    orderModified = source.orderModified;
+    this.origOrderId = source.orderId;
+    this.fillCumNotional = 0;
+    this.feeEstimatedQuantity = source.feeEstimatedQuantity;
+    this.feeAccumulatedQuantity = source.feeAccumulatedQuantity;
+    this.availableEstimatedQuantity = source.availableEstimatedQuantity;
+    this.availableAccumulatedQuantity = source.availableAccumulatedQuantity;
+    this.orderModified = source.orderModified;
+    this.platform = source.platform;
+    this.accountId = source.accountId;
   }
 
   public final int getSecurityId() {
@@ -744,18 +754,40 @@ public class Order extends Message implements Constants {
     return (priceInt * pair.getPriceScaleFactor()) * (quantityLong * pair.getQuantityScaleFactor());
   }
 
+  public String getPlatform() {
+    return platform;
+  }
+
+  public void setPlatform(String platform) {
+    this.platform = platform;
+  }
+
+  public String getAccountId() {
+    return accountId;
+  }
+
+  public void setAccountId(String accountId) {
+    this.accountId = accountId;
+  }
+
+  public String getSymbol() {
+    return symbol;
+  }
+
+  public void setSymbol(String symbol) {
+    this.symbol = symbol;
+  }
+
   // TODO: remove this check used for debugging
   public void visit() {
-    if (markAsReturned) {
+/*    if (markAsReturned) {
       try {
         throw new NullPointerException();
       } catch (Exception e) {
         LOGGER.error("visit marked AsReturned" + toString() + ", returnedStack=" + returnedStack, e);
       }
-    }
+    }*/
   }
-
-  private String returnedStack = "";
 
   @Override
   public void markAsReturned() {
@@ -767,7 +799,7 @@ public class Order extends Message implements Constants {
       final StringWriter sw = new StringWriter();
       final PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
-      returnedStack = sw.toString(); // stack trace as a string
+      //returnedStack = sw.toString(); // stack trace as a string
     }
   }
 
@@ -788,6 +820,8 @@ public class Order extends Message implements Constants {
     if (null != instrument) {
       final OrderBook orderbook = instrument.getOrderBook();
       orderbook.addOrder(this);
+    } else {
+      LOGGER.error("Invalid instrument pair. id: " + securityId);
     }
   }
 
@@ -803,45 +837,48 @@ public class Order extends Message implements Constants {
 
   // use price2Scale aka intervalCount, for TWAP
   public final int intervalCountDecrement() {
-    price2Scale--;
+    this.price2Scale--;
     return price2Scale;
   }
 
   @Override
   public void clear() {
     super.clear();
-    prev = null;
-    next = null;
-    marginCheckReferencePrice = 0;
-    price2 = 0;
-    price2Int = 0;
-    stopPx = 0;
-    stopPxInt = 0;
-    price = 0;
-    priceInt = 0;
-    orderId = 0;
-    quantityLong = 0;
-    securityId = 0;
-    type = 0;
-    fillCumNotional = 0;
-    origOrderId = 0;
-    targetStrategy = 0;
-    isHidden = false;
-    isLiquidation = false;
-    isLastLook = false;
-    markAsReturned = false;
-    feeEstimatedQuantity = 0;
-    feeAccumulatedQuantity = 0;
-    availableEstimatedQuantity = 0;
-    availableAccumulatedQuantity = 0;
-    minMaxPrice = 0;
-    expireTime = 0;
-    assetId = 0;
-    tokenId = 0;
-    selectId = 0;
-    groupAssetId = 0;
-    quoteType = null;
-    quoteTargetUserId = 0;
+    this.prev = null;
+    this.next = null;
+    this.marginCheckReferencePrice = 0;
+    this.price2 = 0;
+    this.price2Int = 0;
+    this.stopPx = 0;
+    this.stopPxInt = 0;
+    this.price = 0;
+    this.priceInt = 0;
+    this.orderId = 0;
+    this.quantityLong = 0;
+    this.securityId = 0;
+    this.type = 0;
+    this.fillCumNotional = 0;
+    this.origOrderId = 0;
+    this.targetStrategy = 0;
+    this.isHidden = false;
+    this.isLiquidation = false;
+    this.isLastLook = false;
+    this.markAsReturned = false;
+    this.feeEstimatedQuantity = 0;
+    this.feeAccumulatedQuantity = 0;
+    this.availableEstimatedQuantity = 0;
+    this.availableAccumulatedQuantity = 0;
+    this.minMaxPrice = 0;
+    this.expireTime = 0;
+    this.assetId = 0;
+    this.tokenId = 0;
+    this.selectId = 0;
+    this.groupAssetId = 0;
+    this.quoteType = null;
+    this.quoteTargetUserId = 0;
+    this.platform = null;
+    this.accountId = null;
+    this.symbol = null;
   }
 
   @Override
@@ -915,9 +952,10 @@ public class Order extends Message implements Constants {
         .append(feeAccumulatedQuantity).append(",\"availableEstimatedQuantity\":").append(availableEstimatedQuantity)
         .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity).append(",\"assetId\":").append(assetId)
         .append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":")
-        .append(selectId);
+        .append(selectId).append(",\"platform\":\"").append(platform).append("\",\"accountId\":\"").append(accountId)
+        .append("\",\"symbol\":\"").append(symbol).append("\"");
     if (quoteType != null) {
-      sb.append(",\"quoteType\":").append(quoteType);
+      sb.append(",\"quoteType\":\"").append(quoteType).append("\"");
     }
 
     sb.append("}");

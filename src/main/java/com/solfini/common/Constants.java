@@ -103,6 +103,7 @@ public interface Constants {
   public static final int LINKED_LIST_ORDER_BOOK = 3;
   public static final int TREE_ORDER_BOOK2 = 4;
   public static final int SELECT_ARRAY_ORDER_BOOK = 5;
+  public static final int COPY_TRADE_ORDER_BOOK = 6;
 
   public static final int DEFAULT_TEST_ORDER_BOOK = ARRAY_ORDER_BOOK;
 
@@ -160,11 +161,14 @@ public interface Constants {
   // times
   public static final int ONE_SECOND = 1_000;
   public static final int ONE_MINUTE = 60_000;
+  public static final int TWO_MINUTE = 120_000;
   public static final int FIVE_MINUTE = 300_000;
+  public static final int SIX_MINUTE = 360_000;
   public static final int FIFTEEN_MINUTE = 900_000;
   public static final int ONE_HOUR = 3_600_000;
   public static final int SIX_HOUR = 21_600_000;
   public static final int ONE_DAY = 86_400_000;
+  public static final int TWO_DAY = 172_800_000;
   public static final int ONE_WEEK = 604_800_000;
 
   // logging formats

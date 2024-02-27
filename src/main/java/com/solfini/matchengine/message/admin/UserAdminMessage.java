@@ -28,7 +28,7 @@ public class UserAdminMessage extends AdminMessage {
   private String password;
   private int firmId;
   private int feeTier;
-  private RequestStatus requestStatus;
+  private RequestStatus requestStatus = RequestStatus.NULL_VAL;
   private boolean lmm;
   private Position[] positionArr = new Position[Math.max(InstrumentCache.getPairCapacity(), 128)];
   private int positionsLength = 0;
@@ -257,7 +257,7 @@ public class UserAdminMessage extends AdminMessage {
         .append(connectionId).append(",\"triggerTimeMillis\":").append(triggerTimeMillis).append(",\"externalId\":").append(externalId);
     sb.append(",\"routeToDestination\":").append("\"").append(routeToDestination).append("\"");
     sb.append(",\"updateType\":").append(updateType.value()).append(",\"userId\":").append(userId).append(",\"firmId\":").append(firmId)
-        .append(",\"feeTier\":").append(feeTier).append(",\"requestStatus\":").append(requestStatus.value()).append(",\"status\":")
+        .append(",\"feeTier\":").append(feeTier).append(",\"requestStatus\":").append(requestStatus != null ? requestStatus.value(): RequestStatus.NULL_VAL).append(",\"status\":")
         .append(status).append(",\"accountType\":").append(accountType).append(",\"lmm\":").append(lmm)
         .append(",\"marginCurveIdOverride\":").append(marginCurveIdOverride).append(",\"useDiscountFeesCoin\":").append(useDiscountFeesCoin)
         .append(",\"userType\":").append(userType).append(",\"username\":").append("\"").append(username).append("\"");

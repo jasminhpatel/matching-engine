@@ -34,8 +34,8 @@ public class LatencyBenchmark extends Benchmark {
   }
 
   public final void sample(final int index) {
-    final BenchmarkEntry entry = entries[index];
     final long now = System.nanoTime();
+    final BenchmarkEntry entry = entries[index];
     if (now >= entry.start) {
       entry.duration += now - entry.start;
       entry.count++;
@@ -46,8 +46,9 @@ public class LatencyBenchmark extends Benchmark {
     final StringBuilder builder = new StringBuilder();
     for (int i = 0; i < entries.length; ++i) {
       final BenchmarkEntry entry = entries[i];
-      if (null != entry && 0 != entry.count) {
-        builder.append(entry.label + ":" + format((entry.duration/ 1000.0) / entry.count) + " ");
+      if (null != entry && 0 != entry.count && entry.duration > 0) {
+        builder.append("\n").append(entry.label).append(" :").append(format((entry.duration / 1000.0) / entry.count))
+                .append("ms, count:").append(format(entry.count));
         entry.duration = 0;
         entry.count = 0;
       }

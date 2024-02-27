@@ -53,6 +53,19 @@ public final class Context implements Constants {
 
   private static final int STREAM_ID = PropertyReader.getProperty("STREAM_ID", 1);
   private static final int QUEUE_CAPACITY = PropertyReader.getProperty("QUEUE_CAPACITY", 8_388_608);
+  private static final int CONTROL_QUEUE_CAPACITY = PropertyReader.getProperty("CONTROL_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int RISK_TO_AUTO_LIQUIDATOR_QUEUE_CAPACITY = PropertyReader.getProperty("RISK_TO_AUTO_LIQUIDATOR_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int RISK_TO_MATCHER_QUEUE_CAPACITY = PropertyReader.getProperty("RISK_TO_MATCHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int RECEIVER_TO_MATCHER_QUEUE_CAPACITY = PropertyReader.getProperty("RECEIVER_TO_MATCHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int ADMIN_RECEIVER_TO_MATCHER_QUEUE_CAPACITY = PropertyReader.getProperty("ADMIN_RECEIVER_TO_MATCHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int MATCHER_TO_PUBLISHER_QUEUE_CAPACITY = PropertyReader.getProperty("MATCHER_TO_PUBLISHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int PUBLISHER_TO_PERSISTER_QUEUE_CAPACITY = PropertyReader.getProperty("PUBLISHER_TO_PERSISTER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int PUBLISHER_TO_PERSISTER_POSITION_QUEUE_CAPACITY = PropertyReader.getProperty("PUBLISHER_TO_PERSISTER_POSITION_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int PUBLISHER_TO_KAFKA_PUBLISHER_QUEUE_CAPACITY = PropertyReader.getProperty("PUBLISHER_TO_KAFKA_PUBLISHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int DR_TO_MATCHER_QUEUE_CAPACITY = PropertyReader.getProperty("DR_TO_MATCHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int MARKET_DATA_BUILDER_QUEUE_CAPACITY = PropertyReader.getProperty("MARKET_DATA_BUILDER_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int COPY_TRADE_QUEUE_CAPACITY = PropertyReader.getProperty("COPY_TRADE_QUEUE_CAPACITY", QUEUE_CAPACITY);
+
   private static MarketStatus MARKET_STATUS = MarketStatus.get(Short.parseShort(PropertyReader.getProperty("MARKET_STATUS", "0")));
 
   private static final String CHRONICLE_ENGINE_OUTPUT_DIRECTORY =
@@ -147,48 +160,46 @@ public final class Context implements Constants {
   private static final String RISK_THREAD_IDLE = PropertyReader.getProperty("RISK_THREAD_IDLE", NO_OP_IDLE_STATEGY);
 
   private static final int INACTIVE_MARKET_DATA_PUBLISH_TIME = PropertyReader.getProperty("INACTIVE_MARKET_DATA_PUBLISH_TIME", 300_000);
+  private static final String ENVIRONMENT = PropertyReader.getProperty("ENVIRONMENT", "PRODUCTION");
+  private static boolean PUBLISH_HEALTH_REPORT_MAIL = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PUBLISH_HEALTH_REPORT_MAIL", TRUE));
+  private static final int MARKET_MAKER_USERID = PropertyReader.getProperty("MARKET_MAKER_USERID", 0);
+  private static final int ROUTER_THREAD_POOL_CORE_SIZE = PropertyReader.getProperty("ROUTER_THREAD_POOL_CORE_SIZE", 1);
+  private static final boolean COPY_TRADE_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("COPY_TRADE_ENABLED", FALSE));
+  private static final boolean COPY_TRADE_ONLY = TRUE.equalsIgnoreCase(PropertyReader.getProperty("COPY_TRADE_ONLY", FALSE));
+  private static final String COPY_TRADE_PROXY_IPS = PropertyReader.getProperty("COPY_TRADE_PROXY_IPS", null);
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
-      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "controlQueue");
-
+      new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoLiquidatorQueue =
-      new ManyToManyConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "riskToAutoLiquidatorQueue");
+      new ManyToManyConcurrentArrayQueueCustom<>(RISK_TO_AUTO_LIQUIDATOR_QUEUE_CAPACITY, "riskToAutoLiquidatorQueue");
   private static final ManyToOneConcurrentArrayQueueCustom<Message> riskToMatcherQueue =
-      new ManyToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "riskToMatcherQueue");
+      new ManyToOneConcurrentArrayQueueCustom<>(RISK_TO_MATCHER_QUEUE_CAPACITY, "riskToMatcherQueue");
   private static final TransactionalInputManyToOneConcurrentArrayQueue receiverToMatcherQueue =
-      new TransactionalInputManyToOneConcurrentArrayQueue(QUEUE_CAPACITY, "receiverToMatcherQueue");
+      new TransactionalInputManyToOneConcurrentArrayQueue(RECEIVER_TO_MATCHER_QUEUE_CAPACITY, "receiverToMatcherQueue");
   private static final OneToOneConcurrentArrayQueueCustom<Message> adminReceiverToMatcherQueue =
-      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "adminReceiverToMatcherQueue");
+      new OneToOneConcurrentArrayQueueCustom<>(ADMIN_RECEIVER_TO_MATCHER_QUEUE_CAPACITY, "adminReceiverToMatcherQueue");
   private static final TransactionalOutputManyToOneConcurrentArrayQueue matcherToPublisherQueue =
-      new TransactionalOutputManyToOneConcurrentArrayQueue(QUEUE_CAPACITY, "matcherToPublisherQueue");
+      new TransactionalOutputManyToOneConcurrentArrayQueue(MATCHER_TO_PUBLISHER_QUEUE_CAPACITY, "matcherToPublisherQueue");
   private static final ManyToOneConcurrentArrayQueueCustom<Message> publisherToPersisterQueue =
-      new ManyToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "publisherToPersisterQueue");
+      new ManyToOneConcurrentArrayQueueCustom<>(PUBLISHER_TO_PERSISTER_QUEUE_CAPACITY, "publisherToPersisterQueue");
   private static final ManyToOneConcurrentArrayQueueCustom<PositionReportMessage> publisherToPersisterPositionQueue =
-      new ManyToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "publisherToPersisterPositionQueue");
-
-
+      new ManyToOneConcurrentArrayQueueCustom<>(PUBLISHER_TO_PERSISTER_POSITION_QUEUE_CAPACITY, "publisherToPersisterPositionQueue");
   private static final OneToOneConcurrentArrayQueueCustom<byte[]> publisherToKafkaPublisherQueue =
-      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "publisherToKafkaPublisherQueue");
-
+      new OneToOneConcurrentArrayQueueCustom<>(PUBLISHER_TO_KAFKA_PUBLISHER_QUEUE_CAPACITY, "publisherToKafkaPublisherQueue");
   private static final OneToOneConcurrentArrayQueueCustom<Message> drToMatcherQueue =
-      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "drToMatcherQueue");
+      new OneToOneConcurrentArrayQueueCustom<>(DR_TO_MATCHER_QUEUE_CAPACITY, "drToMatcherQueue");
   private static final ManyToOneConcurrentArrayQueueCustom<InstrumentPair> marketDataBuilderQueue =
-      new ManyToOneConcurrentArrayQueueCustom<>(4096, "marketDataBuilderQueue");
-
+      new ManyToOneConcurrentArrayQueueCustom<>(MARKET_DATA_BUILDER_QUEUE_CAPACITY, "marketDataBuilderQueue");
+  private static final ManyToManyConcurrentArrayQueueCustom<Message> copyTradeQueue =
+      new ManyToManyConcurrentArrayQueueCustom<>(COPY_TRADE_ENABLED ? COPY_TRADE_QUEUE_CAPACITY : 2, "copyTradeQueue");
 
   private static final LoggingThread LOGGING_THREAD = new LoggingThread(IdleStrategyFactory.create(MATCHING_THREAD_IDLE));
   private static final MatchingThread MATCHING_THREAD = new MatchingThread(IdleStrategyFactory.create(MATCHING_THREAD_IDLE));
   private static final PublisherThread PUBLISHER_THREAD = new PublisherThread(IdleStrategyFactory.create(PUBLISHER_THREAD_IDLE));
 
-
-
   private static final TimeTriggerThread timeTriggerThread = new TimeTriggerThread(IdleStrategyFactory.create(RISK_THREAD_IDLE));
   private static final TimeEventGeneratorThread timeEventGeneratorThread =
       new TimeEventGeneratorThread(IdleStrategyFactory.create(RISK_THREAD_IDLE));
-
-
-  private static boolean PUBLISH_HEALTH_REPORT_MAIL = TRUE.equalsIgnoreCase(PropertyReader.getProperty("PUBLISH_HEALTH_REPORT_MAIL", TRUE));
-  private static int MARKET_MAKER_USERID = PropertyReader.getProperty("MARKET_MAKER_USERID", 0);
 
   private static KafkaPublisher kafkaPublisher = null;
   private static int loadStrategy;
@@ -733,5 +744,29 @@ public final class Context implements Constants {
 
   public static int getInactiveMarketDataPublishTime() {
     return INACTIVE_MARKET_DATA_PUBLISH_TIME;
+  }
+
+  public static String getEnvironment() {
+    return ENVIRONMENT;
+  }
+
+  public static int getRouterThreadPoolCoreSize() {
+    return ROUTER_THREAD_POOL_CORE_SIZE;
+  }
+
+  public static ManyToManyConcurrentArrayQueueCustom<Message> getCopyTradeQueue() {
+    return copyTradeQueue;
+  }
+
+  public static boolean isCopyTradeEnabled() {
+    return COPY_TRADE_ENABLED;
+  }
+
+  public static boolean isCopyTradeOnly() {
+    return COPY_TRADE_ONLY;
+  }
+
+  public static String getCopyTradeProxyIps() {
+    return COPY_TRADE_PROXY_IPS;
   }
 }

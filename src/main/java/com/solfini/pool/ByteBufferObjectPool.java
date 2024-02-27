@@ -19,7 +19,7 @@ public class ByteBufferObjectPool implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ByteBufferObjectPool.class);
 
   private static final int QUEUE_CAPACITY = PropertyReader.getProperty("BYTE_BUFFER_POOL_QUEUE_CAPACITY", 16384);
-  private static final int START_CAPACITY = PropertyReader.getProperty("BYTE_BUFFER_POOL_QUEUE_CAPACITY", 8192);
+  private static final int START_CAPACITY = PropertyReader.getProperty("BYTE_BUFFER_POOL_START_CAPACITY", 8192);
   private static final OneToOneConcurrentArrayQueueCustom<ByteBuffer> pool =
       new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "ByteBufferObjectPool");
   private static final PoolBenchmark benchmark = new PoolBenchmark(ByteBufferObjectPool.class, START_CAPACITY);

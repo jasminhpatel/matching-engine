@@ -1124,7 +1124,7 @@ CREATE TABLE asset_details_state(
     supportDoc5Url varchar(256) null,
     longitude double precision,
     latitude double precision,
-    marketType INT DEFAULT 2,
+   -- marketType INT DEFAULT 2,
     assetLogoUrl varchar(256) null,
     
     aboutOrg varchar(1024) null,
@@ -1232,8 +1232,8 @@ ALTER TABLE user_state ADD isInfluencer bool NULL DEFAULT FALSE;
 CREATE TABLE subscription_state (
     id bigserial PRIMARY KEY NOT NULL,
     userId INT,
-    platform VARCHAR(64),
-    accountId VARCHAR(64),
+    platform VARCHAR(128),
+    accountId VARCHAR(128),
     exchange VARCHAR(64),
     apiUser VARCHAR(128),
     apiSecret VARCHAR(128),
@@ -1245,3 +1245,160 @@ CREATE TABLE subscription_state (
 );
 ALTER TABLE user_state ADD platform varchar(64) NULL;
 ALTER TABLE user_state ADD accountId varchar(64) NULL;
+ALTER TABLE subscription_state ADD apiKey varchar(128) NULL;
+ALTER TABLE subscription_state ADD updated int8;
+
+CREATE TABLE copy_trade_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    userId INT,
+    securityId INT,
+    clOrdId VARCHAR(32),
+    platform VARCHAR(128),
+    accountId VARCHAR(128),
+    exchange VARCHAR(64),
+    created int8,
+    side VARCHAR(32),
+    ordType VARCHAR(32),
+    timeInForce VARCHAR(32),
+    orderQty int8,
+    orderQtyScale int2,
+    price int8,
+    priceScale int2,
+    result VARCHAR(256),
+    kafkarecordoffset int8,
+    basesymbol VARCHAR(32),
+    quotedsymbol VARCHAR(32),
+    subscriptionId int8,
+    externalId VARCHAR(256),
+    originalAmount double precision,
+    cumulativeAmount double precision,
+    status VARCHAR(32)
+    );
+ALTER TABLE user_state ADD fiatwireenabled int default 0;
+ALTER TABLE user_state ADD stablecoinenabled int default 0;
+ALTER TABLE security_definition_log ADD markettype int default 2;
+
+CREATE TABLE external_instrument_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    exchange VARCHAR(32),
+    base VARCHAR(32),
+    quoted VARCHAR(32),
+    tradable bool,
+    updated int8
+    );
+
+ALTER TABLE subscription_state ADD preferredQuoteCurrency varchar(16) NULL;
+
+CREATE TABLE external_exchange_state (
+    id serial PRIMARY KEY NOT NULL,
+    code VARCHAR(32),
+    quoteCurrencies VARCHAR(256),
+    created int8,
+    updated int8,
+    status int
+    );
+
+ALTER TABLE subscription_state ADD preferredCurrencies varchar(256) NULL;
+
+CREATE TABLE subscription_payment_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    userId int,
+    subscriptionId int8,
+    noOfDays int,
+    amount double precision,
+    chain VARCHAR(32),
+    paymentCurrency VARCHAR(32),
+    created int8,
+    updated int8,
+    status int,
+    percentage int,
+    maxAmount int8
+    );
+
+ALTER TABLE subscription_payment_state ADD paymentMethod int null;
+
+ALTER TABLE user_state ADD channel varchar(32) DEFAULT 'CARBON_CREDIT' NOT NULL;
+
+CREATE TABLE billing_info_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    userId int,
+    billingName VARCHAR(64),
+    nickname VARCHAR(64),
+    preferred int2,
+    billingType VARCHAR(32),
+    name VARCHAR(64),
+    address1 VARCHAR(64),
+    address2 VARCHAR(64),
+    city VARCHAR(64),
+    state VARCHAR(64),
+    country VARCHAR(64),
+    postalCode VARCHAR(64),
+    status int2,
+    email VARCHAR(64),
+    externalToken VARCHAR(64),
+    externalCustomerId VARCHAR(64),
+    cardBrand VARCHAR(64),
+    errorTxt VARCHAR(256),
+    cardAndCvcHash VARCHAR(128),
+    paymentMethod VARCHAR(128),
+    channel VARCHAR(32)
+    );
+
+CREATE TABLE twitter_user_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    twitterId VARCHAR(64),
+    name VARCHAR(128),
+    username VARCHAR(64),
+    profileImage VARCHAR(128),
+    verified bool,
+    followersCount int8,
+    followingCount int8,
+    tweetCount int8,
+    listedCount int8,
+    likeCount int8,
+    lastUpdated int8,
+    createdAt VARCHAR(32),
+    insertedAt int8,
+    status int
+    );
+
+CREATE TABLE public.twitter_username_backfill_state (
+	username varchar(32) PRIMARY KEY NOT NULL,
+	backfilled bool NOT NULL DEFAULT false
+);
+
+CREATE TABLE subscription_fee_status (
+    id serial PRIMARY KEY NOT NULL,
+    fromValue int8,
+    toValue int8,
+    percentage int8,
+    flatAmount int8,
+    createdAt int8,
+    updatedAt int8,
+    status int
+    );
+
+ALTER TABLE subscription_state ADD inverseTrade int default 0;
+
+ALTER TABLE copy_trade_state ADD origClOrdId VARCHAR(32);
+ALTER TABLE copy_trade_state ADD signalPercentage int8;
+ALTER TABLE copy_trade_state ADD signalpercentagescale int;
+ALTER TABLE copy_trade_state ADD signalprice int8;
+ALTER TABLE copy_trade_state ADD signalpricescale int;
+ALTER TABLE copy_trade_state ADD xQuantity VARCHAR(32);
+ALTER TABLE copy_trade_state ADD xPrice VARCHAR(32);
+ALTER TABLE copy_trade_state ADD isToClose bool;
+
+ALTER TABLE subscription_state ADD amountWithLeverage int8 default 0;
+ALTER TABLE subscription_payment_state ADD amountWithLeverage int8 default 0;
+ALTER TABLE pending_order_state ADD isToClose bool default FALSE;
+
+ALTER TABLE copy_trade_state ADD closeClOrdId VARCHAR(32);
+ALTER TABLE copy_trade_state ADD closed bool default false;
+ALTER TABLE subscription_state ADD hasPendingClose bool default false;
+
+ALTER TABLE external_instrument_state ADD closePricePercentage int default 2000;--2000 => 20%
+
+ALTER TABLE copy_trade_state ADD borrowedAmount double precision default 0;
+ALTER TABLE copy_trade_state ADD repaid bool default false;
+

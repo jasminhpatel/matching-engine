@@ -333,7 +333,7 @@ public class Balance implements Appendable, Constants {
         .append(usdValue).append(",\"usdUnrealized\":").append(usdUnrealized).append(",\"usdRealized\":").append(usdRealized)
         .append(",\"quotedUsdMark\":").append(quotedUsdMark).append(",\"settleCoinUsdMark\":").append(settleCoinUsdMark)
         .append(",\"settleCoinUnrealized\":").append(settleCoinUnrealized).append(",\"settleCoinRealized\":").append(settleCoinRealized)
-        .append(",\"assetId2\":").append(assetId2).append(",\"tokenType\":").append(tokenType.value());
+        .append(",\"assetId2\":").append(assetId2).append(",\"tokenType\":").append(tokenType != null ? tokenType.value() : TokenType.NULL_VAL.value());
     if (assetIdtreeSet != null) {
       sb.append(",\"assetIdtreeSet\":[");
       boolean addComma = false;

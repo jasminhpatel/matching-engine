@@ -2,17 +2,14 @@ package com.solfini.matchengine.controller;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import com.solfini.common.*;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-
-import com.solfini.common.Constants;
-import com.solfini.common.CustomLogger;
-import com.solfini.common.Message;
-import com.solfini.common.OneToOneConcurrentArrayQueueCustom;
 
 /**
  * The UnifiedController class implements a controller that promote the matching engine to primary or secondary on startup based on a set
@@ -148,8 +145,10 @@ public class UnifiedController extends Controller implements Constants {
         LOGGER.info(LOG_FMT_2, "Switching mode to ", controllerMode);
       }
       if ((Mode.PRIMARY == controllerMode) && !acquirePrimaryLock()) {
-        LOGGER.error("Terminating this instance.");
-        System.exit(1);
+        if (!Context.isCopyTradeOnly()) {
+          LOGGER.error("Terminating this instance.");
+          System.exit(1);
+        }
       }
 
       switchMode(controllerMode);

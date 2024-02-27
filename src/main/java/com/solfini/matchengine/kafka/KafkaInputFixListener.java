@@ -3,6 +3,9 @@ package com.solfini.matchengine.kafka;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+
+import com.solfini.matchengine.message.internal.Order;
+import com.solfini.matchengine.message.session.HeartbeatMessage;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -189,6 +192,19 @@ public class KafkaInputFixListener extends KafkaListener {
         LOGGER.error(
             "KafkaInputFixListener decode error, msgType=" + messageType + LENGTH_EQ + length + SB_EQ + StringUtil.fixToString(data), e);
         return;
+      }
+
+      if (Context.isCopyTradeOnly()) {
+        //ignore unsupported messages in copy trade mode
+        boolean ignore = true;
+        if (message instanceof Order || message instanceof HeartbeatMessage) {
+          ignore = false;
+        }
+
+        if (ignore) {
+          return;
+        }
+
       }
 
       // Decode transaction details

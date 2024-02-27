@@ -28,7 +28,7 @@ public class MatchingThread implements Runnable, Constants {
   private final FastArrayList<Message> list = new FastArrayList<>(4096);
   private final RateBenchmark benchmark = new RateBenchmark("MatchingThread");
   private final TransactionalOutputManyToOneConcurrentArrayQueue matcherToPublisherQueue;
-
+  
   public MatchingThread(final IdleStrategy idleStrategy) {
     this.receiverToMatcherQueue = Context.getReceiverToMatcherQueue();
     this.riskToMatcherQueue = Context.getRiskToMatcherQueue();
@@ -41,7 +41,6 @@ public class MatchingThread implements Runnable, Constants {
     Message message = null;
     while (true) {
       try {
-
         long t2 = System.currentTimeMillis();
         // regular messages
         int count = receiverToMatcherQueue.drainTo(list, 128);

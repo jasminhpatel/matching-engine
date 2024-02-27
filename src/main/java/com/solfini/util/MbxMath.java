@@ -256,6 +256,14 @@ public final class MbxMath {
     }
   }
 
+  public static double scaleDown(final long amount, final int scale) {
+    double value = amount;
+    for (int i = 0; i < scale; i++) {
+      value = value / 10d;
+    }
+    return MbxMath.roundToBestPrecision(value);
+  }
+
   public static final class MutableBoolean {
 
     private boolean value;

@@ -261,6 +261,10 @@ public class InstrumentCache implements Constants {
       final boolean physicalSettle = securityDefinitionAdminMessage.isPhysicalSettle();
       final boolean isLimitOnlyMode = securityDefinitionAdminMessage.isLimitOnlyMode();
 
+      if (Context.isCopyTradeOnly() && orderBookStrategy != COPY_TRADE_ORDER_BOOK) {
+        return;
+      }
+
       final Instrument base = InstrumentCache.get(securityDefinitionAdminMessage.getBaseId());
       final Instrument quoted = InstrumentCache.get(securityDefinitionAdminMessage.getQuotedId());
       if (base == null || quoted == null) {

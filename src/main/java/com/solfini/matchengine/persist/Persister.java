@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
+import com.solfini.matchengine.copytrade.CopyTrade;
+import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 
 /**
@@ -24,11 +26,17 @@ public class Persister implements Constants {
 
   public static final String INSERT_EXEC_REPORT =
       "INSERT INTO execution_report (securityid,userid,clordid,symbol,side,ordtype,exectype,ordstatus,orderid,secondaryorderid,origorderid,execid,secondaryexecid,counterpartyid,ispositionsidecrossed,targetstrategy,orderqty,orderqtyscale,leavesqty,leavesqtyscale,cumqty,cumqtyscale,cumquoteqty,price,pricescale,avgpx,avgpxscale,lastpx,lastpxscale,lastqty,lastqtyscale,stoppx,stoppxscale,timeinforce,expiretime,timestampmillis,expiretimemillis,aggressorside,price2,price2scale,execrestatementreason,sourceseqnum,sourcesendtime,snapid,kafkarecordoffset,transactionid,islastmessageintransaction,decodedtime,matchtime,publishtime,notional,feePositionId,feePositionQuantityChange,feePositionQuantity,settlePositionId,settlePositionQuantityChange,settlePositionQuantity,isPaidToInsurance,isHidden,isLiquidation,submitterId,assetId,tokenId,groupAssetId,selectId,quoteType,quoteTargetUserId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-
+  public static final String INSERT_COPY_TRADE =
+      "INSERT INTO copy_trade_state (userid,securityid,clordid,platform,accountid,exchange,created,side,ordtype,timeinforce,orderqty,orderqtyscale,price,pricescale,\"result\",kafkarecordoffset,basesymbol,quotedsymbol,subscriptionId,externalId,originalAmount,cumulativeAmount,status,origclordid,signalpercentage,signalpercentagescale,signalprice,signalpricescale,xquantity,xprice,istoclose,closeClOrdId,closed,borrowedAmount,repaid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+  public static final String UPDATE_COPY_TRADE =
+      "UPDATE copy_trade_state set closed=true,closeClOrdId=?,price=?,originalamount=?,cumulativeamount=?,status=? WHERE clordid=? AND subscriptionId=?;";
+  private static final String UPDATE_PENDING_CLOSE_STATUS = "UPDATE subscription_state SET hasPendingClose=true where id=?";
   private static PreparedStatement psExecutionReport = null;
+  private static PreparedStatement psCopyTrade = null;
+  private static PreparedStatement psUpdateCopyTrade = null;
+  private static PreparedStatement psUpdateSubscription = null;
 
   private static ArrayList<Connection> connections = new ArrayList<>();
-
 
   private Persister() {
     // Make sure this class is not instantiated
@@ -46,10 +54,12 @@ public class Persister implements Constants {
 
   public static final boolean startBatch() {
 
-    if (failed || (psExecutionReport == null)) {
-
+    if (failed || psExecutionReport == null || psCopyTrade == null || psUpdateCopyTrade == null || psUpdateSubscription == null) {
       // Close prepared statements
       closePreparedStatement(psExecutionReport);
+      closePreparedStatement(psCopyTrade);
+      closePreparedStatement(psUpdateCopyTrade);
+      closePreparedStatement(psUpdateSubscription);
 
       // Close any active connections as we are about to create new ones.
       for (final Connection conn : connections) {
@@ -62,6 +72,9 @@ public class Persister implements Constants {
       connections.clear();
 
       psExecutionReport = buildPreparedStatement(INSERT_EXEC_REPORT);
+      psCopyTrade = buildPreparedStatement(INSERT_COPY_TRADE);
+      psUpdateCopyTrade = buildPreparedStatement(UPDATE_COPY_TRADE);
+      psUpdateSubscription = buildPreparedStatement(UPDATE_PENDING_CLOSE_STATUS);
     }
 
     if ((psExecutionReport != null)) {
@@ -99,20 +112,17 @@ public class Persister implements Constants {
     return maxKafkaRecordOffset;
   }
 
-
-  public static final long MULTIPLIER = 100_000_000;
-
   public static final void onMessage(final ExecutionReportMessage message) {
-    LOGGER.info("Persist message received: " + message.getClOrdId() + " symbol: " + message.getSymbol());
     if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
       active = true;
     }
     if (!active) {
       LOGGER.warn(Constants.WARN_LOG,
-          "Persist message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
+          "Persist ExecutionReportMessage message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
       return;
     }
-
+    LOGGER.info("Persist message received (ExecutionReportMessage): " + message.getClOrdId()
+        + " active: " + active + " symbol: " + message.getSymbol());
     try {
       String clOrdId = message.getClOrdId();
       if (null != clOrdId && clOrdId.length() > 38) {
@@ -196,6 +206,107 @@ public class Persister implements Constants {
     }
   }
 
+  public static final void onMessage(final CopyTrade message) {
+    //todo single input message generate multiple copy trades. handle kafka record offset accordingly
+    //but here we have only consider the kafka offset of execution reports.
+//    if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
+      active = true;
+//    }
+    if (!active) {
+      LOGGER.warn(Constants.WARN_LOG,
+          "Persist CopyTrade message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
+      return;
+    }
+    try {
+      String clOrdId = message.getClOrdId();
+      if (null != clOrdId && clOrdId.length() > 38) {
+        clOrdId = clOrdId.substring(0, 38);
+      }
+      if (!message.isToClose() && message.isClosed()) {// update close status in the open order
+        LOGGER.info("Update message received (CopyTrade): " + message.getClOrdId() + " active: " + active);
+        psUpdateCopyTrade.setString(1, message.getCloseClOrdId());
+        psUpdateCopyTrade.setLong(2, message.getPrice());
+        psUpdateCopyTrade.setDouble(3, message.getOriginalAmount());
+        psUpdateCopyTrade.setDouble(4, message.getCumulativeAmount());
+        psUpdateCopyTrade.setString(5, message.getStatus());
+        psUpdateCopyTrade.setString(6, clOrdId);
+        psUpdateCopyTrade.setLong(7, message.getSubscriptionId());
+
+        psUpdateCopyTrade.addBatch();
+      } else {
+        LOGGER.info("Persist message received (CopyTrade): " + message.getClOrdId() + " active: " + active);
+        psCopyTrade.setInt(1, message.getUserId());
+        psCopyTrade.setInt(2, message.getSecurityId());
+        psCopyTrade.setString(3, clOrdId);
+        psCopyTrade.setString(4, message.getPlatform());
+        psCopyTrade.setString(5, message.getAccountId());
+        psCopyTrade.setString(6, message.getExchange());
+        psCopyTrade.setLong(7, message.getCreated());
+        psCopyTrade.setString(8, message.getSide() == null ? null : message.getSide().toString());
+        psCopyTrade.setString(9, message.getOrdType() == null ? null : message.getOrdType().toString());
+        psCopyTrade.setString(10, message.getTimeInForce() == null ? null : message.getTimeInForce().toString());
+        psCopyTrade.setLong(11, message.getOrderQty());
+        psCopyTrade.setInt(12, message.getOrderQtyScale());
+        psCopyTrade.setLong(13, message.getPrice());
+        psCopyTrade.setInt(14, message.getPriceScale());
+        psCopyTrade.setString(15, message.getResult());
+        psCopyTrade.setLong(16, message.getKafkaRecordOffset());
+        psCopyTrade.setString(17, message.getBaseSymbol());
+        psCopyTrade.setString(18, message.getQuotedSymbol());
+        psCopyTrade.setLong(19, message.getSubscriptionId());
+        psCopyTrade.setString(20, message.getExternalId());
+        psCopyTrade.setDouble(21, message.getOriginalAmount());
+        psCopyTrade.setDouble(22, message.getCumulativeAmount());
+        psCopyTrade.setString(23, message.getStatus());
+        psCopyTrade.setString(24, message.getOrigClOrdId());
+        psCopyTrade.setLong(25, message.getSignalPercentage());
+        psCopyTrade.setShort(26, message.getSignalPercentageScale());
+        psCopyTrade.setLong(27, message.getSignalPrice());
+        psCopyTrade.setShort(28, message.getSignalPriceScale());
+        psCopyTrade.setString(29, message.getxQuantity() != null ? message.getxQuantity().toString() : null);
+        psCopyTrade.setString(30, message.getxPrice() != null ? message.getxPrice().toString() : null);
+        psCopyTrade.setBoolean(31, message.isToClose());
+        psCopyTrade.setString(32, message.getCloseClOrdId());
+        psCopyTrade.setBoolean(33, message.isClosed());
+        psCopyTrade.setDouble(34, message.getBorrowedAmount());
+        psCopyTrade.setBoolean(35, message.isRepaid());
+
+        psCopyTrade.addBatch();
+      }
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      LOGGER.error(ERROR_LOG, e);
+      failed = true;
+    }
+  }
+
+  public static final void onMessage(final InfluencerSubscription message) {
+    //todo single input message generate multiple copy trades. handle kafka record offset accordingly
+    //but here we have only consider the kafka offset of execution reports.
+    //if (message.getKafkaRecordOffset() >= getMaxKafkaRecordOffset()) {
+      active = true;
+    //}
+    if (!active) {
+      LOGGER.warn(Constants.WARN_LOG,
+          "Persist InfluenceSubscription message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
+      return;
+    }
+    try {
+      if (message.isHasPendingClose()) {// update close status in the open order
+        LOGGER.info("Update message received (InfluenceSubscription): " + message.getId() + " active: " + active);
+        psUpdateSubscription.setLong(1, message.getId());
+
+        psUpdateSubscription.addBatch();
+      }
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      LOGGER.error(ERROR_LOG, e);
+      failed = true;
+    }
+  }
+
   public static final boolean commitBatch() {
     try {
       psExecutionReport.executeBatch();
@@ -211,12 +322,53 @@ public class Persister implements Constants {
       }
     }
 
+    try {
+      psCopyTrade.executeBatch();
+      psCopyTrade.getConnection().commit();
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+      failed = true;
+
+      try {
+        psCopyTrade.getConnection().rollback();
+      } catch (Exception e1) {
+        LOGGER.error(ERROR_LOG, e1);
+      }
+    }
+
+    try {
+      psUpdateCopyTrade.executeBatch();
+      psUpdateCopyTrade.getConnection().commit();
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+      failed = true;
+
+      try {
+        psUpdateCopyTrade.getConnection().rollback();
+      } catch (Exception e1) {
+        LOGGER.error(ERROR_LOG, e1);
+      }
+    }
+
+    try {
+      psUpdateSubscription.executeBatch();
+      psUpdateSubscription.getConnection().commit();
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+      failed = true;
+
+      try {
+        psUpdateSubscription.getConnection().rollback();
+      } catch (Exception e1) {
+        LOGGER.error(ERROR_LOG, e1);
+      }
+    }
+
     return !failed;
   }
 
   public static long getMaxKafkaRecordOffset() {
     return maxKafkaRecordOffset;
   }
-
 
 }

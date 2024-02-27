@@ -173,7 +173,7 @@ public class MailUtil implements Constants {
   }
 
   static {
-    Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
+    //Security.addProvider(new com.sun.net.ssl.internal.ssl.Provider());
   }
 
   public static final boolean sendSSLMessage(final String[] recipients, final String subject, final String message, final String ctype,

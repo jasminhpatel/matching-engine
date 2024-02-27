@@ -267,6 +267,18 @@ public class KafkaAdminInputFixListener extends KafkaListener implements Constan
 
     }
 
+    if (Context.isCopyTradeOnly()) {
+      //ignore unsupported messages in copy trade mode
+      boolean ignore = true;
+      if (message instanceof UserAdminMessage
+          || message instanceof SecurityDefinitionAdminMessage) {
+        ignore = false;
+      }
+      if (ignore) {
+        return null;
+      }
+    }
+
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace(LOG_FMT_4, KAFKA_ADMIN_DECODED_ADMIN_MESSAGE_EQ, message, SNAPLOADERMODE_EQ, snapLoaderMode);
     }

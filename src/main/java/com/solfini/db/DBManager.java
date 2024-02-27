@@ -12,9 +12,9 @@ import com.zaxxer.hikari.HikariDataSource;
  *
  */
 public class DBManager {
-  private static final String DB_URL = PropertyReader.getProperty("DB_URL", "jdbc:mysql://solfini.com:3306/trader?");
-  private static final String DB_USER = PropertyReader.getProperty("DB_USER", "trader");
-  private static final String DB_PASSWORD = PropertyReader.getProperty("DB_PASSWORD", "h5!0xhnwnu89sVD38g1");
+  private static final String DB_URL = PropertyReader.getProperty("DB_URL", "jdbc:postgresql://127.0.0.1:5432/MyDB");
+  private static final String DB_USER = PropertyReader.getProperty("DB_USER", "rohanw");
+  private static final String DB_PASSWORD = PropertyReader.getProperty("DB_PASSWORD", "password");
   private static HikariDataSource dataSource = init();
 
   private DBManager() {}

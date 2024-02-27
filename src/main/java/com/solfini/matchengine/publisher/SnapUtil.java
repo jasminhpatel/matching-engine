@@ -18,6 +18,7 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
 import net.openhft.chronicle.queue.RollCycles;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
+import net.openhft.chronicle.queue.rollcycles.LegacyRollCycles;
 
 
 public class SnapUtil implements Constants {
@@ -50,8 +51,9 @@ public class SnapUtil implements Constants {
       LOGGER.error(ERROR_LOG, e);
     }
 
-    queue = SingleChronicleQueueBuilder.single(dir).blockSize(1048576).rollCycle(RollCycles.DAILY).build();
-    appender = queue.acquireAppender();
+    queue = SingleChronicleQueueBuilder.single(dir).blockSize(1048576).rollCycle(LegacyRollCycles.DAILY).build();
+    appender = queue.createAppender();
+    appender.singleThreadedCheckDisabled(true);
   }
 
   public final long getSnapId() {
