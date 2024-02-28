@@ -1229,6 +1229,9 @@ ALTER TABLE contract_state ADD contractVersion varchar(16) NULL DEFAULT 'V1';
 ALTER TABLE user_state ADD isInfluencer bool NULL DEFAULT FALSE;
 
 
+
+
+
 CREATE TABLE subscription_state (
     id bigserial PRIMARY KEY NOT NULL,
     userId INT,
@@ -1246,7 +1249,7 @@ CREATE TABLE subscription_state (
 ALTER TABLE user_state ADD platform varchar(64) NULL;
 ALTER TABLE user_state ADD accountId varchar(64) NULL;
 ALTER TABLE subscription_state ADD apiKey varchar(128) NULL;
-ALTER TABLE subscription_state ADD updated int8;
+ALTER TABLE subscription_state ADD updated int8 default 0;
 
 CREATE TABLE copy_trade_state (
     id bigserial PRIMARY KEY NOT NULL,
@@ -1276,7 +1279,7 @@ CREATE TABLE copy_trade_state (
     );
 ALTER TABLE user_state ADD fiatwireenabled int default 0;
 ALTER TABLE user_state ADD stablecoinenabled int default 0;
-ALTER TABLE security_definition_log ADD markettype int default 2;
+--ALTER TABLE security_definition_log ADD markettype int default 2;
 
 CREATE TABLE external_instrument_state (
     id bigserial PRIMARY KEY NOT NULL,
