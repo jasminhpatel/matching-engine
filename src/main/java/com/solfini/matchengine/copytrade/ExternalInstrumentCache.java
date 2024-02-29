@@ -85,7 +85,7 @@ public class ExternalInstrumentCache implements Constants{
           saveToDB(exchangeCode.toLowerCase(), instrument.getBase().getCurrencyCode().toLowerCase(), instrument.getCounter().getCurrencyCode().toLowerCase(), true);
         }
       } catch (Exception e) {
-        LOGGER.error("Error, failed to load symbols for exchange " + exchangeCode, e);
+        LOGGER.error("Error, failed to load symbols for exchange " + exchangeCode + " ", e);
       }
     }
   }

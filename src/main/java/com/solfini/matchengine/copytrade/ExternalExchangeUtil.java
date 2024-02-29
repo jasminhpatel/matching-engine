@@ -200,7 +200,12 @@ public class ExternalExchangeUtil {
     }
 
     if (PROXIES != null) {
-      specification.setSslUri("https://" + getRandomProxy() + "/" + exchange);
+      //todo add futures
+      if (subscription != null && subscription.hasLeverage()) {
+        specification.setSslUri("https://" + getRandomProxy() + "/" + exchange + "-MARGIN");
+      } else {
+        specification.setSslUri("https://" + getRandomProxy() + "/" + exchange);
+      }
     }
   }
 
