@@ -185,6 +185,8 @@ public class MatchEngineStarter implements Constants {
       CopyTradeCache.loadFromDB(loaderCounter);
     }).start();
 
+    LOGGER.info("Waiting for DB load. ");
+
     while (loaderCounter.get() != 0) {
     }
   }
