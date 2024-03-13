@@ -219,9 +219,10 @@ public class MatchEngineStarter implements Constants {
       loaderCounter.decrementAndGet();
       loaderCounter.decrementAndGet();
     }
-
+    System.out.println("Waiting for DB load.");
     while (loaderCounter.get() != 0) {
     }
+    System.out.println("Waiting for DB load completed.");
   }
 
   private void startPersistThread() {
