@@ -25,6 +25,8 @@ public class InfluencerSubscription extends Message {
   private int inverseTrade;
   private long amountWithLeverage;
   protected boolean hasPendingClose;
+  protected boolean futuresEnabled;
+  private String lastUsedProxy;
 
   public String getKey() {
     return (platform + "_" + accountId).toLowerCase();
@@ -178,6 +180,22 @@ public class InfluencerSubscription extends Message {
     return percentage > 10_000;
   }
 
+  public boolean isFuturesEnabled() {
+    return futuresEnabled;
+  }
+
+  public void setFuturesEnabled(boolean futuresEnabled) {
+    this.futuresEnabled = futuresEnabled;
+  }
+
+  public String getLastUsedProxy() {
+    return lastUsedProxy;
+  }
+
+  public void setLastUsedProxy(String lastUsedProxy) {
+    this.lastUsedProxy = lastUsedProxy;
+  }
+
   @Override
   public PayloadType getPayloadType() {
     return PayloadType.NULL_VAL;
@@ -228,6 +246,7 @@ public class InfluencerSubscription extends Message {
     //sb.append(",\"marginEnabled\":").append(marginEnabled);
     //sb.append(",\"futuresEnabled\":").append(futuresEnabled);
     sb.append(",\"amountWithLeverage\":").append(amountWithLeverage);
+    sb.append(",\"futuresEnabled\":").append(futuresEnabled);
     sb.append('}');
 
     return sb.toString();

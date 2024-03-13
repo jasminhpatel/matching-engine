@@ -1,5 +1,12 @@
 package rnd;
 
+import com.solfini.common.Constants;
+import com.solfini.matchengine.copytrade.CopyTrade;
+import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
+import com.solfini.util.HttpUtils;
+import com.solfini.util.MbxMath;
+import com.solfini.util.StringUtil;
+
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -7,21 +14,70 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 public class BinanceTest {
-  static String HMAC_SHA256_ALGORITHM = "HmacSHA256";
-  static String REQUEST_TOKEN = "L65Hq6Fcc6LdROvk32nwjzzvC4fbWQpUx1WG8cFJSMXiV55jpTe7a117RJ57hKOc";
-  static String REQUEST_SECRET = "P4AgUEQtLEzKfGe31C8y9nzjYUunwgbtpMXuqjmajHhkVa5vm3gmJn7I35WVJVFA";
+  static String HMAC_SHA256_ALGORITHM = "HmacSHA512";
+  //static String REQUEST_TOKEN = "L65Hq6Fcc6LdROvk32nwjzzvC4fbWQpUx1WG8cFJSMXiV55jpTe7a117RJ57hKOc";
+  //static String REQUEST_SECRET = "P4AgUEQtLEzKfGe31C8y9nzjYUunwgbtpMXuqjmajHhkVa5vm3gmJn7I35WVJVFA";
+  static String REQUEST_TOKEN = "1d773b4c6f1361614091fc5e9e48de1fd4e0b8dbd8a6c917844b69dec4def0f0";
+  static String REQUEST_SECRET = "4d9b0470fec2f70ecb58a13c417af5e5cd3011e68088cf37934e67f45b343b19";
   static String HOST = "https://testnet.binance.vision";
+  //static String HOST = "https://testnet.binancefuture.com";
+  static String X_MBX_APIKEY = "X-MBX-APIKEY";
 
   public static void main(String[] args) throws Exception {
-    getAccount();
+    //getAccount();
 
+    getOrder();
+  }
 
+  public static void getOrder() throws Exception {
+    StringBuilder url = new StringBuilder();
+    url.append("symbol=").append("BTCUSDT");
+    url.append("&orderId=").append("3720691744");
+    url.append("&recvWindow=").append(60000);
+    url.append("&timestamp=").append(System.currentTimeMillis());
+    System.out.println(url);
+    String signature = getSignature(url.toString().getBytes(), REQUEST_SECRET.getBytes());
+    url.append("&signature=").append(signature);
+    System.out.println(url);
+    url.insert(0, "/api/v3/order?");
+    //url.insert(0, "/fapi/v1/order?");
+    url.insert(0, HOST);
+
+    final String fullUrl = url.toString();
+    System.out.println(fullUrl);
+
+    Map<String, Object> headers = new HashMap<>();
+    headers.put(X_MBX_APIKEY, REQUEST_TOKEN);
+
+    HttpUtils.Response response = HttpUtils.get(fullUrl, headers);
+    System.out.println(response.getCode());
+    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
+      final String returnValue = response.getData();
+      System.out.println(returnValue);
+    } else {
+      System.out.println(response.getData());
+    }
 
   }
 
-
+  private static String getSignature(final byte[] message, final byte[] keyData) throws Exception {
+    final SecretKey key = new SecretKeySpec(keyData, HMAC_SHA256_ALGORITHM);
+    final Mac mac = Mac.getInstance(HMAC_SHA256_ALGORITHM);
+    mac.init(key);
+    mac.update(message);
+    byte[] hmac = mac.doFinal();
+    String hd;
+    final BigInteger hash = new BigInteger(1, hmac);
+    hd = hash.toString(16);
+    while (hd.length() < 32) {
+      hd = "0" + hd;
+    }
+    return hd;
+  }
 
   public static void getAccount() throws Exception {
 /*    OkHttpClient client = new OkHttpClient().newBuilder()
@@ -46,7 +102,8 @@ public class BinanceTest {
     return invoke(service, payload, REQUEST_TOKEN, REQUEST_SECRET);
   }
 
-  private static String invoke(final String service, final String payload, final String requestToken, final String requestSecret) throws Exception {
+  private static String invoke(final String service, final String payload, final String requestToken, final String requestSecret)
+      throws Exception {
     String signature = hexdigestV2(payload.getBytes(), requestSecret.getBytes());
     System.out.println(service + " " + payload + " requestSecret=" + requestSecret + ", signature=" + signature);
     String response = postV2(HOST + service, payload.getBytes(), requestToken, signature);
@@ -55,7 +112,7 @@ public class BinanceTest {
   }
 
   private static String invoke(final String service, final String requestToken, final String requestSecret) throws Exception {
-    System.out.println(service + " "  + " requestSecret=" + requestSecret);
+    System.out.println(service + " " + " requestSecret=" + requestSecret);
     String response = getV2(HOST + service, requestToken, null);
     System.out.println("<< " + response);
     return response;
@@ -137,4 +194,5 @@ public class BinanceTest {
     }
     return responseData.toString();
   }
+
 }

@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
@@ -13,9 +14,7 @@ import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 
 /**
- *
  * @author Chris Mack
- *
  */
 public class Persister implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(Persister.class);
@@ -27,10 +26,10 @@ public class Persister implements Constants {
   public static final String INSERT_EXEC_REPORT =
       "INSERT INTO execution_report (securityid,userid,clordid,symbol,side,ordtype,exectype,ordstatus,orderid,secondaryorderid,origorderid,execid,secondaryexecid,counterpartyid,ispositionsidecrossed,targetstrategy,orderqty,orderqtyscale,leavesqty,leavesqtyscale,cumqty,cumqtyscale,cumquoteqty,price,pricescale,avgpx,avgpxscale,lastpx,lastpxscale,lastqty,lastqtyscale,stoppx,stoppxscale,timeinforce,expiretime,timestampmillis,expiretimemillis,aggressorside,price2,price2scale,execrestatementreason,sourceseqnum,sourcesendtime,snapid,kafkarecordoffset,transactionid,islastmessageintransaction,decodedtime,matchtime,publishtime,notional,feePositionId,feePositionQuantityChange,feePositionQuantity,settlePositionId,settlePositionQuantityChange,settlePositionQuantity,isPaidToInsurance,isHidden,isLiquidation,submitterId,assetId,tokenId,groupAssetId,selectId,quoteType,quoteTargetUserId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
   public static final String INSERT_COPY_TRADE =
-      "INSERT INTO copy_trade_state (userid,securityid,clordid,platform,accountid,exchange,created,side,ordtype,timeinforce,orderqty,orderqtyscale,price,pricescale,\"result\",kafkarecordoffset,basesymbol,quotedsymbol,subscriptionId,externalId,originalAmount,cumulativeAmount,status,origclordid,signalpercentage,signalpercentagescale,signalprice,signalpricescale,xquantity,xprice,istoclose,closeClOrdId,closed,borrowedAmount,repaid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+      "INSERT INTO copy_trade_state (userid,securityid,clordid,platform,accountid,exchange,created,side,ordtype,timeinforce,orderqty,orderqtyscale,price,pricescale,\"result\",kafkarecordoffset,basesymbol,quotedsymbol,subscriptionId,externalId,originalAmount,cumulativeAmount,status,origclordid,signalpercentage,signalpercentagescale,signalprice,signalpricescale,xquantity,xprice,istoclose,closeClOrdId,closed,borrowedAmount,repaid,futuresEnabled,tradeValue) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
   public static final String UPDATE_COPY_TRADE =
       "UPDATE copy_trade_state set closed=true,closeClOrdId=?,price=?,originalamount=?,cumulativeamount=?,status=? WHERE clordid=? AND subscriptionId=?;";
-  private static final String UPDATE_PENDING_CLOSE_STATUS = "UPDATE subscription_state SET hasPendingClose=true where id=?";
+  private static final String UPDATE_PENDING_CLOSE_STATUS = "UPDATE subscription_state SET hasPendingClose=?,lastUsedProxy=? where id=?";
   private static PreparedStatement psExecutionReport = null;
   private static PreparedStatement psCopyTrade = null;
   private static PreparedStatement psUpdateCopyTrade = null;
@@ -121,8 +120,8 @@ public class Persister implements Constants {
           "Persist ExecutionReportMessage message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
       return;
     }
-    LOGGER.info("Persist message received (ExecutionReportMessage): " + message.getClOrdId()
-        + " active: " + active + " symbol: " + message.getSymbol());
+    LOGGER.info(
+        "Persist message received (ExecutionReportMessage): " + message.getClOrdId() + " active: " + active + " symbol: " + message.getSymbol());
     try {
       String clOrdId = message.getClOrdId();
       if (null != clOrdId && clOrdId.length() > 38) {
@@ -209,9 +208,9 @@ public class Persister implements Constants {
   public static final void onMessage(final CopyTrade message) {
     //todo single input message generate multiple copy trades. handle kafka record offset accordingly
     //but here we have only consider the kafka offset of execution reports.
-//    if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
-      active = true;
-//    }
+    //    if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
+    active = true;
+    //    }
     if (!active) {
       LOGGER.warn(Constants.WARN_LOG,
           "Persist CopyTrade message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
@@ -270,6 +269,8 @@ public class Persister implements Constants {
         psCopyTrade.setBoolean(33, message.isClosed());
         psCopyTrade.setDouble(34, message.getBorrowedAmount());
         psCopyTrade.setBoolean(35, message.isRepaid());
+        psCopyTrade.setBoolean(36, message.isFuturesEnabled());
+        psCopyTrade.setDouble(37, message.getTradeValue());
 
         psCopyTrade.addBatch();
       }
@@ -285,7 +286,7 @@ public class Persister implements Constants {
     //todo single input message generate multiple copy trades. handle kafka record offset accordingly
     //but here we have only consider the kafka offset of execution reports.
     //if (message.getKafkaRecordOffset() >= getMaxKafkaRecordOffset()) {
-      active = true;
+    active = true;
     //}
     if (!active) {
       LOGGER.warn(Constants.WARN_LOG,
@@ -293,12 +294,12 @@ public class Persister implements Constants {
       return;
     }
     try {
-      if (message.isHasPendingClose()) {// update close status in the open order
-        LOGGER.info("Update message received (InfluenceSubscription): " + message.getId() + " active: " + active);
-        psUpdateSubscription.setLong(1, message.getId());
+      LOGGER.info("Update message received (InfluenceSubscription): " + message.getId() + " active: " + active);
+      psUpdateSubscription.setBoolean(1, message.isHasPendingClose());
+      psUpdateSubscription.setString(2, message.getLastUsedProxy());
+      psUpdateSubscription.setLong(3, message.getId());
 
-        psUpdateSubscription.addBatch();
-      }
+      psUpdateSubscription.addBatch();
 
     } catch (Exception e) {
       e.printStackTrace();

@@ -9,6 +9,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
+import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.Balance;
@@ -105,12 +106,23 @@ public abstract class XExchange implements Exchange {
       final Map<Currency, Balance> balances = wallet.getBalances();
       if (balances == null)
         return 0D;
-      final Currency currency = Currency.getInstance(quoteCurrency);
-      if (currency == null)
+      Currency currency = Currency.getInstance(quoteCurrency);
+      if (currency == null) {
         return 0D;
+      }
       org.knowm.xchange.dto.account.Balance balance = balances.get(currency);
-      if (balance == null)
-        return 0D;
+      if (balance == null) {
+        if ("USDC".equalsIgnoreCase(quoteCurrency) || "USDT".equalsIgnoreCase(quoteCurrency)) {
+          currency = Currency.getInstance("USD");
+          if (currency == null) {
+            return 0D;
+          }
+          balance = balances.get(currency);
+          if (balance == null) {
+            return 0D;
+          }
+        }
+      }
 
       double available = balance.getAvailable().doubleValue();
 
@@ -132,15 +144,19 @@ public abstract class XExchange implements Exchange {
         return 0D;
       double price = 0;
       if (side == Side.BUY) {
-        price = ticker.getAsk().doubleValue();
+        if (ticker.getAsk() != null)
+          price = ticker.getAsk().doubleValue();
       } else {
-        price = ticker.getBid().doubleValue();
+        if (ticker.getBid() != null)
+          price = ticker.getBid().doubleValue();
       }
       if (price == 0) {
-        price = ticker.getLast().doubleValue();
+        if (ticker.getLast() != null)
+          price = ticker.getLast().doubleValue();
       }
       if (price == 0) {
-        price = ticker.getOpen().doubleValue();
+        if (ticker.getOpen() != null)
+          price = ticker.getOpen().doubleValue();
       }
       return MbxMath.roundToBestPrecision(price);
     } catch (Exception e) {
@@ -158,12 +174,12 @@ public abstract class XExchange implements Exchange {
         copyTrade.getxQuantity(), " price: ", copyTrade.getxPrice(), " clOrdId: ", copyTrade.getClOrdId());
     if (copyTrade.getOrdType() == OrdType.MARKET) {
       final MarketOrder
-          order = new MarketOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getCurrencyPair(), copyTrade.getClOrdId(), null);
+          order = new MarketOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getInstrument(), copyTrade.getClOrdId(), null);
       final String returnValue = tradeService.placeMarketOrder(order);
       copyTrade.setExternalId(returnValue);
     } else {
       final LimitOrder
-          order = new LimitOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getCurrencyPair(), copyTrade.getClOrdId(), null, copyTrade.getxPrice());
+          order = new LimitOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getInstrument(), copyTrade.getClOrdId(), null, copyTrade.getxPrice());
 
       final String returnValue = tradeService.placeLimitOrder(order);
       copyTrade.setExternalId(returnValue);
@@ -174,12 +190,13 @@ public abstract class XExchange implements Exchange {
 
   public void updateOrderStatus(final CopyTrade copyTrade) throws Exception {
     final TradeService tradeService = getTradeService();
-    final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(copyTrade, copyTrade.getCurrencyPair());
+    final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(copyTrade, copyTrade.getInstrument());
     final Collection<Order> orders = tradeService.getOrder(orderQueryParams);
     if (orders != null && !orders.isEmpty()) {
       Order summary = orders.iterator().next();
       copyTrade.setPriceScale((short) 4);
-      copyTrade.setPrice(MbxMath.changeScale(summary.getAveragePrice().doubleValue(), copyTrade.getPriceScale()));
+      if (summary.getAveragePrice() != null)
+        copyTrade.setPrice(MbxMath.changeScale(summary.getAveragePrice().doubleValue(), copyTrade.getPriceScale()));
       copyTrade.setOriginalAmount(summary.getOriginalAmount().doubleValue());
       copyTrade.setCumulativeAmount(summary.getCumulativeAmount().doubleValue());
       copyTrade.setStatus(summary.getStatus().name());

@@ -22,30 +22,64 @@ import static com.solfini.common.Constants.LOG_FMT_1;
 public class CopyTradeCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeCache.class);
 
-  private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid FROM copy_trade_state WHERE istoclose=false AND closed=false ORDER BY id asc;";
-  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, CopyTradeData>> COPY_TRADES = new ConcurrentHashMap<>();
+  private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid,futuresEnabled,tradeValue FROM copy_trade_state WHERE istoclose=false AND closed=false ORDER BY id asc;";
+  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, CopyTradeData>> COPY_TRADES_BY_ACCOUNT = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyTrade>> COPY_TRADES_BY_SUBSCRIPTION = new ConcurrentHashMap<>();
 
   public static void onLoad(final CopyTrade copyTrade) {
     final String key = (copyTrade.getPlatform() + "-" + copyTrade.getAccountId()).toLowerCase();
-    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
+    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
     final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new CopyTradeData());
 
     copyTradeData.add(copyTrade);
+
+    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new ConcurrentHashMap<>());
+    copyTrades.put(copyTrade.getClOrdId(), copyTrade);
   }
 
   public static void onRemove(final CopyTrade copyTrade) {
     final String key = (copyTrade.getPlatform() + "-" + copyTrade.getAccountId()).toLowerCase();
-    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
+    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
     final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new CopyTradeData());
 
     copyTradeData.remove(copyTrade);
+
+    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(copyTrade.getSubscriptionId());
+    if (copyTrades != null) {
+      copyTrades.remove(copyTrade.getClOrdId());
+    }
   }
 
   public static Collection<CopyTradeData> getCopyTrades(final String platform, final String accountId) {
     final String key = (platform + "-" + accountId).toLowerCase();
-    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES.get(key);
+    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.get(key);
     if (copyTradeDataMap != null) {
       return copyTradeDataMap.values();
+    }
+
+    return null;
+  }
+
+  public static double getOpenOrderValue(final long subscriptionId, final String quoteSymbol, final String baseSymbol) {
+    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
+    if (copyTrades != null) {
+      double openOrderValue = 0;
+      for (CopyTrade c : copyTrades.values()) {
+        if (!c.isToClose() && !c.isClosed() && c.getResult() == null && quoteSymbol.equalsIgnoreCase(c.getQuotedSymbol()) &&
+            baseSymbol.equalsIgnoreCase(c.getBaseSymbol())) {
+          openOrderValue += c.getTradeValue();
+        }
+      }
+      return openOrderValue;
+    }
+
+    return 0D;
+  }
+
+  public static Collection<CopyTrade> getCopyTrades(final long subscriptionId) {
+    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
+    if (copyTrades != null) {
+      return copyTrades.values();
     }
 
     return null;
@@ -108,12 +142,14 @@ public class CopyTradeCache {
     copyTrade.setCumulativeAmount(rs.getDouble(27));
     copyTrade.setStatus(rs.getString(28));
     copyTrade.setToClose(rs.getBoolean(29));
-    copyTrade.setxQuantity(new BigDecimal(rs.getString(30)));
+    copyTrade.setxQuantity(rs.getString(30) != null ? new BigDecimal(rs.getString(30)) : null);
     copyTrade.setxPrice(rs.getString(31) != null ? new BigDecimal(rs.getString(31)) : null);
     copyTrade.setKafkaRecordOffset(rs.getLong(32));
     copyTrade.setClosed(false);
     copyTrade.setBorrowedAmount(rs.getDouble(33));
     copyTrade.setRepaid(rs.getBoolean(34));
+    copyTrade.setFuturesEnabled(rs.getBoolean(35));
+    copyTrade.setTradeValue(rs.getDouble(36));
 
     return copyTrade;
   }

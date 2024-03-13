@@ -1,8 +1,6 @@
 package com.solfini.matchengine.copytrade;
 
-import com.solfini.common.Constants;
-import com.solfini.common.Context;
-import com.solfini.common.CustomLogger;
+import com.solfini.common.*;
 import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import org.knowm.xchange.ExchangeFactory;
@@ -10,6 +8,7 @@ import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.trade.params.orders.DefaultQueryOrderParam;
 import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
@@ -17,6 +16,7 @@ import java.util.Random;
 
 public class ExternalExchangeUtil {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalExchangeUtil.class);
+  private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
 
   public final static String[] EXCHANGES = {
       "BINANCE", "BITFINEX", "BITFLYER", "BITHUMB", "BITMEX",
@@ -24,7 +24,6 @@ public class ExternalExchangeUtil {
       "KRAKEN", "KUCOIN", "MEXC", "OKEX", "UPBIT",
   };
   private static String[] PROXIES = null;
-  private static final Random RANDOM = new Random();
 
   static {
     final String proxyIPs = Context.getCopyTradeProxyIps();
@@ -44,7 +43,7 @@ public class ExternalExchangeUtil {
     switch (exchangeUpper) {
       case "BINANCE": {
         specification = new BinanceExchange().getDefaultExchangeSpecification();
-        processSpecification(specification, null, exchangeUpper);
+        processSpecification(specification, null);
 
         return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
       }
@@ -59,25 +58,39 @@ public class ExternalExchangeUtil {
       LOGGER.info(Constants.LOG_FMT_2, "Invalid exchange: ", subscription.getExchange());
       return null;
     }
-    final String exchange = subscription.getExchange().toUpperCase();
-    ExchangeSpecification specification = null;
-    switch (exchange) {
-      case "BINANCE": {
-        specification = new BinanceExchange().getDefaultExchangeSpecification();
-        processSpecification(specification, subscription, exchange);
+    try {
+      final String exchange = subscription.getExchange().toUpperCase();
+      ExchangeSpecification specification = null;
+      switch (exchange) {
+        case "BINANCE": {
+          specification = new BinanceExchange().getDefaultExchangeSpecification();
+          processSpecification(specification, subscription);
+          if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
+            if (subscription.isFuturesEnabled()) {
+              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+            }
+          }
+          if (subscription.hasLeverage()) {
+            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
+          }
+          if (subscription.isFuturesEnabled()) {
+            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+          }
 
-        return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+          return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
       }
+    } catch (Exception e) {
+      LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange());
     }
 
-    LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchange);
     return null;
   }
 
-  public static OrderQueryParams createOrderQueryParams(final CopyTrade copyTrade, final CurrencyPair currencyPair) {
+  public static OrderQueryParams createOrderQueryParams(final CopyTrade copyTrade, final Instrument instrument) {
     switch (copyTrade.getExchange().toUpperCase()) {
       case "BINANCE": {
-        return new BinanceQueryOrderParams(currencyPair, copyTrade.getExternalId());
+        return new BinanceQueryOrderParams(instrument, copyTrade.getExternalId());
       }
       default:
         return new DefaultQueryOrderParam(copyTrade.getExternalId());
@@ -189,29 +202,37 @@ public class ExternalExchangeUtil {
     return null;
   }*/
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription, final String exchange) {
+  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription) {
     if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
       specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
     }
+
     if (subscription != null) {
       specification.setUserName(subscription.getApiUser());
       specification.setApiKey(subscription.getApiKey());
       specification.setSecretKey(subscription.getApiSecret());
-    }
 
-    if (PROXIES != null) {
-      //todo add futures
-      if (subscription != null && subscription.hasLeverage()) {
-        specification.setSslUri("https://" + getRandomProxy() + "/" + exchange + "-MARGIN");
-      } else {
-        specification.setSslUri("https://" + getRandomProxy() + "/" + exchange);
+      if (PROXIES != null ) {
+        if (subscription.getLastUsedProxy() == null) {
+          subscription.setLastUsedProxy(getStickyProxy(subscription.getId()));
+          //to persist lastUsedProxy
+          matcherToPublisherQueue.addGuaranteed(subscription);
+        }
+        specification.setProxyHost(subscription.getLastUsedProxy());
+        specification.setProxyPort(8888);
+      }
+    } else {
+      if (PROXIES != null) {// always go through a proxy if exists
+        specification.setProxyHost(getStickyProxy(System.currentTimeMillis()));
+        specification.setProxyPort(8888);
       }
     }
   }
 
-  private static String getRandomProxy() {
+  private static String getStickyProxy(final long subscriptionId) {
     if (PROXIES != null) {
-      return PROXIES[RANDOM.nextInt(PROXIES.length)];
+      int index = (int) (subscriptionId % PROXIES.length);
+      return PROXIES[index];
     }
     return null;
   }

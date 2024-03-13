@@ -30,11 +30,11 @@ import java.util.Map;
 
 public class XBinanceExchange extends XExchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XBinanceExchange.class);
-  private static String HMAC_SHA256_ALGORITHM = "HmacSHA256";
-  private static String ACCESS_KEY_HEADER = "X-MBX-APIKEY";
-  private static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static String BORROW = "BORROW";
-  private static String REPAY = "REPAY";
+  private static final String HMAC_SHA256_ALGORITHM = "HmacSHA256";
+  private static final String ACCESS_KEY_HEADER = "X-MBX-APIKEY";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final String BORROW = "BORROW";
+  private static final String REPAY = "REPAY";
 
   public XBinanceExchange(final Exchange exchange) {
     super(exchange);
@@ -56,19 +56,21 @@ public class XBinanceExchange extends XExchange {
   }
 
   public void placeOrder(final CopyTrade copyTrade) throws Exception {
-    if (copyTrade.getSubscription().hasLeverage()) {
+/*    if (copyTrade.getSubscription().hasLeverage()) {
       processMarginOrder(copyTrade);
     } else {
       super.placeOrder(copyTrade);
-    }
+    }*/
+    super.placeOrder(copyTrade);
   }
 
   public void updateOrderStatus(final CopyTrade copyTrade) throws Exception {
-    if (copyTrade.getSubscription().hasLeverage()) {
+/*    if (copyTrade.getSubscription().hasLeverage()) {
       updateMarginOrderStatus(copyTrade);
     } else {
       super.updateOrderStatus(copyTrade);
-    }
+    }*/
+    super.updateOrderStatus(copyTrade);
   }
 
   private void processMarginOrder(final CopyTrade copyTrade) throws Exception {
@@ -152,7 +154,7 @@ public class XBinanceExchange extends XExchange {
     url.append("&signature=").append(signature);
 
     url.insert(0, "/sapi/v1/margin/order?");
-    url.insert(0, exchange.getDefaultExchangeSpecification().getSslUri());
+    url.insert(0, exchange.getDefaultExchangeSpecification().getProxyHost());
 
     final String fullUrl = url.toString();
 
@@ -170,6 +172,58 @@ public class XBinanceExchange extends XExchange {
 
     this.updateOrderStatus(copyTrade);
   }
+
+/*  private void placeFutureOrder(final CopyTrade copyTrade) throws Exception {
+    StringBuilder url = new StringBuilder();
+    url.append("symbol=").append(copyTrade.getBaseSymbol().toUpperCase()).append(copyTrade.getQuotedSymbol().toUpperCase());
+    url.append("&side=").append(copyTrade.getSide() == Side.BUY ? "BUY": "SELL");
+    url.append("&positionSide=").append();
+    url.append("&type=").append(copyTrade.getOrdType() == OrdType.MARKET ? "MARKET" : "LIMIT");//LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER
+    if (copyTrade.getOrdType() != OrdType.MARKET) {
+      url.append("&timeInForce=").append("GTC");//GTC,IOC,FOK
+    }
+    url.append("&quantity=").append(copyTrade.getxQuantity());
+    url.append("&reduceOnly=").append();
+    if (copyTrade.getOrdType() != OrdType.MARKET && copyTrade.getxPrice() != null)
+      url.append("&price=").append(copyTrade.getxPrice());
+    url.append("&newClientOrderId=").append(copyTrade.getClOrdId());
+    //url.append("&stopPrice=").append();//Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+    url.append("&stopPrice=").append();
+    url.append("&closePosition=").append();
+    url.append("&activationPrice=").append();
+    url.append("&callbackRate=").append();
+    url.append("&workingType=").append();
+    url.append("&priceProtect=").append();
+    url.append("&newOrderRespType=").append("FULL");//JSON. ACK, RESULT, or FULL, MARKET and LIMIT order types default to FULL, all other orders default to ACK.
+    url.append("&priceMatch=").append();
+    url.append("&selfTradePreventionMode=").append();
+    url.append("&goodTillDate=").append();
+
+    url.append("&recvWindow=").append(60000);
+    url.append("&timestamp=").append(System.currentTimeMillis());
+
+    String signature = getSignature(url.toString().getBytes(), exchange.getExchangeSpecification().getSecretKey().getBytes());
+    url.append("&signature=").append(signature);
+
+    url.insert(0, "/fapi/v1/order?");
+    url.insert(0, exchange.getDefaultExchangeSpecification().getSslUri());
+
+    final String fullUrl = url.toString();
+
+    LOGGER.info(Constants.LOG_FMT_2, "Sending future order to exchange. URL: ", fullUrl);
+
+    final Map<String, Object> headers = new HashMap<>();
+    headers.put(ACCESS_KEY_HEADER, exchange.getExchangeSpecification().getApiKey());
+
+    HttpUtils.Response response = HttpUtils.post(fullUrl, headers, null);
+    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
+      final String returnValue = response.getData();
+      OrderResponse orderResponse = OBJECT_MAPPER.readValue(returnValue, OrderResponse.class);
+      copyTrade.setExternalId(String.valueOf(orderResponse.getOrderId()));
+    }
+
+    this.updateOrderStatus(copyTrade);
+  }*/
 
   private boolean borrowRepay(final String asset, final String amount, final String type) throws Exception {
     boolean success = false;

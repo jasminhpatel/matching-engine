@@ -11,6 +11,7 @@ import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -45,11 +46,14 @@ public class CopyTrade extends Message {
   private String status;
   private boolean isToClose;
   private boolean closed;
+  private boolean futuresEnabled;
+  private double tradeValue;
 
   private InfluencerSubscription subscription;
 
   private BigDecimal xQuantity;
   private BigDecimal xPrice;
+  private Instrument instrument;
   private CurrencyPair currencyPair;
   private String closeClOrdId;
   private double borrowedAmount;
@@ -83,6 +87,8 @@ public class CopyTrade extends Message {
     this.signalPriceScale = order.getPriceScale();
     this.created = System.currentTimeMillis();
     this.isToClose = order.isToClose();
+    this.sourceSendTime = order.getSourceSendTime();
+    this.futuresEnabled = subscription.isFuturesEnabled();
 
     this.subscription = subscription;
   }
@@ -120,10 +126,13 @@ public class CopyTrade extends Message {
     this.subscription = source.subscription;
     this.xQuantity = source.xQuantity;
     this.xPrice = source.xPrice;
+    this.instrument = source.instrument;
     this.currencyPair = source.currencyPair;
     this.closeClOrdId = source.closeClOrdId;
     this.borrowedAmount = source.borrowedAmount;
     this.repaid = source.repaid;
+    this.sourceSendTime = source.sourceSendTime;
+    this.futuresEnabled = source.futuresEnabled;
   }
 
   public int getUserId() {
@@ -369,6 +378,14 @@ public class CopyTrade extends Message {
     this.xPrice = xPrice;
   }
 
+  public Instrument getInstrument() {
+    return instrument;
+  }
+
+  public void setInstrument(Instrument instrument) {
+    this.instrument = instrument;
+  }
+
   public CurrencyPair getCurrencyPair() {
     return currencyPair;
   }
@@ -431,6 +448,22 @@ public class CopyTrade extends Message {
 
   public void setRepaid(boolean repaid) {
     this.repaid = repaid;
+  }
+
+  public boolean isFuturesEnabled() {
+    return futuresEnabled;
+  }
+
+  public void setFuturesEnabled(boolean futuresEnabled) {
+    this.futuresEnabled = futuresEnabled;
+  }
+
+  public double getTradeValue() {
+    return tradeValue;
+  }
+
+  public void setTradeValue(double tradeValue) {
+    this.tradeValue = tradeValue;
   }
 
   public Side getInverseSide() {

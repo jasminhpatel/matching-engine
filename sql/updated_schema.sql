@@ -1404,4 +1404,20 @@ ALTER TABLE external_instrument_state ADD closePricePercentage int default 2000;
 
 ALTER TABLE copy_trade_state ADD borrowedAmount double precision default 0;
 ALTER TABLE copy_trade_state ADD repaid bool default false;
+ALTER TABLE subscription_payment_state ADD txnFee double precision default 0;
+
+
+--applied to production
+--ALTER TABLE copy_trade_state ADD futuresEnabled bool default false;
+ALTER TABLE subscription_state ADD futuresEnabled bool default false;
+ALTER TABLE subscription_state ADD lastUsedProxy varchar(32) default null;
+
+
+CREATE TABLE public.infulencer_symbol_state (
+	username varchar(32) PRIMARY KEY NOT NULL,
+	symbols varchar(1024),
+	lastUpdated int8 NOT NULL DEFAULT 0
+);
+
+ALTER TABLE copy_trade_state ADD tradeValue double precision default 0;
 

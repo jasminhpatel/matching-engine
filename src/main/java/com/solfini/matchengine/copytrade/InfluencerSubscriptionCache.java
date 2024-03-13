@@ -1,5 +1,6 @@
 package com.solfini.matchengine.copytrade;
 
+import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
 import com.solfini.util.EncryptDecrypt2;
@@ -16,8 +17,8 @@ import static com.solfini.common.Constants.*;
 
 public class InfluencerSubscriptionCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(InfluencerSubscriptionCache.class);
-  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage FROM subscription_state order by id asc";
-  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage FROM subscription_state WHERE updated > ? order by id asc";
+  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy FROM subscription_state order by id asc";
+  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy FROM subscription_state WHERE updated > ? order by id asc";
   private static final ConcurrentHashMap<Long, InfluencerSubscription> SUBSCRIPTIONS = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, InfluencerSubscription>> SUBSCRIBED_USERS = new ConcurrentHashMap<>();
 
@@ -104,6 +105,9 @@ public class InfluencerSubscriptionCache {
     subscription.setPreferredCurrencies(rs.getString(16));
     subscription.setInverseTrade(rs.getInt(17));
     subscription.setAmountWithLeverage(rs.getLong(18));
+    subscription.setFuturesEnabled(rs.getBoolean(19));
+    subscription.setHasPendingClose(rs.getBoolean(20));
+    subscription.setLastUsedProxy(rs.getString(21));
 
     return subscription;
   }

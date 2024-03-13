@@ -4,6 +4,7 @@ import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.sbe.encoder.Side;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.instrument.Instrument;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,14 +16,14 @@ public class ExternalExchangeHandler {
   private static final ConcurrentHashMap<String, Price> PRICE_CACHE = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, Balance> BALANCE_CACHE = new ConcurrentHashMap<>();
 
-  public static double getPrice(final InfluencerSubscription subscription, final CurrencyPair currencyPair, final Side side, final XExchange xExchange) {
-    final String key = (subscription.getExchange() + "_" + currencyPair.toString() + "_" + side.toString()).toLowerCase();
+  public static double getPrice(final InfluencerSubscription subscription,final CurrencyPair pair, final Instrument instrument, final Side side, final XExchange xExchange) {
+    final String key = (subscription.getExchange() + "_" + instrument.toString() + "_" + side.toString()).toLowerCase();
     final Price price = PRICE_CACHE.computeIfAbsent(key, v -> new Price());
 
     if (price.lastUpdated <= (System.currentTimeMillis() - TWO_MINUTE)) {
-      synchronized (currencyPair) {
+      synchronized (pair) {
         if (price.lastUpdated < (System.currentTimeMillis() - TWO_MINUTE)) {
-          final Price exchangePrice = getPriceFromExchange(subscription, currencyPair, side, xExchange);
+          final Price exchangePrice = getPriceFromExchange(subscription, instrument, side, xExchange);
 
           LOGGER.info(LOG_FMT_4, "Exchange price updated: key: ", key, " side: ", side.name(),  " price: ", exchangePrice.getPrice());
           price.setPrice(exchangePrice.getPrice());
@@ -54,8 +55,8 @@ public class ExternalExchangeHandler {
     return balance.getBalance();
   }
 
-  private static Price getPriceFromExchange(final InfluencerSubscription subscription, final CurrencyPair currencyPair, final Side side, final XExchange xExchange) {
-    return new Price(xExchange.getPriceFromExchange(currencyPair, side), System.currentTimeMillis());
+  private static Price getPriceFromExchange(final InfluencerSubscription subscription, final Instrument instrument, final Side side, final XExchange xExchange) {
+    return new Price(xExchange.getPriceFromExchange(instrument, side), System.currentTimeMillis());
   }
 
   private static Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {

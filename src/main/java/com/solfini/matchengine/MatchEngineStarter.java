@@ -6,9 +6,8 @@ import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.solfini.matchengine.copytrade.CopyTradeCache;
-import com.solfini.matchengine.copytrade.ExternalInstrumentCache;
-import com.solfini.matchengine.copytrade.InfluencerSubscriptionCache;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.solfini.matchengine.copytrade.*;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -157,7 +156,7 @@ public class MatchEngineStarter implements Constants {
   }
 
   private void loadCachesFromDB() {
-    final AtomicInteger loaderCounter = new AtomicInteger(3);
+    final AtomicInteger loaderCounter = new AtomicInteger(5);
     new Thread(() -> {
       InfluencerSubscriptionCache.loadFromDB(loaderCounter);
       while (true) {
@@ -185,7 +184,41 @@ public class MatchEngineStarter implements Constants {
       CopyTradeCache.loadFromDB(loaderCounter);
     }).start();
 
-    LOGGER.info("Waiting for DB load. ");
+    if (Context.isCopyTradeEnabled()) {
+      new Thread(() -> {
+        try {
+          MarketCapCache.loadFromCoinMarketCap(loaderCounter);
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to load Market Cap from CoinMarketCap. ", e);
+        }
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            MarketCapCache.loadFromCoinMarketCap(null);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        try {
+          InfluencerSymbolsCache.loadFromDB(loaderCounter);
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to InfluencerSymbolsCache. ", e);
+        }
+        while (true) {
+          try {
+            InfluencerSymbolsCache.loadFromMarketProphit();
+            Thread.sleep(FIFTEEN_MINUTE);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+    } else {
+      //nothing to load, just update the loaderCounter
+      loaderCounter.decrementAndGet();
+      loaderCounter.decrementAndGet();
+    }
 
     while (loaderCounter.get() != 0) {
     }

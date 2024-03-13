@@ -167,6 +167,10 @@ public final class Context implements Constants {
   private static final boolean COPY_TRADE_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("COPY_TRADE_ENABLED", FALSE));
   private static final boolean COPY_TRADE_ONLY = TRUE.equalsIgnoreCase(PropertyReader.getProperty("COPY_TRADE_ONLY", FALSE));
   private static final String COPY_TRADE_PROXY_IPS = PropertyReader.getProperty("COPY_TRADE_PROXY_IPS", null);
+  private static final String COIN_MARKET_CAP_API_KEY = PropertyReader.getProperty("COIN_MARKET_CAP_API_KEY", "5d89f95b-4f21-4909-8b97-746fb1892fc3");
+  private static final int MAX_DELAY_TO_OPEN_ORDER_IN_MS = PropertyReader.getProperty("MAX_DELAY_TO_OPEN_ORDER_IN_MS", FIVE_MINUTE);
+  private static final int MAX_DELAY_TO_CLOSE_ORDER_IN_MS = PropertyReader.getProperty("MAX_DELAY_TO_CLOSE_ORDER_IN_MS", ONE_HOUR);
+  private static final double MIN_COPY_TRADE_AMOUNT_IN_USD = PropertyReader.getProperty("MIN_COPY_TRADE_AMOUNT_IN_USD", 10D);
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
@@ -768,5 +772,21 @@ public final class Context implements Constants {
 
   public static String getCopyTradeProxyIps() {
     return COPY_TRADE_PROXY_IPS;
+  }
+
+  public static String getCoinMarketCapApiKey() {
+    return COIN_MARKET_CAP_API_KEY;
+  }
+
+  public static int getMaxDelayToOpenOrderInMs() {
+    return MAX_DELAY_TO_OPEN_ORDER_IN_MS;
+  }
+
+  public static int getMaxDelayToCloseOrderInMs() {
+    return MAX_DELAY_TO_CLOSE_ORDER_IN_MS;
+  }
+
+  public static double getMinCopyTradeAmountInUsd() {
+    return MIN_COPY_TRADE_AMOUNT_IN_USD;
   }
 }
