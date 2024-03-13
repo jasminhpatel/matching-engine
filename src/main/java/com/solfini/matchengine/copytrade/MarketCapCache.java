@@ -43,30 +43,35 @@ public class MarketCapCache {
     int total = 0, loaded = 0;
     int limit = 500;
     int skip = 1;
-    do {
-      String url = MARKET_CAP_API_URL + "&start=" + skip + "&limit=" + limit;
-      HttpUtils.Response response = HttpUtils.get(url, headers);
-      skip += limit;
-      if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
-        final String returnValue = response.getData();
-        ListingsResponse listingsResponse = OBJECT_MAPPER.readValue(returnValue, ListingsResponse.class);
-        if (listingsResponse.data != null) {
-          total = listingsResponse.status.totalCount;
-          for (ListingsData data : listingsResponse.data) {
-            final MarketCap marketCap = new MarketCap(data.getSymbol(), data.getSlug(), data.quote.getUsd().marketCap, data.quote.getUsd().marketCapDominance);
-            onLoad(marketCap);
-            loaded++;
+    try {
+      do {
+        String url = MARKET_CAP_API_URL + "&start=" + skip + "&limit=" + limit;
+        HttpUtils.Response response = HttpUtils.get(url, headers);
+        skip += limit;
+        if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
+          final String returnValue = response.getData();
+          ListingsResponse listingsResponse = OBJECT_MAPPER.readValue(returnValue, ListingsResponse.class);
+          if (listingsResponse.data != null) {
+            total = listingsResponse.status.totalCount;
+            for (ListingsData data : listingsResponse.data) {
+              final MarketCap marketCap = new MarketCap(data.getSymbol(), data.getSlug(), data.quote.getUsd().marketCap, data.quote.getUsd().marketCapDominance);
+              onLoad(marketCap);
+              loaded++;
+            }
           }
+        } else {
+          String returnValue = null;
+          if (response != null) {
+            returnValue = response.getData();
+          }
+          LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
+          break;
         }
-      } else {
-        String returnValue = null;
-        if (response != null) {
-          returnValue = response.getData();
-        }
-        LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
-        break;
-      }
-    } while (total > loaded);
+      } while (total > loaded);
+
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
 
     LOGGER.info(LOG_FMT_1, "MarketCapCache.loadFromCoinMarketCap=", (long) loaded, ", time=", System.currentTimeMillis() - t0);
 
