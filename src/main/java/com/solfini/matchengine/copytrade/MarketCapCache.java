@@ -76,6 +76,7 @@ public class MarketCapCache {
     LOGGER.info(LOG_FMT_1, "MarketCapCache.loadFromCoinMarketCap=", (long) loaded, ", time=", System.currentTimeMillis() - t0);
 
     if (loaderCounter != null) {
+      System.out.println("MarketCapCache loaded");
       loaderCounter.decrementAndGet();
     }
   }
