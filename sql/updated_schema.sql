@@ -1408,7 +1408,7 @@ ALTER TABLE subscription_payment_state ADD txnFee double precision default 0;
 
 
 --applied to production
---ALTER TABLE copy_trade_state ADD futuresEnabled bool default false;
+ALTER TABLE copy_trade_state ADD futuresEnabled bool default false;
 ALTER TABLE subscription_state ADD futuresEnabled bool default false;
 ALTER TABLE subscription_state ADD lastUsedProxy varchar(32) default null;
 

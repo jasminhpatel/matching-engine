@@ -66,7 +66,6 @@ public class ExternalInstrumentCache implements Constants{
         count++;
       }
       LOGGER.info(LOG_FMT_1, "ExternalInstrumentCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      System.out.println("ExternalInstrumentCache loaded");
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       LOGGER.error("error", e);

@@ -48,7 +48,6 @@ public class InfluencerSymbolsCache {
         count++;
       }
       LOGGER.info(LOG_FMT_1, "InfluencerSymbolsCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      System.out.println("InfluencerSymbolsCache loaded");
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       System.out.println(e.getMessage());

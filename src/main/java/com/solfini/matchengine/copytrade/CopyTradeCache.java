@@ -105,7 +105,6 @@ public class CopyTradeCache {
         count++;
       }
       LOGGER.info(LOG_FMT_1, "CopyTradeCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      System.out.println("CopyTradeCache loaded");
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       LOGGER.error("error", e);
