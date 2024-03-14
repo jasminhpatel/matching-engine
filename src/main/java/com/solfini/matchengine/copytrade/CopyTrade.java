@@ -474,7 +474,7 @@ public class CopyTrade extends Message {
   }
 
   public boolean isSuccessful() {
-    return result != null && !result.startsWith("FAILED");
+    return (result == null) || !(result.startsWith("FAILED") || result.startsWith("REJECTED"));
   }
 
   @Override
