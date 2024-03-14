@@ -257,7 +257,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       if (copyTradeData != null && !copyTradeData.isEmpty()) {
         for (CopyTradeCache.CopyTradeData data : copyTradeData) {
           for (CopyTrade openCopyTrade : data.getCopyTrades()) {
-            if (openCopyTrade.isSuccessful() && order.getSymbol() != null && order.getSymbol().equalsIgnoreCase(openCopyTrade.getBaseSymbol())) {
+            if (openCopyTrade.isSuccessful() && order.getSymbol() != null && order.getSymbol().equalsIgnoreCase(openCopyTrade.getBaseSymbol())
+              && !openCopyTrade.isClosed()) {
               final String clOrdId = order.getClOrdId() + openCopyTrade.getSubscriptionId() + String.valueOf(++count);
               CopyTrade closeCopyTrade = new CopyTrade(openCopyTrade);
               closeCopyTrade.setClOrdId(clOrdId);
