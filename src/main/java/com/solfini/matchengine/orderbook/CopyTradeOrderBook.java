@@ -764,6 +764,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       closeCopyTrade.setCurrencyPair(currencyPair);
       closeCopyTrade.setInstrument(instrument);
       openCopyTrade.setCurrencyPair(currencyPair);
+      openCopyTrade.setInstrument(instrument);
 
       if (price == 0) {
         LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: " + price);
