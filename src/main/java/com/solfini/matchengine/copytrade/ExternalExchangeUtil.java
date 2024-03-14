@@ -90,6 +90,7 @@ public class ExternalExchangeUtil {
   public static OrderQueryParams createOrderQueryParams(final CopyTrade copyTrade, final Instrument instrument) {
     switch (copyTrade.getExchange().toUpperCase()) {
       case "BINANCE": {
+        LOGGER.info("QUERY instrument: " + instrument.getBase().getSymbol() + "-" + instrument.getCounter().getSymbol() + " " + copyTrade.getExternalId());
         return new BinanceQueryOrderParams(instrument, copyTrade.getExternalId());
       }
       default:
