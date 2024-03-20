@@ -1421,3 +1421,15 @@ CREATE TABLE public.infulencer_symbol_state (
 
 ALTER TABLE copy_trade_state ADD tradeValue double precision default 0;
 
+CREATE TABLE public.promo_code_state (
+    id bigserial PRIMARY KEY NOT NULL,
+    type int not null default 0,
+	code varchar(32),
+	status int not null default 0,
+	startTime int8 not null default 0,
+	endTime int8 not null default 0,
+	updated int8 not null default 0
+);
+
+ALTER TABLE user_state ADD copyTradeEnabled bool not NULL DEFAULT FALSE;
+
