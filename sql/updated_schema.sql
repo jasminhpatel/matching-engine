@@ -1433,3 +1433,5 @@ CREATE TABLE public.promo_code_state (
 
 ALTER TABLE user_state ADD copyTradeEnabled bool not NULL DEFAULT FALSE;
 
+ALTER TABLE notification_state ADD channel varchar(2) not NULL DEFAULT 'CC';
+

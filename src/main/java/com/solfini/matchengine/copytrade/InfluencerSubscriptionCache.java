@@ -59,7 +59,6 @@ public class InfluencerSubscriptionCache {
         count++;
       }
       LOGGER.info(LOG_FMT_1, "InfluencerSubscriptionCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      System.out.println("InfluencerSubscriptionCache loaded");
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       LOGGER.error("error", e);

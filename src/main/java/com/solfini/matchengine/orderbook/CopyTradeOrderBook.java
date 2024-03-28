@@ -491,8 +491,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       final String clOrdId = copyTrade.getClOrdId();
       final long ordQtyPercentage = copyTrade.getSignalPercentage();
       final short ordQtyPercentageScale = copyTrade.getSignalPercentageScale();
-      final long ordPrice = copyTrade.getSignalPrice();
-      final short ordPriceScale = 2;
+      //final long ordPrice = copyTrade.getSignalPrice();
+      //final short ordPriceScale = 2;
       final InfluencerSubscription subscription = copyTrade.getSubscription();
 
       final Side side = subscription.getInverseTrade() == 0 ? copyTrade.getSide() : copyTrade.getInverseSide();
@@ -634,8 +634,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       double price = 0;
       if (copyTrade.getOrdType() == OrdType.MARKET) {
         price = ExternalExchangeHandler.getPrice(subscription, currencyPair, instrument, side, xExchange);
-      } else {
-        price = MbxMath.scaleDown(ordPrice, ordPriceScale);
+      } else { //limit price to be calculated from market price
+        price = ExternalExchangeHandler.getPrice(subscription, currencyPair, instrument, side, xExchange);
+        //price = MbxMath.scaleDown(ordPrice, ordPriceScale);
       }
       BigDecimal xPrice = new BigDecimal(price);
       xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
