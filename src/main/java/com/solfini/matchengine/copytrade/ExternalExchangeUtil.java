@@ -2,7 +2,6 @@ package com.solfini.matchengine.copytrade;
 
 import com.solfini.common.*;
 import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XCoinbaseExchange;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
