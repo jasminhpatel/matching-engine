@@ -21,7 +21,7 @@ public class ExternalInstrumentCache implements Constants{
   private static final String UPDATE = "UPDATE external_instrument_state SET tradable=?,updated=? WHERE exchange=? AND base=? AND quoted=?;";
 
   private static final ConcurrentHashMap<String, SymbolStatus> SYMBOL_CACHE = new ConcurrentHashMap<>();
-  private static final long DEFAULT_CLOSE_PRICE_PERCENTAGE = 2000; //2000 => 20% scaled by 2
+  private static final long DEFAULT_CLOSE_PRICE_PERCENTAGE = 200_000; //200,000 => 20% scaled by 4
 
   public static void onLoad(final String exchange, final String base, final String quoted, final boolean tradable, final long updated, final long closePricePercentage) {
     final String key = (exchange + "_" + base + "/" + quoted).toLowerCase();

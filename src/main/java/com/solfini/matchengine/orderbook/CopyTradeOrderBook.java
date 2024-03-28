@@ -777,11 +777,12 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         return;
       }
+      //closePricePercentage is scaled by 4
       long closePricePercentage = ExternalInstrumentCache.getClosePricePercentage(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol(), closeCopyTrade.getQuotedSymbol());
       if (Side.SELL == closeCopyTrade.getSide()) {
-        price = price - (price * closePricePercentage)/10000D;
+        price = price - (price * closePricePercentage)/1000000D;
       } else {
-        price = price + (price * closePricePercentage)/10000D;
+        price = price + (price * closePricePercentage)/1000000D;
       }
       BigDecimal xPrice = new BigDecimal(price);
       xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
