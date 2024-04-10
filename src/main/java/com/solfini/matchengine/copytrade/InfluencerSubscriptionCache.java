@@ -17,8 +17,9 @@ import static com.solfini.common.Constants.*;
 
 public class InfluencerSubscriptionCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(InfluencerSubscriptionCache.class);
-  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy FROM subscription_state order by id asc";
-  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy FROM subscription_state WHERE updated > ? order by id asc";
+  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy, availableMaxAmount FROM subscription_state order by id asc";
+  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy, availableMaxAmount FROM subscription_state WHERE updated > ? order by id asc";
+  //private static final String UPDATE_AVAILABLE_MAX_AMOUNT = "UPDATE subscription_state SET availableMaxAmount=? WHERE id=?;";
   private static final ConcurrentHashMap<Long, InfluencerSubscription> SUBSCRIPTIONS = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, InfluencerSubscription>> SUBSCRIBED_USERS = new ConcurrentHashMap<>();
 
@@ -108,7 +109,22 @@ public class InfluencerSubscriptionCache {
     subscription.setFuturesEnabled(rs.getBoolean(19));
     subscription.setHasPendingClose(rs.getBoolean(20));
     subscription.setLastUsedProxy(rs.getString(21));
+    subscription.setAvailableMaxAmount(rs.getLong(22));
 
     return subscription;
   }
+
+/*  public static void updateInfluencerSubscriptionAvailableMaxAmountToDB(final InfluencerSubscription subscription) {
+
+    try (final Connection conn = DBManager.getConnection();
+        final PreparedStatement ps = conn.prepareStatement(UPDATE_AVAILABLE_MAX_AMOUNT);) {
+      ps.setLong(1, subscription.getAvailableMaxAmount());
+
+      ps.setLong(2, subscription.getId());
+      ps.executeUpdate();
+
+    } catch (Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+    }
+  }*/
 }

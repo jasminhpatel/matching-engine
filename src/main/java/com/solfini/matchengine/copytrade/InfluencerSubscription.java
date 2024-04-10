@@ -28,6 +28,8 @@ public class InfluencerSubscription extends Message {
   protected boolean futuresEnabled;
   private String lastUsedProxy;
 
+  private long availableMaxAmount;
+
   public String getKey() {
     return (platform + "_" + accountId).toLowerCase();
   }
@@ -224,6 +226,14 @@ public class InfluencerSubscription extends Message {
     this.hasPendingClose = hasPendingClose;
   }
 
+  public long getAvailableMaxAmount() {
+    return availableMaxAmount;
+  }
+
+  public void setAvailableMaxAmount(long availableMaxAmount) {
+    this.availableMaxAmount = availableMaxAmount;
+  }
+
   public String toJSON() {
     final StringBuilder sb = new StringBuilder();
     sb.append("{\"id\":").append(id);
@@ -247,6 +257,7 @@ public class InfluencerSubscription extends Message {
     //sb.append(",\"futuresEnabled\":").append(futuresEnabled);
     sb.append(",\"amountWithLeverage\":").append(amountWithLeverage);
     sb.append(",\"futuresEnabled\":").append(futuresEnabled);
+    sb.append(",\"availableMaxAmount\":").append(availableMaxAmount);
     sb.append('}');
 
     return sb.toString();

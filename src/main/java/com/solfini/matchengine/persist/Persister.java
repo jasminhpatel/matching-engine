@@ -29,7 +29,7 @@ public class Persister implements Constants {
       "INSERT INTO copy_trade_state (userid,securityid,clordid,platform,accountid,exchange,created,side,ordtype,timeinforce,orderqty,orderqtyscale,price,pricescale,\"result\",kafkarecordoffset,basesymbol,quotedsymbol,subscriptionId,externalId,originalAmount,cumulativeAmount,status,origclordid,signalpercentage,signalpercentagescale,signalprice,signalpricescale,xquantity,xprice,istoclose,closeClOrdId,closed,borrowedAmount,repaid,futuresEnabled,tradeValue) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
   public static final String UPDATE_COPY_TRADE =
       "UPDATE copy_trade_state set closed=true,closeClOrdId=?,price=?,originalamount=?,cumulativeamount=?,status=? WHERE clordid=? AND subscriptionId=?;";
-  private static final String UPDATE_PENDING_CLOSE_STATUS = "UPDATE subscription_state SET hasPendingClose=?,lastUsedProxy=? where id=?";
+  private static final String UPDATE_SUBSCRIPTION_STATUS = "UPDATE subscription_state SET hasPendingClose=?,lastUsedProxy=?,availableMaxAmount=? where id=?";
   private static PreparedStatement psExecutionReport = null;
   private static PreparedStatement psCopyTrade = null;
   private static PreparedStatement psUpdateCopyTrade = null;
@@ -73,7 +73,7 @@ public class Persister implements Constants {
       psExecutionReport = buildPreparedStatement(INSERT_EXEC_REPORT);
       psCopyTrade = buildPreparedStatement(INSERT_COPY_TRADE);
       psUpdateCopyTrade = buildPreparedStatement(UPDATE_COPY_TRADE);
-      psUpdateSubscription = buildPreparedStatement(UPDATE_PENDING_CLOSE_STATUS);
+      psUpdateSubscription = buildPreparedStatement(UPDATE_SUBSCRIPTION_STATUS);
     }
 
     if ((psExecutionReport != null)) {
@@ -297,7 +297,9 @@ public class Persister implements Constants {
       LOGGER.info("Update message received (InfluenceSubscription): " + message.getId() + " active: " + active);
       psUpdateSubscription.setBoolean(1, message.isHasPendingClose());
       psUpdateSubscription.setString(2, message.getLastUsedProxy());
-      psUpdateSubscription.setLong(3, message.getId());
+      psUpdateSubscription.setLong(3, message.getAvailableMaxAmount());
+
+      psUpdateSubscription.setLong(4, message.getId());
 
       psUpdateSubscription.addBatch();
 

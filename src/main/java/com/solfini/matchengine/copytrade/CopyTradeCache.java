@@ -11,13 +11,16 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.solfini.common.Constants.LOG_FMT_1;
+import static com.solfini.common.Constants.ORDER_STATUS_FILLED;
 
 public class CopyTradeCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeCache.class);
@@ -25,6 +28,7 @@ public class CopyTradeCache {
   private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid,futuresEnabled,tradeValue FROM copy_trade_state WHERE istoclose=false AND closed=false ORDER BY id asc;";
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, CopyTradeData>> COPY_TRADES_BY_ACCOUNT = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyTrade>> COPY_TRADES_BY_SUBSCRIPTION = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, CopyTrade> OPEN_COPY_TRADE_ORDERS = new ConcurrentHashMap<>();
 
   public static void onLoad(final CopyTrade copyTrade) {
     final String key = (copyTrade.getPlatform() + "-" + copyTrade.getAccountId()).toLowerCase();
@@ -35,6 +39,10 @@ public class CopyTradeCache {
 
     final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new ConcurrentHashMap<>());
     copyTrades.put(copyTrade.getClOrdId(), copyTrade);
+
+    if (copyTrade.isToClose() && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
+      OPEN_COPY_TRADE_ORDERS.put(copyTrade.getClOrdId(), copyTrade);
+    }
   }
 
   public static void onRemove(final CopyTrade copyTrade) {
@@ -50,6 +58,15 @@ public class CopyTradeCache {
     }
   }
 
+  public static List<CopyTradeData> getAllCopyTrades() {
+    List<CopyTradeData> copyTradeDataList = new ArrayList<>();
+    for (ConcurrentHashMap<Long, CopyTradeData> map : COPY_TRADES_BY_ACCOUNT.values()) {
+      copyTradeDataList.addAll(map.values());
+    }
+
+    return copyTradeDataList;
+  }
+
   public static Collection<CopyTradeData> getCopyTrades(final String platform, final String accountId) {
     final String key = (platform + "-" + accountId).toLowerCase();
     final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.get(key);
@@ -58,6 +75,32 @@ public class CopyTradeCache {
     }
 
     return null;
+  }
+
+  public static Side getOpenSide(final String platform, final String accountId) {
+    final String key = (platform + "-" + accountId).toLowerCase();
+    int[] counts = new int[2];
+    final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.get(key);
+    if (copyTradeDataMap != null) {
+      for (CopyTradeData cd : copyTradeDataMap.values()) {
+        for (CopyTrade cp : cd.getCopyTrades()) {
+          if (!cp.isToClose() && !cp.isClosed()) {
+            if (cp.getSide() == Side.BUY) {
+              counts[0] = counts[0] + 1;
+            } else {
+              counts[1] = counts[1] + 1;
+            }
+          }
+        }
+      }
+    }
+    if (counts[0] > counts[1]) {
+      return Side.BUY;
+    } else if (counts[0] < counts[1]) {
+      return Side.SELL;
+    } else {
+      return null;
+    }
   }
 
   public static double getOpenOrderValue(final long subscriptionId, final String quoteSymbol, final String baseSymbol) {
@@ -83,6 +126,18 @@ public class CopyTradeCache {
     }
 
     return null;
+  }
+
+  public static void addOpenOrder(final CopyTrade copyTrade) {
+    OPEN_COPY_TRADE_ORDERS.put(copyTrade.getClOrdId(), copyTrade);
+  }
+
+  public static void removeOpenOrder(final CopyTrade copyTrade) {
+    OPEN_COPY_TRADE_ORDERS.remove(copyTrade.getClOrdId());
+  }
+
+  public static Collection<CopyTrade> getAllOpenCopyTrades() {
+    return OPEN_COPY_TRADE_ORDERS.values();
   }
 
   public static void add(final CopyTrade copyTrade) {

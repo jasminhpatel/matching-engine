@@ -208,9 +208,22 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       LOGGER.error("Invalid instrument pair. id: " + order.getSecurityId() + " clOrdId: " + order.getClOrdId());
       return;
     }
-    if (order.getSymbol() == null) {
+    if (!order.isToClose() && (order.getSymbol() == null || order.getSymbol().isEmpty())) {
       LOGGER.error("Invalid symbol. symbol: " + order.getSymbol() + " clOrdId: " + order.getClOrdId());
       return;
+    }
+
+    //check for side change
+    boolean hasSideChange = false;
+    if (!order.isToClose() && order.getPlatform() != null && !order.getPlatform().isEmpty()
+        && order.getAccountId() != null && !order.getAccountId().isEmpty()) {
+      Side openSide = CopyTradeCache.getOpenSide(order.getPlatform(), order.getAccountId());
+      hasSideChange = openSide != null && openSide != order.getSide();
+      if (hasSideChange) {
+        LOGGER.info(Constants.LOG_FMT_2, "Order has a side change. platform: ", order.getPlatform(), " accountId: ", order.getAccountId(),
+            " orderSide: ", order.getSide().name(), " openSide: ", openSide.name(), " order: ", order.getClOrdId());
+        order.setToClose(true);
+      }
     }
 
     if (!order.isToClose()) {//open positions
@@ -230,6 +243,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                   subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
               continue;
             }
+          }
+          if (subscription.isHasPendingClose()) {
+            LOGGER.info(Constants.LOG_FMT_2, "Subscription has pending close orders. symbol: ", baseSymbol, "/", quotedSymbol, " exchange: ",
+                subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
+            continue;
           }
           if (ExternalInstrumentCache.isTradeableOnExchange(subscription.getExchange(), baseSymbol, quotedSymbol)) {
             final String clOrdId = order.getClOrdId() + subscription.getId();
@@ -252,13 +270,32 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
       LOGGER.info(Constants.LOG_FMT_2, "Open copy trade request completed. clOrdId: ", order.getClOrdId());
     } else {//close positions
-      final Collection<CopyTradeCache.CopyTradeData> copyTradeData = CopyTradeCache.getCopyTrades(order.getPlatform(), order.getAccountId());
+      String closeMode = null;
+      Collection<CopyTradeCache.CopyTradeData> copyTradeData = null;
+      if (order.getAccountId() == null || order.getAccountId().isEmpty()) {
+        closeMode = "GLOBAL";
+        copyTradeData = CopyTradeCache.getAllCopyTrades();
+      } else {
+        closeMode = "ACCOUNT";
+        copyTradeData = CopyTradeCache.getCopyTrades(order.getPlatform(), order.getAccountId());
+      }
+
+      //todo shuffle
       int count = 0;
       if (copyTradeData != null && !copyTradeData.isEmpty()) {
         for (CopyTradeCache.CopyTradeData data : copyTradeData) {
           for (CopyTrade openCopyTrade : data.getCopyTrades()) {
-            if (openCopyTrade.isSuccessful() && order.getSymbol() != null && order.getSymbol().equalsIgnoreCase(openCopyTrade.getBaseSymbol())
-              && !openCopyTrade.isClosed() && !openCopyTrade.isToClose()) {
+            boolean validSymbolToClose = false;
+            if ("GLOBAL".equalsIgnoreCase(closeMode)) {
+              validSymbolToClose = true;//all sumbols in all accounts
+            } else if (order.getSymbol() == null) {
+              validSymbolToClose = true;//all symbols in given account
+            } else {//exact symbol
+              validSymbolToClose = order.getSymbol() != null && !order.getSymbol().isEmpty()
+                  && order.getSymbol().equalsIgnoreCase(openCopyTrade.getBaseSymbol());
+            }
+
+            if (openCopyTrade.isSuccessful() && validSymbolToClose && !openCopyTrade.isClosed() && !openCopyTrade.isToClose()) {
               final String clOrdId = order.getClOrdId() + openCopyTrade.getSubscriptionId() + String.valueOf(++count);
               final CopyTrade closeCopyTrade = new CopyTrade(openCopyTrade);
               closeCopyTrade.setClOrdId(clOrdId);
@@ -282,12 +319,19 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
       } else {
         LOGGER.info(Constants.LOG_FMT_4, "No copy trades to close for platform: ", order.getPlatform(), " accountId: ", order.getAccountId());
+        final Collection<CopyTrade> openCopyTrades = CopyTradeCache.getAllOpenCopyTrades();
+        //check order status from exchange
+        for (CopyTrade copyTrade : openCopyTrades) {
+          if (!ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
+            COPY_TRADE_QUEUE.addGuaranteed(copyTrade);
+          }
+        }
       }
 
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(order, pair);
       MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
 
-      LOGGER.info(Constants.LOG_FMT_2, "Close copy trade request completed. clOrdId: ", order.getClOrdId(), " count: ", count);
+      LOGGER.info(Constants.LOG_FMT_2, "Close copy trade request completed. clOrdId: ", order.getClOrdId(), " count: ", count, " mode: ", closeMode);
     }
 
   }
@@ -473,7 +517,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           if (message instanceof CopyTrade copyTrade) {
             LOGGER.info(Constants.LOG_FMT_2, "Processing copy trade: ", copyTrade.getClOrdId(), " isToClose: ", copyTrade.isToClose());
             if (copyTrade.isToClose()) {
-              processCloseOrder(copyTrade, copyTrade.getOpenOrder());
+              if (copyTrade.getStatus() != null) {
+                updateOrderStatus(copyTrade);
+              } else {
+                processCloseOrder(copyTrade, copyTrade.getOpenOrder());
+              }
             } else {
               processOpenOrder(copyTrade);
             }
@@ -501,6 +549,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       //currencyPair is used as a synchronise lock
       final CurrencyPair currencyPair = ExternalCurrencyPairCache.get(baseSymbol, quotedSymbol);
       double maxTradeValue = MbxMath.scaleDown(subscription.getAmountWithLeverage(), 2);
+      double availableMaxAmount = MbxMath.scaleDown(subscription.getAvailableMaxAmount(), 2);
       final long now = System.currentTimeMillis();
 
       if ((copyTrade.getSourceSendTime() + Context.getMaxDelayToOpenOrderInMs()) < now) {
@@ -541,20 +590,20 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       copyTrade.setInstrument(instrument);
       //check exchange balance
       if (subscription.getPercentage() <= 10_000) {//less than 100%
-        double availableBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
-        if (availableBalance == 0) {
-          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " availableBalance: ", availableBalance);
+        double exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
+        if (exchangeBalance == 0) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " exchangeBalance: ", exchangeBalance);
 
-          copyTrade.setResult("REJECTED: Failed to fetch availableBalance.");
+          copyTrade.setResult("REJECTED: Failed to fetch exchangeBalance.");
           copyTrade.setxExchange(null);
           matcherToPublisherQueue.addGuaranteed(copyTrade);
 
           return;
         }
-        maxTradeValue = Math.min(maxTradeValue, availableBalance);
+        maxTradeValue = Math.min(availableMaxAmount, exchangeBalance);
 
         LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
-            " new maxTradeValue: ", maxTradeValue, " exchange balance: ", availableBalance);
+            " new maxTradeValue: ", maxTradeValue, " exchange balance: ", exchangeBalance);
       }
 
       Set<String> symbolsToCalculateMarketCapRatio = null;
@@ -592,7 +641,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           return;
         }
-
         maxTradeValue = maxTradeValue * marketCapOfSymbol / marketCapOdPreferredSymbols;
         LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the market cap. clOrdId: ", clOrdId, " new maxTradeValue: ",
             maxTradeValue, " marketCapRatio: ", (marketCapOfSymbol / marketCapOdPreferredSymbols));
@@ -614,12 +662,12 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
       double maxRemainingAmount = maxTradeValue;
       //check current open order value for the symbol
-      double openOrderValue = CopyTradeCache.getOpenOrderValue(copyTrade.getSubscriptionId(), quotedSymbol, baseSymbol);
-      if (openOrderValue > 0) {
-        maxRemainingAmount = maxTradeValue - openOrderValue;
-        LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on current open orders. clOrdId: ", clOrdId, " new maxTradeValue: ",
-            maxRemainingAmount, " openOrderValue: ", openOrderValue);
-      }
+//      double openOrderValue = CopyTradeCache.getOpenOrderValue(copyTrade.getSubscriptionId(), quotedSymbol, baseSymbol);
+//      if (openOrderValue > 0) {
+//        maxRemainingAmount = maxTradeValue - openOrderValue;
+//        LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on current open orders. clOrdId: ", clOrdId, " new maxTradeValue: ",
+//            maxRemainingAmount, " openOrderValue: ", openOrderValue);
+//      }
 
       LOGGER.info(Constants.LOG_FMT_2, "Max trade value for order: ", copyTrade.getClOrdId(), " is ", maxRemainingAmount);
       if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
@@ -656,7 +704,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       //percentage of subscription amount assigned by the user
       double userDefinedPercentage = MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000) , 2) / 100D;
       double signalTradeValue = Math.min(maxRemainingAmount, maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-
       if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
         LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
@@ -714,6 +761,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         xExchange.placeOrder(copyTrade);
         copyTrade.setClosed(false);
         CopyTradeCache.add(copyTrade);
+
+        //if (copyTrade.getStatus().equalsIgnoreCase("FILLED")) {
+        subscription.setAvailableMaxAmount(subscription.getAvailableMaxAmount() - MbxMath.changeScale(signalTradeValue, 2));
+        matcherToPublisherQueue.addGuaranteed(subscription);
+        //}
 
         LOGGER.info(Constants.LOG_FMT_2, "Copy trade (open) successful. clOrdId: ", clOrdId, " symbol: ", baseSymbol.toUpperCase(), "/", quotedSymbol.toUpperCase(),
             " side: ", copyTrade.getSide().name(), " quantity: ", xQuantity, " price: ", copyTrade.getPrice(),
@@ -802,6 +854,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         CopyTradeCache.remove(openCopyTrade);
         matcherToPublisherQueue.addGuaranteed(openCopyTrade);
 
+        if (ORDER_STATUS_FILLED.equalsIgnoreCase(closeCopyTrade.getStatus())) {
+          closeCopyTrade.getSubscription().setAvailableMaxAmount(
+            closeCopyTrade.getSubscription().getAvailableMaxAmount() + MbxMath.changeScale(xPrice.multiply(xQuantity).doubleValue(),2));
+          matcherToPublisherQueue.addGuaranteed(closeCopyTrade.getSubscription());
+        } else {
+          CopyTradeCache.addOpenOrder(closeCopyTrade);
+        }
+
         LOGGER.info(Constants.LOG_FMT_2, "Copy trade (close) successful. clOrdId: ", clOrdId, " symbol: ", closeCopyTrade.getBaseSymbol().toUpperCase(),
             "/", closeCopyTrade.getQuotedSymbol().toUpperCase(), " side: ", closeCopyTrade.getSide().name(),
             " quantity: ", closeCopyTrade.getxQuantity(), " price: ", closeCopyTrade.getxPrice(), " orderId:", closeCopyTrade.getExternalId(), " result: ", closeCopyTrade.getResult());
@@ -819,6 +879,48 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       closeCopyTrade.setxExchange(null);
       matcherToPublisherQueue.addGuaranteed(closeCopyTrade);
+
+    }
+
+    private void updateOrderStatus(final CopyTrade copyTrade) throws Exception {
+      XExchange xExchange = copyTrade.getxExchange();
+      InfluencerSubscription subscription = copyTrade.getSubscription();
+      if (xExchange == null) {
+        if (subscription == null) {
+          subscription = InfluencerSubscriptionCache.get(copyTrade.getSubscriptionId());
+          copyTrade.setSubscription(subscription);
+        }
+        if (subscription != null) {
+          xExchange = ExternalExchangeUtil.createXExchange(subscription);
+        }
+      }
+      if (xExchange != null) {
+        final String prevStatus = copyTrade.getStatus();
+        xExchange.updateOrderStatus(copyTrade);
+        if (!prevStatus.equalsIgnoreCase(copyTrade.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
+          CopyTradeCache.remove(copyTrade);
+          CopyTradeCache.removeOpenOrder(copyTrade);
+
+          subscription.setAvailableMaxAmount(
+              subscription.getAvailableMaxAmount() +
+                  MbxMath.changeScale(MbxMath.scaleDown(copyTrade.getPrice(), copyTrade.getPriceScale()) * copyTrade.getCumulativeAmount(), 2));
+          matcherToPublisherQueue.addGuaranteed(copyTrade);
+          matcherToPublisherQueue.addGuaranteed(subscription);
+
+          LOGGER.info(Constants.LOG_FMT_2, "Copy trade (status update) successful. clOrdId: ", copyTrade.getClOrdId(), " symbol: ", copyTrade.getBaseSymbol().toUpperCase(),
+              "/", copyTrade.getQuotedSymbol().toUpperCase(), " side: ", copyTrade.getSide().name(),
+              " quantity: ", copyTrade.getxQuantity(), " price: ", copyTrade.getxPrice(), " orderId:", copyTrade.getExternalId(), " result: ", copyTrade.getResult());
+
+          return;
+        } else if (!ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
+          subscription.setKafkaRecordOffset(copyTrade.getKafkaRecordOffset());
+          subscription.setHasPendingClose(true);
+          matcherToPublisherQueue.addGuaranteed(subscription);
+        }
+      }
+      LOGGER.info(Constants.LOG_FMT_2, "Copy trade (status update) failed. clOrdId: ", copyTrade.getClOrdId(), " symbol: ", copyTrade.getBaseSymbol().toUpperCase(),
+          "/", copyTrade.getQuotedSymbol().toUpperCase(), " side: ", copyTrade.getSide().name(),
+          " quantity: ", copyTrade.getxQuantity(), " price: ", copyTrade.getxPrice(), " orderId:", copyTrade.getExternalId(), " result: ", copyTrade.getResult());
 
     }
   }

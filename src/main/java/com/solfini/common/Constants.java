@@ -19,6 +19,8 @@ public interface Constants {
   public static final String BTC_USD = "BTC/USD";
   public static final String BTC_USDC = "BTC/USDC";
 
+  public static final String ORDER_STATUS_FILLED = "FILLED";
+
   public static final String SYMBOL_NOT_FOUND = "symbol not found";
   public static final String NO_PRICE = "no price in newOrderSingleDecoder";
   public static final String MARKET_IS_CLOSED = "Market is closed";

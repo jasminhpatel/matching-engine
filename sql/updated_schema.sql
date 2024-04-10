@@ -1435,3 +1435,7 @@ ALTER TABLE user_state ADD copyTradeEnabled bool not NULL DEFAULT FALSE;
 
 ALTER TABLE notification_state ADD channel varchar(2) not NULL DEFAULT 'CC';
 
+ALTER TABLE subscription_state ADD availableMaxAmount int8 not NULL DEFAULT 0;
+
+ALTER TABLE subscription_state ADD activationToken varchar(64);
+ALTER TABLE subscription_state ADD tokenGeneratedTime int8 not NULL DEFAULT 0;
