@@ -2,18 +2,23 @@ package com.solfini.matchengine.copytrade;
 
 import com.solfini.common.*;
 import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
+import com.solfini.matchengine.copytrade.xchangewrappers.XBybitExchange;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.copytrade.xchangewrappers.XMEXCExchange;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
-//import org.knowm.xchange.coinbasepro.CoinbaseProExchange;
+import org.knowm.xchange.bybit.BybitExchange;
+import org.knowm.xchange.bybit.dto.account.walletbalance.BybitAccountType;
+import org.knowm.xchange.bybit.dto.trade.ByBitQueryOrderParams;
 import org.knowm.xchange.instrument.Instrument;
+import org.knowm.xchange.mexc.MEXCExchange;
+import org.knowm.xchange.mexc.dto.trade.MEXCQueryOrderParams;
 import org.knowm.xchange.service.trade.params.orders.DefaultQueryOrderParam;
 import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
-import java.io.IOException;
 import java.util.Random;
 
 public class ExternalExchangeUtil {
@@ -49,6 +54,18 @@ public class ExternalExchangeUtil {
         processSpecification(specification, null);
 
         return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+      }
+      case "BYBIT": {
+        specification = new BybitExchange().getDefaultExchangeSpecification();
+        processSpecification(specification, null);
+
+        return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+      }
+      case "MEXC": {
+        specification = new MEXCExchange().getDefaultExchangeSpecification();
+        processSpecification(specification, null);
+
+        return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
       }
 /*      case "COINBASE": {
         specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
@@ -88,6 +105,26 @@ public class ExternalExchangeUtil {
 
           return new XBinanceExchange(createExchange(specification));
         }
+        case "BYBIT": {
+          specification = new BybitExchange().getDefaultExchangeSpecification();
+          processSpecification(specification, subscription);
+
+          if (subscription.isFuturesEnabled()) {
+            specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.CONTRACT);
+          }
+
+          return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
+        case "MEXC": {
+          specification = new MEXCExchange().getDefaultExchangeSpecification();
+          processSpecification(specification, subscription);
+
+          if (subscription.isFuturesEnabled()) {
+            specification.setExchangeSpecificParametersItem(MEXCExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+          }
+
+          return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
 /*        case "COINBASE": {
           specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
           processSpecification(specification, subscription);
@@ -118,8 +155,15 @@ public class ExternalExchangeUtil {
       case "BINANCE": {
         return new BinanceQueryOrderParams(instrument, copyTrade.getExternalId());
       }
-      case "COINBASE": {
-        return new DefaultQueryOrderParam(copyTrade.getExternalId());
+      case "BYBIT": {
+        String category = "spot";
+        if (copyTrade.isFuturesEnabled()) {
+          category = "linear";
+        }
+        return new ByBitQueryOrderParams(category, copyTrade.getExternalId());
+      }
+      case "MEXC": {
+        return new MEXCQueryOrderParams(instrument, copyTrade.getExternalId());
       }
       default:
         return new DefaultQueryOrderParam(copyTrade.getExternalId());

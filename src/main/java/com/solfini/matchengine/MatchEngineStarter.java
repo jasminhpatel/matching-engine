@@ -156,35 +156,35 @@ public class MatchEngineStarter implements Constants {
   }
 
   private void loadCachesFromDB() {
-    final AtomicInteger loaderCounter = new AtomicInteger(5);
-    new Thread(() -> {
-      InfluencerSubscriptionCache.loadFromDB(loaderCounter);
-      while (true) {
-        try {
-          Thread.sleep(FIVE_MINUTE);
-          InfluencerSubscriptionCache.loadUpdated();
-        } catch (Exception e) {
-        }
-      }
-    }).start();
-
-    new Thread(() -> {
-      ExternalInstrumentCache.loadFromDB(loaderCounter);
-      ExternalInstrumentCache.loadFromExchange();//async loading
-      while (true) {
-        try {
-          Thread.sleep(ONE_DAY);
-          ExternalInstrumentCache.loadFromExchange();
-        } catch (Exception e) {
-        }
-      }
-    }).start();
-
-    new Thread(() -> {
-      CopyTradeCache.loadFromDB(loaderCounter);
-    }).start();
-
     if (Context.isCopyTradeEnabled()) {
+      final AtomicInteger loaderCounter = new AtomicInteger(5);
+      new Thread(() -> {
+        InfluencerSubscriptionCache.loadFromDB(loaderCounter);
+        while (true) {
+          try {
+            Thread.sleep(FIVE_MINUTE);
+            InfluencerSubscriptionCache.loadUpdated();
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        ExternalInstrumentCache.loadFromDB(loaderCounter);
+        ExternalInstrumentCache.loadFromExchange();//async loading
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            ExternalInstrumentCache.loadFromExchange();
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        CopyTradeCache.loadFromDB(loaderCounter);
+      }).start();
+
       new Thread(() -> {
         try {
           MarketCapCache.loadFromCoinMarketCap(loaderCounter);
@@ -214,15 +214,10 @@ public class MatchEngineStarter implements Constants {
           }
         }
       }).start();
-    } else {
-      //nothing to load, just update the loaderCounter
-      loaderCounter.decrementAndGet();
-      loaderCounter.decrementAndGet();
-    }
 
-    while (loaderCounter.get() != 0) {
+      while (loaderCounter.get() != 0) {
+      }
     }
-
   }
 
   private void startPersistThread() {

@@ -2,7 +2,7 @@ package rnd;
 
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
-import org.knowm.xchange.bitstamp.BitstampExchange;
+//import org.knowm.xchange.bitstamp.BitstampExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
@@ -22,10 +22,10 @@ import java.util.Map;
 
 public class Price {
   public static void main(String[] args) throws IOException {
-    Exchange bitstampExchange = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class.getName());
+    //Exchange bitstampExchange = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class.getName());
 
     // Interested in the public market data feed (no authentication)
-    MarketDataService marketDataService = bitstampExchange.getMarketDataService();
+    //MarketDataService marketDataService = bitstampExchange.getMarketDataService();
 
     Params params = new CurrencyPairsParam() {
       @Override
@@ -34,10 +34,10 @@ public class Price {
       }
     };
 
-    List<Ticker> tickers = marketDataService.getTickers(params);
+/*    List<Ticker> tickers = marketDataService.getTickers(params);
     for (Ticker ticker : tickers) {
       System.out.println(ticker.toString());
-    }
+    }*/
   }
 
   public static Map<Instrument, InstrumentMetaData> getExchangeCurrencyPairs(String Classname)
@@ -47,8 +47,8 @@ public class Price {
     Exchange exch = null;
 
     try {
-      exch = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class);
-      currencyPairList = exch.getExchangeMetaData().getInstruments();
+/*      exch = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class);
+      currencyPairList = exch.getExchangeMetaData().getInstruments();*/
     }
     catch (NonceException e) {
       System.out.println("Nonce exception...");

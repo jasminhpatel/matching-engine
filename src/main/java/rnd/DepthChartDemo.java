@@ -2,7 +2,7 @@ package rnd;
 
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
-import org.knowm.xchange.bitstamp.BitstampExchange;
+//import org.knowm.xchange.bitstamp.BitstampExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.marketdata.OrderBook;
 import org.knowm.xchange.dto.trade.LimitOrder;
@@ -27,15 +27,15 @@ public class DepthChartDemo {
     public static void main(String[] args) throws IOException {
 
         // Use the factory to get the version 1 Bitstamp exchange API using default settings
-        Exchange bitstampExchange = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class.getName());
+        //Exchange bitstampExchange = ExchangeFactory.INSTANCE.createExchange(BitstampExchange.class.getName());
 
         // Interested in the public market data feed (no authentication)
-        MarketDataService marketDataService = bitstampExchange.getMarketDataService();
+        //MarketDataService marketDataService = bitstampExchange.getMarketDataService();
 
         System.out.println("fetching data...");
 
         // Get the current orderbook
-        OrderBook orderBook = marketDataService.getOrderBook(CurrencyPair.BTC_USD);
+        //OrderBook orderBook = marketDataService.getOrderBook(CurrencyPair.BTC_USD);
 
         System.out.println("received data.");
 
@@ -51,13 +51,13 @@ public class DepthChartDemo {
         List<Number> xData = new ArrayList<>();
         List<Number> yData = new ArrayList<>();
         BigDecimal accumulatedBidUnits = new BigDecimal("0");
-        for (LimitOrder limitOrder : orderBook.getBids()) {
+/*        for (LimitOrder limitOrder : orderBook.getBids()) {
             if (limitOrder.getLimitPrice().doubleValue() > 10) {
                 xData.add(limitOrder.getLimitPrice());
                 accumulatedBidUnits = accumulatedBidUnits.add(limitOrder.getOriginalAmount());
                 yData.add(accumulatedBidUnits);
             }
-        }
+        }*/
         Collections.reverse(xData);
         Collections.reverse(yData);
 
@@ -69,13 +69,13 @@ public class DepthChartDemo {
         xData = new ArrayList<>();
         yData = new ArrayList<>();
         BigDecimal accumulatedAskUnits = new BigDecimal("0");
-        for (LimitOrder limitOrder : orderBook.getAsks()) {
+/*        for (LimitOrder limitOrder : orderBook.getAsks()) {
             if (limitOrder.getLimitPrice().doubleValue() > 1000) {
                 xData.add(limitOrder.getLimitPrice());
                 accumulatedAskUnits = accumulatedAskUnits.add(limitOrder.getOriginalAmount());
                 yData.add(accumulatedAskUnits);
             }
-        }
+        }*/
 
         // Asks Series
         series = chart.addSeries("asks", xData, yData);

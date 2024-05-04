@@ -42,7 +42,7 @@ public class XBinanceExchange extends XExchange {
 
   @Override
   public AccountService getAccountService() {
-    return this.getAccountService();
+    return this.exchange.getAccountService();
   }
 
   public double getBalanceFromExchange(final String quoteCurrency) {

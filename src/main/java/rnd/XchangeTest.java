@@ -58,7 +58,7 @@ public class XchangeTest {
     //double price = getPriceFromExchange(subscription, instrument, side, xExchange).getPrice();
     //System.out.println("Price: " + price);
 
-    updateOrderStatus(xExchange, instrument, "3720691744");
+    updateOrderStatus(xExchange, instrument, "3728018067");
 
   }
 

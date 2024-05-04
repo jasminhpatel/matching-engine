@@ -175,12 +175,17 @@ public abstract class XExchange implements Exchange {
     if (copyTrade.getOrdType() == OrdType.MARKET) {
       final MarketOrder
           order = new MarketOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getInstrument(), copyTrade.getClOrdId(), null);
+      if (copyTrade.getSubscription().hasLeverage()) {
+        order.setLeverage("1");
+      }
       final String returnValue = tradeService.placeMarketOrder(order);
       copyTrade.setExternalId(returnValue);
     } else {
       final LimitOrder
           order = new LimitOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getInstrument(), copyTrade.getClOrdId(), null, copyTrade.getxPrice());
-
+      if (copyTrade.getSubscription().hasLeverage()) {
+        order.setLeverage("1");
+      }
       final String returnValue = tradeService.placeLimitOrder(order);
       copyTrade.setExternalId(returnValue);
     }

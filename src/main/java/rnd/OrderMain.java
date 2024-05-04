@@ -7,8 +7,8 @@ import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
 import org.knowm.xchange.binance.dto.trade.BinanceTradeHistoryParams;
-import org.knowm.xchange.bitmex.BitmexExchange;
-import org.knowm.xchange.bitstamp.BitstampExchange;
+//import org.knowm.xchange.bitmex.BitmexExchange;
+//import org.knowm.xchange.bitstamp.BitstampExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.AccountInfo;
@@ -109,13 +109,13 @@ public class OrderMain {
         specification = new BinanceExchange().getDefaultExchangeSpecification();
         specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
         break;
-      case "BITMEX":
+/*      case "BITMEX":
         specification = new BitmexExchange().getDefaultExchangeSpecification();
         specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
-        break;
-      case "BITSTAMP":
+        break;*/
+/*      case "BITSTAMP":
         specification = new BitstampExchange().getDefaultExchangeSpecification();
-        break;
+        break;*/
 
     }
     specification.setUserName(username);

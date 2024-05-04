@@ -25,6 +25,7 @@ import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import com.solfini.util.MbxMath;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
 
 import java.math.BigDecimal;
@@ -575,7 +576,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
       }
 
-      org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange, currencyPair);
+      org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange, currencyPair, subscription.isFuturesEnabled());
       if (instrument == null) {
         LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " invalid instrument: ", baseSymbol, " ", quotedSymbol);
 
@@ -805,7 +806,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       closeCopyTrade.setxExchange(xExchange);
 
       final CurrencyPair currencyPair = ExternalCurrencyPairCache.get(closeCopyTrade.getBaseSymbol(), closeCopyTrade.getQuotedSymbol());
-      final org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange, currencyPair);
+      final org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange, currencyPair, closeCopyTrade.getSubscription().isFuturesEnabled());
       if (instrument == null) {
         closeCopyTrade.setResult("REJECTED: Invalid instrument. " + currencyPair.getBase().getSymbol() + " " + currencyPair.getCounter().getSymbol());
         closeCopyTrade.setxExchange(null);
@@ -924,18 +925,23 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     }
   }
-
-  private static org.knowm.xchange.instrument.Instrument getInstrument(final XExchange xExchange, final CurrencyPair currencyPair) {
+  //todo cache
+  private static org.knowm.xchange.instrument.Instrument getInstrument(final XExchange xExchange, final CurrencyPair currencyPair, boolean isFuture) {
     try {
       final List<org.knowm.xchange.instrument.Instrument> instruments = xExchange.getExchange().getExchangeInstruments();
       org.knowm.xchange.instrument.Instrument instrument = null;
       for (org.knowm.xchange.instrument.Instrument i : instruments) {
         if (i.getBase().getSymbol().equalsIgnoreCase(currencyPair.getBase().getSymbol()) && i.getCounter().getSymbol()
             .equalsIgnoreCase(currencyPair.getCounter().getSymbol())) {
-          instrument = i;
+          if (isFuture && i instanceof FuturesContract && "PERP".equalsIgnoreCase(((FuturesContract) i).getPrompt())) {
+            instrument = i;
+            break;
+          } else if (!isFuture && !(i instanceof FuturesContract)) {
+            instrument = i;
+            break;
+          }
         }
       }
-
       return instrument;
     } catch (Exception e) {
       LOGGER.info(Constants.LOG_FMT_2, "Failed to load instrument. ", currencyPair.toString());
