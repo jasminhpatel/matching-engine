@@ -61,6 +61,7 @@ public interface Constants {
   public static final String SNAPSHOT_ID = "snapshot-id";
   public static final String PRIMARY = "primary";
   public static final String SECONDARY = "secondary";
+  public static final String COPY_TRADE_ONLY = "copytradeonly";
 
   public static final int BUY_LIMIT = 0;
   public static final int SELL_LIMIT = 1;

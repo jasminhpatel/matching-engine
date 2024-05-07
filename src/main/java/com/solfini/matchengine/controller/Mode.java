@@ -7,5 +7,6 @@ public enum Mode {
   NONE,           // Undefined status, default at startup
   PRIMARY,        // Matching engine is in primary mode
   SECONDARY,      // Matching engine is in secondary (DR) mode
-  SUSPENDED       // Matching engine is suspended
+  SUSPENDED,      // Matching engine is suspended
+  COPY_TRADE_ONLY // Matching engine only handles copy trades
 }

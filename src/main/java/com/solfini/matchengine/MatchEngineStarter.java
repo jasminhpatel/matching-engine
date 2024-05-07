@@ -82,7 +82,7 @@ public class MatchEngineStarter implements Constants {
     // mode
     if (cmd.hasOption("m")) {
       String mode = cmd.getOptionValue("m").toLowerCase();
-      if (mode.equals(PRIMARY) || mode.equals(SECONDARY)) {
+      if (mode.equals(PRIMARY) || mode.equals(SECONDARY) || mode.equals(COPY_TRADE_ONLY)) {
         overlay.setProperty("CONTROLLER_MODE", mode);
       } else {
         System.err.println("Error: Invalid mode specified");

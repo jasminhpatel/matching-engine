@@ -333,6 +333,20 @@ public class ControllerThread implements Runnable, Constants {
     DRRecieverDataObjectPool.init();
   }
 
+  private void initializeCopyTradeObjectPools() {
+    if (LOGGER.isInfoEnabled()) {
+      LOGGER.info(LOG_FMT_1, "Warming up copytrade object pools");
+    }
+
+    OrderObjectPool.init();
+    PositionMatchThreadObjectPool.init();
+    UserOpenOrdersByPairMatchThreadObjectPool.init();
+    BalanceAdminMessageObjectPool.init();
+    BusinessRejectObjectPool.init();
+    ExecutionReportObjectPool.init();
+    OrderMatchingThreadObjectPool.init();
+  }
+
   private void handleMessage(final ModeControlMessage message) throws IOException {
     switch (message.getMode()) {
       case PRIMARY:
@@ -438,7 +452,12 @@ public class ControllerThread implements Runnable, Constants {
 
         LOGGER.info(LOG_FMT_1, ">>> READY <<<");
         break;
+      case COPY_TRADE_ONLY:
+        if (Mode.COPY_TRADE_ONLY != message.getPreviousMode()) {
+          initializeCopyTradeObjectPools();
+        }
 
+        break;
       default:
     }
   }
