@@ -24,6 +24,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import com.solfini.util.MbxMath;
+import com.solfini.util.StringUtil;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
@@ -48,6 +49,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   private final int orderBookStrategy;
   private final int preOrderCheckStrategy;
   private final InstrumentPair instrumentPair;
+  private final HashSet<Integer> userPartitionMap = new HashSet<>();
 
   private PreOrderCheck preOrderCheck;
   private final PreOrderCheck preOrderCheckOrig;
@@ -76,6 +78,12 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     this.orderBookStrategy = orderBookStrategy;
     this.preOrderCheckStrategy = preOrderCheckStrategy;
+
+    String userPartitionIds = Context.getCopyTradeUserPartitionIds();
+    String[] partitionIds = userPartitionIds.split(",");
+    for (String partitionId : partitionIds) {
+      this.userPartitionMap.add(Integer.parseInt(partitionId));
+    }
   }
 
   @Override
@@ -237,6 +245,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         String quotedSymbol = null;
 
         for (InfluencerSubscription subscription : subscriptionList) {
+          if (!userPartitionMap.contains(subscription.getUserId() % Context.getNoOfTotalCopyTradeUserPartitions())) {
+            LOGGER.info(Constants.LOG_FMT_2, "User does not belong to this partition. userId: ", subscription.getUserId());
+            continue;
+          }
           quotedSymbol = subscription.getPreferredQuoteCurrency();
           if (subscription.getPreferredCurrencies() != null && subscription.getPreferredCurrencies().length() > 2) {
             if (!subscription.getPreferredCurrencies().contains(baseSymbol)) {
@@ -294,6 +306,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             } else {//exact symbol
               validSymbolToClose = order.getSymbol() != null && !order.getSymbol().isEmpty()
                   && order.getSymbol().equalsIgnoreCase(openCopyTrade.getBaseSymbol());
+            }
+
+            if (!userPartitionMap.contains(openCopyTrade.getUserId() % Context.getNoOfTotalCopyTradeUserPartitions())) {
+              LOGGER.info(Constants.LOG_FMT_2, "User does not belong to this partition. userId: ", openCopyTrade.getUserId());
+              continue;
             }
 
             if (openCopyTrade.isSuccessful() && validSymbolToClose && !openCopyTrade.isClosed() && !openCopyTrade.isToClose()) {

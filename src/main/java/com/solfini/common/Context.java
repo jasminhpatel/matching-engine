@@ -172,6 +172,9 @@ public final class Context implements Constants {
   private static final int MAX_DELAY_TO_CLOSE_ORDER_IN_MS = PropertyReader.getProperty("MAX_DELAY_TO_CLOSE_ORDER_IN_MS", ONE_HOUR);
   private static final double MIN_COPY_TRADE_AMOUNT_IN_USD = PropertyReader.getProperty("MIN_COPY_TRADE_AMOUNT_IN_USD", 10D);
 
+  private static final String COPY_TRADE_USER_PARTITION_IDS = PropertyReader.getProperty("COPY_TRADE_USER_PARTITION_IDS", "0,1,2");//all 3 partitions
+  private static final int NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS = PropertyReader.getProperty("NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS", 3);
+
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoLiquidatorQueue =
@@ -788,5 +791,13 @@ public final class Context implements Constants {
 
   public static double getMinCopyTradeAmountInUsd() {
     return MIN_COPY_TRADE_AMOUNT_IN_USD;
+  }
+
+  public static int getNoOfTotalCopyTradeUserPartitions() {
+    return NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS;
+  }
+
+  public static String getCopyTradeUserPartitionIds() {
+    return COPY_TRADE_USER_PARTITION_IDS;
   }
 }
