@@ -9,7 +9,11 @@ import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
-import com.solfini.internal.admin.schema.*;
+import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.FeeType;
+import com.solfini.internal.admin.schema.MakerTaker;
+import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.MarketType;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -92,8 +96,6 @@ public class InstrumentPair implements Appendable, Constants {
   private long auctionLastStartedTime; // used internally only
   private long auctionLastStoppedTime; // used internally only
 
-  private Sector sector;
-
   private static final int FEE_TIER_CAPACITY = 16;
   private final Fee[] makerFeeArr;
   private final Fee[] takerFeeArr;
@@ -112,11 +114,9 @@ public class InstrumentPair implements Appendable, Constants {
 
   public InstrumentPair(final int id, final String symbol, final String name, final Instrument base, final Instrument quoted,
       final short priceScale, final short quantityScale, final int settleType, final AssetType assetType, final int maintMarginBasisPoints,
-      final int requiredMarginBasisPoints, final double usdMark, final int marginCurveId, final Sector sector) {
+      final int requiredMarginBasisPoints, final double usdMark, final int marginCurveId) {
     this(id, symbol, name, base, quoted, priceScale, quantityScale, settleType, assetType, maintMarginBasisPoints,
-        requiredMarginBasisPoints, usdMark, marginCurveId, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, false,
-        false, MarketType.NONE, sector);
+        requiredMarginBasisPoints, usdMark, marginCurveId, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false, MarketType.NONE);
   }
 
   public InstrumentPair(final int id, final String symbol, final String name, final Instrument base, final Instrument quoted,
@@ -125,7 +125,7 @@ public class InstrumentPair implements Appendable, Constants {
       final int strikePrice, final int underlyerId, final long minOrderQuantity, final int auctionStartTimeHrGMT,
       final long auctionDurationTime, final int auctionFixingAttempts, final long auctionFixingWaitTime,
       final double circuitBreakerThreshold, final long expireRollTimeMillis, final int symbolRollCount, final boolean physicalSettle,
-      final boolean limitOnlyMode, final MarketType marketType, final Sector sector) {
+      final boolean limitOnlyMode, final MarketType marketType) {
     this.id = id;
     this.symbol = symbol;
     this.name = name;
@@ -180,8 +180,6 @@ public class InstrumentPair implements Appendable, Constants {
 
     this.tradeHistory = new TradeHistory(id, underlyerId);
     this.midHistory = new TradeHistory(id, underlyerId);
-
-    this.sector = sector;
   }
 
   public final double getEffectiveVolumeScale() {
@@ -686,14 +684,6 @@ public class InstrumentPair implements Appendable, Constants {
 
   public final void setName(final String name) {
     this.name = name;
-  }
-
-  public final Sector getSector() {
-    return sector;
-  }
-
-  public final void setSector(Sector sector) {
-    this.sector = sector;
   }
 
   public final Fee[] getMakerFeeArr() {

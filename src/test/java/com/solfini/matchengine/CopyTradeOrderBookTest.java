@@ -5,7 +5,6 @@ import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalInstrumentCache;
@@ -77,7 +76,7 @@ public class CopyTradeOrderBookTest {
       }
     }).start();
 
-    InstrumentPair pair = new InstrumentPair(1, "COPY_TRADE/USD", "COPY_TRADE", null, null, (short) 0, (short) 0,0, AssetType.PAIR, 0,0,0,0, Sector.NOT_DEFINED);
+    InstrumentPair pair = new InstrumentPair(1, "COPY_TRADE/USD", "COPY_TRADE", null, null, (short) 0, (short) 0,0, AssetType.PAIR, 0,0,0,0);
     InstrumentCache.addPair(pair);
     CopyTradeOrderBook orderBook = new CopyTradeOrderBook(pair, null, 1, 1);
     for (int i = 0; i < 10000; i++) {

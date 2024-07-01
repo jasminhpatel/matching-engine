@@ -28,7 +28,17 @@ import com.solfini.matchengine.message.controller.ModeControlMessage;
 import com.solfini.matchengine.message.controller.PublishControlMessage;
 import com.solfini.matchengine.message.controller.ShutdownControlMessage;
 import com.solfini.matchengine.publisher.MessagePublisher;
-import com.solfini.pool.*;
+import com.solfini.pool.BalanceAdminMessageObjectPool;
+import com.solfini.pool.BusinessRejectObjectPool;
+import com.solfini.pool.DRCancelOrderObjectPool;
+import com.solfini.pool.DRExecutionReportObjectPool;
+import com.solfini.pool.DROrderObjectPool;
+import com.solfini.pool.DRRecieverDataObjectPool;
+import com.solfini.pool.ExecutionReportObjectPool;
+import com.solfini.pool.OrderMatchingThreadObjectPool;
+import com.solfini.pool.OrderObjectPool;
+import com.solfini.pool.PositionMatchThreadObjectPool;
+import com.solfini.pool.UserOpenOrdersByPairMatchThreadObjectPool;
 import com.solfini.risk.RiskAutoLiquidationThread;
 import com.solfini.risk.RiskThread;
 import com.solfini.risk.RiskThreadIndexed;
@@ -310,7 +320,6 @@ public class ControllerThread implements Runnable, Constants {
     BusinessRejectObjectPool.init();
     ExecutionReportObjectPool.init();
     OrderMatchingThreadObjectPool.init();
-    OrderFilterObjectPool.init();
   }
 
   private void initializeSecondaryObjectPools() {

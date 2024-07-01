@@ -1054,10 +1054,9 @@ public class User implements Appendable, Serializable, Constants {
       if (tokenType == TokenType.ERC20_GROUP && assetId2 > 0) {
         final Instrument instrument = InstrumentCache.get(instrumentId);
         final AssetGroup assetGroup = updateGroup(this.id, assetId2, instrument.getName(), instrumentId, quantity, com.solfini.sbe.encoder.TokenType.ERC20_GROUP);
-        positionArr[instrumentId].addAssetId(0, 0, assetGroup.getId());
         groupId = assetGroup.getId();
-/*        final long[] value = {0, 0, assetGroup.getId()};
-        positionArr[instrumentId].getAssetIdtreeSet().add(value);*/
+        final long[] value = {0, 0, assetGroup.getId()};
+        positionArr[instrumentId].getAssetIdtreeSet().add(value);
       } else if (tokenType == TokenType.ERC721) {
         positionArr[instrumentId].addAssetIdtreeSet(assetIdtreeSet);
       }

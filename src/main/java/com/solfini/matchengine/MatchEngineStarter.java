@@ -171,10 +171,7 @@ public class MatchEngineStarter implements Constants {
 
       new Thread(() -> {
         ExternalInstrumentCache.loadFromDB(loaderCounter);
-        try {
-          ExternalInstrumentCache.loadFromExchange();//async loading
-        } catch (Exception e) {
-        }
+        ExternalInstrumentCache.loadFromExchange();//async loading
         while (true) {
           try {
             Thread.sleep(ONE_DAY);
