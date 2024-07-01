@@ -3,6 +3,8 @@ package com.solfini.matchengine;
 import java.text.NumberFormat;
 import java.util.Properties;
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.Sector;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -81,10 +83,10 @@ public class ArrayOrderBookTest {
     final FastArrayList<Order> orderList = makeOrders(orderCount);
     System.out.println("Loaded " + format(orderList.size()) + " orders");
 
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 10000, 0,false, 1);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 10000, 0,false, 2);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 10000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 10000, 0,false, 2, Sector.NOT_DEFINED);
     final InstrumentPair instrumentPair =
-        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0);
+        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0, Sector.NOT_DEFINED);
 
     final int DEFAULT_ARR_SIZE = 10_000_000;
     final int DEFAULT_CACHE_DEPTH = 64;

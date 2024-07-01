@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
+import com.solfini.internal.admin.schema.*;
 import com.solfini.sbe.encoder.QuoteType;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.common.Constants;
@@ -17,12 +18,6 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
-import com.solfini.internal.admin.schema.DecimalFloatEncoder;
-import com.solfini.internal.admin.schema.FeeAdminMessageEncoder;
-import com.solfini.internal.admin.schema.SecurityDefinitionAdminMessageEncoder;
-import com.solfini.internal.admin.schema.SnapResponseAdminMessageEncoder;
-import com.solfini.internal.admin.schema.TradeStateAdminMessageEncoder;
-import com.solfini.internal.admin.schema.UserAdminMessageEncoder;
 import com.solfini.matchengine.PublisherEncoderCache;
 import com.solfini.matchengine.kafka.KafkaPublisher;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
@@ -1407,6 +1402,8 @@ public class MessagePublisher implements Constants {
       securityDefinitionAdminMessageEncoder.withdrawFee(securityDefinitionAdminMessage.getWithdrawFee());
       securityDefinitionAdminMessageEncoder.isWithdrawFeePercent((short) (securityDefinitionAdminMessage.isWithdrawFeePercent() ? 1 : 0));
       securityDefinitionAdminMessageEncoder.withdrawFeeInstrument(securityDefinitionAdminMessage.getWithdrawFeeInstrument());
+      final Sector sector = securityDefinitionAdminMessage.getSector();
+      securityDefinitionAdminMessageEncoder.sector(sector != null ? sector : Sector.NOT_DEFINED);
 
       final DecimalFloatEncoder indexFeedUsdMarkEncoder = securityDefinitionAdminMessageEncoder.indexFeedUsdMark();
       indexFeedUsdMarkEncoder.value((long) (securityDefinitionAdminMessage.getIndexFeedUsdMark() * 100));

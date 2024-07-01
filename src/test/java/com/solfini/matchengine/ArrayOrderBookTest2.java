@@ -4,6 +4,7 @@ import com.solfini.common.Constants;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.ArrayOrderBook;
 import com.solfini.matchengine.orderbook.OrderBook;
@@ -256,13 +257,13 @@ public class ArrayOrderBookTest2 {
     FastArrayList<Order> orderList2 = loadTestOrders3(1_0_000); // (testOrdersPath);
     System.out.println("loaded orders2 " + orderList.size());
 
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
     // InstrumentCache.addInstrument(base);
     // InstrumentCache.addInstrument(quoted);
 
     InstrumentPair instrumentPair =
-        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0);
+        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0, Sector.NOT_DEFINED);
     // InstrumentCache.addPair(instrumentPair);
 
     int DEFAULT_ARR_SIZE = 10_000_000;

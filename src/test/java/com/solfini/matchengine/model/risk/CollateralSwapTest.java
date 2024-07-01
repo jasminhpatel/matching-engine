@@ -5,6 +5,7 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.user.User;
@@ -68,12 +69,12 @@ public class CollateralSwapTest {
   }
 
   protected static void createInstruments() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 
     InstrumentPair pair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0, Sector.NOT_DEFINED);
 
     // OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, pair);
     // pair.setOrderBook(orderBook);

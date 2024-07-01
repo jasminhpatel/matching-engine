@@ -3,10 +3,7 @@ package com.solfini.objects;
 import com.solfini.common.Constants;
 import com.solfini.common.ReusableLog;
 import com.solfini.instrument.*;
-import com.solfini.internal.admin.schema.AssetType;
-import com.solfini.internal.admin.schema.MarketStatus;
-import com.solfini.internal.admin.schema.TokenType;
-import com.solfini.internal.admin.schema.UpdateType;
+import com.solfini.internal.admin.schema.*;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.matchengine.message.internal.CancelOrder;
@@ -82,16 +79,16 @@ public class PoolTest implements Constants {
 
   @Test
   public void createPools() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 
-    final Instrument spy = new Instrument(10, "SPY", "SPY", (short) 2, (short) 6, 1, 1000, 0,false, 2);
+    final Instrument spy = new Instrument(10, "SPY", "SPY", (short) 2, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(spy);
 
     InstrumentPair pair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", spy, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", spy, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0, Sector.NOT_DEFINED);
     pair.setMarketStatus(MarketStatus.OPEN);
 
     // OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, pair);
