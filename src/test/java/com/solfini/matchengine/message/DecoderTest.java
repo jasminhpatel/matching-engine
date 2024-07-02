@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Properties;
 
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.TokenType;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.Assert;
@@ -75,7 +76,7 @@ public class DecoderTest extends MessageTest {
 
       for (int i = 0; i < 19; ++i) {
         InstrumentCache.addPair(new InstrumentPair(i + 4, "BTC/USD[" + i + "]", "BTC/USD[" + i + "]", InstrumentCache.get(1),
-            InstrumentCache.get(2), (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0));
+            InstrumentCache.get(2), (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0, Sector.NOT_DEFINED));
       }
 
     } catch (Exception e) {

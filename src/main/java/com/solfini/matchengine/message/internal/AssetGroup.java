@@ -123,7 +123,7 @@ public class AssetGroup extends Message {
   }
 
   public void setAvailableQuantity(final long availableQuantity) {
-    LOGGER.info("Asset Group old quantity: " + this.availableQuantity + " new quantity: " + availableQuantity);
+    //LOGGER.info("Asset Group old quantity: " + this.availableQuantity + " new quantity: " + availableQuantity);
     this.availableQuantity = availableQuantity;
   }
 
@@ -232,6 +232,20 @@ public class AssetGroup extends Message {
     }
     position.addAssetId(0,0, this.id);// add group position. One record for the entire group
     //no change in position quantity
+  }
+
+  @Override
+  public void clear() {
+    super.clear();
+    updateType = null;
+    id = 0;
+    ownerUserId = 0;
+    quantity = 0;
+    availableQuantity = 0;
+    name = null;
+    securityId = 0;
+    assetId = 0;
+    tokenType = null;
   }
 
   @Override

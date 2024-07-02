@@ -9,6 +9,7 @@ import static com.solfini.common.Constants.STOP_SELL_LIMIT;
 import java.text.NumberFormat;
 import java.util.Properties;
 
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Assert;
 import org.junit.Before;
@@ -84,10 +85,10 @@ public class MarginTest {
   public void init() {
     initProp();
 
-    quote = new Instrument(1, "USDT", "USDT", (short) 2, (short) 8, 1, 1000, 0,false, 1);
-    base = new Instrument(2, "BTC", "BTC", (short) 2, (short) 8, 1, 1000, 0,false, 2);
+    quote = new Instrument(1, "USDT", "USDT", (short) 2, (short) 8, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    base = new Instrument(2, "BTC", "BTC", (short) 2, (short) 8, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
 
-    pair = new InstrumentPair(3, "BTCUSDT", "BTCUSDT", base, quote, (short) 2, (short) 3, 1, AssetType.PAIR, 250, 500, 9880, 0);
+    pair = new InstrumentPair(3, "BTCUSDT", "BTCUSDT", base, quote, (short) 2, (short) 3, 1, AssetType.PAIR, 250, 500, 9880, 0, Sector.NOT_DEFINED);
 
     preOrderCheck = new MarginPreOrderCheckAndSettle();
     orderBook = new ArrayOrderBook(pair, preOrderCheck, OrderBookFactory.DEFAULT_TEST_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK);
