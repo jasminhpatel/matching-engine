@@ -9,7 +9,6 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.SnapResponseAdminMessageEncoder;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.PublisherEncoderCache;
@@ -142,9 +141,9 @@ public class BalanceAdminDecodeTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0, 0,false, 0, Sector.NOT_DEFINED);
-    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0, 0,false, 0, Sector.NOT_DEFINED);
-    instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0, Sector.NOT_DEFINED);
+    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0, 0,false, 0);
+    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0, 0,false, 0);
+    instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0);
 
     InstrumentCache.addInstrument(quoted);
     InstrumentCache.addInstrument(base);

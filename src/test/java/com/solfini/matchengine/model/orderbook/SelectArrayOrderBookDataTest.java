@@ -6,7 +6,6 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
@@ -101,9 +100,9 @@ public class SelectArrayOrderBookDataTest {
   public void init() {
     initProperty();
 
-    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0, 0,false, 1, Sector.NOT_DEFINED);
-    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0, 0,false, 1, Sector.NOT_DEFINED);
-    instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0, Sector.NOT_DEFINED);
+    quoted = new Instrument(0, "USD", "USD", (short) 6, (short) 6, 1, 0, 0,false, 1);
+    base = new Instrument(228, "CARBON", "CARBON", (short) 6, (short) 0, 1, 0, 0,false, 1);
+    instrumentPair = new InstrumentPair(229, "CARBON/USD", "CARBON/USD", base, quoted, (short) 2, (short) 0, 0, AssetType.PAIR, 0, 0, 1, 0);
 
     orderBook = OrderBookFactory.create(OrderBookFactory.SELECT_ARRAY_ORDER_BOOK, OrderBookFactory.CASH_PREORDER_CHECK, instrumentPair,
         DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);

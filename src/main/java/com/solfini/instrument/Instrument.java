@@ -2,7 +2,6 @@ package com.solfini.instrument;
 
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
-import com.solfini.internal.admin.schema.Sector;
 
 /**
  *
@@ -27,11 +26,10 @@ public class Instrument implements Appendable, Constants {
   private double withdrawFee;
   private boolean isWithdrawFeePercent;
   private int withdrawFeeInstrument;
-  private Sector sector;
 
   public Instrument(final int id, final String symbol, final String name, final short priceScale, final short quantityScale,
       final double usdMark, final int collateralMarginPercentDiscount, final double withdrawFee, final boolean isWithdrawFeePercent,
-      final int withdrawFeeInstrument, final Sector sector
+      final int withdrawFeeInstrument
   ) {
     this.id = id;
     this.symbol = symbol;
@@ -76,7 +74,6 @@ public class Instrument implements Appendable, Constants {
     this.withdrawFee = withdrawFee;
     this.isWithdrawFeePercent = isWithdrawFeePercent;
     this.withdrawFeeInstrument = withdrawFeeInstrument;
-    this.sector = sector;
   }
 
   public final int getId() {
@@ -176,14 +173,6 @@ public class Instrument implements Appendable, Constants {
 
   public void setWithdrawFeeInstrument(final int withdrawFeeInstrument) {
     this.withdrawFeeInstrument = withdrawFeeInstrument;
-  }
-
-  public Sector getSector() {
-    return sector;
-  }
-
-  public void setSector(final Sector sector) {
-    this.sector = sector;
   }
 
   // given a quantity and scale adjust to this scale

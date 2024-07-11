@@ -48,7 +48,7 @@ public class AssetGroupObjectPool implements Constants {
     }
 
     if (LOGGER.isDebugEnabled()) {
-      LOGGER.debug("pool creating new AssetGroup");
+      LOGGER.debug("pool creating new CancelOrder");
     }
     benchmark.miss();
 

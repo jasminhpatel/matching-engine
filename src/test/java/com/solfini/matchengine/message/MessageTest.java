@@ -11,7 +11,6 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.pool.OrderObjectPool;
@@ -37,13 +36,13 @@ public class MessageTest {
   }
 
   protected static void createInstruments() {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1, Sector.NOT_DEFINED);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
     InstrumentCache.addInstrument(base);
     InstrumentCache.addInstrument(quoted);
 
     final InstrumentPair instrument =
-        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0, Sector.NOT_DEFINED);
+        new InstrumentPair(3, "BTC/USD", "BTC/USD", base, quoted, (short) 6, (short) 6, 0, AssetType.PAIR, 10, 20, 3500, 0);
     InstrumentCache.addPair(instrument);
   }
 

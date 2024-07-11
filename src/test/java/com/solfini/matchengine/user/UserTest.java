@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.TokenType;
 import org.slf4j.event.Level;
 import org.junit.Before;
@@ -80,12 +79,12 @@ public class UserTest implements Constants {
   }
 
   protected static void createInstruments() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 
     InstrumentPair pair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0, Sector.NOT_DEFINED);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0);
 
     // OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, pair);
     // pair.setOrderBook(orderBook);
@@ -93,16 +92,16 @@ public class UserTest implements Constants {
   }
 
   protected static void createCarbonInstruments() {
-    final Instrument usdc = new Instrument(1, "USDC", "USDC", (short) 2, (short) 6, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument usdc = new Instrument(1, "USDC", "USDC", (short) 2, (short) 6, 1, 1000, 0,false, 1);
     usdc.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdc);
 
-    final Instrument carbon = new Instrument(228, "CARBON", "CARBON", (short) 2, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
+    final Instrument carbon = new Instrument(228, "CARBON", "CARBON", (short) 2, (short) 6, 1, 1000, 0,false, 2);
     carbon.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(carbon);
 
     final InstrumentPair pair =
-        new InstrumentPair(229, "CARBON/USD", "CARBON/USD", usdc, carbon, (short) 2, (short) 0, 2, AssetType.PAIR, 5_00, 10_00, 40, 0, Sector.NOT_DEFINED);
+        new InstrumentPair(229, "CARBON/USD", "CARBON/USD", usdc, carbon, (short) 2, (short) 0, 2, AssetType.PAIR, 5_00, 10_00, 40, 0);
 
     InstrumentCache.addPair(pair);
   }

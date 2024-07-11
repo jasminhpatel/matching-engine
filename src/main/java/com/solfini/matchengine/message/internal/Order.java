@@ -79,10 +79,10 @@ public class Order extends Message implements Constants {
   private String platform;
   private String accountId;
   private String symbol; //for copy trades
-  private long filterId;
 
   //for inmemory use only
   private boolean orderModified;
+
 
   public Order() {
     // default constructor
@@ -149,8 +149,6 @@ public class Order extends Message implements Constants {
     }
     this.platform = newOrderSingleDecoder.platform();
     this.accountId = newOrderSingleDecoder.accountId();
-    // reuse secondaryOrderId field to get filterId from API. secondaryOrderId is empty until the engine assigns a value for it.
-    this.filterId = newOrderSingleDecoder.secondaryOrderId();
   }
 
   // copy set order, used for stop limit orders
@@ -778,14 +776,6 @@ public class Order extends Message implements Constants {
 
   public void setSymbol(String symbol) {
     this.symbol = symbol;
-  }
-
-  public long getFilterId() {
-    return filterId;
-  }
-
-  public void setFilterId(final long filterId) {
-    this.filterId = filterId;
   }
 
   // TODO: remove this check used for debugging

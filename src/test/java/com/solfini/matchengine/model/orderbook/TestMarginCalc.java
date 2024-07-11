@@ -2,7 +2,6 @@ package com.solfini.matchengine.model.orderbook;
 
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
-import com.solfini.internal.admin.schema.Sector;
 
 public class TestMarginCalc {
 
@@ -119,7 +118,7 @@ public class TestMarginCalc {
     int maintMarginPercent = 2;
     int requiredMarginPercent = 4;
     InstrumentPair instrumentPair = new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR,
-        maintMarginPercent, requiredMarginPercent, 260, 0, Sector.NOT_DEFINED);
+        maintMarginPercent, requiredMarginPercent, 260, 0);
     double notional = 500.0;
     double calc = calcMaintMargin(notional, instrumentPair);
     System.out.println("notional=" + notional + ", calcMaintMargin=" + calc + ", percent=" + (calc / notional));

@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
 
-import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Before;
 import org.junit.Test;
@@ -75,12 +74,12 @@ public class InstrumentTest {
   }
 
   protected static void createInstruments() {
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,false, 1);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
 
     InstrumentPair pair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0, Sector.NOT_DEFINED);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, usdt, (short) 2, (short) 6, 2, AssetType.PAIR, 5_00, 10_00, 260, 0);
 
     // OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, pair);
     // pair.setOrderBook(orderBook);

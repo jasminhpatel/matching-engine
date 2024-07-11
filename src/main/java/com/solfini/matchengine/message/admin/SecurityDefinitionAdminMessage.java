@@ -6,7 +6,11 @@ import com.solfini.common.MessageType;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
-import com.solfini.internal.admin.schema.*;
+import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.MarketStatus;
+import com.solfini.internal.admin.schema.MarketType;
+import com.solfini.internal.admin.schema.SecurityDefinitionAdminMessageDecoder;
+import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.util.MbxMath;
@@ -86,7 +90,6 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
   private double withdrawFee;
   private boolean isWithdrawFeePercent;
   private int withdrawFeeInstrument;
-  private Sector sector;
 
   public SecurityDefinitionAdminMessage() {}
 
@@ -170,8 +173,6 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.withdrawFee = SECURITY_DEFINITION_DECODER.withdrawFee();
     this.isWithdrawFeePercent = SECURITY_DEFINITION_DECODER.isWithdrawFeePercent() == 1;
     this.withdrawFeeInstrument = SECURITY_DEFINITION_DECODER.withdrawFeeInstrument();
-    final Sector s = SECURITY_DEFINITION_DECODER.sector();
-    this.sector = s != null ? s : Sector.NOT_DEFINED;
   }
 
   public SecurityDefinitionAdminMessage(final Instrument instrument) {
@@ -197,7 +198,6 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.withdrawFee = instrument.getWithdrawFee();
     this.isWithdrawFeePercent = instrument.isWithdrawFeePercent();
     this.withdrawFeeInstrument = instrument.getWithdrawFeeInstrument();
-    this.sector = instrument.getSector();
   }
 
   public SecurityDefinitionAdminMessage(final InstrumentPair instrumentPair) {
@@ -265,7 +265,6 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
       this.preOrderCheckStrategy = orderBook.getPreOrderCheckStrategy();
       this.arrSize = orderBook.getArrSize();
     }
-    this.sector = instrumentPair.getSector();
   }
 
   @Override
@@ -797,14 +796,6 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.withdrawFeeInstrument = withdrawFeeInstrument;
   }
 
-  public Sector getSector() {
-    return sector;
-  }
-
-  public void setSector(Sector sector) {
-    this.sector = sector;
-  }
-
   @Override
   public final void onMatcher() {
     InstrumentCache.updateSecurityDefinition(this);
@@ -878,8 +869,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
         .append(",\"auctionFixingWaitTime\":").append(auctionFixingWaitTime).append(",\"expireRollTimeMillis\":")
         .append(expireRollTimeMillis).append(",\"symbolRollCount\":").append(symbolRollCount).append(",\"physicalSettle\":")
         .append(physicalSettle).append(",\"withdrawFee\":").append(withdrawFee).append(",\"isWithdrawFeePercent\":")
-        .append(isWithdrawFeePercent).append(",\"withdrawFeeInstrument\":").append(withdrawFeeInstrument)
-        .append(",\"sector\":").append(sector.value());
+        .append(isWithdrawFeePercent).append(",\"withdrawFeeInstrument\":").append(withdrawFeeInstrument);
     sb.append("}");
     return sb.toString();
   }
