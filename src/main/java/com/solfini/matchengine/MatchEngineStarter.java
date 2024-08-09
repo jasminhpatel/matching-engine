@@ -157,7 +157,7 @@ public class MatchEngineStarter implements Constants {
 
   private void loadCachesFromDB() {
     if (Context.isCopyTradeEnabled()) {
-      final AtomicInteger loaderCounter = new AtomicInteger(5);
+      final AtomicInteger loaderCounter = new AtomicInteger(6);
       new Thread(() -> {
         InfluencerSubscriptionCache.loadFromDB(loaderCounter);
         while (true) {
@@ -171,7 +171,10 @@ public class MatchEngineStarter implements Constants {
 
       new Thread(() -> {
         ExternalInstrumentCache.loadFromDB(loaderCounter);
-        ExternalInstrumentCache.loadFromExchange();//async loading
+        try {
+          ExternalInstrumentCache.loadFromExchange();//async loading
+        } catch (Exception e) {
+        }
         while (true) {
           try {
             Thread.sleep(ONE_DAY);
@@ -195,6 +198,21 @@ public class MatchEngineStarter implements Constants {
           try {
             Thread.sleep(ONE_DAY);
             MarketCapCache.loadFromCoinMarketCap(null);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        try {
+          MarketDepthCache.loadFromCoinMarketCap(loaderCounter);
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to load Market Depth from CoinMarketCap. ", e);
+        }
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            MarketDepthCache.loadFromCoinMarketCap(null);
           } catch (Exception e) {
           }
         }

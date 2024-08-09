@@ -53,7 +53,7 @@ public class MEXCTest {
     subscription.setFuturesEnabled(true);
 
     XExchange xExchange = createXExchange(subscription);
-    double exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
+    XExchange.Balance exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange, "USDC");
     System.out.println(exchangeBalance);
 
     org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange, currencyPair, subscription.isFuturesEnabled());

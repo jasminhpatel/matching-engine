@@ -2,6 +2,7 @@ package com.solfini.matchengine.model.risk;
 
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.preordercheck.NotionalMarginCalc;
 import org.junit.Assert;
 import org.junit.Before;
@@ -34,7 +35,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calcRequiredMargin0() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     instrumentPair.setMarginCurveId(0);
     double d = NotionalMarginCalc.calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null);
     double d2 = NotionalMarginCalc.calcMaintMargin(1_000, 1_000, 0, instrumentPair, null);
@@ -70,7 +71,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calcRequiredMargin1() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     instrumentPair.setMarginCurveId(1);
 
     double d = NotionalMarginCalc.calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null);
@@ -107,7 +108,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calcRequiredMargin2() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     instrumentPair.setMarginCurveId(2);
     double d = NotionalMarginCalc.calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null);
     double d2 = NotionalMarginCalc.calcMaintMargin(1_000, 1_000, 0, instrumentPair, null);
@@ -143,7 +144,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calcRequiredMargin3() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     instrumentPair.setMarginCurveId(3);
 
     double d = NotionalMarginCalc.calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null);
@@ -180,7 +181,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calcRequiredMargin100() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     instrumentPair.setMarginCurveId(100);
     double d = NotionalMarginCalc.calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null);
     double d2 = NotionalMarginCalc.calcMaintMargin(1_000, 1_000, 0, instrumentPair, null);
@@ -227,7 +228,7 @@ public class NotionalMarginCalcTest4 {
   @Test
   public void calculateMaintAndRequiredMargin() {
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
 
     Assert.assertEquals(25.0, calcMaintMargin(1_000, 1_000, 0, instrumentPair, null), 0.1);
     Assert.assertEquals(50.0, calcRequiredMargin(1_000, 1_000, 0, instrumentPair, null), 0.1);
@@ -275,7 +276,7 @@ public class NotionalMarginCalcTest4 {
   public static void main(String[] args) {
 
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 40, 80, 260, 4); // 40 bps, 80 bps
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 40, 80, 260, 4, Sector.NOT_DEFINED); // 40 bps, 80 bps
 
     for (int i = 0; i < 10; i++) {
       int notional = i * 5_000;

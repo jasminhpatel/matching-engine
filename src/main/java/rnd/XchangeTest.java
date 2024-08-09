@@ -80,8 +80,8 @@ public class XchangeTest {
     return new Price(xExchange.getPriceFromExchange(currencyPair, side), System.currentTimeMillis());
   }
 
-  private static Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {
-    return new Balance(xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency()), System.currentTimeMillis());
+  private static XExchange.Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {
+    return xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency());
   }
 
   public static XExchange createXExchange(final InfluencerSubscription subscription) {

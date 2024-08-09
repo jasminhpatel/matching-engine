@@ -26,9 +26,15 @@ public class ExternalExchangeUtil {
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
 
   public final static String[] EXCHANGES = {
-      "BINANCE", "BITFINEX", "BITFLYER", "BITHUMB", "BITMEX",
+      "BINANCE", "BYBIT", "MEXC",
+/*      "BINANCE", "BITFINEX", "BITFLYER", "BITHUMB", "BITMEX",
       "BITSTAMP", "BYBIT", "COINBASE", "GATEIO", "GEMINI",
-      "KRAKEN", "KUCOIN", "MEXC", "OKEX", "UPBIT",
+      "KRAKEN", "KUCOIN", "MEXC", "OKEX", "UPBIT",*/
+  };
+  public final static String[] EXCHANGE_SLUGS = {
+      "binance",
+      "bybit",
+      "mexc",
   };
   private static String[] PROXIES = null;
   private static Random RANDOM = new Random();
@@ -57,12 +63,19 @@ public class ExternalExchangeUtil {
       }
       case "BYBIT": {
         specification = new BybitExchange().getDefaultExchangeSpecification();
+        //below two keys are only for internal validations done by the XChange library. not sent to exchange
+        specification.setApiKey("fqWsXvp4L53VvTkdX4");
+        specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
         processSpecification(specification, null);
 
         return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
       }
       case "MEXC": {
         specification = new MEXCExchange().getDefaultExchangeSpecification();
+        //specification.setUserName();
+        //below two keys are only for internal validations done by the XChange library. not sent to exchange
+        specification.setApiKey("mx0vglEiMdG2Rab34T");
+        specification.setSecretKey("32dd98b573f3480c975df712c733f187");
         processSpecification(specification, null);
 
         return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
@@ -150,23 +163,24 @@ public class ExternalExchangeUtil {
     return null;
   }
 
-  public static OrderQueryParams createOrderQueryParams(final CopyTrade copyTrade, final Instrument instrument) {
-    switch (copyTrade.getExchange().toUpperCase()) {
+  public static OrderQueryParams createOrderQueryParams(final String exchange, final Instrument instrument, final String reference,
+      final boolean futuresEnabled) {
+    switch (exchange.toUpperCase()) {
       case "BINANCE": {
-        return new BinanceQueryOrderParams(instrument, copyTrade.getExternalId());
+        return new BinanceQueryOrderParams(instrument, reference);
       }
       case "BYBIT": {
         String category = "spot";
-        if (copyTrade.isFuturesEnabled()) {
+        if (futuresEnabled) {
           category = "linear";
         }
-        return new ByBitQueryOrderParams(category, copyTrade.getExternalId());
+        return new ByBitQueryOrderParams(category, reference);
       }
       case "MEXC": {
-        return new MEXCQueryOrderParams(instrument, copyTrade.getExternalId());
+        return new MEXCQueryOrderParams(instrument, reference);
       }
       default:
-        return new DefaultQueryOrderParam(copyTrade.getExternalId());
+        return new DefaultQueryOrderParam(reference);
     }
   }
 

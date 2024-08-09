@@ -1,6 +1,8 @@
 package com.solfini.matchengine.message;
 
 import java.util.Random;
+
+import com.solfini.internal.admin.schema.Sector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
@@ -29,7 +31,7 @@ public class StringPoolTest implements Constants {
   private static final Logger LOGGER = LogManager.getLogger(StringPoolTest.class);
 
   final InstrumentPair instrument =
-      new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 100, 200, 260, 0);
+      new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 100, 200, 260, 0, Sector.NOT_DEFINED);
   final User user = new User(18);
   final ExecutionReportMessage executionReport = makeExecutionReport(user, instrument);
   final ManyToOneConcurrentArrayQueueCustom<ReusableLog> loggingQueue = LoggingThread.getLoggingQueue();

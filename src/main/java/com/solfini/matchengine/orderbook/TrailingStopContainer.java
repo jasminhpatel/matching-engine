@@ -10,6 +10,7 @@ import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.util.FastArrayList;
 import com.solfini.util.StringUtil;
@@ -195,9 +196,9 @@ public class TrailingStopContainer implements Constants {
   };
 
   public static void main2(String args[]) {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
-    InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
+    InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0, Sector.NOT_DEFINED);
     TrailingStopContainer container = new TrailingStopContainer(pair);
     FastArrayList<Order> list = new FastArrayList<>(4096);
 
@@ -233,9 +234,9 @@ public class TrailingStopContainer implements Constants {
   }
 
   public static void main(String args[]) {
-    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1);
-    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2);
-    InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0);
+    final Instrument base = new Instrument(1, "BTC", "BTC", (short) 6, (short) 6, 3500, 1000, 0,false, 1, Sector.NOT_DEFINED);
+    final Instrument quoted = new Instrument(2, "USD", "USD", (short) 6, (short) 6, 1, 1000, 0,false, 2, Sector.NOT_DEFINED);
+    InstrumentPair pair = new InstrumentPair(14, "BTCUSD", "BTCUSD", base, quoted, (short) 2, (short) 2, 1, AssetType.PAIR, 0, 0, 0, 0, Sector.NOT_DEFINED);
     TrailingStopContainer container = new TrailingStopContainer(pair);
     FastArrayList<Order> list = new FastArrayList<>(4096);
 

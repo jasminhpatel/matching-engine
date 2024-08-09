@@ -14,6 +14,7 @@ import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
 import com.solfini.common.Message;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.MarketType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.message.admin.FeeAdminMessage;
 import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
@@ -210,7 +211,8 @@ public class InstrumentCache implements Constants {
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(),
           (short) securityDefinitionAdminMessage.getPriceScale(), (short) securityDefinitionAdminMessage.getQuantityScale(), 0,
           securityDefinitionAdminMessage.getCollateralMarginPercentDiscount(), securityDefinitionAdminMessage.getWithdrawFee(),
-          securityDefinitionAdminMessage.isWithdrawFeePercent(), securityDefinitionAdminMessage.getWithdrawFeeInstrument());
+          securityDefinitionAdminMessage.isWithdrawFeePercent(), securityDefinitionAdminMessage.getWithdrawFeeInstrument(),
+          securityDefinitionAdminMessage.getSector());
       if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
         instrument.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
       InstrumentCache.addInstrument(instrument);
@@ -260,6 +262,7 @@ public class InstrumentCache implements Constants {
       final long auctionFixingWaitTime = securityDefinitionAdminMessage.auctionFixingWaitTime;
       final boolean physicalSettle = securityDefinitionAdminMessage.isPhysicalSettle();
       final boolean isLimitOnlyMode = securityDefinitionAdminMessage.isLimitOnlyMode();
+      final Sector sector = securityDefinitionAdminMessage.getSector();
 
       if (Context.isCopyTradeOnly() && orderBookStrategy != COPY_TRADE_ORDER_BOOK) {
         return;
@@ -311,16 +314,17 @@ public class InstrumentCache implements Constants {
           currentPair.setMinOrderQuantity(minOrderQuantity);
           currentPair.setPhysicalSettle(physicalSettle);
           currentPair.setLimitOnlyMode(isLimitOnlyMode);
+          currentPair.setSector(sector);
           return;
         }
       }
-
 
       final InstrumentPair instrumentPair = new InstrumentPair(securityDefinitionAdminMessage.getSecurityId(),
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(), base, quoted, (short) priceScale,
           (short) quantityScale, settleType, assetType, maintMarginPercent, requiredMarginPercent, 0, marginCurveId, expireTimeMillis,
           strikePrice, underlyerId, minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts,
-          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType);
+          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType,
+          sector);
       if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
         instrumentPair.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
 
@@ -407,6 +411,7 @@ public class InstrumentCache implements Constants {
       final double gamma = securityDefinitionAdminMessage.getGamma();
       final double vega = securityDefinitionAdminMessage.getVega();
       final double sigma = securityDefinitionAdminMessage.getSigma();
+      final Sector sector = securityDefinitionAdminMessage.getSector();
 
       final Instrument base = InstrumentCache.get(securityDefinitionAdminMessage.getBaseId());
       final Instrument quoted = InstrumentCache.get(securityDefinitionAdminMessage.getQuotedId());
@@ -453,6 +458,7 @@ public class InstrumentCache implements Constants {
           currentPair.setMinOrderQuantity(minOrderQuantity);
           currentPair.setPhysicalSettle(physicalSettle);
           currentPair.setLimitOnlyMode(isLimitOnlyMode);
+          currentPair.setSector(sector);
           return;
         }
       }
@@ -465,7 +471,8 @@ public class InstrumentCache implements Constants {
           securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(), base, quoted, (short) priceScale,
           (short) quantityScale, settleType, assetType, maintMarginPercent, requiredMarginPercent, 0, marginCurveId, expireTimeMillis,
           strikePrice, underlyerId, minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts,
-          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType);
+          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType,
+          sector);
 
       OrderBookFactory.recreateReplace(orderBookStrategy, preOrderCheckStrategy, currentPair, instrumentPair, arrSize, cacheDepth);
 

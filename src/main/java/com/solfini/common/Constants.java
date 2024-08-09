@@ -98,6 +98,7 @@ public interface Constants {
 
   public static final int TWAP = 180; // TWAP
   public static final int TWAP_REDUCE_ONLY = 181; // TWAP with REDUCE_ONLY
+  public static final int FILTERED = 190; // for filtering orderbook
 
 
   // order book types
@@ -107,6 +108,7 @@ public interface Constants {
   public static final int TREE_ORDER_BOOK2 = 4;
   public static final int SELECT_ARRAY_ORDER_BOOK = 5;
   public static final int COPY_TRADE_ORDER_BOOK = 6;
+  public static final int FILTER_ARRAY_ORDER_BOOK = 7;
 
   public static final int DEFAULT_TEST_ORDER_BOOK = ARRAY_ORDER_BOOK;
 

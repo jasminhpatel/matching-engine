@@ -171,9 +171,11 @@ public final class Context implements Constants {
   private static final int MAX_DELAY_TO_OPEN_ORDER_IN_MS = PropertyReader.getProperty("MAX_DELAY_TO_OPEN_ORDER_IN_MS", FIVE_MINUTE);
   private static final int MAX_DELAY_TO_CLOSE_ORDER_IN_MS = PropertyReader.getProperty("MAX_DELAY_TO_CLOSE_ORDER_IN_MS", ONE_HOUR);
   private static final double MIN_COPY_TRADE_AMOUNT_IN_USD = PropertyReader.getProperty("MIN_COPY_TRADE_AMOUNT_IN_USD", 10D);
+  private static final double COPY_TRADE_STABLE_COIN_CONVERSION_SAFE_FACTOR = PropertyReader.getProperty("MIN_COPY_TRADE_AMOUNT_IN_USD", 1.01D);// = 1% => 101%
 
   private static final String COPY_TRADE_USER_PARTITION_IDS = PropertyReader.getProperty("COPY_TRADE_USER_PARTITION_IDS", "0,1,2");//all 3 partitions
   private static final int NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS = PropertyReader.getProperty("NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS", 3);
+  private static final boolean REJECT_OUT_OF_BOUND_ORDERS = TRUE.equalsIgnoreCase(PropertyReader.getProperty("REJECT_OUT_OF_BOUND_ORDERS", FALSE));
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
@@ -799,5 +801,13 @@ public final class Context implements Constants {
 
   public static String getCopyTradeUserPartitionIds() {
     return COPY_TRADE_USER_PARTITION_IDS;
+  }
+
+  public static boolean isRejectOutOfBoundOrders() {
+    return REJECT_OUT_OF_BOUND_ORDERS;
+  }
+
+  public static double getCopyTradeStableCoinConversionSafeFactor() {
+    return COPY_TRADE_STABLE_COIN_CONVERSION_SAFE_FACTOR;
   }
 }

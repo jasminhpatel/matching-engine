@@ -3,6 +3,7 @@ package com.solfini.matchengine.publisher;
 import com.solfini.common.*;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.PublisherThread;
 import com.solfini.matchengine.kafka.TestKafkaPublisher;
 import com.solfini.matchengine.message.internal.Order;
@@ -45,7 +46,7 @@ public class TestMessagePublisher2 {
     Context.setEncoderThreads(2);
 
     InstrumentPair instrumentPair =
-        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0);
+        new InstrumentPair(14, "SPY/USD", "SPY/USD", null, null, (short) 2, (short) 2, 2, AssetType.PAIR, 250, 500, 260, 0, Sector.NOT_DEFINED);
     Order order = createOrder(Constants.BUY_LIMIT, 5000_00, 100);
 
     Message[] arr = new Message[500_000];

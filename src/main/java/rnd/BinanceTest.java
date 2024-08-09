@@ -56,9 +56,9 @@ public class BinanceTest {
     //subscription.setApiSecret("cb22609e7a8047e3b54a47581f8556966f8e153c276f599b52da7141b9840175");
     //subscription.setFuturesEnabled(true);
 
-    XExchange xExchange = createXExchange(subscription);
-    double exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
-    System.out.println(exchangeBalance);
+    //XExchange xExchange = createXExchange(subscription);
+    //double exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
+    //System.out.println(exchangeBalance);
     //Instrument instrument = getInstrument(xExchange, currencyPair, subscription.isFuturesEnabled());
     //System.out.println(instrument);
 /*    final MarketOrder

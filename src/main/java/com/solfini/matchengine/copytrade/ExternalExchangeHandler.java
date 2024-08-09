@@ -14,7 +14,7 @@ public class ExternalExchangeHandler {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalExchangeHandler.class);
   private static final Object LOCK = new Object();
   private static final ConcurrentHashMap<String, Price> PRICE_CACHE = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<String, Balance> BALANCE_CACHE = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, XExchange.Balance> BALANCE_CACHE = new ConcurrentHashMap<>();
 
   public static double getPrice(final InfluencerSubscription subscription,final CurrencyPair pair, final Instrument instrument, final Side side, final XExchange xExchange) {
     final String key = (subscription.getExchange() + "_" + instrument.toString() + "_" + side.toString()).toLowerCase();
@@ -35,32 +35,50 @@ public class ExternalExchangeHandler {
     return price.getPrice();
   }
 
-  public static double getBalance(final InfluencerSubscription subscription, final XExchange xExchange) {
-    String key = (subscription.getId() + "_" + subscription.getPreferredQuoteCurrency()).toLowerCase();
+  public static XExchange.Balance getStableCoinBalance(final InfluencerSubscription subscription, final XExchange xExchange) {
+    String key = (subscription.getId() + "_buy").toLowerCase();
     LOGGER.info("Balance key: " + key + " subscriptionId: " + subscription.getId());
-    final Balance
-        balance = BALANCE_CACHE.computeIfAbsent(key, v-> new Balance());
-    if (balance.lastUpdated <= (System.currentTimeMillis() - TWO_MINUTE)) {
+    XExchange.Balance balance = BALANCE_CACHE.get(key);
+    if (balance == null || balance.getLastUpdated() <= (System.currentTimeMillis() - TWO_MINUTE)) {
       synchronized (subscription) {
-        if (balance.lastUpdated < (System.currentTimeMillis() - TWO_MINUTE)) {
-          final Balance exchangeBalance = getBalanceFromExchange(subscription, xExchange);
-
-          LOGGER.info(LOG_FMT_4, "Exchange balance updated: subscription: ", subscription.getId(), " balance: ", exchangeBalance.getBalance());
-          balance.setBalance(exchangeBalance.getBalance());
-          balance.setLastUpdated(exchangeBalance.getLastUpdated());
+        if (balance == null || balance.getLastUpdated() < (System.currentTimeMillis() - TWO_MINUTE)) {
+          balance = getStableCoinBalanceFromExchange(xExchange);
+          BALANCE_CACHE.put(key, balance);
+          LOGGER.info(LOG_FMT_4, "Exchange balance updated: subscription: ", subscription.getId(), " balance: ", balance.toJson());
         }
       }
     }
 
-    return balance.getBalance();
+    return balance;
+  }
+
+  public static XExchange.Balance getBalance(final InfluencerSubscription subscription, final XExchange xExchange, final String symbol) {
+    String key = (subscription.getId() + "_sell_" + symbol).toLowerCase();
+    LOGGER.info("Balance key: " + key + " subscriptionId: " + subscription.getId());
+    XExchange.Balance balance = BALANCE_CACHE.get(key);
+    if (balance == null || balance.getLastUpdated() <= (System.currentTimeMillis() - TWO_MINUTE)) {
+      synchronized (subscription) {
+        if (balance == null || balance.getLastUpdated() < (System.currentTimeMillis() - TWO_MINUTE)) {
+          balance = getBalanceFromExchange(xExchange, symbol);
+          BALANCE_CACHE.put(key, balance);
+          LOGGER.info(LOG_FMT_4, "Exchange balance updated: subscription: ", subscription.getId(), " balance: ", balance.toJson());
+        }
+      }
+    }
+
+    return balance;
   }
 
   private static Price getPriceFromExchange(final InfluencerSubscription subscription, final Instrument instrument, final Side side, final XExchange xExchange) {
     return new Price(xExchange.getPriceFromExchange(instrument, side), System.currentTimeMillis());
   }
 
-  private static Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {
-    return new Balance(xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency()), System.currentTimeMillis());
+  private static XExchange.Balance getStableCoinBalanceFromExchange(final XExchange xExchange) {
+    return xExchange.getStableCoinBalanceFromExchange();
+  }
+
+  private static XExchange.Balance getBalanceFromExchange(final XExchange xExchange, final String symbol) {
+    return xExchange.getBalanceFromExchange(symbol);
   }
 
   private static class Price {
@@ -81,35 +99,6 @@ public class ExternalExchangeHandler {
 
     public void setPrice(double price) {
       this.price = price;
-    }
-
-    public long getLastUpdated() {
-      return lastUpdated;
-    }
-
-    public void setLastUpdated(long lastUpdated) {
-      this.lastUpdated = lastUpdated;
-    }
-  }
-
-  private static class Balance {
-    private double balance;
-    private long lastUpdated;
-
-    public Balance() {
-    }
-
-    public Balance(double balance, long lastUpdated) {
-      this.balance = balance;
-      this.lastUpdated = lastUpdated;
-    }
-
-    public double getBalance() {
-      return balance;
-    }
-
-    public void setBalance(double balance) {
-      this.balance = balance;
     }
 
     public long getLastUpdated() {

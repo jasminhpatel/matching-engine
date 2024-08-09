@@ -45,7 +45,7 @@ public class XBinanceExchange extends XExchange {
     return this.exchange.getAccountService();
   }
 
-  public double getBalanceFromExchange(final String quoteCurrency) {
+  public Balance getBalanceFromExchange(final String quoteCurrency) {
     //todo margin balance logic
     return super.getBalanceFromExchange(quoteCurrency);
   }

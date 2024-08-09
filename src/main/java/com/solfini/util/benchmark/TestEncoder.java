@@ -228,6 +228,7 @@ public class TestEncoder {
     securityDefinitionAdminMessageEncoder.commissionType(securityDefinitionAdminMessage.getCommissionType());
     securityDefinitionAdminMessageEncoder.triggerTimeMillis(securityDefinitionAdminMessage.getTriggerTimeMillis());
     securityDefinitionAdminMessageEncoder.routeToDestination(securityDefinitionAdminMessage.getRouteToDestination());
+    securityDefinitionAdminMessageEncoder.sector(securityDefinitionAdminMessage.getSector());
 
 
     final DecimalFloatEncoder indexFeedUsdMarkEncoder = securityDefinitionAdminMessageEncoder.indexFeedUsdMark();

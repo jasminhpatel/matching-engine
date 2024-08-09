@@ -3,6 +3,7 @@ package com.solfini.matchengine.copytrade.xchangewrappers;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.CopyTrade;
+import com.solfini.matchengine.copytrade.ExternalCurrencyPairCache;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
 import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
@@ -11,6 +12,8 @@ import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Wallet;
@@ -27,9 +30,12 @@ import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 import si.mazi.rescu.SynchronizedValueFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+
+import static com.solfini.common.Constants.*;
 
 public abstract class XExchange implements Exchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XExchange.class);
@@ -95,43 +101,68 @@ public abstract class XExchange implements Exchange {
     this.exchange.remoteInit();
   }
 
-  public double getBalanceFromExchange(final String quoteCurrency) {
+  public Balance getStableCoinBalanceFromExchange() {
+    final Balance balance = new Balance();
+    balance.setLastUpdated(System.currentTimeMillis());
     try {
       final AccountService accountService = this.exchange.getAccountService();
       if (accountService == null)
-        return 0D;
+        return balance;
       final Wallet wallet = accountService.getAccountInfo().getWallet();
       if (wallet == null)
-        return 0D;
-      final Map<Currency, Balance> balances = wallet.getBalances();
+        return balance;
+      final Map<Currency, org.knowm.xchange.dto.account.Balance> balances = wallet.getBalances();
       if (balances == null)
-        return 0D;
-      Currency currency = Currency.getInstance(quoteCurrency);
-      if (currency == null) {
-        return 0D;
-      }
-      org.knowm.xchange.dto.account.Balance balance = balances.get(currency);
-      if (balance == null) {
-        if ("USDC".equalsIgnoreCase(quoteCurrency) || "USDT".equalsIgnoreCase(quoteCurrency)) {
-          currency = Currency.getInstance("USD");
-          if (currency == null) {
-            return 0D;
-          }
-          balance = balances.get(currency);
-          if (balance == null) {
-            return 0D;
-          }
-        }
-      }
+        return balance;
 
-      double available = balance.getAvailable().doubleValue();
-
-      return MbxMath.roundToBestPrecision(available);
+      org.knowm.xchange.dto.account.Balance usdBalance = balances.get(Currency.getInstance(USD));
+      org.knowm.xchange.dto.account.Balance usdcBalance = balances.get(Currency.getInstance(USDC));
+      org.knowm.xchange.dto.account.Balance usdtBalance = balances.get(Currency.getInstance(USDT));
+      if (usdBalance != null) {
+        balance.setUsdBalance(MbxMath.roundToBestPrecision(usdBalance.getAvailable().doubleValue()));
+      }
+      if (usdcBalance != null) {
+        balance.setUsdcBalance(MbxMath.roundToBestPrecision(usdcBalance.getAvailable().doubleValue()));
+      }
+      if (usdtBalance != null) {
+        balance.setUsdtBalance(MbxMath.roundToBestPrecision(usdtBalance.getAvailable().doubleValue()));
+      }
 
     } catch (Exception e) {
       LOGGER.error("Error occurred wile fetching balance. ", e);
     }
-    return 0D;
+    return balance;
+  }
+
+  public Balance getBalanceFromExchange(final String symbol) {
+    final Balance balance = new Balance();
+    balance.setLastUpdated(System.currentTimeMillis());
+    try {
+      final AccountService accountService = this.exchange.getAccountService();
+      if (accountService == null)
+        return balance;
+      final Wallet wallet = accountService.getAccountInfo().getWallet();
+      if (wallet == null)
+        return balance;
+      final Map<Currency, org.knowm.xchange.dto.account.Balance> balances = wallet.getBalances();
+      if (balances == null)
+        return balance;
+
+      final Currency currency = Currency.getInstance(symbol);
+      if (currency == null) {
+        return balance;
+      }
+
+      org.knowm.xchange.dto.account.Balance bal = balances.get(currency);
+
+      if (bal != null) {
+        balance.setCoinBalance(MbxMath.roundToBestPrecision(bal.getAvailable().doubleValue()));
+      }
+
+    } catch (Exception e) {
+      LOGGER.error("Error occurred wile fetching balance. ", e);
+    }
+    return balance;
   }
 
   public double getPriceFromExchange(final Instrument currencyPair, final Side side) {
@@ -193,9 +224,25 @@ public abstract class XExchange implements Exchange {
     updateOrderStatus(copyTrade);
   }
 
+  public double placeConversionOrder(final String exchange, final Instrument instrument, final BigDecimal quantity, final BigDecimal price, final Side side,
+      final String clOrdId) throws Exception {
+    final TradeService tradeService = this.getTradeService();
+
+    final Order.OrderType xOrderType = Side.BUY == side ? Order.OrderType.BID : Order.OrderType.ASK;
+    LOGGER.info(Constants.LOG_FMT_6, "Convert order, orderType: LIMIT", " side: ", side.name(), " quantity: ",
+        quantity, " price: ", price, " clOrdId: ", clOrdId);
+
+    final LimitOrder
+        order = new LimitOrder(xOrderType, quantity, instrument, clOrdId, null, price);
+    final String returnValue = tradeService.placeLimitOrder(order);
+    return getFilledQuantity(exchange, instrument, returnValue, false, clOrdId);
+
+  }
+
   public void updateOrderStatus(final CopyTrade copyTrade) throws Exception {
     final TradeService tradeService = getTradeService();
-    final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(copyTrade, copyTrade.getInstrument());
+    final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(copyTrade.getExchange(), copyTrade.getInstrument(),
+        copyTrade.getExternalId(), copyTrade.isFuturesEnabled());
     final Collection<Order> orders = tradeService.getOrder(orderQueryParams);
     if (orders != null && !orders.isEmpty()) {
       Order summary = orders.iterator().next();
@@ -205,6 +252,140 @@ public abstract class XExchange implements Exchange {
       copyTrade.setOriginalAmount(summary.getOriginalAmount().doubleValue());
       copyTrade.setCumulativeAmount(summary.getCumulativeAmount().doubleValue());
       copyTrade.setStatus(summary.getStatus().name());
+    }
+  }
+
+  public double getFilledQuantity(final String exchange, Instrument instrument, final String reference, final boolean futuresEnabled, final String clOrdId) {
+    Order summary = null;
+    int count = 0;
+    while (count < 5) {
+      try {
+        Thread.sleep(50);
+        count++;
+        Order.OrderStatus status = null;
+        double filledQty = 0;
+        final TradeService tradeService = getTradeService();
+        final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(exchange, instrument, reference, futuresEnabled);
+        final Collection<Order> orders = tradeService.getOrder(orderQueryParams);
+        if (orders != null && !orders.isEmpty()) {
+          summary = orders.iterator().next();
+          if (summary != null) {
+            status = summary.getStatus();
+            filledQty = summary.getCumulativeAmount().doubleValue();
+            if (summary.getStatus() == Order.OrderStatus.FILLED) {
+              break;
+            }
+          }
+        }
+        LOGGER.info(Constants.LOG_FMT_6, "Convert order status. clOrdId: ", clOrdId, " status: " + status + "count: " + count
+        + " filledQty:" + filledQty);
+      } catch (Exception e) {
+        LOGGER.error(ERROR_LOG, e);
+      }
+    }
+
+    if (summary != null) {
+      return summary.getCumulativeAmount().doubleValue();
+    }
+    return 0D;
+  }
+
+  public org.knowm.xchange.instrument.Instrument getInstrument(final CurrencyPair currencyPair, boolean isFuture) {
+    try {
+      final List<org.knowm.xchange.instrument.Instrument> instruments = getExchange().getExchangeInstruments();
+      org.knowm.xchange.instrument.Instrument instrument = null;
+      for (org.knowm.xchange.instrument.Instrument i : instruments) {
+        if (i.getBase().getSymbol().equalsIgnoreCase(currencyPair.getBase().getSymbol()) && i.getCounter().getSymbol()
+            .equalsIgnoreCase(currencyPair.getCounter().getSymbol())) {
+          if (isFuture && i instanceof FuturesContract && "PERP".equalsIgnoreCase(((FuturesContract) i).getPrompt())) {
+            instrument = i;
+            break;
+          } else if (!isFuture && !(i instanceof FuturesContract)) {
+            instrument = i;
+            break;
+          }
+        }
+      }
+      return instrument;
+    } catch (Exception e) {
+      LOGGER.info(Constants.LOG_FMT_2, "Failed to load instrument. ", currencyPair.toString());
+    }
+    return null;
+  }
+
+  public static class Balance {
+    private double usdBalance;
+    private double usdcBalance;
+    private double usdtBalance;
+    private double coinBalance;
+    private long lastUpdated;
+
+    public double getTotalStableCoinBalance() {
+      return usdBalance + usdcBalance +  usdtBalance;
+    }
+
+    public double getBalance(final String currency) {
+      if (currency == null) return 0D;
+      switch (currency.toUpperCase()) {
+        case USD:
+          return usdBalance;
+        case USDC:
+          return usdcBalance;
+        case USDT:
+          return usdtBalance;
+        default:
+          return 0D;
+      }
+    }
+
+    public double getUsdBalance() {
+      return usdBalance;
+    }
+
+    public void setUsdBalance(double usdBalance) {
+      this.usdBalance = usdBalance;
+    }
+
+    public double getUsdcBalance() {
+      return usdcBalance;
+    }
+
+    public void setUsdcBalance(double usdcBalance) {
+      this.usdcBalance = usdcBalance;
+    }
+
+    public double getUsdtBalance() {
+      return usdtBalance;
+    }
+
+    public void setUsdtBalance(double usdtBalance) {
+      this.usdtBalance = usdtBalance;
+    }
+
+    public long getLastUpdated() {
+      return lastUpdated;
+    }
+
+    public void setLastUpdated(long lastUpdated) {
+      this.lastUpdated = lastUpdated;
+    }
+
+    public double getCoinBalance() {
+      return coinBalance;
+    }
+
+    public void setCoinBalance(double coinBalance) {
+      this.coinBalance = coinBalance;
+    }
+
+    public String toJson() {
+      final StringBuilder sb = new StringBuilder("{");
+      sb.append("\"usdBalance\":").append(usdBalance);
+      sb.append(",\"usdcBalance\":").append(usdcBalance);
+      sb.append(",\"usdtBalance\":").append(usdtBalance);
+      sb.append(",\"lastUpdated\":").append(lastUpdated);
+      sb.append('}');
+      return sb.toString();
     }
   }
 }

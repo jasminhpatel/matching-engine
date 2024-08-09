@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.solfini.common.Constants.LOG_FMT_1;
+import static com.solfini.common.Constants.*;
 
 public class MarketCapCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(MarketCapCache.class);
@@ -70,10 +70,10 @@ public class MarketCapCache {
       } while (total > loaded);
 
     } catch (Exception e) {
-      System.out.println(e.getMessage());
+      LOGGER.error(ERROR_LOG, e);
     }
 
-    LOGGER.info(LOG_FMT_1, "MarketCapCache.loadFromCoinMarketCap=", (long) loaded, ", time=", System.currentTimeMillis() - t0);
+    LOGGER.info(LOG_FMT_4, "MarketCapCache.loadFromCoinMarketCap=", (long) loaded, ", time=", System.currentTimeMillis() - t0);
 
     if (loaderCounter != null) {
       loaderCounter.decrementAndGet();

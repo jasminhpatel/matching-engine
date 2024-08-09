@@ -1439,3 +1439,24 @@ ALTER TABLE subscription_state ADD availableMaxAmount int8 not NULL DEFAULT 0;
 
 ALTER TABLE subscription_state ADD activationToken varchar(64);
 ALTER TABLE subscription_state ADD tokenGeneratedTime int8 not NULL DEFAULT 0;
+
+
+CREATE TABLE public.channel_configuration_state (
+    channel varchar(32) PRIMARY KEY NOT NULL,
+	emailHost varchar(32),
+	emailPort int not null default 0,
+    emailUsername varchar(64),
+    emailPassword varchar(128),
+    emailSender varchar(64),
+    emailSenderName varchar(32),
+    emailTemplateFolder varchar(32),
+    status int not null default 0
+);
+
+ALTER TABLE channel_configuration_state ADD linkedDomain varchar(128);
+ALTER TABLE channel_configuration_state ADD projectName varchar(32);
+ALTER TABLE channel_configuration_state ADD stripeKey varchar(256);
+ALTER TABLE channel_configuration_state ADD stripeSecret varchar(256);
+ALTER TABLE notification_state ALTER COLUMN channel TYPE varchar(32) USING channel::varchar(32);
+
+ALTER TABLE external_instrument_state ADD isFutures bool default false;
