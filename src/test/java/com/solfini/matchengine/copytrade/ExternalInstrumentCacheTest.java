@@ -30,7 +30,7 @@ public class ExternalInstrumentCacheTest {
   public static void loadFromExchange() {
     for (String exchangeCode : EXCHANGES) {
       try {
-        final XExchange exchange = ExternalExchangeUtil.createXExchange(exchangeCode);
+        final XExchange exchange = ExternalExchangeUtil.createXExchangeReadOnly(exchangeCode);
         if (exchange == null) {
           continue;
         }

@@ -607,7 +607,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       if (xExchange == null) {
         LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " invalid exchange: ", subscription.getExchange());
 
-        copyTrade.setResult("REJECTED: Invalid exchange.");
+        copyTrade.setResult("REJECTED: Unable to connect to exchange.");
         matcherToPublisherQueue.addGuaranteed(copyTrade);
 
         return;

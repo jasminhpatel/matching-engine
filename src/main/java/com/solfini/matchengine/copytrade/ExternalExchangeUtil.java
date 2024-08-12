@@ -46,7 +46,7 @@ public class ExternalExchangeUtil {
     }
   }
 
-  public static XExchange createXExchange(final String exchange) {
+  public static XExchange createXExchangeReadOnly(final String exchange) {
     if (exchange == null) {
       LOGGER.info(Constants.LOG_FMT_2, "Invalid exchange: ", exchange);
       return null;
@@ -54,41 +54,44 @@ public class ExternalExchangeUtil {
     final String exchangeUpper = exchange.toUpperCase();
 
     ExchangeSpecification specification = null;
-    switch (exchangeUpper) {
-      case "BINANCE": {
-        specification = new BinanceExchange().getDefaultExchangeSpecification();
-        processSpecification(specification, null);
+    try {
+      switch (exchangeUpper) {
+        case "BINANCE": {
+          specification = new BinanceExchange().getDefaultExchangeSpecification();
+          processSpecification(specification, null);
 
-        return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-      }
-      case "BYBIT": {
-        specification = new BybitExchange().getDefaultExchangeSpecification();
-        //below two keys are only for internal validations done by the XChange library. not sent to exchange
-        specification.setApiKey("fqWsXvp4L53VvTkdX4");
-        specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
-        processSpecification(specification, null);
+          return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
+        case "BYBIT": {
+          specification = new BybitExchange().getDefaultExchangeSpecification();
+          //below two keys are only for internal validations done by the XChange library. not sent to exchange
+          specification.setApiKey("fqWsXvp4L53VvTkdX4");
+          specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
+          processSpecification(specification, null);
 
-        return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-      }
-      case "MEXC": {
-        specification = new MEXCExchange().getDefaultExchangeSpecification();
-        //specification.setUserName();
-        //below two keys are only for internal validations done by the XChange library. not sent to exchange
-        specification.setApiKey("mx0vglEiMdG2Rab34T");
-        specification.setSecretKey("32dd98b573f3480c975df712c733f187");
-        processSpecification(specification, null);
+          return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
+        case "MEXC": {
+          specification = new MEXCExchange().getDefaultExchangeSpecification();
+          //specification.setUserName();
+          //below two keys are only for internal validations done by the XChange library. not sent to exchange
+          specification.setApiKey("mx0vglEiMdG2Rab34T");
+          specification.setSecretKey("32dd98b573f3480c975df712c733f187");
+          processSpecification(specification, null);
 
-        return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-      }
+          return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+        }
 /*      case "COINBASE": {
         specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
         processSpecification(specification, null);
 
         return new XCoinbaseExchange(ExchangeFactory.INSTANCE.createExchange(specification));
       }*/
+      }
+    } catch (Exception e) {
+      LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper);
+      LOGGER.error(Constants.ERROR_LOG, e);
     }
-
-    LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper);
     return null;
   }
 
@@ -158,6 +161,7 @@ public class ExternalExchangeUtil {
       }
     } catch (Exception e) {
       LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange());
+      LOGGER.error(Constants.ERROR_LOG, e);
     }
 
     return null;

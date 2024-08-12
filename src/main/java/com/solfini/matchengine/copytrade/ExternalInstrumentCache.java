@@ -4,7 +4,6 @@ import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
-import org.knowm.xchange.Exchange;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.instrument.Instrument;
 
@@ -87,7 +86,7 @@ public class ExternalInstrumentCache implements Constants{
   public static void loadFromExchange() {
     for (String exchangeCode : ExternalExchangeUtil.EXCHANGES) {
       try {
-        final XExchange exchange = ExternalExchangeUtil.createXExchange(exchangeCode);
+        final XExchange exchange = ExternalExchangeUtil.createXExchangeReadOnly(exchangeCode);
         if (exchange == null) {
           continue;
         }
