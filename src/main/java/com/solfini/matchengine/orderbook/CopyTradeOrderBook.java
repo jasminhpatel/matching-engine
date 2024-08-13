@@ -628,6 +628,15 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       copyTrade.setInstrument(instrument);
       //get price
       double price = ExternalExchangeHandler.getPrice(subscription, currencyPair, instrument, side, xExchange);
+      if (price == 0) {
+        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. Failed to get price. clOrdId: ", clOrdId, " price: " + price);
+
+        copyTrade.setResult("REJECTED: Failed to fetch price.");
+        copyTrade.setxExchange(null);
+        matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        return;
+      }
 
       //check exchange balance
       XExchange.Balance balance = null;
@@ -732,34 +741,29 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       LOGGER.info(Constants.LOG_FMT_2, "Max trade value for order: ", copyTrade.getClOrdId(), " is ", maxRemainingAmount);
       if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
-        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
+        LOGGER.info(Constants.LOG_FMT_2, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ", maxRemainingAmount,
+            " minCopyTradeAmount", Context.getMinCopyTradeAmountInUsd());
+        maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
+
+/*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
 
         copyTrade.setResult("REJECTED: Trade value is too low.");
         copyTrade.setxExchange(null);
         matcherToPublisherQueue.addGuaranteed(copyTrade);
 
-        return;
+        return;*/
       }
 
       BigDecimal xPrice = new BigDecimal(price);
       xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
 
-      if (price == 0) {
-        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: " + price);
-
-        copyTrade.setResult("REJECTED: Failed to fetch price.");
-        copyTrade.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(copyTrade);
-
-        return;
-      }
 
       //percentage set by the influencer
       double signalTradePercentage = MbxMath.scaleDown(ordQtyPercentage, ordQtyPercentageScale) / 100D;
       //percentage of subscription amount assigned by the user
       double userDefinedPercentage = MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
       double signalTradeValue = Math.min(maxRemainingAmount, maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-      if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+/*      if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
         LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
         copyTrade.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
@@ -767,7 +771,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         matcherToPublisherQueue.addGuaranteed(copyTrade);
 
         return;
-      }
+      }*/
 
       LOGGER.info(Constants.LOG_FMT_2, "Trade value for order: ", copyTrade.getClOrdId(), " is ", signalTradeValue);
       /* signalTradeValue = Math.min(availableBalance, signalTradeValue);*/

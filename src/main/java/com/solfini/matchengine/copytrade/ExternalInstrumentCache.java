@@ -62,8 +62,8 @@ public class ExternalInstrumentCache implements Constants{
     int count = 0;
     final long t0 = System.currentTimeMillis();
     try (final Connection conn = DBManager.getConnection();
-        final PreparedStatement userPS = conn.prepareStatement(SELECT);
-        final ResultSet rs = userPS.executeQuery();) {
+        final PreparedStatement ps = conn.prepareStatement(SELECT);
+        final ResultSet rs = ps.executeQuery();) {
       while (rs.next()) {
         String exchange = rs.getString(1);
         String base = rs.getString(2);

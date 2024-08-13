@@ -157,7 +157,7 @@ public class MatchEngineStarter implements Constants {
 
   private void loadCachesFromDB() {
     if (Context.isCopyTradeEnabled()) {
-      final AtomicInteger loaderCounter = new AtomicInteger(6);
+      final AtomicInteger loaderCounter = new AtomicInteger(7);
       new Thread(() -> {
         InfluencerSubscriptionCache.loadFromDB(loaderCounter);
         while (true) {
@@ -228,6 +228,17 @@ public class MatchEngineStarter implements Constants {
           try {
             InfluencerSymbolsCache.loadFromMarketProphit();
             Thread.sleep(FIFTEEN_MINUTE);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        ExternalExchangeHandler.loadCoinMarketCapPriceFromMPDB(loaderCounter);
+        while (true) {
+          try {
+            Thread.sleep(TWO_MINUTE);
+            ExternalExchangeHandler.loadCoinMarketCapPriceFromMPDB(null);
           } catch (Exception e) {
           }
         }

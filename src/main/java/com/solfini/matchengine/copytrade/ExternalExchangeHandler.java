@@ -1,12 +1,18 @@
 package com.solfini.matchengine.copytrade;
 
 import com.solfini.common.CustomLogger;
+import com.solfini.db.DBManager;
+import com.solfini.db.ExternalDBManager;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.sbe.encoder.Side;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.instrument.Instrument;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.solfini.common.Constants.*;
 
@@ -14,7 +20,15 @@ public class ExternalExchangeHandler {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalExchangeHandler.class);
   private static final Object LOCK = new Object();
   private static final ConcurrentHashMap<String, Price> PRICE_CACHE = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, Double> COIN_MARKET_CAP_PRICE_CACHE = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, XExchange.Balance> BALANCE_CACHE = new ConcurrentHashMap<>();
+
+  private static final String SELECT = "SELECT ticker, price FROM PricingData_CoinMarketCap WHERE ts > DATE_SUB(UTC_TIMESTAMP, INTERVAL 1 MINUTE) ORDER BY ticker, ts ASC;";
+
+  public static void onLoadCoinMarketCapPrice(final String ticker, final double price) {
+    String key = ticker.toUpperCase();
+    COIN_MARKET_CAP_PRICE_CACHE.put(key, price);
+  }
 
   public static double getPrice(final InfluencerSubscription subscription,final CurrencyPair pair, final Instrument instrument, final Side side, final XExchange xExchange) {
     final String key = (subscription.getExchange() + "_" + instrument.toString() + "_" + side.toString()).toLowerCase();
@@ -25,11 +39,19 @@ public class ExternalExchangeHandler {
         if (price.lastUpdated < (System.currentTimeMillis() - TWO_MINUTE)) {
           final Price exchangePrice = getPriceFromExchange(subscription, instrument, side, xExchange);
 
-          LOGGER.info(LOG_FMT_4, "Exchange price updated: key: ", key, " side: ", side.name(),  " price: ", exchangePrice.getPrice());
+          LOGGER.info(LOG_FMT_6, "Exchange price updated: key: ", key, " side: ", side.name(),  " price: ", exchangePrice.getPrice());
           price.setPrice(exchangePrice.getPrice());
           price.setLastUpdated(exchangePrice.getLastUpdated());
         }
       }
+    }
+    if (price.getPrice() == 0) {
+      price.setPrice(COIN_MARKET_CAP_PRICE_CACHE.getOrDefault(pair.base.getSymbol().toUpperCase(), 0D));
+      price.setLastUpdated(System.currentTimeMillis());
+      LOGGER.info(LOG_FMT_4, "Using CoinMarketCap price. ticker key: ", key, " price: ", price.getPrice());
+    }
+    if (price.getPrice() == 0) {
+      LOGGER.info(LOG_FMT_4, "Failed to get price for ticker key: ", key, " price: ", price.getPrice());
     }
 
     return price.getPrice();
@@ -67,6 +89,28 @@ public class ExternalExchangeHandler {
     }
 
     return balance;
+  }
+
+  public static void loadCoinMarketCapPriceFromMPDB(final AtomicInteger loaderCounter) {
+    int count = 0;
+    final long t0 = System.currentTimeMillis();
+    try (final Connection conn = ExternalDBManager.getConnection();
+        final PreparedStatement ps = conn.prepareStatement(SELECT);
+        final ResultSet rs = ps.executeQuery();) {
+      while (rs.next()) {
+        String ticker = rs.getString(1);
+        double price = rs.getDouble(2);
+
+        onLoadCoinMarketCapPrice(ticker, price);
+        count++;
+      }
+      LOGGER.info(LOG_FMT_4, "CoinMarketCapPrice.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
+      if (loaderCounter != null) {
+        loaderCounter.decrementAndGet();
+      }
+    } catch (final Exception e) {
+      LOGGER.error("error", e);
+    }
   }
 
   private static Price getPriceFromExchange(final InfluencerSubscription subscription, final Instrument instrument, final Side side, final XExchange xExchange) {

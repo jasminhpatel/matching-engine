@@ -52,45 +52,57 @@ public class ExternalExchangeUtil {
       return null;
     }
     final String exchangeUpper = exchange.toUpperCase();
-
+    XExchange xExchange = null;
     ExchangeSpecification specification = null;
-    try {
-      switch (exchangeUpper) {
-        case "BINANCE": {
-          specification = new BinanceExchange().getDefaultExchangeSpecification();
-          processSpecification(specification, null);
+    int count = 0;
+    while (count < 3) {
+      count ++;
+      try {
+        switch (exchangeUpper) {
+          case "BINANCE": {
+            specification = new BinanceExchange().getDefaultExchangeSpecification();
+            processSpecification(specification, null);
 
-          return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-        }
-        case "BYBIT": {
-          specification = new BybitExchange().getDefaultExchangeSpecification();
-          //below two keys are only for internal validations done by the XChange library. not sent to exchange
-          specification.setApiKey("fqWsXvp4L53VvTkdX4");
-          specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
-          processSpecification(specification, null);
+            xExchange = new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+          }
+          case "BYBIT": {
+            specification = new BybitExchange().getDefaultExchangeSpecification();
+            //below two keys are only for internal validations done by the XChange library. not sent to exchange
+            specification.setApiKey("fqWsXvp4L53VvTkdX4");
+            specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
+            processSpecification(specification, null);
 
-          return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-        }
-        case "MEXC": {
-          specification = new MEXCExchange().getDefaultExchangeSpecification();
-          //specification.setUserName();
-          //below two keys are only for internal validations done by the XChange library. not sent to exchange
-          specification.setApiKey("mx0vglEiMdG2Rab34T");
-          specification.setSecretKey("32dd98b573f3480c975df712c733f187");
-          processSpecification(specification, null);
+            xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+          }
+          case "MEXC": {
+            specification = new MEXCExchange().getDefaultExchangeSpecification();
+            //specification.setUserName();
+            //below two keys are only for internal validations done by the XChange library. not sent to exchange
+            specification.setApiKey("mx0vglEiMdG2Rab34T");
+            specification.setSecretKey("32dd98b573f3480c975df712c733f187");
+            processSpecification(specification, null);
 
-          return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-        }
+            xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+          }
 /*      case "COINBASE": {
         specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
         processSpecification(specification, null);
 
         return new XCoinbaseExchange(ExchangeFactory.INSTANCE.createExchange(specification));
       }*/
+        }
+        if (xExchange != null) {
+          return xExchange;
+        } else {
+          Thread.sleep(1000);
+        }
+      } catch (Exception e) {
+        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper, " attempt: ", count);
+        LOGGER.error(Constants.ERROR_LOG, e);
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ex) {}
       }
-    } catch (Exception e) {
-      LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper);
-      LOGGER.error(Constants.ERROR_LOG, e);
     }
     return null;
   }
@@ -100,47 +112,51 @@ public class ExternalExchangeUtil {
       LOGGER.info(Constants.LOG_FMT_2, "Invalid exchange: ", subscription.getExchange());
       return null;
     }
-    try {
-      final String exchange = subscription.getExchange().toUpperCase();
-      ExchangeSpecification specification = null;
-      switch (exchange) {
-        case "BINANCE": {
-          specification = new BinanceExchange().getDefaultExchangeSpecification();
-          processSpecification(specification, subscription);
-          if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
-            if (subscription.isFuturesEnabled()) {
-              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+    final String exchange = subscription.getExchange().toUpperCase();
+    XExchange xExchange = null;
+    ExchangeSpecification specification = null;
+    int count = 0;
+    while (count < 3) {
+      try {
+        count++;
+        switch (exchange) {
+          case "BINANCE": {
+            specification = new BinanceExchange().getDefaultExchangeSpecification();
+            processSpecification(specification, subscription);
+            if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
+              if (subscription.isFuturesEnabled()) {
+                specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+              }
             }
-          }
-          if (subscription.hasLeverage()) {
-            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
-          }
-          if (subscription.isFuturesEnabled()) {
-            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
-          }
+            if (subscription.hasLeverage()) {
+              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
+            }
+            if (subscription.isFuturesEnabled()) {
+              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+            }
 
-          return new XBinanceExchange(createExchange(specification));
-        }
-        case "BYBIT": {
-          specification = new BybitExchange().getDefaultExchangeSpecification();
-          processSpecification(specification, subscription);
-
-          if (subscription.isFuturesEnabled()) {
-            specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.CONTRACT);
+            xExchange = new XBinanceExchange(createExchange(specification));
           }
+          case "BYBIT": {
+            specification = new BybitExchange().getDefaultExchangeSpecification();
+            processSpecification(specification, subscription);
 
-          return new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-        }
-        case "MEXC": {
-          specification = new MEXCExchange().getDefaultExchangeSpecification();
-          processSpecification(specification, subscription);
+            if (subscription.isFuturesEnabled()) {
+              specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.CONTRACT);
+            }
 
-          if (subscription.isFuturesEnabled()) {
-            specification.setExchangeSpecificParametersItem(MEXCExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+            xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
           }
+          case "MEXC": {
+            specification = new MEXCExchange().getDefaultExchangeSpecification();
+            processSpecification(specification, subscription);
 
-          return new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
-        }
+            if (subscription.isFuturesEnabled()) {
+              specification.setExchangeSpecificParametersItem(MEXCExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+            }
+
+            xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+          }
 /*        case "COINBASE": {
           specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
           processSpecification(specification, subscription);
@@ -158,10 +174,19 @@ public class ExternalExchangeUtil {
 
           return new XCoinbaseExchange(ExchangeFactory.INSTANCE.createExchange(specification));
         }*/
+        }
+        if (xExchange != null) {
+          return xExchange;
+        } else {
+          Thread.sleep(1000);
+        }
+      } catch (Exception e) {
+        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange(), " attempt: ", count);
+        LOGGER.error(Constants.ERROR_LOG, e);
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ex) {}
       }
-    } catch (Exception e) {
-      LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange());
-      LOGGER.error(Constants.ERROR_LOG, e);
     }
 
     return null;
