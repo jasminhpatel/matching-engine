@@ -240,6 +240,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       final Collection<InfluencerSubscription> influencerSubscriptions =
           InfluencerSubscriptionCache.getSubscriptions(order.getPlatform(), order.getAccountId());
       if (influencerSubscriptions != null) {
+        LOGGER.info(Constants.LOG_FMT_2, "Number of subscriptions. clOrdId: ", order.getClOrdId(), " subscriptions: ", influencerSubscriptions.size());
         final List<InfluencerSubscription> subscriptionList = new ArrayList<>(influencerSubscriptions);
         Collections.shuffle(subscriptionList);
         String baseSymbol = order.getSymbol();
@@ -266,7 +267,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                   " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
               continue;
             }
-            if (ExternalInstrumentCache.isTradeableOnExchange(subscription.getExchange(), baseSymbol, quotedSymbol, subscription.isFuturesEnabled())) {
+            if (ExternalInstrumentCache.isTradeableOnExchange(subscription.getExchange(), baseSymbol, quotedSymbol,
+                subscription.isFuturesEnabled())) {
               final String clOrdId = order.getClOrdId() + subscription.getId();
               final CopyTrade openCopyTrade = new CopyTrade(clOrdId, baseSymbol, quotedSymbol, pair, order, subscription);
 
@@ -274,10 +276,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
               COPY_TRADE_QUEUE.addGuaranteed(openCopyTrade);
               count++;
+            } else {
+              LOGGER.info(Constants.LOG_FMT_2, "Symbol is not tradable on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
+                  " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
             }
           } else {
-            LOGGER.info(Constants.LOG_FMT_2, "Symbol is not tradable on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
-                " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
+            LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), "baseSymbol", baseSymbol, "/", quotedSymbol,
+                " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
           }
         }
         final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(order, pair);
@@ -744,7 +749,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       LOGGER.info(Constants.LOG_FMT_2, "Max trade value for order: ", copyTrade.getClOrdId(), " is ", maxRemainingAmount);
       if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
         LOGGER.info(Constants.LOG_FMT_2, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ", maxRemainingAmount,
-            " minCopyTradeAmount", Context.getMinCopyTradeAmountInUsd());
+            " minCopyTradeAmount: ", Context.getMinCopyTradeAmountInUsd());
         maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
 
 /*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
