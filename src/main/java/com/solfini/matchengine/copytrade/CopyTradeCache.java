@@ -25,7 +25,7 @@ import static com.solfini.common.Constants.ORDER_STATUS_FILLED;
 public class CopyTradeCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeCache.class);
 
-  private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid,futuresEnabled,tradeValue FROM copy_trade_state WHERE istoclose=false AND closed=false ORDER BY id asc;";
+  private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid,futuresEnabled,tradeValue FROM copy_trade_state WHERE istoclose=false AND closed=false AND status is not null ORDER BY id asc;";
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, CopyTradeData>> COPY_TRADES_BY_ACCOUNT = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyTrade>> COPY_TRADES_BY_SUBSCRIPTION = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, CopyTrade> OPEN_COPY_TRADE_ORDERS = new ConcurrentHashMap<>();
@@ -159,7 +159,7 @@ public class CopyTradeCache {
         onLoad(copyTrade);
         count++;
       }
-      LOGGER.info(LOG_FMT_1, "CopyTradeCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
+      LOGGER.info(LOG_FMT_4, "CopyTradeCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       LOGGER.error("error", e);
