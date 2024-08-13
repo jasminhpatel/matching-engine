@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.solfini.common.Constants.LOG_FMT_1;
+import static com.solfini.common.Constants.LOG_FMT_4;
 import static com.solfini.common.Constants.ORDER_STATUS_FILLED;
 
 public class CopyTradeCache {
