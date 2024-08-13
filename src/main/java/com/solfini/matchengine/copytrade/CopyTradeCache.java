@@ -84,7 +84,7 @@ public class CopyTradeCache {
     if (copyTradeDataMap != null) {
       for (CopyTradeData cd : copyTradeDataMap.values()) {
         for (CopyTrade cp : cd.getCopyTrades()) {
-          if (!cp.isToClose() && !cp.isClosed()) {
+          if (!cp.isToClose() && !cp.isClosed() && cp.getStatus() != null) {
             if (cp.getSide() == Side.BUY) {
               counts[0] = counts[0] + 1;
             } else {

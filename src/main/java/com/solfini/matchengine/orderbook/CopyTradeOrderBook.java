@@ -236,6 +236,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
 
     if (!order.isToClose()) {//open positions
+      int count = 0;
       final Collection<InfluencerSubscription> influencerSubscriptions =
           InfluencerSubscriptionCache.getSubscriptions(order.getPlatform(), order.getAccountId());
       if (influencerSubscriptions != null) {
@@ -272,6 +273,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               openCopyTrade.setKafkaRecordOffset(order.getKafkaRecordOffset());
 
               COPY_TRADE_QUEUE.addGuaranteed(openCopyTrade);
+              count++;
             }
           } else {
             LOGGER.info(Constants.LOG_FMT_2, "Symbol is not tradable on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
@@ -285,7 +287,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(order, pair);
         MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
       }
-      LOGGER.info(Constants.LOG_FMT_2, "Open copy trade request completed. clOrdId: ", order.getClOrdId());
+      LOGGER.info(Constants.LOG_FMT_2, "Open copy trade request completed. clOrdId: ", order.getClOrdId(), " count: " + count);
     } else {//close positions
       String closeMode = null;
       Collection<CopyTradeCache.CopyTradeData> copyTradeData = null;
