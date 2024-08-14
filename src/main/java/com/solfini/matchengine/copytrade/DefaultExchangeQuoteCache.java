@@ -13,11 +13,11 @@ import static com.solfini.common.Constants.LOG_FMT_4;
 
 public class DefaultExchangeQuoteCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(DefaultExchangeQuoteCache.class);
-  private static final String SELECT = "SELECT exchange, quote_symbol FROM exchange_default_quote;";
+  private static final String SELECT = "SELECT exchange,base_symbol,quote_symbol FROM exchange_default_quote;";
   private static final ConcurrentHashMap<String, String> EXCHANGE_QUOTE_SYMBOL = new ConcurrentHashMap<>();
 
-  public static String get(final String exchange) {
-    return EXCHANGE_QUOTE_SYMBOL.get(exchange.toUpperCase());
+  public static String get(final String exchange, String baseSymbol) {
+    return EXCHANGE_QUOTE_SYMBOL.get((exchange + "_" + baseSymbol).toUpperCase());
   }
 
   public static void loadFromDB(final AtomicInteger loaderCounter) {
@@ -28,12 +28,15 @@ public class DefaultExchangeQuoteCache {
         final ResultSet rs = ps.executeQuery();) {
       while (rs.next()) {
         String exchange = rs.getString(1);
-        String symbol = rs.getString(2);
-        EXCHANGE_QUOTE_SYMBOL.put(exchange, symbol);
+        String baseSymbol = rs.getString(2);
+        String quoteSymbol = rs.getString(3);
+        EXCHANGE_QUOTE_SYMBOL.put((exchange + "_" + baseSymbol).toUpperCase(), quoteSymbol);
         count++;
       }
       LOGGER.info(LOG_FMT_4, "DefaultExchangeQuoteCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      loaderCounter.decrementAndGet();
+      if (loaderCounter != null) {
+        loaderCounter.decrementAndGet();
+      }
     } catch (final Exception e) {
       LOGGER.error("error", e);
     }

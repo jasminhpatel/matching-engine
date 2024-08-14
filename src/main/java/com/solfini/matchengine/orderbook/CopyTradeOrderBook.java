@@ -24,9 +24,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import com.solfini.util.MbxMath;
-import com.solfini.util.StringUtil;
 import org.knowm.xchange.currency.CurrencyPair;
-import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
 
 import java.math.BigDecimal;
@@ -252,7 +250,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             continue;
           }
           //quotedSymbol = subscription.getPreferredQuoteCurrency();
-          quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange());
+          quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange(), baseSymbol);
           if (quotedSymbol == null) {
             quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, order.getSide(),
                 subscription.isFuturesEnabled());

@@ -246,6 +246,13 @@ public class MatchEngineStarter implements Constants {
 
       new Thread(() -> {
         DefaultExchangeQuoteCache.loadFromDB(loaderCounter);
+        while (true) {
+          try {
+            Thread.sleep(ONE_HOUR);
+            DefaultExchangeQuoteCache.loadFromDB(null);
+          } catch (Exception e) {
+          }
+        }
       }).start();
 
       while (loaderCounter.get() != 0) {
