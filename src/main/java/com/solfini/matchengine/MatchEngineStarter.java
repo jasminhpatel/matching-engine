@@ -226,8 +226,8 @@ public class MatchEngineStarter implements Constants {
         }
         while (true) {
           try {
-            InfluencerSymbolsCache.loadFromMarketProphit();
             Thread.sleep(FIFTEEN_MINUTE);
+            InfluencerSymbolsCache.loadFromMarketProphit();
           } catch (Exception e) {
           }
         }

@@ -236,6 +236,8 @@ public abstract class XExchange implements Exchange {
     final LimitOrder
         order = new LimitOrder(xOrderType, quantity, instrument, clOrdId, null, price);
     final String returnValue = tradeService.placeLimitOrder(order);
+    LOGGER.info(Constants.LOG_FMT_6, "Convert order, orderType: LIMIT", " side: ", side.name(), " quantity: ",
+        quantity, " price: ", price, " clOrdId: ", clOrdId, " returnValue: ", returnValue);
     return getFilledQuantity(exchange, instrument, returnValue, false, clOrdId);
 
   }
