@@ -808,9 +808,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdtAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdtAmountToConvert),
-                      new BigDecimal(p), Side.SELL, clOrdId + "S1");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue, priceValue, Side.SELL,
+                      clOrdId + "S1");
               availableBalance += convertedAmount;
             }
             if (usdc > 0 && availableBalance < balanceRequired) {
@@ -818,9 +822,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdcAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdcAmountToConvert),
-                      new BigDecimal(p), Side.SELL, clOrdId + "S2");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
+                      priceValue, Side.SELL, clOrdId + "S2");
               availableBalance += convertedAmount;
             }
           } else if (USDC.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDC. convert other stable coins to USDC
@@ -830,9 +838,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdtAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdtAmountToConvert),
-                      new BigDecimal(p), Side.BUY, clOrdId + "B1");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
+                      priceValue, Side.BUY, clOrdId + "B1");
               availableBalance += convertedAmount;
             }
             if (usd > 0 && availableBalance < balanceRequired) {
@@ -840,9 +852,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdAmountToConvert),
-                      new BigDecimal(p), Side.BUY, clOrdId + "B2");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
+                      priceValue, Side.BUY, clOrdId + "B2");
               availableBalance += convertedAmount;
             }
           } else if (USDT.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDT. convert other stable coins to USDT
@@ -852,9 +868,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdcAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdcAmountToConvert),
-                      new BigDecimal(p), Side.SELL, clOrdId + "S1");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
+                      priceValue, Side.SELL, clOrdId + "S1");
               availableBalance += convertedAmount;
             }
             if (availableBalance < balanceRequired && usd > 0) {
@@ -862,9 +882,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
               double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
+              BigDecimal priceValue = new BigDecimal(p);
+              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
+              BigDecimal quantityValue = new BigDecimal(usdAmountToConvert);
+              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
               double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, new BigDecimal(usdAmountToConvert),
-                      new BigDecimal(p), Side.BUY, clOrdId + "B2");
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
+                      priceValue, Side.BUY, clOrdId + "B2");
               availableBalance += convertedAmount;
             }
           }
