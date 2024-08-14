@@ -910,7 +910,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       copyTrade.setOrderQtyScale((short) 4);
 
       BigDecimal xQuantity = new BigDecimal(quantity);
-      xQuantity = xQuantity.setScale(4, RoundingMode.HALF_UP);
+      xQuantity = xQuantity.setScale(4, RoundingMode.HALF_DOWN);
 
       InstrumentMetaData instrumentMetaData = null;
       try {
