@@ -202,7 +202,8 @@ public abstract class XExchange implements Exchange {
 
     final Order.OrderType xOrderType = Side.BUY == copyTrade.getSide() ? Order.OrderType.BID : Order.OrderType.ASK;
     LOGGER.info(Constants.LOG_FMT_6, "Copy trade order, orderType: ", copyTrade.getOrdType(), " side: ", xOrderType, " quantity: ",
-        copyTrade.getxQuantity(), " price: ", copyTrade.getxPrice(), " clOrdId: ", copyTrade.getClOrdId());
+        copyTrade.getxQuantity(), " price: ", copyTrade.getxPrice(), " clOrdId: ", copyTrade.getClOrdId(), " instrument: ", copyTrade.getInstrument().getBase(),
+        "/", copyTrade.getInstrument().getCounter());
     if (copyTrade.getOrdType() == OrdType.MARKET) {
       final MarketOrder
           order = new MarketOrder(xOrderType, copyTrade.getxQuantity(), copyTrade.getInstrument(), copyTrade.getClOrdId(), null);

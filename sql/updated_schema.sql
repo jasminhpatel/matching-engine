@@ -1460,3 +1460,8 @@ ALTER TABLE channel_configuration_state ADD stripeSecret varchar(256);
 ALTER TABLE notification_state ALTER COLUMN channel TYPE varchar(32) USING channel::varchar(32);
 
 ALTER TABLE external_instrument_state ADD isFutures bool default false;
+
+CREATE TABLE public.exchange_default_quote (
+	exchange varchar(32) PRIMARY KEY NOT NULL,
+	quote_symbol varchar(32)
+);

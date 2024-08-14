@@ -157,7 +157,7 @@ public class MatchEngineStarter implements Constants {
 
   private void loadCachesFromDB() {
     if (Context.isCopyTradeEnabled()) {
-      final AtomicInteger loaderCounter = new AtomicInteger(7);
+      final AtomicInteger loaderCounter = new AtomicInteger(8);
       new Thread(() -> {
         InfluencerSubscriptionCache.loadFromDB(loaderCounter);
         while (true) {
@@ -242,6 +242,10 @@ public class MatchEngineStarter implements Constants {
           } catch (Exception e) {
           }
         }
+      }).start();
+
+      new Thread(() -> {
+        DefaultExchangeQuoteCache.loadFromDB(loaderCounter);
       }).start();
 
       while (loaderCounter.get() != 0) {

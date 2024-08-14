@@ -252,8 +252,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             continue;
           }
           //quotedSymbol = subscription.getPreferredQuoteCurrency();
-          quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, order.getSide(),
-              subscription.isFuturesEnabled());
+          quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange());
+          if (quotedSymbol == null) {
+            quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, order.getSide(),
+                subscription.isFuturesEnabled());
+          }
           if (quotedSymbol != null) {
             if (subscription.getPreferredCurrencies() != null && subscription.getPreferredCurrencies().length() > 2) {
               if (!subscription.getPreferredCurrencies().contains(baseSymbol)) {
@@ -798,9 +801,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         double usd = balance.getUsdBalance();
         double usdc = balance.getUsdcBalance();
         double usdt = balance.getUsdtBalance();
+        double availableBalance = 0;
         try {
           if (USD.equalsIgnoreCase(quotedSymbol)) {// best quote is in USD. convert other stable coins to USD by selling
-            double availableBalance = usd;
+            availableBalance = usd;
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
@@ -822,7 +826,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               availableBalance += convertedAmount;
             }
           } else if (USDC.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDC. convert other stable coins to USDC
-            double availableBalance = usdc;
+            availableBalance = usdc;
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
@@ -844,7 +848,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               availableBalance += convertedAmount;
             }
           } else if (USDT.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDT. convert other stable coins to USDT
-            double availableBalance = usdt;
+            availableBalance = usdt;
             if (usdc > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
@@ -866,7 +870,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               availableBalance += convertedAmount;
             }
           }
-          signalTradeValue = availableMaxAmount;
+          signalTradeValue = availableBalance;
         } catch (Exception e) {
           LOGGER.error(ERROR_LOG, e);
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " failed to convert.");
