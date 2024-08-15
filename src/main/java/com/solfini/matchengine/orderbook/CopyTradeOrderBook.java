@@ -52,8 +52,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   private PreOrderCheck preOrderCheck;
   private final PreOrderCheck preOrderCheckOrig;
   private MarketStatus marketStatus;
+  private static InstrumentMetaData defaultMetadata;
 
   static {
+    defaultMetadata = new InstrumentMetaData.Builder()
+        .marketOrderEnabled(false)
+        .minimumAmount(new BigDecimal("10"))
+        .maximumAmount(new BigDecimal("5000000"))
+        .priceScale(2)
+        .volumeScale(2)
+        .build();
     if (Context.isCopyTradeEnabled()) {
       for (int i = 1; i <= NO_OF_THREADS; i++) {
         EXECUTOR_SERVICE.submit(new Router());
@@ -804,90 +812,74 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             availableBalance = usd;
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
-              double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdtAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue, priceValue, Side.SELL,
-                      clOrdId + "S1");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
+              final double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdtAmountToConvert, priceValue, Side.SELL,
+                      clOrdId + "S1", metaData);
               availableBalance += convertedAmount;
             }
             if (usdc > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
-              double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdcAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
-                      priceValue, Side.SELL, clOrdId + "S2");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
+              final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
+
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdcAmountToConvert,
+                      priceValue, Side.SELL, clOrdId + "S2", metaData);
               availableBalance += convertedAmount;
             }
           } else if (USDC.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDC. convert other stable coins to USDC
             availableBalance = usdc;
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
-              double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdtAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
-                      priceValue, Side.BUY, clOrdId + "B1");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
+              final double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdtAmountToConvert,
+                      priceValue, Side.BUY, clOrdId + "B1", metaData);
               availableBalance += convertedAmount;
             }
             if (usd > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
-              double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
-                      priceValue, Side.BUY, clOrdId + "B2");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
+              final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdAmountToConvert,
+                      priceValue, Side.BUY, clOrdId + "B2", metaData);
               availableBalance += convertedAmount;
             }
           } else if (USDT.equalsIgnoreCase(quotedSymbol)) {// best quote is in USDT. convert other stable coins to USDT
             availableBalance = usdt;
             if (usdc > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
-              double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdcAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
-                      priceValue, Side.SELL, clOrdId + "S1");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
+              final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
+
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdcAmountToConvert,
+                      priceValue, Side.SELL, clOrdId + "S1", metaData);
               availableBalance += convertedAmount;
             }
             if (availableBalance < balanceRequired && usd > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
-              org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              double p = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
-              double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
-              BigDecimal priceValue = new BigDecimal(p);
-              priceValue = priceValue.setScale(2, RoundingMode.HALF_UP);
-              BigDecimal quantityValue = new BigDecimal(usdAmountToConvert);
-              quantityValue = quantityValue.setScale(2, RoundingMode.HALF_UP);
-              double convertedAmount =
-                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, quantityValue,
-                      priceValue, Side.BUY, clOrdId + "B2");
+              final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
+              final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
+              final double convertedAmount =
+                  xExchange.placeConversionOrder(subscription.getExchange(), conversionInstrument, usdAmountToConvert,
+                      priceValue, Side.BUY, clOrdId + "B2", metaData);
               availableBalance += convertedAmount;
             }
           }
@@ -911,38 +903,31 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       BigDecimal xQuantity = new BigDecimal(quantity);
       xQuantity = xQuantity.setScale(4, RoundingMode.HALF_DOWN);
 
-      InstrumentMetaData instrumentMetaData = null;
-      try {
-        instrumentMetaData = xExchange.getExchangeMetaData().getInstruments().get(instrument);
-      } catch (Exception e) {
-        LOGGER.info(Constants.LOG_FMT_2, "Instrument metadata not available. clOrdId ", clOrdId);
+      InstrumentMetaData instrumentMetaData = getInstrumentMetadata(xExchange, instrument);
+      if (instrumentMetaData.getMinimumAmount() != null && instrumentMetaData.getMinimumAmount().compareTo(xQuantity) > 0) {
+        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. Insufficient quantity. clOrdId: ", clOrdId, " qty: ", xQuantity,
+            " min allowed: " + instrumentMetaData.getMinimumAmount());
+
+        copyTrade.setResult("REJECTED: Insufficient qty.");
+        copyTrade.setxExchange(null);
+        matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        return;
       }
-      if (instrumentMetaData != null) {
-        if (instrumentMetaData.getMinimumAmount() != null && instrumentMetaData.getMinimumAmount().compareTo(xQuantity) > 0) {
-          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. Insufficient quantity. clOrdId: ", clOrdId, " qty: ", xQuantity,
-              " min allowed: " + instrumentMetaData.getMinimumAmount());
 
-          copyTrade.setResult("REJECTED: Insufficient qty.");
-          copyTrade.setxExchange(null);
-          matcherToPublisherQueue.addGuaranteed(copyTrade);
-
-          return;
-        }
-
-        if (instrumentMetaData.getMaximumAmount() != null && instrumentMetaData.getMaximumAmount().compareTo(xQuantity) < 0) {
-          LOGGER.info(Constants.LOG_FMT_2, "Max quantity reached clOrdId: ", clOrdId, " qty: ", xQuantity,
-              " max allowed: " + instrumentMetaData.getMaximumAmount());
-          xQuantity = instrumentMetaData.getMaximumAmount();
-        }
-
-        if (instrumentMetaData.getVolumeScale() != null) {
-          xQuantity = xQuantity.setScale(instrumentMetaData.getVolumeScale(), RoundingMode.FLOOR);
-        }
-        if (instrumentMetaData.getPriceScale() != null) {
-          xPrice = xPrice.setScale(instrumentMetaData.getPriceScale(), RoundingMode.FLOOR);
-        }
-
+      if (instrumentMetaData.getMaximumAmount() != null && instrumentMetaData.getMaximumAmount().compareTo(xQuantity) < 0) {
+        LOGGER.info(Constants.LOG_FMT_2, "Max quantity reached clOrdId: ", clOrdId, " qty: ", xQuantity,
+            " max allowed: " + instrumentMetaData.getMaximumAmount());
+        xQuantity = instrumentMetaData.getMaximumAmount();
       }
+
+      if (instrumentMetaData.getVolumeScale() != null) {
+        xQuantity = xQuantity.setScale(instrumentMetaData.getVolumeScale(), RoundingMode.FLOOR);
+      }
+      if (instrumentMetaData.getPriceScale() != null) {
+        xPrice = xPrice.setScale(instrumentMetaData.getPriceScale(), RoundingMode.FLOOR);
+      }
+
       copyTrade.setxQuantity(xQuantity);
       copyTrade.setxPrice(xPrice);
       copyTrade.setTradeValue(signalTradeValue);
@@ -1122,5 +1107,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           copyTrade.getResult());
 
     }
+  }
+
+  private static InstrumentMetaData getInstrumentMetadata(final XExchange xExchange, final org.knowm.xchange.instrument.Instrument instrument) {
+    try {
+      return xExchange.getExchangeMetaData().getInstruments().get(instrument);
+    } catch (Exception e) {
+      LOGGER.error(Constants.LOG_FMT_2, "Instrument metadata not available. ", instrument.getBase(), "/", instrument.getCounter());
+    }
+    return defaultMetadata;
   }
 }

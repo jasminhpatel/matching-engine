@@ -19,6 +19,7 @@ import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.marketdata.Ticker;
 import org.knowm.xchange.dto.meta.ExchangeMetaData;
+import org.knowm.xchange.dto.meta.InstrumentMetaData;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.exceptions.ExchangeException;
@@ -31,6 +32,7 @@ import si.mazi.rescu.SynchronizedValueFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -225,16 +227,20 @@ public abstract class XExchange implements Exchange {
     updateOrderStatus(copyTrade);
   }
 
-  public double placeConversionOrder(final String exchange, final Instrument instrument, final BigDecimal quantity, final BigDecimal price, final Side side,
-      final String clOrdId) throws Exception {
+  public double placeConversionOrder(final String exchange, final Instrument instrument, final double quantity, final double price, final Side side,
+      final String clOrdId, final InstrumentMetaData metadata) throws Exception {
     final TradeService tradeService = this.getTradeService();
+    BigDecimal priceValue = new BigDecimal(price);
+    priceValue = priceValue.setScale(metadata.getPriceScale(), RoundingMode.HALF_UP);
+    BigDecimal quantityValue = new BigDecimal(quantity);
+    quantityValue = quantityValue.setScale(metadata.getVolumeScale(), RoundingMode.HALF_UP);
 
     final Order.OrderType xOrderType = Side.BUY == side ? Order.OrderType.BID : Order.OrderType.ASK;
     LOGGER.info(Constants.LOG_FMT_6, "Convert order, orderType: LIMIT", " side: ", side.name(), " quantity: ",
         quantity, " price: ", price, " clOrdId: ", clOrdId);
 
     final LimitOrder
-        order = new LimitOrder(xOrderType, quantity, instrument, clOrdId, null, price);
+        order = new LimitOrder(xOrderType, quantityValue, instrument, clOrdId, null, priceValue);
     final String returnValue = tradeService.placeLimitOrder(order);
     LOGGER.info(Constants.LOG_FMT_6, "Convert order, orderType: LIMIT", " side: ", side.name(), " quantity: ",
         quantity, " price: ", price, " clOrdId: ", clOrdId, " returnValue: ", returnValue);
