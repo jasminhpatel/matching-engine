@@ -1,5 +1,6 @@
 package com.solfini.matchengine;
 
+import com.solfini.matchengine.copytrade.CopyTrade;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -43,7 +44,7 @@ public class PublisherThread implements Runnable, Constants {
         int count = matcherToPublisherQueue.drainTo(list, 4096);
         for (int i = 0; i < count; i++) {
           Message message = list.get(i);
-          if (message != null) {
+          if (message != null && !(message instanceof CopyTrade)) { // copy trades are not published
             // LOGGER.info(LOG_FMT_2, "PUBLISH: ", message + " KafkaOffset=" + message.getKafkaRecordOffset());
             if (LOGGER.isTraceEnabled()) {
               LOGGER.trace(LOG_FMT_4, ONPUBLISH_ROUNDROBINID_EQ, roundRobinId, MESSAGE_EQ, message);
