@@ -802,7 +802,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           return;
         }
-        LOGGER.info(Constants.LOG_FMT_2, "Balance required for the order: ", copyTrade.getClOrdId(), " is ", balanceRequired, quotedSymbol);
+        LOGGER.info(Constants.LOG_FMT_2, "Balance required for the order: ", copyTrade.getClOrdId(), " is ", balanceRequired, " ", quotedSymbol);
         double usd = balance.getUsdBalance();
         double usdc = balance.getUsdcBalance();
         double usdt = balance.getUsdtBalance();

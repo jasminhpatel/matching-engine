@@ -230,10 +230,17 @@ public abstract class XExchange implements Exchange {
   public double placeConversionOrder(final String exchange, final Instrument instrument, final double quantity, final double price, final Side side,
       final String clOrdId, final InstrumentMetaData metadata) throws Exception {
     final TradeService tradeService = this.getTradeService();
+    int priceScale = 2, quantityScale = 2;
+    if (metadata.getPriceScale() != null) {
+      priceScale = metadata.getPriceScale();
+    }
+    if (metadata.getVolumeScale() != null) {
+      quantityScale = metadata.getVolumeScale();
+    }
     BigDecimal priceValue = new BigDecimal(price);
-    priceValue = priceValue.setScale(metadata.getPriceScale(), RoundingMode.HALF_UP);
+    priceValue = priceValue.setScale(priceScale, RoundingMode.HALF_UP);
     BigDecimal quantityValue = new BigDecimal(quantity);
-    quantityValue = quantityValue.setScale(metadata.getVolumeScale(), RoundingMode.HALF_UP);
+    quantityValue = quantityValue.setScale(quantityScale, RoundingMode.HALF_UP);
 
     final Order.OrderType xOrderType = Side.BUY == side ? Order.OrderType.BID : Order.OrderType.ASK;
     LOGGER.info(Constants.LOG_FMT_6, "Convert order, orderType: LIMIT", " side: ", side.name(), " quantity: ",
