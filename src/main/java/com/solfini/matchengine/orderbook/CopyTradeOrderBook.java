@@ -765,7 +765,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       BigDecimal xPrice = new BigDecimal(price);
       xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
 
-
       //percentage set by the influencer
       double signalTradePercentage = MbxMath.scaleDown(ordQtyPercentage, ordQtyPercentageScale) / 100D;
       //percentage of subscription amount assigned by the user
@@ -780,13 +779,12 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         return;
       }*/
-
-      LOGGER.info(Constants.LOG_FMT_2, "Trade value for order: ", copyTrade.getClOrdId(), " is ", signalTradeValue);
+      double balanceRequired = signalTradeValue * Context.getCopyTradeStableCoinConversionSafeFactor();
+      LOGGER.info(Constants.LOG_FMT_2, "Trade value for order after sentiment: ", copyTrade.getClOrdId(), " is ", signalTradeValue,
+          " balanceRequired: ", balanceRequired, " availableBalance: ", side == Side.BUY ? balance.getBalance(quotedSymbol) : balance.getCoinBalance());
       /* signalTradeValue = Math.min(availableBalance, signalTradeValue);*/
       //convert stable coins if balance is insufficient
-      if (subscription.getPercentage() <= 10_000 /* no margin */ && balance.getBalance(
-          quotedSymbol) < signalTradeValue && side == Side.BUY) {
-        double balanceRequired = signalTradeValue * Context.getCopyTradeStableCoinConversionSafeFactor();
+      if (subscription.getPercentage() <= 10_000 /* no margin */ && balance.getBalance(quotedSymbol) < signalTradeValue && side == Side.BUY) {
         if (balanceRequired > balance.getTotalStableCoinBalance()) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " exchangeBalance: ", balance.getTotalStableCoinBalance());
 
@@ -796,6 +794,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           return;
         }
+        LOGGER.info(Constants.LOG_FMT_2, "Balance required for the order: ", copyTrade.getClOrdId(), " is ", balanceRequired, quotedSymbol);
         double usd = balance.getUsdBalance();
         double usdc = balance.getUsdcBalance();
         double usdt = balance.getUsdtBalance();
