@@ -228,17 +228,16 @@ public abstract class XExchange implements Exchange {
   }
 
   public double placeConversionOrder(final String exchange, final Instrument instrument, final double quantity, final double price, final Side side,
-      final String clOrdId, final InstrumentMetaData metadata) throws Exception {
+      final String clOrdId, final SymbolStatus metadata) throws Exception {
     final TradeService tradeService = this.getTradeService();
     int priceScale = 2, quantityScale = 2;
-    if (metadata.getPriceScale() != null) {
+    if (metadata != null) {
       priceScale = metadata.getPriceScale();
+      quantityScale = metadata.getQtyScale();
     }
-    if (metadata.getVolumeScale() != null) {
-      quantityScale = metadata.getVolumeScale();
-    }
+
     BigDecimal priceValue = new BigDecimal(price);
-    priceValue = priceValue.setScale(priceScale, RoundingMode.HALF_UP);
+    priceValue = priceValue.setScale(priceScale, side == Side.BUY ? RoundingMode.HALF_UP : RoundingMode.HALF_DOWN);
     BigDecimal quantityValue = new BigDecimal(quantity);
     quantityValue = quantityValue.setScale(quantityScale, RoundingMode.HALF_UP);
 

@@ -5,7 +5,9 @@ import com.solfini.db.DBManager;
 import com.solfini.db.ExternalDBManager;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.sbe.encoder.Side;
+import com.solfini.util.MbxMath;
 import org.knowm.xchange.currency.CurrencyPair;
+import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.instrument.Instrument;
 
 import java.sql.Connection;
@@ -46,9 +48,18 @@ public class ExternalExchangeHandler {
       }
     }
     if (price.getPrice() == 0) {
-      price.setPrice(COIN_MARKET_CAP_PRICE_CACHE.getOrDefault(pair.base.getSymbol().toUpperCase(), 0D));
-      price.setLastUpdated(System.currentTimeMillis());
-      LOGGER.info(LOG_FMT_4, "Using CoinMarketCap price. ticker key: ", key, " price: ", price.getPrice());
+      //use coinmarketcap price
+      final XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(subscription.getExchange(), pair.getBase().getSymbol(), pair.getCounter().getSymbol(),
+          instrument instanceof FuturesContract);
+      if (symbolStatus != null) {
+        double cmcPrice = COIN_MARKET_CAP_PRICE_CACHE.getOrDefault(pair.base.getSymbol().toUpperCase(), 0D);
+        cmcPrice = MbxMath.roundUp(cmcPrice, symbolStatus.getPriceScale());
+        price.setPrice(cmcPrice);
+        price.setLastUpdated(System.currentTimeMillis());
+        LOGGER.info(LOG_FMT_4, "Using CoinMarketCap price. ticker key: ", key, " price: ", price.getPrice());
+      } else {
+        LOGGER.info(LOG_FMT_4, "Fail to fetch symbol metadata. ticker key: ", key, " price: ", price.getPrice());
+      }
     }
     if (price.getPrice() == 0) {
       LOGGER.info(LOG_FMT_4, "Failed to get price for ticker key: ", key, " price: ", price.getPrice());

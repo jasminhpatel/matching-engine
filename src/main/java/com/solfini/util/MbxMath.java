@@ -264,6 +264,13 @@ public final class MbxMath {
     return MbxMath.roundToBestPrecision(value);
   }
 
+  public static double roundUp(final double decimal, final int scale) {
+    double multiplier = Math.pow(10, scale);
+    final long l = (long) Math.ceil(decimal * multiplier);
+
+    return ((double) l) / multiplier;
+  }
+
   public static final class MutableBoolean {
 
     private boolean value;

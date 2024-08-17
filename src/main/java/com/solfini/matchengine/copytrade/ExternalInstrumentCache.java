@@ -34,6 +34,11 @@ public class ExternalInstrumentCache implements Constants{
     return INSTRUMENT_CACHE.get(key);
   }
 
+  public static XExchange.SymbolStatus getSymbolStatus(final String exchange, final String base, final String quoted, final boolean isFutures) {
+    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
+    return SYMBOL_CACHE.get(key);
+  }
+
   public static boolean isTradeableOnExchange(final String exchange, final String base, final String quoted, final boolean isFutures) {
     final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
     final XExchange.SymbolStatus status = SYMBOL_CACHE.get(key);

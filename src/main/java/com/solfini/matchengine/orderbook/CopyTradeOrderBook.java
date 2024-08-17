@@ -642,6 +642,17 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       copyTrade.setxExchange(xExchange);
       copyTrade.setCurrencyPair(currencyPair);
       copyTrade.setInstrument(instrument);
+
+      XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), baseSymbol, quotedSymbol, copyTrade.isFuturesEnabled());
+      if (symbolStatus == null || !symbolStatus.isTradable()) {
+        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " symbol not tradable: ", baseSymbol, "/", quotedSymbol,
+            " exchange: ", copyTrade.getExchange());
+
+        copyTrade.setResult("REJECTED: Symbol not tradable. " + baseSymbol + "/" + quotedSymbol);
+        matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        return;
+      }
       //get price
       double price = ExternalExchangeHandler.getPrice(subscription, currencyPair, instrument, side, xExchange);
       if (price == 0) {
@@ -771,7 +782,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
 
       BigDecimal xPrice = new BigDecimal(price);
-      xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
+      xPrice = xPrice.setScale(symbolStatus.getPriceScale(), (side == Side.BUY) ? RoundingMode.HALF_UP : RoundingMode.HALF_DOWN);
 
       //percentage set by the influencer
       double signalTradePercentage = MbxMath.scaleDown(ordQtyPercentage, ordQtyPercentageScale) / 100D;
@@ -813,7 +824,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDT, USD, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               final double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
               final double convertedAmount =
@@ -824,7 +835,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdc > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
 
@@ -838,7 +849,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
               final double convertedAmount =
@@ -849,7 +860,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usd > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
               final double convertedAmount =
@@ -862,7 +873,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdc > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
 
@@ -874,7 +885,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (availableBalance < balanceRequired && usd > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument = getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final InstrumentMetaData metaData = getInstrumentMetadata(xExchange, conversionInstrument);
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDT, USD, false);
               final double priceValue = ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
               final double convertedAmount =
@@ -895,13 +906,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           return;
         }
       }
-      double quantity = MbxMath.roundToBestPrecision(signalTradeValue / price);
+      double quantity = MbxMath.roundToBestPrecision(signalTradeValue / xPrice.doubleValue());
 
-      copyTrade.setOrderQty(MbxMath.changeScale(quantity, 4));
-      copyTrade.setOrderQtyScale((short) 4);
+      copyTrade.setOrderQty(MbxMath.changeScale(quantity, symbolStatus.getQtyScale()));
+      copyTrade.setOrderQtyScale((short) symbolStatus.getQtyScale());
 
       BigDecimal xQuantity = new BigDecimal(quantity);
-      xQuantity = xQuantity.setScale(4, RoundingMode.HALF_DOWN);
+      xQuantity = xQuantity.setScale(symbolStatus.getQtyScale(), RoundingMode.HALF_DOWN);
 
       InstrumentMetaData instrumentMetaData = getInstrumentMetadata(xExchange, instrument);
       if (instrumentMetaData.getMinimumAmount() != null && instrumentMetaData.getMinimumAmount().compareTo(xQuantity) > 0) {
@@ -919,13 +930,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         LOGGER.info(Constants.LOG_FMT_2, "Max quantity reached clOrdId: ", clOrdId, " qty: ", xQuantity,
             " max allowed: " + instrumentMetaData.getMaximumAmount());
         xQuantity = instrumentMetaData.getMaximumAmount();
-      }
-
-      if (instrumentMetaData.getVolumeScale() != null) {
-        xQuantity = xQuantity.setScale(instrumentMetaData.getVolumeScale(), RoundingMode.FLOOR);
-      }
-      if (instrumentMetaData.getPriceScale() != null) {
-        xPrice = xPrice.setScale(instrumentMetaData.getPriceScale(), RoundingMode.FLOOR);
       }
 
       copyTrade.setxQuantity(xQuantity);
@@ -992,6 +996,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         return;
       }
+
+      XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol()
+          , closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
       double price =
           ExternalExchangeHandler.getPrice(closeCopyTrade.getSubscription(), currencyPair, instrument, closeCopyTrade.getSide(), xExchange);
 
@@ -1013,19 +1020,23 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       long closePricePercentage =
           ExternalInstrumentCache.getClosePricePercentage(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol(),
               closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
+      BigDecimal xPrice;
       if (Side.SELL == closeCopyTrade.getSide()) {
         price = price - (price * closePricePercentage) / 1000000D;
+        xPrice = new BigDecimal(price);
+        xPrice = xPrice.setScale(symbolStatus.getPriceScale(), RoundingMode.HALF_DOWN);
       } else {
         price = price + (price * closePricePercentage) / 1000000D;
+        xPrice = new BigDecimal(price);
+        xPrice = xPrice.setScale(symbolStatus.getPriceScale(), RoundingMode.HALF_UP);
       }
-      BigDecimal xPrice = new BigDecimal(price);
-      xPrice = xPrice.setScale(2, RoundingMode.HALF_UP);
+
       closeCopyTrade.setxPrice(xPrice);
 
       try {
         xExchange.updateOrderStatus(openCopyTrade);
         BigDecimal xQuantity = BigDecimal.valueOf(openCopyTrade.getCumulativeAmount());
-        xQuantity = xQuantity.setScale(4, RoundingMode.HALF_UP);
+        xQuantity = xQuantity.setScale(symbolStatus.getQtyScale(), RoundingMode.HALF_UP);
         closeCopyTrade.setxQuantity(xQuantity);
 
         xExchange.placeOrder(closeCopyTrade);
