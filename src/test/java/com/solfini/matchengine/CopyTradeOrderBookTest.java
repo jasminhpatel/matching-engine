@@ -11,6 +11,7 @@ import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalInstrumentCache;
 import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.matchengine.copytrade.InfluencerSubscriptionCache;
+import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.CopyTradeOrderBook;
@@ -40,7 +41,18 @@ public class CopyTradeOrderBookTest {
     properties.setProperty("ROUTER_THREAD_POOL_MAX_SIZE", "100");
     properties.setProperty("QUEUE_CAPACITY", "20000");
 
-    ExternalInstrumentCache.onLoad("BINANCE","BTC", "USDC", true, false, System.currentTimeMillis(), 20);
+    XExchange.SymbolStatus symbolStatus = new XExchange.SymbolStatus();
+    symbolStatus.setExchange("BINANCE");
+    symbolStatus.setBase("BTC");
+    symbolStatus.setQuote("USDC");
+    symbolStatus.setTradable(true);
+    symbolStatus.setFutures(false);
+    symbolStatus.setUpdated(System.currentTimeMillis());
+    symbolStatus.setClosePricePercentage(2000);
+    symbolStatus.setPriceScale(2);
+    symbolStatus.setQtyScale(4);
+
+    ExternalInstrumentCache.onLoad(symbolStatus.getKey(), symbolStatus);
 
     for (int i = 0; i < 50; i++) {
       int mod = (i % modValue) + 1;
