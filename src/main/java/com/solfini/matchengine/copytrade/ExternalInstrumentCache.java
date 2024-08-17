@@ -4,8 +4,6 @@ import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
-import org.knowm.xchange.derivative.FuturesContract;
-import org.knowm.xchange.instrument.Instrument;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,21 +14,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExternalInstrumentCache implements Constants{
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalInstrumentCache.class);
-  private static final String SELECT = "SELECT exchange,base,quoted,tradable,updated,closePricePercentage,isFutures FROM external_instrument_state ORDER BY ID ASC;";
-  private static final String INSERT = "INSERT INTO external_instrument_state (exchange,base,quoted,tradable,updated,closePricePercentage,isFutures) VALUES (?,?,?,?,?,?,?);";
-  private static final String UPDATE = "UPDATE external_instrument_state SET tradable=?,updated=? WHERE exchange=? AND base=? AND quoted=? AND isFutures=?;";
+  private static final String SELECT = "SELECT exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale FROM external_instrument_state ORDER BY ID ASC;";
+  private static final String INSERT = "INSERT INTO external_instrument_state (exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale) VALUES (?,?,?,?,?,?,?,?,?);";
+  private static final String UPDATE = "UPDATE external_instrument_state SET tradable=?,updated=?,pricescale=?,qtyscale=? WHERE exchange=? AND base=? AND quoted=? AND isFutures=?;";
 
-  private static final ConcurrentHashMap<String, SymbolStatus> SYMBOL_CACHE = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, XExchange.SymbolStatus> SYMBOL_CACHE = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, org.knowm.xchange.instrument.Instrument> INSTRUMENT_CACHE = new ConcurrentHashMap<>();
   private static final long DEFAULT_CLOSE_PRICE_PERCENTAGE = 2_000; //2,000 => 0.2% scaled by 4
 
-  public static void onLoad(final String exchange, final String base, final String quoted, final boolean tradable, final boolean isFutures,
-      final long updated, final long closePricePercentage) {
-    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
-
-    final SymbolStatus status = new SymbolStatus(tradable, updated, closePricePercentage);
-
-    SYMBOL_CACHE.put(key, status);
+  public static void onLoad(final String key, final XExchange.SymbolStatus instrument) {
+    SYMBOL_CACHE.put(key, instrument);
   }
 
   public static void addInstrument(String key, org.knowm.xchange.instrument.Instrument instrument) {
@@ -43,14 +36,14 @@ public class ExternalInstrumentCache implements Constants{
 
   public static boolean isTradeableOnExchange(final String exchange, final String base, final String quoted, final boolean isFutures) {
     final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
-    final SymbolStatus status = SYMBOL_CACHE.get(key);
+    final XExchange.SymbolStatus status = SYMBOL_CACHE.get(key);
 
-    return status != null && status.tradable && status.updated > (System.currentTimeMillis() - TWO_DAY);
+    return status != null && status.isTradable();
   }
 
   public static long getClosePricePercentage(final String exchange, final String base, final String quoted, final boolean isFutures) {
     final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
-    final SymbolStatus status = SYMBOL_CACHE.get(key);
+    final XExchange.SymbolStatus status = SYMBOL_CACHE.get(key);
     if (status != null) {
       return status.getClosePricePercentage();
     }
@@ -72,8 +65,20 @@ public class ExternalInstrumentCache implements Constants{
         long updated = rs.getLong(5);
         long closePricePercentage = rs.getLong(6);
         boolean isFutures = rs.getBoolean(7);
+        int priceScale = rs.getInt(8);
+        int qtyScale = rs.getInt(9);
+        final XExchange.SymbolStatus instrument = new XExchange.SymbolStatus();
+        instrument.setExchange(exchange);
+        instrument.setBase(base);
+        instrument.setQuote(quoted);
+        instrument.setTradable(tradable);
+        instrument.setUpdated(updated);
+        instrument.setClosePricePercentage(closePricePercentage);
+        instrument.setFutures(isFutures);
+        instrument.setPriceScale(priceScale);
+        instrument.setQtyScale(qtyScale);
 
-        onLoad(exchange, base, quoted, tradable, isFutures, updated, closePricePercentage);
+        onLoad(instrument.getKey(), instrument);
         count++;
       }
       LOGGER.info(LOG_FMT_4, "ExternalInstrumentCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
@@ -91,15 +96,9 @@ public class ExternalInstrumentCache implements Constants{
           continue;
         }
 
-        final List<Instrument> instruments = exchange.getExchangeInstruments();
-        for (final Instrument instrument : instruments) {
-          if (instrument instanceof FuturesContract) {
-            saveToDB(exchangeCode.toLowerCase(), instrument.getBase().getCurrencyCode().toLowerCase(),
-                instrument.getCounter().getCurrencyCode().toLowerCase(), true, true);
-          } else {
-            saveToDB(exchangeCode.toLowerCase(), instrument.getBase().getCurrencyCode().toLowerCase(),
-                instrument.getCounter().getCurrencyCode().toLowerCase(), true, false);
-          }
+        final List<XExchange.SymbolStatus> instruments = exchange.getExchangeInstrumentsFull();
+        for (final XExchange.SymbolStatus instrument : instruments) {
+          saveToDB(instrument);
         }
         LOGGER.info(Constants.LOG_FMT_4, "Instruments of ", exchangeCode, " loaded. count: " + instruments.size());
       } catch (Exception e) {
@@ -108,29 +107,29 @@ public class ExternalInstrumentCache implements Constants{
     }
   }
 
-  private static void saveToDB(final String exchange, final String base, final String quoted, final boolean tradable, final boolean isFutures) {
-    long closePricePercentage = DEFAULT_CLOSE_PRICE_PERCENTAGE;
-    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
+  private static void saveToDB(final XExchange.SymbolStatus instrument) {
+    final String key = instrument.getKey();
     if (SYMBOL_CACHE.containsKey(key)) {
-      closePricePercentage = SYMBOL_CACHE.get(key).getClosePricePercentage();
-      updateDB(exchange, base, quoted, tradable, isFutures);
+      instrument.setClosePricePercentage(SYMBOL_CACHE.get(key).getClosePricePercentage());
+      updateDB(instrument);
     } else {
-      addToDB(exchange, base, quoted, tradable, DEFAULT_CLOSE_PRICE_PERCENTAGE, isFutures);
+      addToDB(instrument);
     }
-    onLoad(exchange, base, quoted, tradable, isFutures, System.currentTimeMillis(), closePricePercentage);
+    onLoad(key, instrument);
   }
 
-  private static void addToDB(final String exchange, final String base, final String quoted, final boolean tradable,
-      final long closePricePercentage, final boolean isFutures) {
+  private static void addToDB(final XExchange.SymbolStatus instrument) {
     try (final Connection conn = DBManager.getConnection();
         final PreparedStatement ps = conn.prepareStatement(INSERT);) {
-      ps.setString(1, exchange);
-      ps.setString(2, base);
-      ps.setString(3, quoted);
-      ps.setBoolean(4, tradable);
-      ps.setLong(5, System.currentTimeMillis());
-      ps.setLong(6, closePricePercentage);
-      ps.setBoolean(7, isFutures);
+      ps.setString(1, instrument.getExchange().toLowerCase());
+      ps.setString(2, instrument.getBase().toLowerCase());
+      ps.setString(3, instrument.getQuote().toLowerCase());
+      ps.setBoolean(4, instrument.isTradable());
+      ps.setLong(5, instrument.getUpdated());
+      ps.setLong(6, instrument.getClosePricePercentage());
+      ps.setBoolean(7, instrument.isFutures());
+      ps.setInt(8, instrument.getPriceScale());
+      ps.setInt(9, instrument.getQtyScale());
 
       ps.executeUpdate();
 
@@ -139,17 +138,18 @@ public class ExternalInstrumentCache implements Constants{
     }
   }
 
-  private static void updateDB(final String exchange, final String base, final String quoted, final boolean tradable
-      , final boolean isFutures) {
+  private static void updateDB(final XExchange.SymbolStatus instrument) {
     try (final Connection conn = DBManager.getConnection();
         final PreparedStatement ps = conn.prepareStatement(UPDATE);) {
-      ps.setBoolean(1, tradable);
-      ps.setLong(2, System.currentTimeMillis());
+      ps.setBoolean(1, instrument.isTradable());
+      ps.setLong(2, instrument.getUpdated());
+      ps.setInt(3, instrument.getPriceScale());
+      ps.setInt(4, instrument.getQtyScale());
 
-      ps.setString(3, exchange);
-      ps.setString(4, base);
-      ps.setString(5, quoted);
-      ps.setBoolean(6, isFutures);
+      ps.setString(5, instrument.getExchange().toLowerCase());
+      ps.setString(6, instrument.getBase().toLowerCase());
+      ps.setString(7, instrument.getQuote().toLowerCase());
+      ps.setBoolean(8, instrument.isFutures());
 
       ps.executeUpdate();
 
@@ -158,42 +158,7 @@ public class ExternalInstrumentCache implements Constants{
     }
   }
 
-  private static class SymbolStatus {
-    private boolean tradable;
-    private long updated;
-    private long closePricePercentage;
 
-
-    public SymbolStatus(boolean tradable, long updated, long closePricePercentage) {
-      this.tradable = tradable;
-      this.updated = updated;
-      this.closePricePercentage = closePricePercentage;
-    }
-
-    public boolean isTradable() {
-      return tradable;
-    }
-
-    public void setTradable(boolean tradable) {
-      this.tradable = tradable;
-    }
-
-    public long getUpdated() {
-      return updated;
-    }
-
-    public void setUpdated(long updated) {
-      this.updated = updated;
-    }
-
-    public long getClosePricePercentage() {
-      return closePricePercentage;
-    }
-
-    public void setClosePricePercentage(long closePricePercentage) {
-      this.closePricePercentage = closePricePercentage;
-    }
-  }
 
   public static void main(String[] args) {
     //loadFromExchange();

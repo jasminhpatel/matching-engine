@@ -1467,3 +1467,7 @@ CREATE TABLE public.exchange_default_quote (
 	quote_symbol varchar(32),
 	PRIMARY KEY(exchange, base_symbol)
 );
+
+
+ALTER TABLE external_instrument_state ADD priceScale int default 2;
+ALTER TABLE external_instrument_state ADD qtyScale int default 2;

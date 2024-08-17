@@ -64,6 +64,7 @@ public class ExternalExchangeUtil {
             processSpecification(specification, null);
 
             xExchange = new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
           }
           case "BYBIT": {
             specification = new BybitExchange().getDefaultExchangeSpecification();
@@ -73,6 +74,7 @@ public class ExternalExchangeUtil {
             processSpecification(specification, null);
 
             xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
           }
           case "MEXC": {
             specification = new MEXCExchange().getDefaultExchangeSpecification();
@@ -83,6 +85,7 @@ public class ExternalExchangeUtil {
             processSpecification(specification, null);
 
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
           }
 /*      case "COINBASE": {
         specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
@@ -136,6 +139,7 @@ public class ExternalExchangeUtil {
             }
 
             xExchange = new XBinanceExchange(createExchange(specification));
+            break;
           }
           case "BYBIT": {
             specification = new BybitExchange().getDefaultExchangeSpecification();
@@ -146,6 +150,7 @@ public class ExternalExchangeUtil {
             }
 
             xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
           }
           case "MEXC": {
             specification = new MEXCExchange().getDefaultExchangeSpecification();
@@ -156,6 +161,7 @@ public class ExternalExchangeUtil {
             }
 
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
           }
 /*        case "COINBASE": {
           specification = new CoinbaseProExchange().getDefaultExchangeSpecification();

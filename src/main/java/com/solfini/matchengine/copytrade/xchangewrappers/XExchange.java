@@ -329,6 +329,9 @@ public abstract class XExchange implements Exchange {
     return null;
   }
 
+  //default getExchangeInstruments() does not return full data set.
+  public abstract List<SymbolStatus> getExchangeInstrumentsFull();
+
   public static class Balance {
     private double usdBalance;
     private double usdcBalance;
@@ -402,6 +405,103 @@ public abstract class XExchange implements Exchange {
       sb.append(",\"lastUpdated\":").append(lastUpdated);
       sb.append('}');
       return sb.toString();
+    }
+  }
+
+  public static class SymbolStatus {
+    private String exchange;
+    private String base;
+    private String quote;
+    private String prompt;
+    private boolean futures;
+    private boolean tradable;
+    private long updated;
+    private long closePricePercentage = 2000;
+    private int priceScale;
+    private int qtyScale;
+
+    public String getKey() {
+      return (this.getExchange() + "_" + this.getBase() + "/" + this.getQuote() + "_" + (this.isFutures() ? "1" :"0")).toLowerCase();
+    }
+
+    public String getExchange() {
+      return exchange;
+    }
+
+    public void setExchange(String exchange) {
+      this.exchange = exchange;
+    }
+
+    public String getBase() {
+      return base;
+    }
+
+    public void setBase(String base) {
+      this.base = base;
+    }
+
+    public String getQuote() {
+      return quote;
+    }
+
+    public void setQuote(String quote) {
+      this.quote = quote;
+    }
+
+    public String getPrompt() {
+      return prompt;
+    }
+
+    public void setPrompt(String prompt) {
+      this.prompt = prompt;
+    }
+
+    public boolean isFutures() {
+      return futures;
+    }
+
+    public void setFutures(boolean futures) {
+      this.futures = futures;
+    }
+
+    public boolean isTradable() {
+      return tradable;
+    }
+
+    public void setTradable(boolean tradable) {
+      this.tradable = tradable;
+    }
+
+    public long getUpdated() {
+      return updated;
+    }
+
+    public void setUpdated(long updated) {
+      this.updated = updated;
+    }
+
+    public long getClosePricePercentage() {
+      return closePricePercentage;
+    }
+
+    public void setClosePricePercentage(long closePricePercentage) {
+      this.closePricePercentage = closePricePercentage;
+    }
+
+    public int getPriceScale() {
+      return priceScale;
+    }
+
+    public void setPriceScale(int priceScale) {
+      this.priceScale = priceScale;
+    }
+
+    public int getQtyScale() {
+      return qtyScale;
+    }
+
+    public void setQtyScale(int qtyScale) {
+      this.qtyScale = qtyScale;
     }
   }
 }

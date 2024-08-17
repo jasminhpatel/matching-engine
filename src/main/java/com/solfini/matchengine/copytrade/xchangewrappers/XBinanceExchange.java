@@ -1,40 +1,25 @@
 package com.solfini.matchengine.copytrade.xchangewrappers;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
-import com.solfini.util.MbxMath;
-import com.solfini.util.StringUtil;
 import org.knowm.xchange.Exchange;
-import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.account.AccountService;
-import org.knowm.xchange.service.trade.TradeService;
-import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
-import javax.crypto.Mac;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class XBinanceExchange extends XExchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XBinanceExchange.class);
-  private static final String HMAC_SHA256_ALGORITHM = "HmacSHA256";
-  private static final String ACCESS_KEY_HEADER = "X-MBX-APIKEY";
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String BORROW = "BORROW";
-  private static final String REPAY = "REPAY";
+  private final ObjectMapper mapper = new ObjectMapper();
 
   public XBinanceExchange(final Exchange exchange) {
     super(exchange);
@@ -73,299 +58,90 @@ public class XBinanceExchange extends XExchange {
     super.updateOrderStatus(copyTrade);
   }
 
-  private void processMarginOrder(final CopyTrade copyTrade) throws Exception {
-    //using sideEffectType MARGIN_BUY and AUTO_REPAY
-    placeMarginOrder(copyTrade);
-    /*if (copyTrade.isToClose()) {
-      //close positions
-      placeMarginOrder(copyTrade);
-      if (copyTrade.getBorrowedAmount() > 0) {
-        String borrowedAmount = String.valueOf(copyTrade.getBorrowedAmount());
-        String asset;
-        String type = REPAY;
-        if (Side.BUY == copyTrade.getSide()) {
-          asset = copyTrade.getBaseSymbol();
-        } else {
-          asset = copyTrade.getQuotedSymbol();
+  @Override
+  public List<SymbolStatus> getExchangeInstrumentsFull() {
+    final String apiUrl = exchange.getExchangeSpecification().getSslUri();
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
+    if (response != null && response.getCode() == 200) {
+      try {
+        final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
+        final long updated = System.currentTimeMillis();
+        if (info.getSymbols() != null) {
+          List<SymbolStatus> symbolStatuses = new ArrayList<>(info.getSymbols().size());
+          for (BinanceSymbol binanceSymbol : info.getSymbols()){
+            final SymbolStatus symbolStatus = new SymbolStatus();
+            symbolStatus.setExchange("binance");
+            symbolStatus.setBase(binanceSymbol.getBaseAsset());
+            symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
+            symbolStatus.setPrompt("");
+            if (binanceSymbol.getPermissionSets() != null && !binanceSymbol.getPermissionSets().isEmpty() &&
+            binanceSymbol.getPermissionSets().get(0).contains("FUTURES")) {
+              symbolStatus.setFutures(true);
+            }
+            symbolStatus.setTradable("TRADING".equals(binanceSymbol.getStatus()));
+            symbolStatus.setUpdated(updated);
+            //symbolStatus.setUpdated(2000);
+            symbolStatus.setPriceScale(binanceSymbol.getQuotePrecision());
+            symbolStatus.setQtyScale(binanceSymbol.getBaseAssetPrecision());
+            symbolStatuses.add(symbolStatus);
+          }
+          return symbolStatuses;
         }
-        //repay margin
-        boolean repaid = borrowRepay(asset, borrowedAmount, type);
-        if (!repaid) {
-          copyTrade.setResult("FAILED to repay margin");
-        } else {
-          copyTrade.setRepaid(true);
-        }
-      }
-    } else {
-      double amountToBorrow ;
-      String asset;
-      String type = BORROW;
-      if (Side.BUY == copyTrade.getSide()) {
-        asset = copyTrade.getQuotedSymbol();
-        double marketPrice = copyTrade.getxPrice().doubleValue() * (1.05); // 5% safety factor
-        //borrow based on the percentage and market price
-        amountToBorrow = MbxMath.roundToBestPrecision(marketPrice * copyTrade.getxQuantity().doubleValue() *
-            ((copyTrade.getSubscription().getPercentage() - 10_000) /10_000D));
-      } else {
-        asset = copyTrade.getBaseSymbol();
-        //borrow based on the percentage
-        amountToBorrow = MbxMath.roundToBestPrecision(copyTrade.getxQuantity().doubleValue() *
-            ((copyTrade.getSubscription().getPercentage() - 10_000) /10_000D));
-      }
-
-      //borrow margin
-      boolean borrowed = borrowRepay(asset, String.valueOf(amountToBorrow), type);
-      if (borrowed) {
-        copyTrade.setBorrowedAmount(amountToBorrow);
-        placeMarginOrder(copyTrade);
-      }
-    }*/
-  }
-
-  private void placeMarginOrder(final CopyTrade copyTrade) throws Exception {
-    StringBuilder url = new StringBuilder();
-    url.append("symbol=").append(copyTrade.getBaseSymbol().toUpperCase()).append(copyTrade.getQuotedSymbol().toUpperCase());
-    url.append("&isolated=").append("TRUE");
-    url.append("&side=").append(copyTrade.getSide() == Side.BUY ? "BUY": "SELL");
-    url.append("&type=").append(copyTrade.getOrdType() == OrdType.MARKET ? "MARKET" : "LIMIT");//LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER
-    url.append("&quantity=").append(copyTrade.getxQuantity());
-   // url.append("&quoteOrderQty=").append();
-    if (copyTrade.getOrdType() != OrdType.MARKET && copyTrade.getxPrice() != null)
-      url.append("&price=").append(copyTrade.getxPrice());
-    //url.append("&stopPrice=").append();//Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
-    url.append("&newClientOrderId=").append(copyTrade.getClOrdId());
-    //url.append("&icebergQty=").append();//Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
-    url.append("&newOrderRespType=").append("FULL");//JSON. ACK, RESULT, or FULL, MARKET and LIMIT order types default to FULL, all other orders default to ACK.
-    //url.append("&sideEffectType=").append("NO_SIDE_EFFECT");//NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
-    if (copyTrade.isToClose()) {
-      url.append("&sideEffectType=").append("AUTO_REPAY");
-    } else {
-      url.append("&sideEffectType=").append("MARGIN_BUY");
-    }
-    if (copyTrade.getOrdType() != OrdType.MARKET) {
-      url.append("&timeInForce=").append("GTC");//GTC,IOC,FOK
-    }
-    //url.append("&selfTradePreventionMode=").append("EXPIRE_BOTH");//EXPIRE_TAKER, EXPIRE_MAKER, EXPIRE_BOTH, NONE
-    //url.append("&autoRepayAtCancel=").append(true);//default true
-    url.append("&recvWindow=").append(60000);
-    url.append("&timestamp=").append(System.currentTimeMillis());
-
-    String signature = getSignature(url.toString().getBytes(), exchange.getExchangeSpecification().getSecretKey().getBytes());
-    url.append("&signature=").append(signature);
-
-    url.insert(0, "/sapi/v1/margin/order?");
-    url.insert(0, exchange.getDefaultExchangeSpecification().getProxyHost());
-
-    final String fullUrl = url.toString();
-
-    LOGGER.info(Constants.LOG_FMT_2, "Sending margin order to exchange. URL: ", fullUrl);
-
-    final Map<String, Object> headers = new HashMap<>();
-    headers.put(ACCESS_KEY_HEADER, exchange.getExchangeSpecification().getApiKey());
-
-    HttpUtils.Response response = HttpUtils.post(fullUrl, headers, null);
-    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
-      final String returnValue = response.getData();
-      OrderResponse orderResponse = OBJECT_MAPPER.readValue(returnValue, OrderResponse.class);
-      copyTrade.setExternalId(String.valueOf(orderResponse.getOrderId()));
-    }
-
-    this.updateOrderStatus(copyTrade);
-  }
-
-/*  private void placeFutureOrder(final CopyTrade copyTrade) throws Exception {
-    StringBuilder url = new StringBuilder();
-    url.append("symbol=").append(copyTrade.getBaseSymbol().toUpperCase()).append(copyTrade.getQuotedSymbol().toUpperCase());
-    url.append("&side=").append(copyTrade.getSide() == Side.BUY ? "BUY": "SELL");
-    url.append("&positionSide=").append();
-    url.append("&type=").append(copyTrade.getOrdType() == OrdType.MARKET ? "MARKET" : "LIMIT");//LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER
-    if (copyTrade.getOrdType() != OrdType.MARKET) {
-      url.append("&timeInForce=").append("GTC");//GTC,IOC,FOK
-    }
-    url.append("&quantity=").append(copyTrade.getxQuantity());
-    url.append("&reduceOnly=").append();
-    if (copyTrade.getOrdType() != OrdType.MARKET && copyTrade.getxPrice() != null)
-      url.append("&price=").append(copyTrade.getxPrice());
-    url.append("&newClientOrderId=").append(copyTrade.getClOrdId());
-    //url.append("&stopPrice=").append();//Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
-    url.append("&stopPrice=").append();
-    url.append("&closePosition=").append();
-    url.append("&activationPrice=").append();
-    url.append("&callbackRate=").append();
-    url.append("&workingType=").append();
-    url.append("&priceProtect=").append();
-    url.append("&newOrderRespType=").append("FULL");//JSON. ACK, RESULT, or FULL, MARKET and LIMIT order types default to FULL, all other orders default to ACK.
-    url.append("&priceMatch=").append();
-    url.append("&selfTradePreventionMode=").append();
-    url.append("&goodTillDate=").append();
-
-    url.append("&recvWindow=").append(60000);
-    url.append("&timestamp=").append(System.currentTimeMillis());
-
-    String signature = getSignature(url.toString().getBytes(), exchange.getExchangeSpecification().getSecretKey().getBytes());
-    url.append("&signature=").append(signature);
-
-    url.insert(0, "/fapi/v1/order?");
-    url.insert(0, exchange.getDefaultExchangeSpecification().getSslUri());
-
-    final String fullUrl = url.toString();
-
-    LOGGER.info(Constants.LOG_FMT_2, "Sending future order to exchange. URL: ", fullUrl);
-
-    final Map<String, Object> headers = new HashMap<>();
-    headers.put(ACCESS_KEY_HEADER, exchange.getExchangeSpecification().getApiKey());
-
-    HttpUtils.Response response = HttpUtils.post(fullUrl, headers, null);
-    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
-      final String returnValue = response.getData();
-      OrderResponse orderResponse = OBJECT_MAPPER.readValue(returnValue, OrderResponse.class);
-      copyTrade.setExternalId(String.valueOf(orderResponse.getOrderId()));
-    }
-
-    this.updateOrderStatus(copyTrade);
-  }*/
-
-  private boolean borrowRepay(final String asset, final String amount, final String type) throws Exception {
-    boolean success = false;
-    StringBuilder url = new StringBuilder();
-    url.append("asset=").append(asset.toUpperCase());
-    url.append("&isolated=").append("TRUE");
-    url.append("&symbol=").append(asset.toUpperCase());//only if isolated=TRUE
-    url.append("&amount=").append(amount);
-    url.append("&type=").append(type);//BORROW, REPAY
-    url.append("&recvWindow=").append(60000);
-    url.append("&timestamp=").append(System.currentTimeMillis());
-
-    String signature = getSignature(url.toString().getBytes(), exchange.getExchangeSpecification().getSecretKey().getBytes());
-    url.append("&signature=").append(signature);
-
-    url.insert(0, "/sapi/v1/margin/borrow-repay?");
-    url.insert(0, exchange.getDefaultExchangeSpecification().getSslUri());
-
-    final String fullUrl = url.toString();
-
-    LOGGER.info(Constants.LOG_FMT_2, "Sending borrow/repay to exchange. URL: ", fullUrl);
-
-    final Map<String, Object> headers = new HashMap<>();
-    headers.put(ACCESS_KEY_HEADER, exchange.getExchangeSpecification().getApiKey());
-
-    final HttpUtils.Response response = HttpUtils.post(fullUrl, headers, null);
-    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
-      final String returnValue = response.getData();
-      BorrowRepayResponse borrowRepayResponse = OBJECT_MAPPER.readValue(returnValue, BorrowRepayResponse.class);
-      if (borrowRepayResponse.getTranId() > 0) {
-        success = true;
-        LOGGER.info(Constants.LOG_FMT_2, "Borrow/Repay successful. tranId: ", borrowRepayResponse.getTranId());
+      } catch (JsonProcessingException e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    success = true;
-    return success;
-  }
-
-  private void updateMarginOrderStatus(final CopyTrade copyTrade) throws Exception {
-    StringBuilder url = new StringBuilder();
-    url.append("symbol=").append(copyTrade.getBaseSymbol().toUpperCase()).append(copyTrade.getQuotedSymbol().toUpperCase());
-    url.append("&isolated=").append("TRUE");
-    url.append("&orderId=").append(copyTrade.getExternalId());
-    //url.append("&origClientOrderId=").append(copyTrade.getClOrdId());
-    url.append("&recvWindow=").append(60000);
-    url.append("&timestamp=").append(System.currentTimeMillis());
-
-    String signature = getSignature(url.toString().getBytes(), exchange.getExchangeSpecification().getSecretKey().getBytes());
-    url.append("&signature=").append(signature);
-
-    url.insert(0, "/sapi/v1/margin/order?");
-    url.insert(0, exchange.getDefaultExchangeSpecification().getSslUri());
-
-    final String fullUrl = url.toString();
-
-    LOGGER.info(Constants.LOG_FMT_2, "Sending get margin order status exchange. URL: ", fullUrl);
-
-    Map<String, Object> headers = new HashMap<>();
-    headers.put(ACCESS_KEY_HEADER, exchange.getExchangeSpecification().getApiKey());
-
-    HttpUtils.Response response = HttpUtils.get(fullUrl, headers);
-    if (response != null && (response.getCode() == 200 || response.getCode() == 201)) {
-      final String returnValue = response.getData();
-      MarginOrderStatus summary = OBJECT_MAPPER.readValue(returnValue, MarginOrderStatus.class);
-      copyTrade.setPriceScale((short) 4);
-      copyTrade.setPrice(MbxMath.changeScale(StringUtil.toDouble(summary.getPrice()), copyTrade.getPriceScale()));
-      copyTrade.setOriginalAmount(StringUtil.toDouble(summary.getOrigQty()));
-      copyTrade.setCumulativeAmount(StringUtil.toDouble(summary.getExecutedQty()));
-      copyTrade.setStatus(summary.getStatus());
-    }
-  }
-
-  private static String getSignature(final byte[] message, final byte[] keyData) throws Exception {
-    final SecretKey key = new SecretKeySpec(keyData, HMAC_SHA256_ALGORITHM);
-    final Mac mac = Mac.getInstance(HMAC_SHA256_ALGORITHM);
-    mac.init(key);
-    mac.update(message);
-    byte[] hmac = mac.doFinal();
-    String hd;
-    final BigInteger hash = new BigInteger(1, hmac);
-    hd = hash.toString(16);
-    while (hd.length() < 32) {
-      hd = "0" + hd;
-    }
-    return hd;
+    return null;
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class OrderResponse {
-    private long orderId;
+  public static class BinanceExchangeInfoFull {
+    private List<BinanceSymbol> symbols;
 
-    public long getOrderId() {
-      return orderId;
+    public List<BinanceSymbol> getSymbols() {
+      return symbols;
     }
 
-    public void setOrderId(long orderId) {
-      this.orderId = orderId;
+    public void setSymbols(List<BinanceSymbol> symbols) {
+      this.symbols = symbols;
     }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class BorrowRepayResponse {
-    private long tranId;
-
-    public long getTranId() {
-      return tranId;
-    }
-
-    public void setTranId(long tranId) {
-      this.tranId = tranId;
-    }
-  }
-
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class MarginOrderStatus {
-    private String price;
-    private String origQty;
-    private String executedQty;
+  public static class BinanceSymbol {
+    private String symbol;
+    private String baseAsset;
+    private String quoteAsset;
     private String status;
+    private int baseAssetPrecision;
+    private int quotePrecision;
+    private List<List<String>> permissionSets;
 
-    public String getPrice() {
-      return price;
+    public BinanceSymbol() {
     }
 
-    public void setPrice(String price) {
-      this.price = price;
+    public String getSymbol() {
+      return symbol;
     }
 
-    public String getOrigQty() {
-      return origQty;
+    public void setSymbol(String symbol) {
+      this.symbol = symbol;
     }
 
-    public void setOrigQty(String origQty) {
-      this.origQty = origQty;
+    public String getBaseAsset() {
+      return baseAsset;
     }
 
-    public String getExecutedQty() {
-      return executedQty;
+    public void setBaseAsset(String baseAsset) {
+      this.baseAsset = baseAsset;
     }
 
-    public void setExecutedQty(String executedQty) {
-      this.executedQty = executedQty;
+    public String getQuoteAsset() {
+      return quoteAsset;
+    }
+
+    public void setQuoteAsset(String quoteAsset) {
+      this.quoteAsset = quoteAsset;
     }
 
     public String getStatus() {
@@ -375,5 +151,36 @@ public class XBinanceExchange extends XExchange {
     public void setStatus(String status) {
       this.status = status;
     }
+
+    public int getBaseAssetPrecision() {
+      return baseAssetPrecision;
+    }
+
+    public void setBaseAssetPrecision(int baseAssetPrecision) {
+      this.baseAssetPrecision = baseAssetPrecision;
+    }
+
+    public int getQuotePrecision() {
+      return quotePrecision;
+    }
+
+    public void setQuotePrecision(int quotePrecision) {
+      this.quotePrecision = quotePrecision;
+    }
+
+    public List<List<String>> getPermissionSets() {
+      return permissionSets;
+    }
+
+    public void setPermissionSets(List<List<String>> permissionSets) {
+      this.permissionSets = permissionSets;
+    }
   }
+
+  public static void main(String[] args) {
+    final XExchange exchange = ExternalExchangeUtil.createXExchangeReadOnly("BINANCE");
+    List<SymbolStatus> symbols = exchange.getExchangeInstrumentsFull();
+    System.out.println("Done");
+  }
+
 }
