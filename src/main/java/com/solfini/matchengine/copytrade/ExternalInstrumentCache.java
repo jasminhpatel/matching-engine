@@ -13,14 +13,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExternalInstrumentCache implements Constants{
+  public static final double PRICE_PERCENTAGE_SCALE = 1_000_000D;
+  private static final long DEFAULT_OPEN_PRICE_PERCENTAGE = 100_000; //100,000 => 10% scaled by 4
+  private static final long DEFAULT_CLOSE_PRICE_PERCENTAGE = 50_000; //50,000 => 5% scaled by 4
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalInstrumentCache.class);
-  private static final String SELECT = "SELECT exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale FROM external_instrument_state ORDER BY ID ASC;";
-  private static final String INSERT = "INSERT INTO external_instrument_state (exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale) VALUES (?,?,?,?,?,?,?,?,?);";
+  private static final String SELECT = "SELECT exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale,openPricePercentage FROM external_instrument_state ORDER BY ID ASC;";
+  private static final String INSERT = "INSERT INTO external_instrument_state (exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale,openPricePercentage) VALUES (?,?,?,?,?,?,?,?,?,?);";
   private static final String UPDATE = "UPDATE external_instrument_state SET tradable=?,updated=?,pricescale=?,qtyscale=? WHERE exchange=? AND base=? AND quoted=? AND isFutures=?;";
 
   private static final ConcurrentHashMap<String, XExchange.SymbolStatus> SYMBOL_CACHE = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, org.knowm.xchange.instrument.Instrument> INSTRUMENT_CACHE = new ConcurrentHashMap<>();
-  private static final long DEFAULT_CLOSE_PRICE_PERCENTAGE = 2_000; //2,000 => 0.2% scaled by 4
 
   public static void onLoad(final String key, final XExchange.SymbolStatus instrument) {
     SYMBOL_CACHE.put(key, instrument);
@@ -46,16 +48,6 @@ public class ExternalInstrumentCache implements Constants{
     return status != null && status.isTradable();
   }
 
-  public static long getClosePricePercentage(final String exchange, final String base, final String quoted, final boolean isFutures) {
-    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"0")).toLowerCase();
-    final XExchange.SymbolStatus status = SYMBOL_CACHE.get(key);
-    if (status != null) {
-      return status.getClosePricePercentage();
-    }
-
-    return DEFAULT_CLOSE_PRICE_PERCENTAGE;
-  }
-
   public static void loadFromDB(final AtomicInteger loaderCounter) {
     int count = 0;
     final long t0 = System.currentTimeMillis();
@@ -72,6 +64,8 @@ public class ExternalInstrumentCache implements Constants{
         boolean isFutures = rs.getBoolean(7);
         int priceScale = rs.getInt(8);
         int qtyScale = rs.getInt(9);
+        long openPricePercentage = rs.getLong(10);
+
         final XExchange.SymbolStatus instrument = new XExchange.SymbolStatus();
         instrument.setExchange(exchange);
         instrument.setBase(base);
@@ -82,6 +76,7 @@ public class ExternalInstrumentCache implements Constants{
         instrument.setFutures(isFutures);
         instrument.setPriceScale(priceScale);
         instrument.setQtyScale(qtyScale);
+        instrument.setOpenPricePercentage(openPricePercentage);
 
         onLoad(instrument.getKey(), instrument);
         count++;
@@ -115,9 +110,12 @@ public class ExternalInstrumentCache implements Constants{
   private static void saveToDB(final XExchange.SymbolStatus instrument) {
     final String key = instrument.getKey();
     if (SYMBOL_CACHE.containsKey(key)) {
+      instrument.setOpenPricePercentage(SYMBOL_CACHE.get(key).getOpenPricePercentage());
       instrument.setClosePricePercentage(SYMBOL_CACHE.get(key).getClosePricePercentage());
       updateDB(instrument);
     } else {
+      instrument.setOpenPricePercentage(DEFAULT_OPEN_PRICE_PERCENTAGE);
+      instrument.setClosePricePercentage(DEFAULT_CLOSE_PRICE_PERCENTAGE);
       addToDB(instrument);
     }
     onLoad(key, instrument);
@@ -135,6 +133,7 @@ public class ExternalInstrumentCache implements Constants{
       ps.setBoolean(7, instrument.isFutures());
       ps.setInt(8, instrument.getPriceScale());
       ps.setInt(9, instrument.getQtyScale());
+      ps.setLong(10, instrument.getOpenPricePercentage());
 
       ps.executeUpdate();
 

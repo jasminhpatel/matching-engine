@@ -54,14 +54,14 @@ public class ExternalExchangeUtil {
     final String exchangeUpper = exchange.toUpperCase();
     XExchange xExchange = null;
     ExchangeSpecification specification = null;
-    int count = 0;
-    while (count < 3) {
-      count ++;
+    int retryCount = 0;
+    while (retryCount < 3) {
+      retryCount ++;
       try {
         switch (exchangeUpper) {
           case "BINANCE": {
             specification = new BinanceExchange().getDefaultExchangeSpecification();
-            processSpecification(specification, null);
+            processSpecification(specification, null, retryCount);
 
             xExchange = new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
@@ -71,7 +71,7 @@ public class ExternalExchangeUtil {
             //below two keys are only for internal validations done by the XChange library. not sent to exchange
             specification.setApiKey("fqWsXvp4L53VvTkdX4");
             specification.setSecretKey("G1wcCfRwkhPulF2KbkXkMMLksUcE1cE0y9GI");
-            processSpecification(specification, null);
+            processSpecification(specification, null, retryCount);
 
             xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
@@ -82,7 +82,7 @@ public class ExternalExchangeUtil {
             //below two keys are only for internal validations done by the XChange library. not sent to exchange
             specification.setApiKey("mx0vglEiMdG2Rab34T");
             specification.setSecretKey("32dd98b573f3480c975df712c733f187");
-            processSpecification(specification, null);
+            processSpecification(specification, null, retryCount);
 
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
@@ -100,7 +100,7 @@ public class ExternalExchangeUtil {
           Thread.sleep(1000);
         }
       } catch (Exception e) {
-        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper, " attempt: ", count);
+        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", exchangeUpper, " attempt: ", retryCount);
         LOGGER.error(Constants.ERROR_LOG, e);
         try {
           Thread.sleep(1000);
@@ -118,14 +118,14 @@ public class ExternalExchangeUtil {
     final String exchange = subscription.getExchange().toUpperCase();
     XExchange xExchange = null;
     ExchangeSpecification specification = null;
-    int count = 0;
-    while (count < 3) {
+    int retryCount = 0;
+    while (retryCount < 3) {
       try {
-        count++;
+        retryCount++;
         switch (exchange) {
           case "BINANCE": {
             specification = new BinanceExchange().getDefaultExchangeSpecification();
-            processSpecification(specification, subscription);
+            processSpecification(specification, subscription, retryCount);
             if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
               if (subscription.isFuturesEnabled()) {
                 specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
@@ -143,7 +143,7 @@ public class ExternalExchangeUtil {
           }
           case "BYBIT": {
             specification = new BybitExchange().getDefaultExchangeSpecification();
-            processSpecification(specification, subscription);
+            processSpecification(specification, subscription, retryCount);
 
             if (subscription.isFuturesEnabled()) {
               specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.CONTRACT);
@@ -154,7 +154,7 @@ public class ExternalExchangeUtil {
           }
           case "MEXC": {
             specification = new MEXCExchange().getDefaultExchangeSpecification();
-            processSpecification(specification, subscription);
+            processSpecification(specification, subscription, retryCount);
 
             if (subscription.isFuturesEnabled()) {
               specification.setExchangeSpecificParametersItem(MEXCExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
@@ -187,7 +187,7 @@ public class ExternalExchangeUtil {
           Thread.sleep(1000);
         }
       } catch (Exception e) {
-        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange(), " attempt: ", count);
+        LOGGER.info(Constants.LOG_FMT_2, "Failed to load exchange: ", subscription.getExchange(), " attempt: ", retryCount);
         LOGGER.error(Constants.ERROR_LOG, e);
         try {
           Thread.sleep(1000);
@@ -219,7 +219,8 @@ public class ExternalExchangeUtil {
     }
   }
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription) {
+  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription,
+      final int retryCount) {
     if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
       specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
     }
@@ -236,6 +237,9 @@ public class ExternalExchangeUtil {
           matcherToPublisherQueue.addGuaranteed(subscription);
         }
         specification.setProxyHost(subscription.getLastUsedProxy());
+        if (retryCount > 0) {//use a different proxy in the next attempt
+          specification.setProxyHost(getRandomProxy(subscription));
+        }
         specification.setProxyPort(8888);
       }
     } else {
@@ -250,6 +254,20 @@ public class ExternalExchangeUtil {
     if (PROXIES != null) {
       int index = (int) (subscriptionId % PROXIES.length);
       return PROXIES[index];
+    }
+    return null;
+  }
+
+  private static String getRandomProxy(final InfluencerSubscription subscription) {
+    if (PROXIES != null) {
+      int randomIndex = RANDOM.nextInt(PROXIES.length);
+      String proxy = PROXIES[randomIndex % PROXIES.length];
+      // if random proxy is the same proxy try next one
+      if (proxy.equalsIgnoreCase(subscription.getLastUsedProxy())) {
+        randomIndex = RANDOM.nextInt(randomIndex);
+        proxy = PROXIES[randomIndex % PROXIES.length];
+      }
+      return proxy;
     }
     return null;
   }

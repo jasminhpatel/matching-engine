@@ -256,27 +256,41 @@ public abstract class XExchange implements Exchange {
 
   public void updateOrderStatus(final CopyTrade copyTrade) throws Exception {
     final TradeService tradeService = getTradeService();
-    final OrderQueryParams orderQueryParams = ExternalExchangeUtil.createOrderQueryParams(copyTrade.getExchange(), copyTrade.getInstrument(),
-        copyTrade.getExternalId(), copyTrade.isFuturesEnabled());
-    final Collection<Order> orders = tradeService.getOrder(orderQueryParams);
-    if (orders != null && !orders.isEmpty()) {
-      Order summary = orders.iterator().next();
-      copyTrade.setPriceScale((short) 4);
-      if (summary.getAveragePrice() != null)
-        copyTrade.setPrice(MbxMath.changeScale(summary.getAveragePrice().doubleValue(), copyTrade.getPriceScale()));
-      copyTrade.setOriginalAmount(summary.getOriginalAmount().doubleValue());
-      copyTrade.setCumulativeAmount(summary.getCumulativeAmount().doubleValue());
-      copyTrade.setStatus(summary.getStatus().name());
+    int retryCount = 0;
+    Thread.sleep(50);
+    while (retryCount < 5) {
+      retryCount++;
+      try {
+        final OrderQueryParams orderQueryParams =
+            ExternalExchangeUtil.createOrderQueryParams(copyTrade.getExchange(), copyTrade.getInstrument(), copyTrade.getExternalId(),
+                copyTrade.isFuturesEnabled());
+        final Collection<Order> orders = tradeService.getOrder(orderQueryParams);
+        if (orders != null && !orders.isEmpty()) {
+          Order summary = orders.iterator().next();
+          copyTrade.setPriceScale((short) 4);
+          if (summary.getAveragePrice() != null)
+            copyTrade.setPrice(MbxMath.changeScale(summary.getAveragePrice().doubleValue(), copyTrade.getPriceScale()));
+          copyTrade.setOriginalAmount(summary.getOriginalAmount().doubleValue());
+          copyTrade.setCumulativeAmount(summary.getCumulativeAmount().doubleValue());
+          copyTrade.setStatus(summary.getStatus().name());
+          if ("FILLED".equalsIgnoreCase(copyTrade.getStatus())) {
+            break;
+          }
+        }
+        Thread.sleep(250);
+      } catch (Exception e) {
+        LOGGER.error(ERROR_LOG + " in updateOrderStatus clOrdId: " + copyTrade.getClOrdId(), e);
+      }
     }
   }
 
   public double getFilledQuantity(final String exchange, Instrument instrument, final String reference, final boolean futuresEnabled, final String clOrdId) {
     Order summary = null;
-    int count = 0;
-    while (count < 5) {
+    int retryCount = 0;
+    while (retryCount < 5) {
       try {
         Thread.sleep(50);
-        count++;
+        retryCount++;
         Order.OrderStatus status = null;
         double filledQty = 0;
         final TradeService tradeService = getTradeService();
@@ -292,7 +306,7 @@ public abstract class XExchange implements Exchange {
             }
           }
         }
-        LOGGER.info(Constants.LOG_FMT_6, "Convert order status. clOrdId: ", clOrdId, " status: " + status + "count: " + count
+        LOGGER.info(Constants.LOG_FMT_6, "Convert order status. clOrdId: ", clOrdId, " status: " + status + "count: " + retryCount
         + " filledQty:" + filledQty);
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
@@ -415,7 +429,8 @@ public abstract class XExchange implements Exchange {
     private boolean futures;
     private boolean tradable;
     private long updated;
-    private long closePricePercentage = 2000;
+    private long openPricePercentage = 100_000;
+    private long closePricePercentage = 100_000;
     private int priceScale;
     private int qtyScale;
 
@@ -477,6 +492,14 @@ public abstract class XExchange implements Exchange {
 
     public void setUpdated(long updated) {
       this.updated = updated;
+    }
+
+    public long getOpenPricePercentage() {
+      return openPricePercentage;
+    }
+
+    public void setOpenPricePercentage(long openPricePercentage) {
+      this.openPricePercentage = openPricePercentage;
     }
 
     public long getClosePricePercentage() {

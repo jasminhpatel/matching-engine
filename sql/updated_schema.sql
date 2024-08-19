@@ -1400,7 +1400,7 @@ ALTER TABLE copy_trade_state ADD closeClOrdId VARCHAR(32);
 ALTER TABLE copy_trade_state ADD closed bool default false;
 ALTER TABLE subscription_state ADD hasPendingClose bool default false;
 
-ALTER TABLE external_instrument_state ADD closePricePercentage int default 2000;--2000 => 20%
+ALTER TABLE external_instrument_state ADD closePricePercentage int default 50000;--50000 => 5%
 
 ALTER TABLE copy_trade_state ADD borrowedAmount double precision default 0;
 ALTER TABLE copy_trade_state ADD repaid bool default false;
@@ -1471,3 +1471,4 @@ CREATE TABLE public.exchange_default_quote (
 
 ALTER TABLE external_instrument_state ADD priceScale int default 2;
 ALTER TABLE external_instrument_state ADD qtyScale int default 2;
+ALTER TABLE external_instrument_state ADD openPricePercentage int default 100000;--2000 => 20%

@@ -33,6 +33,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.solfini.matchengine.copytrade.ExternalInstrumentCache.PRICE_PERCENTAGE_SCALE;
+
 public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeOrderBook.class);
   private static final ManyToManyConcurrentArrayQueueCustom<Message> COPY_TRADE_QUEUE = Context.getCopyTradeQueue();
@@ -57,7 +59,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   static {
     defaultMetadata = new InstrumentMetaData.Builder()
         .marketOrderEnabled(false)
-        .minimumAmount(new BigDecimal("10"))
+        .minimumAmount(new BigDecimal("50"))
         .maximumAmount(new BigDecimal("5000000"))
         .priceScale(2)
         .volumeScale(2)
@@ -664,6 +666,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         return;
       }
+      //openPricePercentage is scaled by 4
+      long openPricePercentage = symbolStatus.getOpenPricePercentage();
+      if (Side.SELL == copyTrade.getSide()) {
+        price = price - (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      } else {
+        price = price + (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      }
 
       //check exchange balance
       XExchange.Balance balance = null;
@@ -997,15 +1006,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
       }
 
-      XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol()
-          , closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
-      double price =
-          ExternalExchangeHandler.getPrice(closeCopyTrade.getSubscription(), currencyPair, instrument, closeCopyTrade.getSide(), xExchange);
-
       closeCopyTrade.setCurrencyPair(currencyPair);
       closeCopyTrade.setInstrument(instrument);
       openCopyTrade.setCurrencyPair(currencyPair);
       openCopyTrade.setInstrument(instrument);
+      XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol()
+          , closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
+      double price =
+          ExternalExchangeHandler.getPrice(closeCopyTrade.getSubscription(), currencyPair, instrument, closeCopyTrade.getSide(), xExchange);
 
       if (price == 0) {
         LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: " + price);
@@ -1017,16 +1025,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
       }
       //closePricePercentage is scaled by 4
-      long closePricePercentage =
-          ExternalInstrumentCache.getClosePricePercentage(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol(),
-              closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
+      long closePricePercentage = symbolStatus.getClosePricePercentage();
       BigDecimal xPrice;
       if (Side.SELL == closeCopyTrade.getSide()) {
-        price = price - (price * closePricePercentage) / 1000000D;
+        price = price - (price * closePricePercentage) / PRICE_PERCENTAGE_SCALE;
         xPrice = new BigDecimal(price);
         xPrice = xPrice.setScale(symbolStatus.getPriceScale(), RoundingMode.HALF_DOWN);
       } else {
-        price = price + (price * closePricePercentage) / 1000000D;
+        price = price + (price * closePricePercentage) / PRICE_PERCENTAGE_SCALE;
         xPrice = new BigDecimal(price);
         xPrice = xPrice.setScale(symbolStatus.getPriceScale(), RoundingMode.HALF_UP);
       }
