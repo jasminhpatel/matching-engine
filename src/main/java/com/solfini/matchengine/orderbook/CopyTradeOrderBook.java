@@ -27,6 +27,7 @@ import com.solfini.util.MbxMath;
 import org.agrona.concurrent.IdleStrategy;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
+import org.knowm.xchange.exceptions.ExchangeException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -943,7 +944,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             }
           }
           signalTradeValue = availableBalance;
-        } catch (Exception e) {
+        } catch (ExchangeException e) {
           LOGGER.error(ERROR_LOG, e);
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " failed to convert.");
 
@@ -952,7 +953,17 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           matcherToPublisherQueue.addGuaranteed(copyTrade);
 
           return;
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, e);
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " failed to convert.");
+
+          copyTrade.setResult("REJECTED: failed to convert stable currencies.");
+          copyTrade.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+          return;
         }
+
       }
       double quantity = MbxMath.roundToBestPrecision(signalTradeValue / xPrice.doubleValue());
 
