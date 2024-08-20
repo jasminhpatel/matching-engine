@@ -232,7 +232,8 @@ public class ExternalExchangeUtil {
 
       if (PROXIES != null ) {
         if (subscription.getLastUsedProxy() == null) {
-          subscription.setLastUsedProxy(getStickyProxy(subscription.getId()));
+          //assign a sticky proxy per user because an exchange account can be shared among multiple subscriptions by the same user
+          subscription.setLastUsedProxy(getStickyProxy(subscription.getUserId()));
           //to persist lastUsedProxy
           matcherToPublisherQueue.addGuaranteed(subscription);
         }

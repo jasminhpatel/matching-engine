@@ -52,6 +52,7 @@ public interface Constants {
   public static final String TRUE = "true";
   public static final String FALSE = "false";
   public static final String NO_OP_IDLE_STATEGY = "NoOpIdleStrategy";
+  public static final String YIELDING_IDLE_STRATEGY = "YieldingIdleStrategy";
   public static final String ERROR_LOG = "Error";
   public static final String WARN_LOG = "Warn";
   public static final String MODE = "mode";

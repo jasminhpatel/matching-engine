@@ -70,7 +70,7 @@ public class ExternalExchangeHandler {
 
   public static XExchange.Balance getStableCoinBalance(final InfluencerSubscription subscription, final XExchange xExchange) {
     String key = (subscription.getId() + "_buy").toLowerCase();
-    LOGGER.info("Balance key: " + key + " subscriptionId: " + subscription.getId());
+
     XExchange.Balance balance = BALANCE_CACHE.get(key);
     if (balance == null || balance.getLastUpdated() <= (System.currentTimeMillis() - TWO_MINUTE)) {
       synchronized (subscription) {
@@ -81,13 +81,12 @@ public class ExternalExchangeHandler {
         }
       }
     }
-
+    LOGGER.info(LOG_FMT_6, "Balance key: ", key, " subscriptionId: ", subscription.getId(), " balance: ", balance.toJson());
     return balance;
   }
 
   public static XExchange.Balance getBalance(final InfluencerSubscription subscription, final XExchange xExchange, final String symbol) {
     String key = (subscription.getId() + "_sell_" + symbol).toLowerCase();
-    LOGGER.info("Balance key: " + key + " subscriptionId: " + subscription.getId());
     XExchange.Balance balance = BALANCE_CACHE.get(key);
     if (balance == null || balance.getLastUpdated() <= (System.currentTimeMillis() - TWO_MINUTE)) {
       synchronized (subscription) {
@@ -98,6 +97,7 @@ public class ExternalExchangeHandler {
         }
       }
     }
+    LOGGER.info(LOG_FMT_6, "Balance key: ", key, " subscriptionId: ", subscription.getId(), " balance: ", balance.toJson());
 
     return balance;
   }

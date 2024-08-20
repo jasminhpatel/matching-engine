@@ -158,6 +158,7 @@ public final class Context implements Constants {
   private static final String MATCHING_THREAD_IDLE = PropertyReader.getProperty("MATCHING_THREAD_IDLE", NO_OP_IDLE_STATEGY);
   private static final String PUBLISHER_THREAD_IDLE = PropertyReader.getProperty("PUBLISHER_THREAD_IDLE", NO_OP_IDLE_STATEGY);
   private static final String RISK_THREAD_IDLE = PropertyReader.getProperty("RISK_THREAD_IDLE", NO_OP_IDLE_STATEGY);
+  private static final String COPY_TRADE_THREAD_IDLE = PropertyReader.getProperty("COPY_TRADE_THREAD_IDLE", YIELDING_IDLE_STRATEGY);
 
   private static final int INACTIVE_MARKET_DATA_PUBLISH_TIME = PropertyReader.getProperty("INACTIVE_MARKET_DATA_PUBLISH_TIME", 300_000);
   private static final String ENVIRONMENT = PropertyReader.getProperty("ENVIRONMENT", "PRODUCTION");
@@ -809,5 +810,9 @@ public final class Context implements Constants {
 
   public static double getCopyTradeStableCoinConversionSafeFactor() {
     return COPY_TRADE_STABLE_COIN_CONVERSION_SAFE_FACTOR;
+  }
+
+  public static String getCopyTradeThreadIdle() {
+    return COPY_TRADE_THREAD_IDLE;
   }
 }

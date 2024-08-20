@@ -24,14 +24,18 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import com.solfini.util.MbxMath;
+import org.agrona.concurrent.IdleStrategy;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 import static com.solfini.matchengine.copytrade.ExternalInstrumentCache.PRICE_PERCENTAGE_SCALE;
 
@@ -39,6 +43,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeOrderBook.class);
   private static final ManyToManyConcurrentArrayQueueCustom<Message> COPY_TRADE_QUEUE = Context.getCopyTradeQueue();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> MATCHER_TO_PUBLISHER_QUEUE = Context.getMatcherToPublisherQueue();
+  private static final ConcurrentHashMap<Integer, AtomicBoolean> USER_LOCK_MAP = new ConcurrentHashMap<>();
   private static final int NO_OF_THREADS = Context.getRouterThreadPoolCoreSize();
   //private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(NO_OF_THREADS);
   private static final ExecutorService EXECUTOR_SERVICE = Executors.newVirtualThreadPerTaskExecutor();
@@ -66,7 +71,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         .build();
     if (Context.isCopyTradeEnabled()) {
       for (int i = 1; i <= NO_OF_THREADS; i++) {
-        EXECUTOR_SERVICE.submit(new Router());
+        EXECUTOR_SERVICE.submit(new Router(IdleStrategyFactory.create(Context.getCopyTradeThreadIdle())));
       }
     }
   }
@@ -559,10 +564,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
   public static class Router implements Runnable {
     private final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
+    private final IdleStrategy idleStrategy;
+
+    public Router(IdleStrategy idleStrategy) {
+      this.idleStrategy = idleStrategy;
+    }
 
     @Override
     public void run() {
       while (true) {
+        AtomicBoolean userLock = null;
         try {
           final Message message = COPY_TRADE_QUEUE.poll();
 
@@ -571,6 +582,17 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           if (message instanceof CopyTrade copyTrade) {
             LOGGER.info(Constants.LOG_FMT_2, "Processing copy trade: ", copyTrade.getClOrdId(), " isToClose: ", copyTrade.isToClose());
+            //serialises all copy trades per user
+            userLock = lock(copyTrade);
+            if (userLock == null) {
+              LOGGER.info(Constants.LOG_FMT_2, "Order rejected. Failed to lock user. clOrdId: ", copyTrade.getClOrdId(), " timeout. sent: ", copyTrade.getSourceSendTime(),
+                  " processed: ", System.currentTimeMillis());
+
+              copyTrade.setResult("REJECTED: Timeout.");
+              matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+              continue;
+            }
             if (copyTrade.isToClose()) {
               processCloseOrder(copyTrade, copyTrade.getOpenOrder());
             } else {
@@ -583,7 +605,28 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         } catch (Exception e) {
           LOGGER.error(Constants.ERROR_LOG, e);
         }
+        if (userLock != null) {
+          release(userLock);
+        }
+        idleStrategy.idle();
       }
+    }
+
+    private AtomicBoolean lock(final CopyTrade copyTrade) {
+      final long start = System.currentTimeMillis();
+      final AtomicBoolean userLock = USER_LOCK_MAP.computeIfAbsent(copyTrade.getUserId(), v -> new AtomicBoolean(false));
+      while (!userLock.compareAndSet(false, true)) {
+        LockSupport.parkNanos(50_000_000);// 50 ms
+        if (System.currentTimeMillis() - start > ONE_MINUTE) {
+          LOGGER.info(LOG_FMT_2, "Waiting more than 1 min to acquire a lock for order :", copyTrade.getClOrdId());
+          return null;
+        }
+      }
+      return userLock;
+    }
+
+    private void release(final AtomicBoolean userLock) {
+      userLock.set(false);
     }
 
     private void processOpenOrder(final CopyTrade copyTrade) {
@@ -904,7 +947,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           LOGGER.error(ERROR_LOG, e);
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " failed to convert.");
 
-          copyTrade.setResult("REJECTED: Failed to convert stable coins.");
+          copyTrade.setResult("REJECTED: " + e.getMessage());
           copyTrade.setxExchange(null);
           matcherToPublisherQueue.addGuaranteed(copyTrade);
 
@@ -1007,8 +1050,17 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       openCopyTrade.setCurrencyPair(currencyPair);
       openCopyTrade.setInstrument(instrument);
       //if open order status is not updated.
-      if (!"FILLED".equalsIgnoreCase(openCopyTrade.getStatus())) {
+      if (!ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTrade.getStatus())) {
         updateOrderStatus(openCopyTrade);
+      }
+      if (!(openCopyTrade.getStatus() != null && openCopyTrade.getStatus().contains(ORDER_STATUS_FILLED))) {
+        LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ", openCopyTrade.getClOrdId());
+
+        closeCopyTrade.setResult("REJECTED: Failed to fetch price.");
+        closeCopyTrade.setxExchange(null);
+        matcherToPublisherQueue.addGuaranteed(closeCopyTrade);
+
+        return;
       }
       XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol()
           , closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
@@ -1016,7 +1068,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           ExternalExchangeHandler.getPrice(closeCopyTrade.getSubscription(), currencyPair, instrument, closeCopyTrade.getSide(), xExchange);
 
       if (price == 0) {
-        LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: " + price);
+        LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: ", price);
 
         closeCopyTrade.setResult("REJECTED: Failed to fetch price.");
         closeCopyTrade.setxExchange(null);

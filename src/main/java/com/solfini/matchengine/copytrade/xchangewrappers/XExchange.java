@@ -415,6 +415,7 @@ public abstract class XExchange implements Exchange {
       sb.append("\"usdBalance\":").append(usdBalance);
       sb.append(",\"usdcBalance\":").append(usdcBalance);
       sb.append(",\"usdtBalance\":").append(usdtBalance);
+      sb.append(",\"coinBalance\":").append(coinBalance);
       sb.append(",\"lastUpdated\":").append(lastUpdated);
       sb.append('}');
       return sb.toString();
