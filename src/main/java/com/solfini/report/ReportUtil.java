@@ -583,7 +583,7 @@ public class ReportUtil implements Constants {
     final DecimalFormat usdDf = new DecimalFormat("$###,###,###,###,###.##");
     final StringBuilder sb = new StringBuilder();
     try {
-      LOGGER.warn(LOG_FMT_4, "user", label, ": ", user);
+      LOGGER.warn(LOG_FMT_4, "user ", label, ": ", user);
 
       final Position[] arr = user.getPositionArr();
       if (arr != null) {

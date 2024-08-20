@@ -572,11 +572,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           if (message instanceof CopyTrade copyTrade) {
             LOGGER.info(Constants.LOG_FMT_2, "Processing copy trade: ", copyTrade.getClOrdId(), " isToClose: ", copyTrade.isToClose());
             if (copyTrade.isToClose()) {
-              if (copyTrade.getStatus() != null) {
+              if ("FILLED".equalsIgnoreCase(copyTrade.getStatus())) {
                 updateOrderStatus(copyTrade);
-              } else {
-                processCloseOrder(copyTrade, copyTrade.getOpenOrder());
               }
+              processCloseOrder(copyTrade, copyTrade.getOpenOrder());
             } else {
               processOpenOrder(copyTrade);
             }
