@@ -572,9 +572,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           if (message instanceof CopyTrade copyTrade) {
             LOGGER.info(Constants.LOG_FMT_2, "Processing copy trade: ", copyTrade.getClOrdId(), " isToClose: ", copyTrade.isToClose());
             if (copyTrade.isToClose()) {
-              if (!"FILLED".equalsIgnoreCase(copyTrade.getStatus())) {
-                updateOrderStatus(copyTrade);
-              }
               processCloseOrder(copyTrade, copyTrade.getOpenOrder());
             } else {
               processOpenOrder(copyTrade);
@@ -966,7 +963,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     }
 
-    private void processCloseOrder(final CopyTrade closeCopyTrade, final CopyTrade openCopyTrade) {
+    private void processCloseOrder(final CopyTrade closeCopyTrade, final CopyTrade openCopyTrade) throws Exception {
       final String clOrdId = closeCopyTrade.getClOrdId();
       final long now = System.currentTimeMillis();
 
@@ -1009,6 +1006,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       closeCopyTrade.setInstrument(instrument);
       openCopyTrade.setCurrencyPair(currencyPair);
       openCopyTrade.setInstrument(instrument);
+      //if open order status is not updated.
+      if (!"FILLED".equalsIgnoreCase(openCopyTrade.getStatus())) {
+        updateOrderStatus(openCopyTrade);
+      }
       XExchange.SymbolStatus symbolStatus = ExternalInstrumentCache.getSymbolStatus(closeCopyTrade.getExchange(), closeCopyTrade.getBaseSymbol()
           , closeCopyTrade.getQuotedSymbol(), closeCopyTrade.isFuturesEnabled());
       double price =
