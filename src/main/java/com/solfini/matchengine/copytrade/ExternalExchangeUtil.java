@@ -260,11 +260,11 @@ public class ExternalExchangeUtil {
 
   private static String getRandomProxy(final InfluencerSubscription subscription) {
     if (PROXIES != null) {
-      int randomIndex = RANDOM.nextInt(PROXIES.length);
+      int randomIndex = RANDOM.nextInt(PROXIES.length + 1);
       String proxy = PROXIES[randomIndex % PROXIES.length];
       // if random proxy is the same proxy try next one
       if (proxy.equalsIgnoreCase(subscription.getLastUsedProxy())) {
-        randomIndex = RANDOM.nextInt(randomIndex);
+        randomIndex = RANDOM.nextInt(randomIndex + 1);
         proxy = PROXIES[randomIndex % PROXIES.length];
       }
       return proxy;
