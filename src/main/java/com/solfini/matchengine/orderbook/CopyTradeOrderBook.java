@@ -23,6 +23,7 @@ import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
+import com.solfini.user.UserCache;
 import com.solfini.util.MbxMath;
 import org.agrona.concurrent.IdleStrategy;
 import org.knowm.xchange.currency.CurrencyPair;
@@ -32,7 +33,6 @@ import org.knowm.xchange.exceptions.ExchangeException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,7 +44,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   private static final CustomLogger LOGGER = CustomLogger.getLogger(CopyTradeOrderBook.class);
   private static final ManyToManyConcurrentArrayQueueCustom<Message> COPY_TRADE_QUEUE = Context.getCopyTradeQueue();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> MATCHER_TO_PUBLISHER_QUEUE = Context.getMatcherToPublisherQueue();
-  private static final ConcurrentHashMap<Integer, AtomicBoolean> USER_LOCK_MAP = new ConcurrentHashMap<>();
   private static final int NO_OF_THREADS = Context.getRouterThreadPoolCoreSize();
   //private static final ExecutorService EXECUTOR_SERVICE = Executors.newFixedThreadPool(NO_OF_THREADS);
   private static final ExecutorService EXECUTOR_SERVICE = Executors.newVirtualThreadPerTaskExecutor();
@@ -615,7 +614,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     private AtomicBoolean lock(final CopyTrade copyTrade) {
       final long start = System.currentTimeMillis();
-      final AtomicBoolean userLock = USER_LOCK_MAP.computeIfAbsent(copyTrade.getUserId(), v -> new AtomicBoolean(false));
+      final AtomicBoolean userLock = UserCache.get(copyTrade.getUserId()).getCopyTradeLock();
       while (!userLock.compareAndSet(false, true)) {
         LockSupport.parkNanos(50_000_000);// 50 ms
         if (System.currentTimeMillis() - start > ONE_MINUTE) {

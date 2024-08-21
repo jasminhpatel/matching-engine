@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.solfini.common.Appendable;
 import com.solfini.common.Constants;
@@ -94,6 +95,7 @@ public class User implements Appendable, Serializable, Constants {
   private Position[] positionArr;
 
   private PositionReportMessage prevPositionReport; // used for reporting
+  private AtomicBoolean copyTradeLock = new AtomicBoolean(false);
 
   public User(final int userId) {
     this.id = userId;
@@ -825,6 +827,10 @@ public class User implements Appendable, Serializable, Constants {
 
   public final void setPrevPositionReport(final PositionReportMessage prevPositionReport) {
     this.prevPositionReport = prevPositionReport;
+  }
+
+  public AtomicBoolean getCopyTradeLock() {
+    return copyTradeLock;
   }
 
   // must be called from the matching thread
