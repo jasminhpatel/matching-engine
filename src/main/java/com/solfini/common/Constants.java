@@ -170,6 +170,7 @@ public interface Constants {
   public static final int TWO_MINUTE = 120_000;
   public static final int FIVE_MINUTE = 300_000;
   public static final int SIX_MINUTE = 360_000;
+  public static final int TEN_MINUTES = 600_000;
   public static final int FIFTEEN_MINUTE = 900_000;
   public static final int ONE_HOUR = 3_600_000;
   public static final int SIX_HOUR = 21_600_000;

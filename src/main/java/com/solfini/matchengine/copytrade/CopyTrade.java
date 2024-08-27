@@ -67,7 +67,7 @@ public class CopyTrade extends Message {
   public CopyTrade() {}
 
   public CopyTrade(final String clOrdId, final String baseSymbol, final String quotedSymbol, final InstrumentPair pair, final Order order,
-      final InfluencerSubscription subscription) {
+      final InfluencerSubscription subscription, final String accountId) {
     this.userId = subscription.getUserId();
     this.securityId = pair.getId();
     this.subscriptionId = subscription.getId();
@@ -76,7 +76,7 @@ public class CopyTrade extends Message {
     this.origClOrdId = order.getClOrdId();
     this.clOrdId = clOrdId;
     this.platform = subscription.getPlatform();
-    this.accountId = subscription.getAccountId();
+    this.accountId = accountId;
     this.exchange = subscription.getExchange();
     this.side = order.getSide();
     this.ordType = order.getOrdType();

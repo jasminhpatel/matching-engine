@@ -39,15 +39,15 @@ public class InfluencerSymbolsCache {
     int count = 0;
     final long t0 = System.currentTimeMillis();
     try (final Connection conn = DBManager.getConnection();
-        final PreparedStatement userPS = conn.prepareStatement(SELECT);
-        final ResultSet rs = userPS.executeQuery();) {
+        final PreparedStatement ps = conn.prepareStatement(SELECT);
+        final ResultSet rs = ps.executeQuery();) {
       while (rs.next()) {
         final UserSymbols userSymbols = parse(rs);
 
         onLoad(userSymbols);
         count++;
       }
-      LOGGER.info(LOG_FMT_1, "InfluencerSymbolsCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
+      LOGGER.info(LOG_FMT_4, "InfluencerSymbolsCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
       loaderCounter.decrementAndGet();
     } catch (final Exception e) {
       System.out.println(e.getMessage());

@@ -42,7 +42,7 @@ public class BinanceTest {
     subscription.setId(1);
     subscription.setUserId(2);
     subscription.setPlatform("YOUTUBE");
-    subscription.setAccountId("wrohanc");
+    subscription.setAccountIds(new String[] {"wrohanc"});
     subscription.setExchange("BINANCE");
     subscription.setPercentage(100);
     subscription.setMaxAmount(1000);

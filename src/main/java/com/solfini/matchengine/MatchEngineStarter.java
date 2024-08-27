@@ -3,10 +3,11 @@ package com.solfini.matchengine;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.solfini.matchengine.copytrade.*;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -157,7 +158,7 @@ public class MatchEngineStarter implements Constants {
 
   private void loadCachesFromDB() {
     if (Context.isCopyTradeEnabled()) {
-      final AtomicInteger loaderCounter = new AtomicInteger(8);
+      final AtomicInteger loaderCounter = new AtomicInteger(9);
       new Thread(() -> {
         InfluencerSubscriptionCache.loadFromDB(loaderCounter);
         while (true) {
@@ -251,6 +252,35 @@ public class MatchEngineStarter implements Constants {
             Thread.sleep(ONE_HOUR);
             DefaultExchangeQuoteCache.loadFromDB(null);
           } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        TickerTopBottomAccountCache.loadFromDB(loaderCounter);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, Context.getTopBottomReloadHourInCest());
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        calendar.add(Calendar.DATE, 1);
+        LocalDateTime nextUpdate = LocalDateTime.ofInstant(calendar.toInstant(), calendar.getTimeZone().toZoneId());
+
+        while (true) {
+          try {
+            Thread.sleep(FIVE_MINUTE);
+            TickerTopBottomAccountCache.loadFromDB(null);
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isAfter(nextUpdate)) {
+              calendar.add(Calendar.DATE, 1);
+              nextUpdate = LocalDateTime.ofInstant(calendar.toInstant(), calendar.getTimeZone().toZoneId());
+              LOGGER.info("TickerTopBottomAccountCache.reloadFromDb() next: " + nextUpdate);
+
+              TickerTopBottomAccountCache.reloadTopUsersFromDB();
+            }
+          } catch (Exception e) {
+            LOGGER.error(ERROR_LOG, e);
           }
         }
       }).start();

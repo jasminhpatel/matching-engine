@@ -1472,3 +1472,5 @@ CREATE TABLE public.exchange_default_quote (
 ALTER TABLE external_instrument_state ADD priceScale int default 2;
 ALTER TABLE external_instrument_state ADD qtyScale int default 2;
 ALTER TABLE external_instrument_state ADD openPricePercentage int default 100000;--2000 => 20%
+
+ALTER TABLE subscription_state ADD subscriptionType int DEFAULT 1;

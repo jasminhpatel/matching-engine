@@ -177,6 +177,7 @@ public final class Context implements Constants {
   private static final String COPY_TRADE_USER_PARTITION_IDS = PropertyReader.getProperty("COPY_TRADE_USER_PARTITION_IDS", "0,1,2");//all 3 partitions
   private static final int NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS = PropertyReader.getProperty("NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS", 3);
   private static final boolean REJECT_OUT_OF_BOUND_ORDERS = TRUE.equalsIgnoreCase(PropertyReader.getProperty("REJECT_OUT_OF_BOUND_ORDERS", FALSE));
+  private static final int TOP_BOTTOM_RELOAD_HOUR_IN_CEST = PropertyReader.getProperty("TOP_BOTTOM_RELOAD_HOUR_IN_CEST", 7); // 7 am CEST => 1am EST
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
@@ -814,5 +815,9 @@ public final class Context implements Constants {
 
   public static String getCopyTradeThreadIdle() {
     return COPY_TRADE_THREAD_IDLE;
+  }
+
+  public static int getTopBottomReloadHourInCest() {
+    return TOP_BOTTOM_RELOAD_HOUR_IN_CEST;
   }
 }

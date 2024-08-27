@@ -65,7 +65,7 @@ public class CopyTradeOrderBookTest {
       influencerSubscription.setId(i);
       influencerSubscription.setUserId(mod);
       influencerSubscription.setPlatform("YOUTUBE");
-      influencerSubscription.setAccountId("wrohanc");
+      influencerSubscription.setAccountIds(new String[] {"wrohanc"});
       influencerSubscription.setExchange("BINANCE");
       influencerSubscription.setPercentage(100);
       influencerSubscription.setMaxAmount(1000);

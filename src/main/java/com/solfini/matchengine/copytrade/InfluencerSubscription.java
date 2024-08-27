@@ -6,10 +6,13 @@ import com.solfini.internal.schema.PayloadType;
 import com.solfini.matchengine.persist.Persister;
 
 public class InfluencerSubscription extends Message {
+  public static int TYPE_ACCOUNT = 1;
+  public static int TYPE_TOP = 2;
+  public static int TYPE_BOTTOM = 3;
   private long id;
   private int userId;
   private String platform;
-  private String accountId;
+  private String[] accountIds;
   private String exchange;
   private String apiUser;
   private String apiKey;
@@ -27,11 +30,12 @@ public class InfluencerSubscription extends Message {
   protected boolean hasPendingClose;
   protected boolean futuresEnabled;
   private String lastUsedProxy;
+  private int subscriptionType = TYPE_ACCOUNT;
 
   private long availableMaxAmount;
 
-  public String getKey() {
-    return (platform + "_" + accountId).toLowerCase();
+  public boolean isTopBottom() {
+    return (subscriptionType == TYPE_TOP || subscriptionType == TYPE_BOTTOM);
   }
 
   public long getId() {
@@ -58,12 +62,12 @@ public class InfluencerSubscription extends Message {
     this.platform = platform;
   }
 
-  public String getAccountId() {
-    return accountId;
+  public String[] getAccountIds() {
+    return accountIds;
   }
 
-  public void setAccountId(final String accountId) {
-    this.accountId = accountId;
+  public void setAccountIds(final String[] accountIds) {
+    this.accountIds = accountIds;
   }
 
   public String getExchange() {
@@ -198,6 +202,14 @@ public class InfluencerSubscription extends Message {
     this.lastUsedProxy = lastUsedProxy;
   }
 
+  public int getSubscriptionType() {
+    return subscriptionType;
+  }
+
+  public void setSubscriptionType(int subscriptionType) {
+    this.subscriptionType = subscriptionType;
+  }
+
   @Override
   public PayloadType getPayloadType() {
     return PayloadType.NULL_VAL;
@@ -239,7 +251,18 @@ public class InfluencerSubscription extends Message {
     sb.append("{\"id\":").append(id);
     sb.append(",\"userId\":").append(userId);
     sb.append(",\"platform\":\"").append(platform).append("\"");
-    sb.append(",\"accountId\":\"").append(accountId).append("\"");
+    if (accountIds != null && accountIds.length > 0) {
+      sb.append(",\"accountId\":[");
+      boolean addComma = false;
+      for (String account : accountIds) {
+        if (addComma) {
+          sb.append(",");
+        }
+        addComma = true;
+        sb.append("\"").append(account).append("\"");
+      }
+      sb.append("]");
+    }
     sb.append(",\"exchange\":\"").append(exchange).append("\"");
     sb.append(",\"apiUser\":\"").append(apiUser).append("\"");
     sb.append(",\"apiKey\":\"").append(apiKey).append("\"");
@@ -267,4 +290,5 @@ public class InfluencerSubscription extends Message {
   public StringBuilder appendTo(StringBuilder s) {
     return null;
   }
+
 }
