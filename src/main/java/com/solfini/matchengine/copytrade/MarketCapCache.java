@@ -63,9 +63,20 @@ public class MarketCapCache {
           String returnValue = null;
           if (response != null) {
             returnValue = response.getData();
+
+            final CMCError error = OBJECT_MAPPER.readValue(returnValue, CMCError.class);
+            if (error.getStatus() != null && error.getStatus().getErrorCode() == 1008) {
+              LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
+              LOGGER.info("Waiting for one minute and retry");
+              Thread.sleep(ONE_MINUTE);
+            } else {
+              LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
+              break;
+            }
+          } else {
+            LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
+            break;
           }
-          LOGGER.error(Constants.ERROR_LOG, "Failed to load market Cap from CoinMarketCap. ", returnValue);
-          break;
         }
       } while (total > loaded);
 
@@ -212,6 +223,33 @@ public class MarketCapCache {
 
     public void setMarketCapDominance(double marketCapDominance) {
       this.marketCapDominance = marketCapDominance;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private static class CMCError {
+    private CMCStatus status;
+
+    public CMCStatus getStatus() {
+      return status;
+    }
+
+    public void setStatus(CMCStatus status) {
+      this.status = status;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private static class CMCStatus {
+    @JsonProperty("error_code")
+    private int errorCode;
+
+    public int getErrorCode() {
+      return errorCode;
+    }
+
+    public void setErrorCode(int errorCode) {
+      this.errorCode = errorCode;
     }
   }
 
