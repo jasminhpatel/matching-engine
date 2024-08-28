@@ -26,6 +26,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
+import static org.knowm.xchange.Exchange.USE_SANDBOX;
+import static org.knowm.xchange.binance.dto.ExchangeType.FUTURES;
+import static org.knowm.xchange.binance.dto.ExchangeType.PORTFOLIO_MARGIN;
+
 public class BinanceTest {
   private static String[] PROXIES = {"38.242.225.103","83.171.249.86","45.8.133.149"};
   private static Random RANDOM = new Random();
@@ -102,16 +106,16 @@ public class BinanceTest {
         case "BINANCE": {
           specification = new BinanceExchange().getDefaultExchangeSpecification();
           processSpecification(specification, subscription);
-          if (!"PRODUCTION".equalsIgnoreCase("TEST")) {
+          if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
             if (subscription.isFuturesEnabled()) {
-              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+              specification.setExchangeSpecificParametersItem(USE_SANDBOX, true);
             }
           }
           if (subscription.hasLeverage()) {
-            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
+            specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, PORTFOLIO_MARGIN);
           }
           if (subscription.isFuturesEnabled()) {
-            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+            specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, FUTURES);
           }
 
           return new XBinanceExchange(createExchange(specification));

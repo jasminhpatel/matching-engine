@@ -21,6 +21,10 @@ import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
 import java.util.Random;
 
+import static org.knowm.xchange.Exchange.USE_SANDBOX;
+import static org.knowm.xchange.binance.dto.ExchangeType.FUTURES;
+import static org.knowm.xchange.binance.dto.ExchangeType.PORTFOLIO_MARGIN;
+
 public class ExternalExchangeUtil {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalExchangeUtil.class);
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
@@ -128,14 +132,14 @@ public class ExternalExchangeUtil {
             processSpecification(specification, subscription, retryCount);
             if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
               if (subscription.isFuturesEnabled()) {
-                specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+                specification.setExchangeSpecificParametersItem(USE_SANDBOX, true);
               }
             }
             if (subscription.hasLeverage()) {
-              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
+              specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, PORTFOLIO_MARGIN);
             }
             if (subscription.isFuturesEnabled()) {
-              specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+              specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, FUTURES);
             }
 
             xExchange = new XBinanceExchange(createExchange(specification));

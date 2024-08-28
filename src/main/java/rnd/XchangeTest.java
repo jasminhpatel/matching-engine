@@ -1,5 +1,6 @@
 package rnd;
 
+import com.solfini.common.Context;
 import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
 import com.solfini.matchengine.copytrade.InfluencerSubscription;
@@ -22,6 +23,10 @@ import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
 import java.util.Collection;
 import java.util.List;
+
+import static org.knowm.xchange.Exchange.USE_SANDBOX;
+import static org.knowm.xchange.binance.dto.ExchangeType.FUTURES;
+import static org.knowm.xchange.binance.dto.ExchangeType.PORTFOLIO_MARGIN;
 
 public class XchangeTest {
   public static void main(String[] args) throws Exception {
@@ -91,16 +96,16 @@ public class XchangeTest {
       case "BINANCE": {
         specification = new BinanceExchange().getDefaultExchangeSpecification();
         processSpecification(specification, subscription, exchange);
-        if (!"PRODUCTION".equalsIgnoreCase("TEST")) {
+        if (!"PRODUCTION".equalsIgnoreCase(Context.getEnvironment())) {
           if (subscription.isFuturesEnabled()) {
-            specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_USE_FUTURES_SANDBOX, true);
+            specification.setExchangeSpecificParametersItem(USE_SANDBOX, true);
           }
         }
         if (subscription.hasLeverage()) {
-          specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_PORTFOLIO_MARGIN_ENABLED, true);
+          specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, PORTFOLIO_MARGIN);
         }
         if (subscription.isFuturesEnabled()) {
-          specification.setExchangeSpecificParametersItem(BinanceExchange.SPECIFIC_PARAM_FUTURES_ENABLED, true);
+          specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, FUTURES);
         }
 
         return new XBinanceExchange(ExchangeFactory.INSTANCE.createExchange(specification));
