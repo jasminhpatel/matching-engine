@@ -1,5 +1,4 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solfini.common.Constants;
 import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.util.HttpUtils;
@@ -10,7 +9,6 @@ import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.marketdata.Ticker;
-import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.marketdata.MarketDataService;
 
@@ -19,7 +17,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.knowm.xchange.binance.dto.ExchangeType.FUTURES;
 import static org.knowm.xchange.binance.dto.ExchangeType.SPOT;
 
 public class Test {
@@ -70,7 +67,7 @@ public class Test {
     List<XExchange.SymbolStatus> symbolStatuses = new ArrayList<>();
     final String apiUrl = new BinanceExchange().getDefaultExchangeSpecification().getSslUri();
     HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
-    if (response != null && response.getCode() == 200) {
+/*    if (response != null && response.getCode() == 200) {
       try {
         final XBinanceExchange.BinanceExchangeInfoFull info = mapper.readValue(response.getData(), XBinanceExchange.BinanceExchangeInfoFull.class);
         final long updated = System.currentTimeMillis();
@@ -92,7 +89,7 @@ public class Test {
       } catch (Exception e) {
         e.printStackTrace();
       }
-    }
+    }*/
     response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>());
     if (response != null && response.getCode() == 200) {
       try {
@@ -104,7 +101,7 @@ public class Test {
             symbolStatus.setExchange("binance");
             symbolStatus.setBase(binanceSymbol.getBaseAsset());
             symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
-            symbolStatus.setPrompt(binanceSymbol.getContractType());
+            symbolStatus.setPrompt(binanceSymbol.getPrompt());
             symbolStatus.setTradable(true);
             symbolStatus.setFutures(true);
             symbolStatus.setUpdated(updated);

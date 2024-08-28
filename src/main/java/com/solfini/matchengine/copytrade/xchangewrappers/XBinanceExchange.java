@@ -1,7 +1,6 @@
 package com.solfini.matchengine.copytrade.xchangewrappers;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
@@ -98,7 +97,7 @@ public class XBinanceExchange extends XExchange {
             symbolStatus.setExchange("binance");
             symbolStatus.setBase(binanceSymbol.getBaseAsset());
             symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
-            symbolStatus.setPrompt(binanceSymbol.getContractType());
+            symbolStatus.setPrompt(binanceSymbol.getPrompt());
             symbolStatus.setTradable(true);
             symbolStatus.setFutures(true);
             symbolStatus.setUpdated(updated);
@@ -107,13 +106,12 @@ public class XBinanceExchange extends XExchange {
             symbolStatus.setQtyScale(binanceSymbol.getBaseAssetPrecision());
             symbolStatuses.add(symbolStatus);
           }
-          return symbolStatuses;
         }
       } catch (Exception e) {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    return null;
+    return symbolStatuses;
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -135,7 +133,7 @@ public class XBinanceExchange extends XExchange {
     private String baseAsset;
     private String quoteAsset;
     private String status;
-    private String contractType;
+    private String prompt;
     private int baseAssetPrecision;
     private int quotePrecision;
     private List<List<String>> permissionSets;
@@ -175,12 +173,12 @@ public class XBinanceExchange extends XExchange {
       this.status = status;
     }
 
-    public String getContractType() {
-      return contractType;
+    public String getPrompt() {
+      return prompt;
     }
 
-    public void setContractType(String contractType) {
-      this.contractType = contractType;
+    public void setPrompt(String prompt) {
+      this.prompt = prompt;
     }
 
     public int getBaseAssetPrecision() {
