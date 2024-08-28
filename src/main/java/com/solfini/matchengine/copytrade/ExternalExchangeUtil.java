@@ -135,11 +135,10 @@ public class ExternalExchangeUtil {
                 specification.setExchangeSpecificParametersItem(USE_SANDBOX, true);
               }
             }
-            if (subscription.hasLeverage()) {
-              specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, PORTFOLIO_MARGIN);
-            }
             if (subscription.isFuturesEnabled()) {
               specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, FUTURES);
+            } else if (subscription.hasLeverage()) {
+              specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, PORTFOLIO_MARGIN);
             }
 
             xExchange = new XBinanceExchange(createExchange(specification));
