@@ -45,14 +45,19 @@ public class MarketDepthCache {
     String bestQuoteCurrency = null;
     tmp = MARKET_DEPTH.get(keyUSD);
     if (tmp != null) {
-      depth = tmp;
-      bestQuoteCurrency = USD;
+      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USD, futuresEnabled)) {
+        depth = tmp;
+        bestQuoteCurrency = USD;
+      }
     }
     tmp = MARKET_DEPTH.get(keyUSDC);
     if (depth == null && tmp != null) {
-      depth = tmp;
-      bestQuoteCurrency = USDC;
-    } else if (tmp != null) {
+      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDC, futuresEnabled)) {
+        depth = tmp;
+        bestQuoteCurrency = USDC;
+      }
+    }
+    if (tmp != null && depth != null) {
       if (side == Side.SELL && tmp.depthUsdPositiveTwo > depth.depthUsdPositiveTwo) {
         depth = tmp;
         bestQuoteCurrency = USDC;
@@ -64,7 +69,9 @@ public class MarketDepthCache {
     tmp = MARKET_DEPTH.get(keyUSDT);
     if (depth == null && tmp != null) {
       //depth = tmp;
-      bestQuoteCurrency = USDT;
+      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDT, futuresEnabled)) {
+        bestQuoteCurrency = USDT;
+      }
     } else if (tmp != null) {
       if (side == Side.SELL && tmp.depthUsdPositiveTwo > depth.depthUsdPositiveTwo) {
        // depth = tmp;

@@ -175,12 +175,14 @@ public class MatchEngineStarter implements Constants {
         try {
           ExternalInstrumentCache.loadFromExchange();//async loading
         } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
         }
         while (true) {
           try {
             Thread.sleep(ONE_DAY);
             ExternalInstrumentCache.loadFromExchange();
           } catch (Exception e) {
+            LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
           }
         }
       }).start();
