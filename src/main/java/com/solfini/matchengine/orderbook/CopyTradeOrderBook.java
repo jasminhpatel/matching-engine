@@ -293,7 +293,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                 " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
           }
         } else {
-          LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), "baseSymbol", baseSymbol, "/",
+          LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), " baseSymbol", baseSymbol, "/",
               quotedSymbol, " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
         }
       }

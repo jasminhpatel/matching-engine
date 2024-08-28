@@ -10,6 +10,7 @@ import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
 import org.knowm.xchange.Exchange;
+import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.service.account.AccountService;
 
@@ -60,6 +61,7 @@ public class XBinanceExchange extends XExchange {
 
   @Override
   public List<SymbolStatus> getExchangeInstrumentsFull() {
+    List<SymbolStatus> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
     HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
     if (response != null && response.getCode() == 200) {
@@ -67,18 +69,38 @@ public class XBinanceExchange extends XExchange {
         final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
         final long updated = System.currentTimeMillis();
         if (info.getSymbols() != null) {
-          List<SymbolStatus> symbolStatuses = new ArrayList<>(info.getSymbols().size());
           for (BinanceSymbol binanceSymbol : info.getSymbols()){
             final SymbolStatus symbolStatus = new SymbolStatus();
             symbolStatus.setExchange("binance");
             symbolStatus.setBase(binanceSymbol.getBaseAsset());
             symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
             symbolStatus.setPrompt("");
-            if (binanceSymbol.getPermissionSets() != null && !binanceSymbol.getPermissionSets().isEmpty() &&
-            binanceSymbol.getPermissionSets().get(0).contains("FUTURES")) {
-              symbolStatus.setFutures(true);
-            }
             symbolStatus.setTradable("TRADING".equals(binanceSymbol.getStatus()));
+            symbolStatus.setUpdated(updated);
+            //symbolStatus.setUpdated(2000);
+            symbolStatus.setPriceScale(binanceSymbol.getQuotePrecision());
+            symbolStatus.setQtyScale(binanceSymbol.getBaseAssetPrecision());
+            symbolStatuses.add(symbolStatus);
+          }
+        }
+      } catch (JsonProcessingException e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
+      }
+    }
+    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/dapi/v1/exchangeInfo", new HashMap<>());
+    if (response != null && response.getCode() == 200) {
+      try {
+        final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
+        final long updated = System.currentTimeMillis();
+        if (info.getSymbols() != null) {
+          for (BinanceSymbol binanceSymbol : info.getSymbols()){
+            final SymbolStatus symbolStatus = new SymbolStatus();
+            symbolStatus.setExchange("binance");
+            symbolStatus.setBase(binanceSymbol.getBaseAsset());
+            symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
+            symbolStatus.setPrompt(binanceSymbol.getContractType());
+            symbolStatus.setTradable(true);
+            symbolStatus.setFutures(true);
             symbolStatus.setUpdated(updated);
             //symbolStatus.setUpdated(2000);
             symbolStatus.setPriceScale(binanceSymbol.getQuotePrecision());
@@ -113,6 +135,7 @@ public class XBinanceExchange extends XExchange {
     private String baseAsset;
     private String quoteAsset;
     private String status;
+    private String contractType;
     private int baseAssetPrecision;
     private int quotePrecision;
     private List<List<String>> permissionSets;
@@ -150,6 +173,14 @@ public class XBinanceExchange extends XExchange {
 
     public void setStatus(String status) {
       this.status = status;
+    }
+
+    public String getContractType() {
+      return contractType;
+    }
+
+    public void setContractType(String contractType) {
+      this.contractType = contractType;
     }
 
     public int getBaseAssetPrecision() {
