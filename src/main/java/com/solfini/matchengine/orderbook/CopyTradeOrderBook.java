@@ -543,7 +543,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
   private static org.knowm.xchange.instrument.Instrument getInstrument(final String exchange, final XExchange xExchange,
       final CurrencyPair currencyPair, final boolean isFuture) {
-    String key = exchange + "_" + currencyPair.toString() + isFuture;
+    String key = (exchange + "_" + currencyPair.toString() + "_" + (isFuture ? "1" :"0")).toLowerCase();
+    LOGGER.info("CurrencyPair key: " + key);
     org.knowm.xchange.instrument.Instrument instrument = ExternalInstrumentCache.getInstrument(key);
     if (instrument != null) {
       return instrument;
@@ -869,7 +870,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
               final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDT, USD, false);
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
@@ -882,8 +883,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdc > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, subscription.isFuturesEnabled());
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
@@ -898,8 +899,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdt > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, subscription.isFuturesEnabled());
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdtAmountToConvert = Math.min(usdt, (balanceRequired - availableBalance));
@@ -911,8 +912,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usd > 0 && availableBalance < balanceRequired) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USD, subscription.isFuturesEnabled());
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
@@ -926,8 +927,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (usdc > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDC, USDT);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDC, USDT, subscription.isFuturesEnabled());
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.SELL, xExchange);
               final double usdcAmountToConvert = Math.min(usdc, (balanceRequired - availableBalance));
@@ -940,8 +941,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             if (availableBalance < balanceRequired && usd > 0) {
               final CurrencyPair conversionPair = ExternalCurrencyPairCache.get(USDT, USD);
               final org.knowm.xchange.instrument.Instrument conversionInstrument =
-                  getInstrument(subscription.getExchange(), xExchange, conversionPair, false);
-              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDT, USD, false);
+                  getInstrument(subscription.getExchange(), xExchange, conversionPair, subscription.isFuturesEnabled());
+              final XExchange.SymbolStatus metaData = ExternalInstrumentCache.getSymbolStatus(copyTrade.getExchange(), USDT, USD, subscription.isFuturesEnabled());
               final double priceValue =
                   ExternalExchangeHandler.getPrice(subscription, conversionPair, conversionInstrument, Side.BUY, xExchange);
               final double usdAmountToConvert = Math.min(usd, (balanceRequired - availableBalance));
