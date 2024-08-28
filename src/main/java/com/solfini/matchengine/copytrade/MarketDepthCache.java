@@ -33,14 +33,14 @@ public class MarketDepthCache {
   }
 
   public static MarketDepth get(final String exchange, final String base, final String quote, final boolean futuresEnabled) {
-    final String key = (exchange + "_" + base + "_" + quote+ "_" + (futuresEnabled ? "futures" : "spot")).toLowerCase();
+    final String key = (exchange + "_" + base + "_" + quote+ "_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
     return MARKET_DEPTH.get(key);
   }
 
   public static String getBestQuoteCurrency(final String exchange, final String base, final Side side, final boolean futuresEnabled) {
-    String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "futures" : "spot")).toLowerCase();
-    String keyUSDC = (exchange + "_" + base + "_usdc_" + (futuresEnabled ? "futures" : "spot")).toLowerCase();
-    String keyUSDT = (exchange + "_" + base + "_usdt_" + (futuresEnabled ? "futures" : "spot")).toLowerCase();
+    String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
+    String keyUSDC = (exchange + "_" + base + "_usdc_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
+    String keyUSDT = (exchange + "_" + base + "_usdt_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
     MarketDepth depth = null, tmp;
     String bestQuoteCurrency = null;
     tmp = MARKET_DEPTH.get(keyUSD);
@@ -127,7 +127,7 @@ public class MarketDepthCache {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static class MarketDepthResponse {
+  static class MarketDepthResponse {
     private MarketDepths data;
 
     public MarketDepths getData() {
@@ -140,7 +140,7 @@ public class MarketDepthCache {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private static class MarketDepths {
+  static class MarketDepths {
     private MarketDepth[] marketPairs;
     private int numMarketPairs;
 
@@ -162,7 +162,7 @@ public class MarketDepthCache {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public static class MarketDepth {
+  static class MarketDepth {
     private String exchangeName;
     private String baseSymbol;
     private String quoteSymbol;
