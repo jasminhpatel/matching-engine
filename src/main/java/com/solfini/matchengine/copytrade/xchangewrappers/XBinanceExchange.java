@@ -61,7 +61,7 @@ public class XBinanceExchange extends XExchange {
 
   @Override
   public List<SymbolStatus> getExchangeInstrumentsFull() {
-    List<SymbolStatus> symbolStatuses = new ArrayList<>();
+    final List<SymbolStatus> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
     HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
     if (response != null && response.getCode() == 200) {
@@ -83,11 +83,11 @@ public class XBinanceExchange extends XExchange {
             symbolStatuses.add(symbolStatus);
           }
         }
-      } catch (JsonProcessingException e) {
+      } catch (Exception e) {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/dapi/v1/exchangeInfo", new HashMap<>());
+    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>());
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
@@ -109,7 +109,7 @@ public class XBinanceExchange extends XExchange {
           }
           return symbolStatuses;
         }
-      } catch (JsonProcessingException e) {
+      } catch (Exception e) {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
