@@ -293,7 +293,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                 " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
           }
         } else {
-          LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), " baseSymbol", baseSymbol, "/",
+          LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), " baseSymbol ", baseSymbol, "/",
               quotedSymbol, " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
         }
       }
@@ -847,7 +847,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           side == Side.BUY ? balance.getBalance(quotedSymbol) : balance.getCoinBalance());
       /* signalTradeValue = Math.min(availableBalance, signalTradeValue);*/
       //convert stable coins if balance is insufficient
-      if (subscription.getPercentage() <= 10_000 /* no margin */ && balance.getBalance(
+      if (!subscription.isFuturesEnabled() && subscription.getPercentage() <= 10_000 /* no margin */ && balance.getBalance(
           quotedSymbol) < signalTradeValue && side == Side.BUY) {
         if (balanceRequired > balance.getTotalStableCoinBalance()) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " exchangeBalance: ", balance.getTotalStableCoinBalance());
@@ -972,8 +972,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           return;
         }
+      } else if (subscription.isFuturesEnabled() && balance.getTotalStableCoinBalance() < signalTradeValue && side == Side.BUY) {//balance check for future orders
+        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. Insufficient funds. clOrdId: ", clOrdId, " totalBalance:", balance.getTotalStableCoinBalance(), " signalTradeValue: ", signalTradeValue);
+        copyTrade.setResult("REJECTED: insufficient funds.");
+        copyTrade.setxExchange(null);
+        matcherToPublisherQueue.addGuaranteed(copyTrade);
 
+        return;
       }
+
+
       double quantity = MbxMath.roundToBestPrecision(signalTradeValue / xPrice.doubleValue());
 
       copyTrade.setOrderQty(MbxMath.changeScale(quantity, symbolStatus.getQtyScale()));
