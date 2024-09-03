@@ -8,6 +8,7 @@ import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
+import com.solfini.util.StringUtil;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.instrument.Instrument;
@@ -79,6 +80,19 @@ public class XBinanceExchange extends XExchange {
             //symbolStatus.setUpdated(2000);
             symbolStatus.setPriceScale(binanceSymbol.getQuotePrecision());
             symbolStatus.setQtyScale(binanceSymbol.getBaseAssetPrecision());
+            for (Filter filter : binanceSymbol.getFilters()) {
+              if ("PRICE_FILTER".equals(filter.getFilterType())) {
+                int priceScale = (int) -Math.log10(StringUtil.toDouble(filter.tickSize));
+                if (priceScale >= 0) {
+                  symbolStatus.setPriceScale(priceScale);
+                }
+              } else if ("LOT_SIZE".equals(filter.getFilterType())) {
+                int qtyScale = (int) -Math.log10(StringUtil.toDouble(filter.stepSize));
+                if (qtyScale >= 0) {
+                  symbolStatus.setQtyScale(qtyScale);
+                }
+              }
+            }
             symbolStatuses.add(symbolStatus);
           }
         }
@@ -102,8 +116,8 @@ public class XBinanceExchange extends XExchange {
             symbolStatus.setFutures(true);
             symbolStatus.setUpdated(updated);
             //symbolStatus.setUpdated(2000);
-            symbolStatus.setPriceScale(binanceSymbol.getQuotePrecision());
-            symbolStatus.setQtyScale(binanceSymbol.getBaseAssetPrecision());
+            symbolStatus.setPriceScale(binanceSymbol.getPricePrecision());
+            symbolStatus.setQtyScale(binanceSymbol.getQuantityPrecision());
             symbolStatuses.add(symbolStatus);
           }
         }
@@ -136,7 +150,10 @@ public class XBinanceExchange extends XExchange {
     private String prompt;
     private int baseAssetPrecision;
     private int quotePrecision;
+    private int pricePrecision;
+    private int quantityPrecision;
     private List<List<String>> permissionSets;
+    private List<Filter> filters;
 
     public BinanceSymbol() {
     }
@@ -203,6 +220,79 @@ public class XBinanceExchange extends XExchange {
 
     public void setPermissionSets(List<List<String>> permissionSets) {
       this.permissionSets = permissionSets;
+    }
+
+    public int getPricePrecision() {
+      return pricePrecision;
+    }
+
+    public void setPricePrecision(int pricePrecision) {
+      this.pricePrecision = pricePrecision;
+    }
+
+    public int getQuantityPrecision() {
+      return quantityPrecision;
+    }
+
+    public void setQuantityPrecision(int quantityPrecision) {
+      this.quantityPrecision = quantityPrecision;
+    }
+
+    public List<Filter> getFilters() {
+      return filters;
+    }
+
+    public void setFilters(List<Filter> filters) {
+      this.filters = filters;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class Filter {
+    private String filterType;
+    private String minPrice;
+    private String tickSize;
+    private String minQty;
+    private String stepSize;
+
+    public String getFilterType() {
+      return filterType;
+    }
+
+    public void setFilterType(String filterType) {
+      this.filterType = filterType;
+    }
+
+    public String getMinPrice() {
+      return minPrice;
+    }
+
+    public void setMinPrice(String minPrice) {
+      this.minPrice = minPrice;
+    }
+
+    public String getTickSize() {
+      return tickSize;
+    }
+
+    public void setTickSize(String tickSize) {
+      this.tickSize = tickSize;
+    }
+
+    public String getMinQty() {
+      return minQty;
+    }
+
+    public void setMinQty(String minQty) {
+      this.minQty = minQty;
+    }
+
+    public String getStepSize() {
+      return stepSize;
+    }
+
+    public void setStepSize(String stepSize) {
+      this.stepSize = stepSize;
     }
   }
 
