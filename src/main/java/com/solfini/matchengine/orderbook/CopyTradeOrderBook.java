@@ -252,7 +252,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       final List<InfluencerSubscription> subscriptionList = new ArrayList<>(influencerSubscriptions);
       Collections.shuffle(subscriptionList);
       String baseSymbol = order.getSymbol();
-      String quotedSymbol = null;
 
       for (InfluencerSubscription subscription : subscriptionList) {
         if (!userPartitionMap.contains(subscription.getUserId() % Context.getNoOfTotalCopyTradeUserPartitions())) {
@@ -260,42 +259,26 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           continue;
         }
         //quotedSymbol = subscription.getPreferredQuoteCurrency();
-        quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange(), baseSymbol);
-        if (quotedSymbol == null) {
-          quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, order.getSide(),
-              subscription.isFuturesEnabled());
-        }
-        if (quotedSymbol != null) {
-          if (subscription.getPreferredCurrencies() != null && subscription.getPreferredCurrencies().length() > 2) {
-            if (!subscription.getPreferredCurrencies().contains(baseSymbol)) {
-              LOGGER.info(Constants.LOG_FMT_2, "Symbol is not in the preferred list. symbol: ", baseSymbol, "/", quotedSymbol,
-                  " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
-              continue;
-            }
-          }
-          if (subscription.isHasPendingClose()) {
-            LOGGER.info(Constants.LOG_FMT_2, "Subscription has pending close orders. symbol: ", baseSymbol, "/", quotedSymbol,
-                " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
+        if (subscription.getPreferredCurrencies() != null && subscription.getPreferredCurrencies().length() > 2) {
+          if (!subscription.getPreferredCurrencies().contains(baseSymbol)) {
+            LOGGER.info(Constants.LOG_FMT_2, "Symbol is not in the preferred list. symbol: ", baseSymbol, " exchange: ",
+                subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
             continue;
           }
-          if (ExternalInstrumentCache.isTradeableOnExchange(subscription.getExchange(), baseSymbol, quotedSymbol,
-              subscription.isFuturesEnabled())) {
-            final String clOrdId = order.getClOrdId() + subscription.getId();
-            final CopyTrade openCopyTrade =
-                new CopyTrade(clOrdId, baseSymbol, quotedSymbol, pair, order, subscription, order.getAccountId());
-
-            openCopyTrade.setKafkaRecordOffset(order.getKafkaRecordOffset());
-
-            COPY_TRADE_QUEUE.addGuaranteed(openCopyTrade);
-            count++;
-          } else {
-            LOGGER.info(Constants.LOG_FMT_2, "Symbol is not tradable on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
-                " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
-          }
-        } else {
-          LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), " baseSymbol ", baseSymbol, "/",
-              quotedSymbol, " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
         }
+        if (subscription.isHasPendingClose()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Subscription has pending close orders. symbol: ", baseSymbol, " exchange: ",
+              subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
+          continue;
+        }
+        final String clOrdId = order.getClOrdId() + subscription.getId();
+        final CopyTrade openCopyTrade =
+            new CopyTrade(clOrdId, baseSymbol, null, pair, order, subscription, order.getAccountId());
+
+        openCopyTrade.setKafkaRecordOffset(order.getKafkaRecordOffset());
+
+        COPY_TRADE_QUEUE.addGuaranteed(openCopyTrade);
+        count++;
       }
       final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createAckNewOrderExecutionReport(order, pair);
       MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
@@ -632,7 +615,25 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       final Side side = subscription.getInverseTrade() == 0 ? copyTrade.getSide() : copyTrade.getInverseSide();
       final String baseSymbol = copyTrade.getBaseSymbol();
-      final String quotedSymbol = copyTrade.getQuotedSymbol();
+      String quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange(), baseSymbol);
+      if (quotedSymbol == null) {
+        quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, copyTrade.getSide(),
+            subscription.isFuturesEnabled());
+      }
+      copyTrade.setQuotedSymbol(quotedSymbol);
+      if (quotedSymbol == null) {
+        LOGGER.info(Constants.LOG_FMT_2, "Quote symbol is empty: exchange: ", subscription.getExchange(), " baseSymbol ", baseSymbol, "/",
+            quotedSymbol, " subscription: ", subscription.getId(), " order: ", clOrdId);
+        copyTrade.setResult("REJECTED: Failed to calculate best quote symbol.");
+        matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        return;
+      }
+      if (!ExternalInstrumentCache.isTradeableOnExchange(subscription.getExchange(), baseSymbol, quotedSymbol,
+          subscription.isFuturesEnabled())) {
+        LOGGER.info(Constants.LOG_FMT_2, "Symbol is not tradable on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
+            " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", copyTrade.getClOrdId());
+      }
       //currencyPair is used as a synchronise lock
       final CurrencyPair currencyPair = ExternalCurrencyPairCache.get(baseSymbol, quotedSymbol);
       double maxTradeValue = MbxMath.scaleDown(subscription.getAmountWithLeverage(), 2);

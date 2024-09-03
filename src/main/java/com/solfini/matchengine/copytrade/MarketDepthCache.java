@@ -38,51 +38,46 @@ public class MarketDepthCache {
   }
 
   public static String getBestQuoteCurrency(final String exchange, final String base, final Side side, final boolean futuresEnabled) {
-    String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
-    String keyUSDC = (exchange + "_" + base + "_usdc_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
-    String keyUSDT = (exchange + "_" + base + "_usdt_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
-    MarketDepth depth = null, tmp;
-    String bestQuoteCurrency = null;
-    tmp = MARKET_DEPTH.get(keyUSD);
-    if (tmp != null) {
-      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USD, futuresEnabled)) {
-        depth = tmp;
-        bestQuoteCurrency = USD;
-      }
+    MarketDepth usdDepth = null, usdcDepth = null, usdtDepth = null;
+    if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USD, futuresEnabled)) {
+      final String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
+      usdDepth = MARKET_DEPTH.get(keyUSD);
     }
-    tmp = MARKET_DEPTH.get(keyUSDC);
-    if (depth == null && tmp != null) {
-      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDC, futuresEnabled)) {
-        depth = tmp;
-        bestQuoteCurrency = USDC;
-      }
+    if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDC, futuresEnabled)) {
+      final String keyUSDC = (exchange + "_" + base + "_usdc_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
+      usdcDepth = MARKET_DEPTH.get(keyUSDC);
     }
-    if (tmp != null && depth != null) {
-      if (side == Side.SELL && tmp.depthUsdPositiveTwo > depth.depthUsdPositiveTwo) {
-        depth = tmp;
-        bestQuoteCurrency = USDC;
-      } else if (side == Side.BUY && tmp.depthUsdNegativeTwo > depth.depthUsdNegativeTwo) {
-        depth = tmp;
-        bestQuoteCurrency = USDC;
-      }
-    }
-    tmp = MARKET_DEPTH.get(keyUSDT);
-    if (depth == null && tmp != null) {
-      //depth = tmp;
-      if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDT, futuresEnabled)) {
-        bestQuoteCurrency = USDT;
-      }
-    } else if (tmp != null) {
-      if (side == Side.SELL && tmp.depthUsdPositiveTwo > depth.depthUsdPositiveTwo) {
-       // depth = tmp;
-        bestQuoteCurrency = USDT;
-      } else if (side == Side.BUY && tmp.depthUsdNegativeTwo > depth.depthUsdNegativeTwo) {
-        //depth = tmp;
-        bestQuoteCurrency = USDT;
-      }
+    if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDT, futuresEnabled)) {
+      final String keyUSDT = (exchange + "_" + base + "_usdt_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
+      usdtDepth = MARKET_DEPTH.get(keyUSDT);
     }
 
-    return bestQuoteCurrency;
+    MarketDepth bestDepth = getBestDepth(usdDepth, usdcDepth, side);
+    bestDepth = getBestDepth(bestDepth, usdtDepth, side);
+
+    if (bestDepth != null) {
+      return bestDepth.quoteSymbol;
+    }
+    return null;
+  }
+
+  private static MarketDepth getBestDepth(final MarketDepth d1, final MarketDepth d2, final Side side) {
+    if (d1 == null) return d2;
+    if (d2 == null) return d1;
+
+    if (side == Side.SELL) {
+      if (d1.depthUsdPositiveTwo > d2.depthUsdPositiveTwo) {
+        return d1;
+      } else {
+        return d2;
+      }
+    } else {
+      if (d1.depthUsdNegativeTwo > d2.depthUsdNegativeTwo) {
+        return d1;
+      } else {
+        return d2;
+      }
+    }
   }
 
   public static void loadFromCoinMarketCap(final AtomicInteger loaderCounter) throws JsonProcessingException {
