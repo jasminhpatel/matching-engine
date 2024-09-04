@@ -273,8 +273,9 @@ public abstract class XExchange implements Exchange {
           copyTrade.setOriginalAmount(summary.getOriginalAmount().doubleValue());
           copyTrade.setCumulativeAmount(summary.getCumulativeAmount().doubleValue());
           copyTrade.setStatus(summary.getStatus().name());
-          if ("FILLED".equalsIgnoreCase(copyTrade.getStatus())) {
+          if (ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
             copyTrade.setTradeValue(summary.getCumulativeAmount().doubleValue() * summary.getAveragePrice().doubleValue());
+            copyTrade.setResult("SUCCESS");
             break;
           }
         }

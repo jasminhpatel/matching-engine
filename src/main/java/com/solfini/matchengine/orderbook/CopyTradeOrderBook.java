@@ -1124,7 +1124,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       closeCopyTrade.setxPrice(xPrice);
 
       try {
-        xExchange.updateOrderStatus(openCopyTrade);
+        //xExchange.updateOrderStatus(openCopyTrade);
         BigDecimal xQuantity = BigDecimal.valueOf(openCopyTrade.getCumulativeAmount());
         xQuantity = xQuantity.setScale(symbolStatus.getQtyScale(), RoundingMode.HALF_UP);
         closeCopyTrade.setxQuantity(xQuantity);
