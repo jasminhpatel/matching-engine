@@ -12,7 +12,7 @@ import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
 import org.knowm.xchange.bybit.BybitExchange;
 import org.knowm.xchange.bybit.dto.account.walletbalance.BybitAccountType;
-import org.knowm.xchange.bybit.dto.trade.ByBitQueryOrderParams;
+//import org.knowm.xchange.bybit.dto.trade.ByBitQueryOrderParams;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.mexc.MEXCExchange;
 import org.knowm.xchange.mexc.dto.trade.MEXCQueryOrderParams;
@@ -207,13 +207,13 @@ public class ExternalExchangeUtil {
       case "BINANCE": {
         return new BinanceQueryOrderParams(instrument, reference);
       }
-      case "BYBIT": {
+/*      case "BYBIT": {
         String category = "spot";
         if (futuresEnabled) {
           category = "linear";
         }
         return new ByBitQueryOrderParams(category, reference);
-      }
+      }*/
       case "MEXC": {
         return new MEXCQueryOrderParams(instrument, reference);
       }
