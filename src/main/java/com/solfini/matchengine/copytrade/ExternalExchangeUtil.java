@@ -147,10 +147,7 @@ public class ExternalExchangeUtil {
           case "BYBIT": {
             specification = new BybitExchange().getDefaultExchangeSpecification();
             processSpecification(specification, subscription, retryCount);
-
-            if (subscription.isFuturesEnabled()) {
-              specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.CONTRACT);
-            }
+            specification.setExchangeSpecificParametersItem(BybitExchange.SPECIFIC_PARAM_ACCOUNT_TYPE, BybitAccountType.UNIFIED);
 
             xExchange = new XBybitExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
