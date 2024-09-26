@@ -133,7 +133,6 @@ public abstract class XExchange implements Exchange {
     } catch (Exception e) {
       LOGGER.error("Error occurred wile fetching balance. ", e);
     }
-    LOGGER.info("Balance loaded from exchange: " + balance.toJson());
     return balance;
   }
 
