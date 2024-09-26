@@ -95,7 +95,7 @@ public abstract class XExchange implements Exchange {
 
   @Override
   public AccountService getAccountService() {
-    return null;
+    return this.exchange.getAccountService();
   }
 
   @Override
@@ -108,8 +108,9 @@ public abstract class XExchange implements Exchange {
     balance.setLastUpdated(System.currentTimeMillis());
     try {
       final AccountService accountService = this.exchange.getAccountService();
-      if (accountService == null)
+      if (accountService == null) {
         return balance;
+        }
       final Wallet wallet = accountService.getAccountInfo().getWallet();
       if (wallet == null)
         return balance;
