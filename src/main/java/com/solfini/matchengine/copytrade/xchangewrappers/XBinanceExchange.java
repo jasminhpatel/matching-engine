@@ -26,11 +26,6 @@ public class XBinanceExchange extends XExchange {
     super(exchange);
   }
 
-  @Override
-  public AccountService getAccountService() {
-    return this.exchange.getAccountService();
-  }
-
   public Balance getBalanceFromExchange(final String quoteCurrency) {
     //todo margin balance logic
     return super.getBalanceFromExchange(quoteCurrency);

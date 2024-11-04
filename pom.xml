@@ -270,12 +270,12 @@
       <groupId>org.knowm.xchange</groupId>
       <artifactId>xchange-kucoin</artifactId>
       <version>5.1.1</version>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>org.knowm.xchange</groupId>
       <artifactId>xchange-okex</artifactId>
-      <version>5.1.1</version>
-    </dependency>-->
+      <version>5.1.1-cc</version>
+    </dependency>
     <dependency>
       <groupId>org.knowm.xchange</groupId>
       <artifactId>xchange-bybit</artifactId>

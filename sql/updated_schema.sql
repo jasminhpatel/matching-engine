@@ -1474,3 +1474,9 @@ ALTER TABLE external_instrument_state ADD qtyScale int default 2;
 ALTER TABLE external_instrument_state ADD openPricePercentage int default 100000;--2000 => 20%
 
 ALTER TABLE subscription_state ADD subscriptionType int DEFAULT 1;
+
+ALTER TABLE deposit_wallet_state ADD expireTime int8 DEFAULT 0 NOT NULL;
+ALTER TABLE subscription_payment_state ADD address varchar(256) default null;
+ALTER TABLE deposit_wallet_state ADD updated int8 DEFAULT 0 NOT NULL;
+ALTER TABLE transfer_state ADD type int DEFAULT 0 NOT NULL;
+ALTER TABLE deposit_wallet_state ADD lastFetchedBlock int8 DEFAULT 0 NOT NULL;

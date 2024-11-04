@@ -1,8 +1,6 @@
 package rnd;
 
 import com.solfini.common.Context;
-import com.solfini.matchengine.copytrade.ExternalExchangeHandler;
-import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
 import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
@@ -11,21 +9,19 @@ import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceExchange;
-import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
+import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;
-import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.trade.LimitOrder;
-import org.knowm.xchange.dto.trade.MarketOrder;
+import org.knowm.xchange.dto.account.Balance;
+import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.instrument.Instrument;
-import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
+import org.knowm.xchange.service.account.AccountService;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
+import static com.solfini.common.Constants.*;
 import static org.knowm.xchange.Exchange.USE_SANDBOX;
 import static org.knowm.xchange.binance.dto.ExchangeType.FUTURES;
 import static org.knowm.xchange.binance.dto.ExchangeType.PORTFOLIO_MARGIN;
@@ -34,18 +30,12 @@ public class BinanceTest {
   private static String[] PROXIES = {"38.242.225.103","83.171.249.86","45.8.133.149"};
   private static Random RANDOM = new Random();
 
-  public static void main(String[] args) throws IOException, InterruptedException {
-    Order.OrderType xOrderType = Order.OrderType.BID;
-    BigDecimal xQuantity = new BigDecimal("0.01");
-
-    CurrencyPair currencyPair = new CurrencyPair("BTC", "USDT");
-    //FuturesContract pair = new FuturesContract(currencyPair, "PERP");
-    String clOrdId = String.valueOf(System.currentTimeMillis());
-
+  public static void main(String[] args) {
+    boolean isFutures = false;
     InfluencerSubscription subscription = new InfluencerSubscription();
     subscription.setId(1);
     subscription.setUserId(2);
-    subscription.setPlatform("YOUTUBE");
+    subscription.setPlatform("TWITTER");
     subscription.setAccountIds(new String[] {"wrohanc"});
     subscription.setExchange("BINANCE");
     subscription.setPercentage(100);
@@ -53,46 +43,74 @@ public class BinanceTest {
     subscription.setStatus(0);
     subscription.setExpires(System.currentTimeMillis() + 10000000);
     subscription.setPreferredQuoteCurrency("USDC");
-    subscription.setApiKey("L65Hq6Fcc6LdROvk32nwjzzvC4fbWQpUx1WG8cFJSMXiV55jpTe7a117RJ57hKOc");
-    subscription.setApiSecret("P4AgUEQtLEzKfGe31C8y9nzjYUunwgbtpMXuqjmajHhkVa5vm3gmJn7I35WVJVFA");
+    subscription.setApiKey("064c3e04e2200c4e1774531a0eaaa315d9a887e93bd1254b81a070d525ff2445");
+    subscription.setApiSecret("cb22609e7a8047e3b54a47581f8556966f8e153c276f599b52da7141b9840175");
+    subscription.setFuturesEnabled(isFutures);
 
-    //subscription.setApiKey("064c3e04e2200c4e1774531a0eaaa315d9a887e93bd1254b81a070d525ff2445");
-    //subscription.setApiSecret("cb22609e7a8047e3b54a47581f8556966f8e153c276f599b52da7141b9840175");
-    //subscription.setFuturesEnabled(true);
+    XExchange xExchange = createXExchange(subscription);
+    //XExchange.Balance balance = getBalanceFromExchange(xExchange.getExchange(), "ETH");
+    //System.out.println(balance.toJson());
+    XExchange.Balance balance1 = getStableCoinBalanceFromExchange(xExchange.getExchange());
+    System.out.println(balance1.toJson());
+    //org.knowm.xchange.instrument.Instrument instrument = getInstrument(xExchange.getExchange(), new CurrencyPair("ETH", "USDT"), isFutures);
 
-    //XExchange xExchange = createXExchange(subscription);
-    //double exchangeBalance = ExternalExchangeHandler.getBalance(subscription, xExchange);
-    //System.out.println(exchangeBalance);
-    //Instrument instrument = getInstrument(xExchange, currencyPair, subscription.isFuturesEnabled());
-    //System.out.println(instrument);
-/*    final MarketOrder
-        marketOrder = new MarketOrder(xOrderType, xQuantity, instrument, clOrdId, null);
-    final LimitOrder
-        limitOrder = new LimitOrder(xOrderType, xQuantity, instrument, clOrdId, null, new BigDecimal("61425.00"));
-    //final String returnValue = xExchange.getTradeService().placeMarketOrder(marketOrder);
-    final String returnValue = xExchange.getTradeService().placeLimitOrder(limitOrder);
-    System.out.println(returnValue);
-    final OrderQueryParams orderQueryParams = new BinanceQueryOrderParams(instrument, returnValue);
-    final Collection<Order> orders = xExchange.getTradeService().getOrder(orderQueryParams);
-    if (orders != null && !orders.isEmpty()) {
-      Order summary = orders.iterator().next();
-      if (summary.getAveragePrice() != null)
-        System.out.println("AveragePrice: " + summary.getAveragePrice().doubleValue());
+  }
 
-      System.out.println("OriginalAmount: " + summary.getOriginalAmount().doubleValue());
-      System.out.println("CumulativeAmount: " + summary.getCumulativeAmount().doubleValue());
-      System.out.println("Status: " + summary.getStatus());
-    }*/
-/*    Thread.sleep(5000);
-    if (orders != null && !orders.isEmpty()) {
-      Order summary = orders.iterator().next();
-      if (summary.getAveragePrice() != null)
-        System.out.println("AveragePrice: " + summary.getAveragePrice().doubleValue());
+  public static XExchange.Balance getStableCoinBalanceFromExchange(final Exchange exchange) {
+    final XExchange.Balance balance = new XExchange.Balance();
+    balance.setLastUpdated(System.currentTimeMillis());
+    try {
+      final AccountService accountService = exchange.getAccountService();
+      if (accountService == null)
+        return balance;
+      final Wallet wallet = accountService.getAccountInfo().getWallet();
+      if (wallet == null)
+        return balance;
+      final Map<Currency, org.knowm.xchange.dto.account.Balance> balances = wallet.getBalances();
+      if (balances == null)
+        return balance;
 
-      System.out.println("OriginalAmount: " + summary.getOriginalAmount().doubleValue());
-      System.out.println("CumulativeAmount: " + summary.getCumulativeAmount().doubleValue());
-      System.out.println("Status: " + summary.getStatus());
-    }*/
+      org.knowm.xchange.dto.account.Balance usdBalance = balances.get(Currency.getInstance(USD));
+      org.knowm.xchange.dto.account.Balance usdcBalance = balances.get(Currency.getInstance(USDC));
+      org.knowm.xchange.dto.account.Balance usdtBalance = balances.get(Currency.getInstance(USDT));
+      if (usdBalance != null) {
+        balance.setUsdBalance(MbxMath.roundToBestPrecision(usdBalance.getAvailable().doubleValue()));
+      }
+      if (usdcBalance != null) {
+        balance.setUsdcBalance(MbxMath.roundToBestPrecision(usdcBalance.getAvailable().doubleValue()));
+      }
+      if (usdtBalance != null) {
+        balance.setUsdtBalance(MbxMath.roundToBestPrecision(usdtBalance.getAvailable().doubleValue()));
+      }
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return balance;
+  }
+
+
+  public static org.knowm.xchange.instrument.Instrument getInstrument(final Exchange exchange, final CurrencyPair currencyPair, boolean isFuture) {
+    try {
+      final List<Instrument> instruments = exchange.getExchangeInstruments();
+      org.knowm.xchange.instrument.Instrument instrument = null;
+      for (org.knowm.xchange.instrument.Instrument i : instruments) {
+        if (i.getBase().getSymbol().equalsIgnoreCase(currencyPair.getBase().getSymbol()) && i.getCounter().getSymbol()
+            .equalsIgnoreCase(currencyPair.getCounter().getSymbol())) {
+          if (isFuture && i instanceof FuturesContract && "PERP".equalsIgnoreCase(((FuturesContract) i).getPrompt())) {
+            instrument = i;
+            break;
+          } else if (!isFuture && !(i instanceof FuturesContract)) {
+            instrument = i;
+            break;
+          }
+        }
+      }
+      return instrument;
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
   public static XExchange createXExchange(final InfluencerSubscription subscription) {
@@ -164,26 +182,34 @@ public class BinanceTest {
     return exchange;
   }
 
-  private static Instrument getInstrument(final XExchange xExchange, final CurrencyPair currencyPair, boolean isFuture) {
+  public static XExchange.Balance getBalanceFromExchange(final Exchange exchange, final String symbol) {
+    final XExchange.Balance balance = new XExchange.Balance();
+    balance.setLastUpdated(System.currentTimeMillis());
     try {
-      final List<Instrument> instruments = xExchange.getExchange().getExchangeInstruments();
-      Instrument instrument = null;
-      for (Instrument i : instruments) {
-        if (i.getBase().getSymbol().equalsIgnoreCase(currencyPair.getBase().getSymbol()) && i.getCounter().getSymbol()
-            .equalsIgnoreCase(currencyPair.getCounter().getSymbol())) {
-          if (isFuture && i instanceof FuturesContract && "PERP".equalsIgnoreCase(((FuturesContract) i).getPrompt())) {
-            instrument = i;
-            break;
-          } else if (!isFuture && !(i instanceof FuturesContract)) {
-            instrument = i;
-            break;
-          }
-        }
+      final AccountService accountService = exchange.getAccountService();
+      if (accountService == null)
+        return balance;
+      final Wallet wallet = accountService.getAccountInfo().getWallet();
+      if (wallet == null)
+        return balance;
+      final Map<Currency, Balance> balances = wallet.getBalances();
+      if (balances == null)
+        return balance;
+
+      final Currency currency = Currency.getInstance(symbol);
+      if (currency == null) {
+        return balance;
       }
-      return instrument;
+
+      org.knowm.xchange.dto.account.Balance bal = balances.get(currency);
+
+      if (bal != null) {
+        balance.setCoinBalance(MbxMath.roundToBestPrecision(bal.getAvailable().doubleValue()));
+      }
+
     } catch (Exception e) {
-      System.out.println("Failed to load instrument. " + currencyPair.toString());
+      e.printStackTrace();
     }
-    return null;
+    return balance;
   }
 }
