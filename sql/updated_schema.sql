@@ -1481,6 +1481,11 @@ ALTER TABLE deposit_wallet_state ADD updated int8 DEFAULT 0 NOT NULL;
 ALTER TABLE transfer_state ADD type int DEFAULT 0 NOT NULL;
 ALTER TABLE deposit_wallet_state ADD lastFetchedBlock int8 DEFAULT 0 NOT NULL;
 
+ALTER TABLE subscription_state ADD amount double precision default 0;
+ALTER TABLE subscription_state ADD paidAmount double precision default 0;
+ALTER TABLE subscription_payment_state ADD marketPrice double precision default 0;
+ALTER TABLE subscription_payment_state ADD paidAmount double precision default 0;
+
 ALTER TABLE public.subscription_payment_state RENAME TO subscription_payment_state_bk;
 
 CREATE TABLE public.subscription_payment_state (
