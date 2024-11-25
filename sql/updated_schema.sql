@@ -1480,3 +1480,40 @@ ALTER TABLE subscription_payment_state ADD address varchar(256) default null;
 ALTER TABLE deposit_wallet_state ADD updated int8 DEFAULT 0 NOT NULL;
 ALTER TABLE transfer_state ADD type int DEFAULT 0 NOT NULL;
 ALTER TABLE deposit_wallet_state ADD lastFetchedBlock int8 DEFAULT 0 NOT NULL;
+
+ALTER TABLE public.subscription_payment_state RENAME TO subscription_payment_state_bk;
+
+CREATE TABLE public.subscription_payment_state (
+	id bigserial NOT NULL,
+	userId int4 NULL,
+	subscriptionId int8 NULL,
+	paymentIntentId int8 NULL,
+	txnFee float8 DEFAULT 0 NULL,
+	paidTxnFee float8 DEFAULT 0 NULL,
+	paidAmount float8 DEFAULT 0 NULL,
+	"chain" varchar(32) NULL,
+	address varchar(256) DEFAULT NULL,
+	paymentMethod int4 NULL,
+	paymentCurrency varchar(32) NULL,
+	fxRate float8 DEFAULT 0 NULL,
+	status int4 NULL,
+	created int8 NULL,
+    updated int8 NULL,
+	PRIMARY KEY(id)
+);
+
+CREATE TABLE public.subscription_payment_intent_state (
+	id bigserial NOT NULL,
+	userId int4 NULL,
+	subscriptionId int8 NULL,
+	noOfDays int4 NULL,
+	amount float8 DEFAULT 0,
+	status int4 NULL,
+	created int8 NULL,
+    updated int8 NULL,
+    percentage int4 DEFAULT 0,
+    maxAmount int8 DEFAULT 0,
+    amountWithLeverage int8 DEFAULT 0,
+	paidAmount float8 DEFAULT 0,
+	PRIMARY KEY(id)
+);

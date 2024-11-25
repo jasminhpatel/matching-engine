@@ -1,5 +1,4 @@
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
@@ -16,7 +15,6 @@ import org.knowm.xchange.dto.account.Balance;
 import org.knowm.xchange.dto.account.Wallet;
 import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.instrument.Instrument;
-import org.knowm.xchange.mexc.MEXCExchange;
 import org.knowm.xchange.service.account.AccountService;
 import org.knowm.xchange.service.trade.TradeService;
 import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;

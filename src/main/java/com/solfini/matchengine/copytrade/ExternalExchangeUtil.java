@@ -1,10 +1,7 @@
 package com.solfini.matchengine.copytrade;
 
 import com.solfini.common.*;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBybitExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XMEXCExchange;
+import com.solfini.matchengine.copytrade.xchangewrappers.*;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
@@ -16,6 +13,7 @@ import org.knowm.xchange.bybit.dto.account.walletbalance.BybitAccountType;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.mexc.MEXCExchange;
 import org.knowm.xchange.mexc.dto.trade.MEXCQueryOrderParams;
+import org.knowm.xchange.okex.OkexExchange;
 import org.knowm.xchange.service.trade.params.orders.DefaultQueryOrderParam;
 import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
@@ -91,6 +89,17 @@ public class ExternalExchangeUtil {
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
           }
+          case "OKX": {
+            specification = new OkexExchange().getDefaultExchangeSpecification();
+            //specification.setUserName();
+            //below two keys are only for internal validations done by the XChange library. not sent to exchange
+            specification.setApiKey("4e0b287f-3517-4ee4-b1b4-d0eac3187446");
+            specification.setSecretKey("A41A7077DB5A7807DB8A745168DCD642");
+            processSpecification(specification, null, retryCount);
+
+            xExchange = new XOkexExchange(ExchangeFactory.INSTANCE.createExchange(specification), false);
+            break;
+          }
 /*      case "COINBASE": {
         specification = new CoinbaseProExchange().getDefaultExchangeSpecification();
         processSpecification(specification, null);
@@ -161,6 +170,17 @@ public class ExternalExchangeUtil {
             }
 
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
+            break;
+          }
+          case "OKX": {
+            specification = new OkexExchange().getDefaultExchangeSpecification();
+            //specification.setUserName();
+            //below two keys are only for internal validations done by the XChange library. not sent to exchange
+            specification.setApiKey("4e0b287f-3517-4ee4-b1b4-d0eac3187446");
+            specification.setSecretKey("A41A7077DB5A7807DB8A745168DCD642");
+            processSpecification(specification, null, retryCount);
+
+            xExchange = new XOkexExchange(ExchangeFactory.INSTANCE.createExchange(specification), subscription.isFuturesEnabled());
             break;
           }
 /*        case "COINBASE": {

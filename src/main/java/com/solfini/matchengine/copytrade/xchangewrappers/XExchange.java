@@ -44,7 +44,7 @@ public abstract class XExchange implements Exchange {
   protected final Exchange exchange;
   protected final XAccountService xAccountService;
 
-  public XExchange(Exchange exchange) {
+  public XExchange(final Exchange exchange) {
     this.exchange = exchange;
     this.xAccountService = new XAccountService(exchange.getAccountService());
   }
@@ -120,13 +120,13 @@ public abstract class XExchange implements Exchange {
       org.knowm.xchange.dto.account.Balance usdBalance = balances.get(Currency.getInstance(USD));
       org.knowm.xchange.dto.account.Balance usdcBalance = balances.get(Currency.getInstance(USDC));
       org.knowm.xchange.dto.account.Balance usdtBalance = balances.get(Currency.getInstance(USDT));
-      if (usdBalance != null) {
+      if (usdBalance != null && usdBalance.hasAvailable()) {
         balance.setUsdBalance(MbxMath.roundToBestPrecision(usdBalance.getAvailable().doubleValue()));
       }
-      if (usdcBalance != null) {
+      if (usdcBalance != null && usdcBalance.hasAvailable()) {
         balance.setUsdcBalance(MbxMath.roundToBestPrecision(usdcBalance.getAvailable().doubleValue()));
       }
-      if (usdtBalance != null) {
+      if (usdtBalance != null && usdtBalance.hasAvailable()) {
         balance.setUsdtBalance(MbxMath.roundToBestPrecision(usdtBalance.getAvailable().doubleValue()));
       }
 
@@ -158,7 +158,7 @@ public abstract class XExchange implements Exchange {
 
       org.knowm.xchange.dto.account.Balance bal = balances.get(currency);
 
-      if (bal != null) {
+      if (bal != null && bal.hasAvailable()) {
         balance.setCoinBalance(MbxMath.roundToBestPrecision(bal.getAvailable().doubleValue()));
       }
 

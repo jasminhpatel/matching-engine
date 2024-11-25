@@ -17,7 +17,7 @@ public class XMEXCExchange extends XExchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XMEXCExchange.class);
   private final ObjectMapper mapper = new ObjectMapper();
 
-  public XMEXCExchange(Exchange exchange) {
+  public XMEXCExchange(final Exchange exchange) {
     super(exchange);
   }
 
