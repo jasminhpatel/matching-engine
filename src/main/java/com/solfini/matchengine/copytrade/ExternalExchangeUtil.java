@@ -28,15 +28,16 @@ public class ExternalExchangeUtil {
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
 
   public final static String[] EXCHANGES = {
-      "BINANCE", "BYBIT", "MEXC",
+      "BINANCE", "BYBIT", "MEXC", "OKEX"
 /*      "BINANCE", "BITFINEX", "BITFLYER", "BITHUMB", "BITMEX",
       "BITSTAMP", "BYBIT", "COINBASE", "GATEIO", "GEMINI",
-      "KRAKEN", "KUCOIN", "MEXC", "OKEX", "UPBIT",*/
+      "KRAKEN", "KUCOIN", "MEXC",  "UPBIT",*/
   };
   public final static String[] EXCHANGE_SLUGS = {
       "binance",
       "bybit",
       "mexc",
+      "okex"
   };
   private static String[] PROXIES = null;
   private static Random RANDOM = new Random();
@@ -89,7 +90,7 @@ public class ExternalExchangeUtil {
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
           }
-          case "OKX": {
+          case "OKEX": {
             specification = new OkexExchange().getDefaultExchangeSpecification();
             //specification.setUserName();
             //below two keys are only for internal validations done by the XChange library. not sent to exchange
@@ -172,7 +173,7 @@ public class ExternalExchangeUtil {
             xExchange = new XMEXCExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
           }
-          case "OKX": {
+          case "OKEX": {
             specification = new OkexExchange().getDefaultExchangeSpecification();
             //specification.setUserName();
             //below two keys are only for internal validations done by the XChange library. not sent to exchange
