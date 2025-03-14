@@ -1,5 +1,6 @@
 package com.solfini.matchengine.message.outbound;
 
+import com.solfini.common.CustomLogger;
 import java.util.Arrays;
 
 import com.solfini.common.Constants;
@@ -25,6 +26,8 @@ import com.solfini.user.UserStats;
  *
  */
 public class PositionReportMessage extends Message implements Constants {
+
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(PositionReportMessage.class);
   private long timestamp = 0;
   private Position[] positions;
   private int txnType;
@@ -227,6 +230,9 @@ public class PositionReportMessage extends Message implements Constants {
         if (comma)
           sb.append(",");
         if (positions[i] != null) {
+          if (i == 25) {
+            LOGGER.info(Constants.LOG_FMT_2, "TEMP log ", positions[i].toJSON());
+          }
           sb.append(positions[i].toJSON());
           comma = true;
         }
