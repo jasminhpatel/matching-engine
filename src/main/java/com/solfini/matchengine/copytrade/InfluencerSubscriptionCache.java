@@ -113,6 +113,12 @@ public class InfluencerSubscriptionCache {
     } catch (final Exception e) {
       LOGGER.error("error", e);
     }
+
+    for (ConcurrentHashMap<Long, InfluencerSubscription> ts: TICKER_SUBSCRIPTIONS.values()) {
+      for (InfluencerSubscription is : ts.values()) {
+        LOGGER.info(LOG_FMT_10, " id ",is.getId()," platform ",is.getPlatform()," exchange ",is.getExchange()," PreferredCurrencies ",is.getPreferredCurrencies()," Expires ",is.getExpires());
+      }
+    }
   }
 
   public static void loadUpdated() {
