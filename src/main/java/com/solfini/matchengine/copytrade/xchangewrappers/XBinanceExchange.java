@@ -147,7 +147,7 @@ public class XBinanceExchange extends XExchange {
     private int quotePrecision;
     private int pricePrecision;
     private int quantityPrecision;
-    private List<List<String>> permissionSets;
+    //private List<List<String>> permissionSets;
     private List<Filter> filters;
 
     public BinanceSymbol() {
@@ -209,13 +209,13 @@ public class XBinanceExchange extends XExchange {
       this.quotePrecision = quotePrecision;
     }
 
-    public List<List<String>> getPermissionSets() {
-      return permissionSets;
-    }
+    //public List<List<String>> getPermissionSets() {
+    //  return permissionSets;
+    //}
 
-    public void setPermissionSets(List<List<String>> permissionSets) {
-      this.permissionSets = permissionSets;
-    }
+    //public void setPermissionSets(List<List<String>> permissionSets) {
+    //  this.permissionSets = permissionSets;
+    //}
 
     public int getPricePrecision() {
       return pricePrecision;

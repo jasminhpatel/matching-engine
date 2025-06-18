@@ -23,39 +23,94 @@ public class XBybitExchange extends XExchange {
 
   @Override
   public List<SymbolStatus> getExchangeInstrumentsFull() {
+    List<SymbolStatus> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/spot/v3/public/symbols", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=spot", new HashMap<>());
     if (response != null && response.getCode() == 200) {
       try {
         final ByBitExchangeInfoFull info = mapper.readValue(response.getData(), ByBitExchangeInfoFull.class);
         final long updated = System.currentTimeMillis();
         if (info.getResult() != null && info.getResult().getList() != null) {
-          List<SymbolStatus> symbolStatuses = new ArrayList<>(info.getResult().getList().size());
           for (ByBitSymbol byBitSymbol : info.getResult().getList()){
             final SymbolStatus symbolStatus = new SymbolStatus();
             symbolStatus.setExchange("bybit");
             symbolStatus.setBase(byBitSymbol.getBaseCoin());
             symbolStatus.setQuote(byBitSymbol.getQuoteCoin());
             symbolStatus.setPrompt("");
-            symbolStatus.setFutures(!"1".equals(byBitSymbol.getCategory()));
-            symbolStatus.setTradable("1".equals(byBitSymbol.getShowStatus()));
+            symbolStatus.setFutures(false);
+            symbolStatus.setTradable("Trading".equals(byBitSymbol.getStatus()));
             symbolStatus.setUpdated(updated);
             //symbolStatus.setUpdated(2000);
-            symbolStatus.setPriceScale(getPrecision(byBitSymbol.getMinPricePrecision()));
-            symbolStatus.setQtyScale(getPrecision(byBitSymbol.getBasePrecision()));
+            symbolStatus.setPriceScale(getPrecision(byBitSymbol.getLotSizeFilter().getQuotePrecision()));
+            symbolStatus.setQtyScale(getPrecision(byBitSymbol.getLotSizeFilter().getBasePrecision()));
             symbolStatuses.add(symbolStatus);
           }
-          return symbolStatuses;
         }
       } catch (JsonProcessingException e) {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    return null;
+    response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=linear", new HashMap<>());
+    if (response != null && response.getCode() == 200) {
+      try {
+        final ByBitExchangeInfoFull info = mapper.readValue(response.getData(), ByBitExchangeInfoFull.class);
+        final long updated = System.currentTimeMillis();
+        if (info.getResult() != null && info.getResult().getList() != null) {
+          for (ByBitSymbol byBitSymbol : info.getResult().getList()){
+            if (!"LinearPerpetual".equalsIgnoreCase(byBitSymbol.getContractType())) {
+              continue;
+            }
+            final SymbolStatus symbolStatus = new SymbolStatus();
+            symbolStatus.setExchange("bybit");
+            symbolStatus.setBase(byBitSymbol.getBaseCoin());
+            symbolStatus.setQuote(byBitSymbol.getQuoteCoin());
+            symbolStatus.setPrompt("");
+            symbolStatus.setFutures(true);
+            symbolStatus.setTradable("Trading".equals(byBitSymbol.getStatus()));
+            symbolStatus.setUpdated(updated);
+            //symbolStatus.setUpdated(2000);
+            symbolStatus.setPriceScale(getPrecision(byBitSymbol.getLotSizeFilter().getQuotePrecision()));
+            symbolStatus.setQtyScale(getPrecision(byBitSymbol.getLotSizeFilter().getBasePrecision()));
+            symbolStatuses.add(symbolStatus);
+          }
+        }
+      } catch (JsonProcessingException e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
+      }
+    }
+    /*response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=inverse", new HashMap<>());
+    if (response != null && response.getCode() == 200) {
+      try {
+        final ByBitExchangeInfoFull info = mapper.readValue(response.getData(), ByBitExchangeInfoFull.class);
+        final long updated = System.currentTimeMillis();
+        if (info.getResult() != null && info.getResult().getList() != null) {
+          for (ByBitSymbol byBitSymbol : info.getResult().getList()){
+            if (!"InversePerpetual".equalsIgnoreCase(byBitSymbol.getContractType())) {
+              continue;
+            }
+            final SymbolStatus symbolStatus = new SymbolStatus();
+            symbolStatus.setExchange("bybit");
+            symbolStatus.setBase(byBitSymbol.getBaseCoin());
+            symbolStatus.setQuote(byBitSymbol.getQuoteCoin());
+            symbolStatus.setPrompt("");
+            symbolStatus.setFutures(true);
+            symbolStatus.setTradable("Trading".equals(byBitSymbol.getStatus()));
+            symbolStatus.setUpdated(updated);
+            //symbolStatus.setUpdated(2000);
+            symbolStatus.setPriceScale(getPrecision(byBitSymbol.getLotSizeFilter().getQuotePrecision()));
+            symbolStatus.setQtyScale(getPrecision(byBitSymbol.getLotSizeFilter().getBasePrecision()));
+            symbolStatuses.add(symbolStatus);
+          }
+        }
+      } catch (JsonProcessingException e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
+      }
+    }*/
+    return symbolStatuses;
   }
 
   private static int getPrecision(String minValue) {
-    if (minValue.contains(".")) {
+    if (minValue != null && minValue.contains(".")) {
       return minValue.substring(minValue.indexOf(".") + 1).length();
     } else {
       return 0;
@@ -87,6 +142,7 @@ public class XBybitExchange extends XExchange {
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ByBitResult {
     private List<ByBitSymbol> list;
+    private String category;
 
     public List<ByBitSymbol> getList() {
       return list;
@@ -95,24 +151,33 @@ public class XBybitExchange extends XExchange {
     public void setList(List<ByBitSymbol> list) {
       this.list = list;
     }
+
+    public String getCategory() {
+      return category;
+    }
+
+    public void setCategory(String category) {
+      this.category = category;
+    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ByBitSymbol {
-    private String name;
+    private String symbol;
     private String baseCoin;
     private String quoteCoin;
-    private String showStatus;
-    private String basePrecision;
-    private String minPricePrecision;
-    private String category;
+    private String status;
+    private String contractType;
 
-    public String getName() {
-      return name;
+    private String marginTrading;
+    private ByBitSymbolLotSizeFilter lotSizeFilter;
+
+    public String getSymbol() {
+      return symbol;
     }
 
-    public void setName(String name) {
-      this.name = name;
+    public void setSymbol(String symbol) {
+      this.symbol = symbol;
     }
 
     public String getBaseCoin() {
@@ -131,13 +196,48 @@ public class XBybitExchange extends XExchange {
       this.quoteCoin = quoteCoin;
     }
 
-    public String getShowStatus() {
-      return showStatus;
+    public String getStatus() {
+      return status;
     }
 
-    public void setShowStatus(String showStatus) {
-      this.showStatus = showStatus;
+    public void setStatus(String status) {
+      this.status = status;
     }
+
+    public String getContractType() {
+      return contractType;
+    }
+
+    public void setContractType(String contractType) {
+      this.contractType = contractType;
+    }
+
+    public String getMarginTrading() {
+      return marginTrading;
+    }
+
+    public void setMarginTrading(String marginTrading) {
+      this.marginTrading = marginTrading;
+    }
+
+    public ByBitSymbolLotSizeFilter getLotSizeFilter() {
+      return lotSizeFilter;
+    }
+
+    public void setLotSizeFilter(ByBitSymbolLotSizeFilter lotSizeFilter) {
+      this.lotSizeFilter = lotSizeFilter;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class ByBitSymbolLotSizeFilter {
+    private String basePrecision;
+    private String quotePrecision;
+    private String marginTrading;
+    private String minOrderQty;
+    private String maxOrderQty;
+    private String minOrderAmt;
+    private String maxOrderAmt;
 
     public String getBasePrecision() {
       return basePrecision;
@@ -147,20 +247,52 @@ public class XBybitExchange extends XExchange {
       this.basePrecision = basePrecision;
     }
 
-    public String getMinPricePrecision() {
-      return minPricePrecision;
+    public String getQuotePrecision() {
+      return quotePrecision;
     }
 
-    public void setMinPricePrecision(String minPricePrecision) {
-      this.minPricePrecision = minPricePrecision;
+    public void setQuotePrecision(String quotePrecision) {
+      this.quotePrecision = quotePrecision;
     }
 
-    public String getCategory() {
-      return category;
+    public String getMarginTrading() {
+      return marginTrading;
     }
 
-    public void setCategory(String category) {
-      this.category = category;
+    public void setMarginTrading(String marginTrading) {
+      this.marginTrading = marginTrading;
+    }
+
+    public String getMinOrderQty() {
+      return minOrderQty;
+    }
+
+    public void setMinOrderQty(String minOrderQty) {
+      this.minOrderQty = minOrderQty;
+    }
+
+    public String getMaxOrderQty() {
+      return maxOrderQty;
+    }
+
+    public void setMaxOrderQty(String maxOrderQty) {
+      this.maxOrderQty = maxOrderQty;
+    }
+
+    public String getMinOrderAmt() {
+      return minOrderAmt;
+    }
+
+    public void setMinOrderAmt(String minOrderAmt) {
+      this.minOrderAmt = minOrderAmt;
+    }
+
+    public String getMaxOrderAmt() {
+      return maxOrderAmt;
+    }
+
+    public void setMaxOrderAmt(String maxOrderAmt) {
+      this.maxOrderAmt = maxOrderAmt;
     }
   }
 
