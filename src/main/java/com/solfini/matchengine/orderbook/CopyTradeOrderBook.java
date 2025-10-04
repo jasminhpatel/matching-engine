@@ -731,19 +731,46 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       } else {
         balance = ExternalExchangeHandler.getBalance(subscription, xExchange, baseSymbol);
         if (subscription.getPercentage() <= 10_000 /* no margin */) {
-          if (balance.getCoinBalance() <= 0) {
-            LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " exchangeBalance: ", balance.getCoinBalance());
+          if (subscription.isFuturesEnabled()) {
+            if (balance.getCoinBalance() >= 0) {
+              double maxExchangeValue = balance.getCoinBalance() * price;
+              maxTradeValue = Math.min(availableMaxAmount, maxExchangeValue);
+              LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
+                  " new maxTradeValue: ", maxTradeValue, " exchange balance: ", maxExchangeValue);
+            } else {
+              balance = ExternalExchangeHandler.getStableCoinBalance(subscription, xExchange);
+              double stableCoinBalance = balance.getBalance(quotedSymbol);
 
-            copyTrade.setResult("REJECTED: Insufficient balance. balance: " + balance.getCoinBalance() + " " + baseSymbol + ".");
-            copyTrade.setxExchange(null);
-            matcherToPublisherQueue.addGuaranteed(copyTrade);
+              maxTradeValue = Math.min(availableMaxAmount, stableCoinBalance);
+              LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
+                  " new maxTradeValue: ", maxTradeValue, " exchange balance: ", stableCoinBalance);
+              if (maxTradeValue <= 0) {
+                LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, "futures exchangeCoinBalance: ", balance.getCoinBalance(),
+                    " exchangeStableCoinBalance: ", stableCoinBalance);
 
-            return;
+                copyTrade.setResult("REJECTED: Insufficient balance. coin balance: " + balance.getCoinBalance() + " " + baseSymbol
+                    + " stable coin balance: " + stableCoinBalance + " " + quotedSymbol );
+                copyTrade.setxExchange(null);
+                matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+                return;
+              }
+            }
+          } else {
+            if (balance.getCoinBalance() <= 0) {
+              LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " exchangeBalance: ", balance.getCoinBalance());
+
+              copyTrade.setResult("REJECTED: Insufficient balance. balance: " + balance.getCoinBalance() + " " + baseSymbol + ".");
+              copyTrade.setxExchange(null);
+              matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+              return;
+            }
+            double maxExchangeValue = balance.getCoinBalance() * price;
+            maxTradeValue = Math.min(availableMaxAmount, maxExchangeValue);
+            LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
+                " new maxTradeValue: ", maxTradeValue, " exchange balance: ", maxExchangeValue);
           }
-          double maxExchangeValue = balance.getCoinBalance() * price;
-          maxTradeValue = Math.min(availableMaxAmount, maxExchangeValue);
-          LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
-              " new maxTradeValue: ", maxTradeValue, " exchange balance: ", maxExchangeValue);
         }
       }
 
