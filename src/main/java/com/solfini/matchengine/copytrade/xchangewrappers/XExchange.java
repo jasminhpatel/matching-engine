@@ -5,6 +5,7 @@ import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalCurrencyPairCache;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
+import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
@@ -137,7 +138,7 @@ public abstract class XExchange implements Exchange {
     return balance;
   }
 
-  public Balance getBalanceFromExchange(final String symbol) {
+  public Balance getBalanceFromExchange(final String symbol, final InfluencerSubscription subscription) {
     final Balance balance = new Balance();
     balance.setLastUpdated(System.currentTimeMillis());
     try {

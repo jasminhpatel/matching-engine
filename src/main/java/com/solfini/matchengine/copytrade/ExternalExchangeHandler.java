@@ -91,7 +91,7 @@ public class ExternalExchangeHandler {
     if (balance == null || balance.getLastUpdated() <= (System.currentTimeMillis() - TWO_MINUTE)) {
       synchronized (subscription) {
         if (balance == null || balance.getLastUpdated() < (System.currentTimeMillis() - TWO_MINUTE)) {
-          balance = getBalanceFromExchange(xExchange, symbol);
+          balance = getBalanceFromExchange(xExchange, symbol, subscription);
           BALANCE_CACHE.put(key, balance);
           LOGGER.info(LOG_FMT_4, "Exchange balance updated: subscription: ", subscription.getId(), " balance: ", balance.toJson());
         }
@@ -132,8 +132,8 @@ public class ExternalExchangeHandler {
     return xExchange.getStableCoinBalanceFromExchange();
   }
 
-  private static XExchange.Balance getBalanceFromExchange(final XExchange xExchange, final String symbol) {
-    return xExchange.getBalanceFromExchange(symbol);
+  private static XExchange.Balance getBalanceFromExchange(final XExchange xExchange, final String symbol, final InfluencerSubscription subscription) {
+    return xExchange.getBalanceFromExchange(symbol, subscription);
   }
 
   private static class Price {

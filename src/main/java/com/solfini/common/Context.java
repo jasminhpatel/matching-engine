@@ -178,7 +178,7 @@ public final class Context implements Constants {
   private static final int NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS = PropertyReader.getProperty("NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS", 3);
   private static final boolean REJECT_OUT_OF_BOUND_ORDERS = TRUE.equalsIgnoreCase(PropertyReader.getProperty("REJECT_OUT_OF_BOUND_ORDERS", FALSE));
   private static final int TOP_BOTTOM_RELOAD_HOUR_IN_CEST = PropertyReader.getProperty("TOP_BOTTOM_RELOAD_HOUR_IN_CEST", 7); // 7 am CEST => 1am EST
-
+  private static final String BYBIT_EXCHANGE_BASE_URL = PropertyReader.getProperty("BYBIT_EXCHANGE_BASE_URL", "https://api-testnet.bybit.com");
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoLiquidatorQueue =
@@ -819,5 +819,9 @@ public final class Context implements Constants {
 
   public static int getTopBottomReloadHourInCest() {
     return TOP_BOTTOM_RELOAD_HOUR_IN_CEST;
+  }
+
+  public static String getBybitExchangeBaseUrl() {
+    return BYBIT_EXCHANGE_BASE_URL;
   }
 }

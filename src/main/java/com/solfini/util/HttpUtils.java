@@ -1,5 +1,7 @@
 package com.solfini.util;
 
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import javax.net.ssl.HttpsURLConnection;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,6 +49,61 @@ public class HttpUtils {
     } catch (MalformedURLException e) {
       e.printStackTrace();
     } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      if (isr != null) {
+        try {
+          isr.close();
+        } catch (IOException e) {
+        }
+      }
+      if (is != null) {
+        try {
+          is.close();
+        } catch (IOException e) {
+        }
+      }
+    }
+    return null;
+  }
+
+  public static Response get(final String httpsURL, final Map<String, Object> headers, final String proxyHost, final int proxyPort) {
+    URL url = null;
+    HttpsURLConnection connection = null;
+    InputStream is = null;
+    InputStreamReader isr = null;
+    try {
+      url = new URL(httpsURL);
+      Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+      connection = (HttpsURLConnection) url.openConnection(proxy);
+      connection.setDoOutput(true);
+      connection.setDoInput(true);
+      connection.setUseCaches(false);
+      connection.setRequestMethod("GET");
+      for (Map.Entry<String, Object> entry : headers.entrySet()) {
+        connection.setRequestProperty(entry.getKey(), String.valueOf(entry.getValue()));
+      }
+
+      int code = connection.getResponseCode();
+      if (code >= 400) {
+        is = connection.getErrorStream();
+      } else {
+        is = connection.getInputStream();
+      }
+
+      isr = new InputStreamReader(is);
+      int numCharsRead;
+      final char[] charArray = new char[1024];
+      final StringBuffer sb = new StringBuffer();
+      while ((numCharsRead = isr.read(charArray)) > 0) {
+        sb.append(charArray, 0, numCharsRead);
+      }
+
+      return new Response(code, sb.toString());
+
+    } catch (final MalformedURLException e) {
+      e.printStackTrace();
+    } catch (final IOException e) {
       e.printStackTrace();
     } finally {
       if (isr != null) {

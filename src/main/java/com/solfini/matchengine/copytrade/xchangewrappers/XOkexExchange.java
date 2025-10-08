@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
 import org.knowm.xchange.Exchange;
@@ -92,7 +93,7 @@ public class XOkexExchange extends XExchange {
     return null;
   }
 
-  public Balance getBalanceFromExchange(final String symbol) {
+  public Balance getBalanceFromExchange(final String symbol, final InfluencerSubscription subscription) {
     final Balance balance = new Balance();
     balance.setLastUpdated(System.currentTimeMillis());
     try {

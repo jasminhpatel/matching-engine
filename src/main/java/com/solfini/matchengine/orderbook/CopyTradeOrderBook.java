@@ -61,7 +61,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
   private MarketStatus marketStatus;
   private static InstrumentMetaData defaultMetadata;
 
+  private static final Map<String, String> EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP = new HashMap<>();
+
+  public static final String BINANCE = "binance";
+  public static final String BYBIT = "bybit";
+
   static {
+    init();
     defaultMetadata = new InstrumentMetaData.Builder().marketOrderEnabled(false).minimumAmount(new BigDecimal("50"))
         .maximumAmount(new BigDecimal("5000000")).priceScale(2).volumeScale(2).build();
     if (Context.isCopyTradeEnabled()) {
@@ -614,7 +620,13 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       final InfluencerSubscription subscription = copyTrade.getSubscription();
 
       final Side side = subscription.getInverseTrade() == 0 ? copyTrade.getSide() : copyTrade.getInverseSide();
-      final String baseSymbol = copyTrade.getBaseSymbol();
+      String baseSymbol = copyTrade.getBaseSymbol();
+      if (subscription.isFuturesEnabled() && (BYBIT.equalsIgnoreCase(subscription.getExchange()) || BINANCE.equalsIgnoreCase(subscription.getExchange()))) {
+        final String key = (subscription.getExchange() + "_" + baseSymbol).toUpperCase();
+        if (EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.containsKey(key)) {
+          baseSymbol = EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.get(key);
+        }
+      }
       String quotedSymbol = DefaultExchangeQuoteCache.get(subscription.getExchange(), baseSymbol);
       if (quotedSymbol == null) {
         quotedSymbol = MarketDepthCache.getBestQuoteCurrency(subscription.getExchange(), baseSymbol, copyTrade.getSide(),
@@ -711,6 +723,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       //check exchange balance
       XExchange.Balance balance = null;
+      LOGGER.info(Constants.LOG_FMT_2, "is futures enabled: ", subscription.isFuturesEnabled());
       if (side == Side.BUY) {
         balance = ExternalExchangeHandler.getStableCoinBalance(subscription, xExchange);
         double totalStableCoinBalance = balance.getTotalStableCoinBalance();
@@ -1011,12 +1024,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
 
       double quantity = MbxMath.roundToBestPrecision(signalTradeValue / xPrice.doubleValue());
+      LOGGER.info(Constants.LOG_FMT_2, "quantity: ", quantity);
 
       copyTrade.setOrderQty(MbxMath.changeScale(quantity, symbolStatus.getQtyScale()));
       copyTrade.setOrderQtyScale((short) symbolStatus.getQtyScale());
 
       BigDecimal xQuantity = new BigDecimal(quantity);
       xQuantity = xQuantity.setScale(symbolStatus.getQtyScale(), RoundingMode.HALF_DOWN);
+      LOGGER.info(Constants.LOG_FMT_2, "xQuantity: ", xQuantity, " Qty Scale: " + symbolStatus.getQtyScale());
 
       InstrumentMetaData instrumentMetaData = getInstrumentMetadata(xExchange, instrument);
       if (instrumentMetaData.getMinimumAmount() != null && instrumentMetaData.getMinimumAmount().compareTo(xQuantity) > 0) {
@@ -1245,5 +1260,36 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       LOGGER.error(Constants.LOG_FMT_2, "Instrument metadata not available. ", instrument.getBase(), "/", instrument.getCounter());
     }
     return defaultMetadata;
+  }
+
+  private static final void init() {
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_BABYDOGEUSDT", "1000000BABYDOGEUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_CHEEMSUSDT", "1000000CHEEMSUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_MOGUSDT", "1000000MOGUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_PEIPEIUSDT", "1000000PEIPEIUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_COQUSDT", "10000COQUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_ELONUSDT", "10000ELONUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_LADYSUSDT", "10000LADYSUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_QUBICUSDT", "10000QUBICUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_SATSUSDT", "10000SATSUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_WENUSDT", "10000WENUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_BONKUSDC", "1000BONKPERP");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_BONKUSDT", "1000BONKUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_BTTUSDT", "1000BTTUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_CATUSDT", "1000CATUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_FLOKIUSDT", "1000FLOKIUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_LUNCUSDT", "1000LUNCUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_NEIROCTOUSDC", "1000NEIROCTOPERP");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_NEIROCTOUSDT", "1000NEIROCTOUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_PEPEUSDC", "1000PEPEPERP");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_PEPEUSDT", "1000PEPEUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_RATSUSDT", "1000RATSUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_TAGUSDT", "1000TAGUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_TOSHIUSDT", "1000TOSHIUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_TURBOUSDT", "1000TURBOUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_XECUSDT", "1000XECUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_XUSDT", "1000XUSDT");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_SHIBUSDC", "SHIB1000PERP");
+    EXCHANGE_SYMBOL_TO_MULTIPLIER_CONTRACT_MAP.put("BYBIT_SHIBUSDT", "SHIB1000USDT");
   }
 }

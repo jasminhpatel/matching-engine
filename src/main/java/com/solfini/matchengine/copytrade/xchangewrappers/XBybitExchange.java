@@ -4,18 +4,30 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
+import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.util.HttpUtils;
+import com.solfini.util.MbxMath;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.knowm.xchange.Exchange;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import org.knowm.xchange.currency.Currency;
+import org.knowm.xchange.dto.account.Wallet;
+import org.knowm.xchange.service.account.AccountService;
 
 public class XBybitExchange extends XExchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XBybitExchange.class);
   private final ObjectMapper mapper = new ObjectMapper();
+
+  private static final int PROXY_PORT = 8888;
 
   public XBybitExchange(Exchange exchange) {
     super(exchange);
@@ -109,12 +121,91 @@ public class XBybitExchange extends XExchange {
     return symbolStatuses;
   }
 
+  public Balance getBalanceFromExchange(final String symbol, final InfluencerSubscription subscription) {
+    final Balance balance = new Balance();
+    balance.setLastUpdated(System.currentTimeMillis());
+    try {
+      if (subscription.isFuturesEnabled()) {
+        //        final String apiKey = exchange.getExchangeSpecification().getApiKey();
+        //        final String secretKey = exchange.getExchangeSpecification().getSecretKey();
+        //        final String apiUrl = exchange.getExchangeSpecification().getSslUri();
+        final String apiKey = subscription.getApiKey();
+        final String secretKey = subscription.getApiSecret();
+        final String apiUrl = Context.getBybitExchangeBaseUrl();
+
+
+        final long ts = System.currentTimeMillis();
+        final String recvWindow = "15000";
+        final StringBuilder query = new StringBuilder();
+        query.append("category=linear").append("&symbol=").append(symbol.toUpperCase() + "USDT");
+
+        final String preSign = ts + apiKey + recvWindow + query;
+        final String sign = hmacSha256(preSign, secretKey);
+        final String url = apiUrl + "/v5/position/list" + "?" + query;
+
+        final Map<String, Object> headers = new HashMap<>(5);
+        headers.put("X-BAPI-API-KEY", apiKey);
+        headers.put("X-BAPI-TIMESTAMP", String.valueOf(ts));
+        headers.put("X-BAPI-RECV-WINDOW", recvWindow);
+        headers.put("X-BAPI-SIGN", sign);
+
+        final HttpUtils.Response response = HttpUtils.get(url, headers, subscription.getLastUsedProxy(), PROXY_PORT);
+        if (response != null && response.getCode() == 200) {
+          final BybitPositionsResponse parsed = mapper.readValue(response.getData(), BybitPositionsResponse.class);
+
+          if (parsed.getRetCode() == 0 && "OK".equalsIgnoreCase(parsed.getRetMsg()) && parsed.getResult() != null
+              && parsed.getResult().getList() != null && !parsed.getResult().getList().isEmpty()) {
+            final BybitPosition bybitPosition = parsed.getResult().getList().get(0);
+            if (bybitPosition != null) {
+              balance.setCoinBalance("SELL".equalsIgnoreCase(bybitPosition.getSide()) ?
+                  MbxMath.roundToBestPrecision(Double.parseDouble(bybitPosition.getSize())) * -1 :
+                  MbxMath.roundToBestPrecision(Double.parseDouble(bybitPosition.getSize())));
+            }
+          }
+        }
+      } else {
+        final AccountService accountService = this.exchange.getAccountService();
+        if (accountService == null)
+          return balance;
+        final Wallet wallet = accountService.getAccountInfo().getWallet();
+        if (wallet == null)
+          return balance;
+        final Map<Currency, org.knowm.xchange.dto.account.Balance> balances = wallet.getBalances();
+        if (balances == null)
+          return balance;
+
+        final Currency currency = Currency.getInstance(symbol);
+        if (currency == null) {
+          return balance;
+        }
+
+        org.knowm.xchange.dto.account.Balance bal = balances.get(currency);
+
+        if (bal != null && bal.hasAvailable()) {
+          balance.setCoinBalance(MbxMath.roundToBestPrecision(bal.getAvailable().doubleValue() + bal.getFrozen().doubleValue()));
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.error("Error occurred wile fetching balance. ", e);
+    }
+    return balance;
+  }
+
   private static int getPrecision(String minValue) {
     if (minValue != null && minValue.contains(".")) {
       return minValue.substring(minValue.indexOf(".") + 1).length();
     } else {
       return 0;
     }
+  }
+
+  private static String hmacSha256(String data, String key) throws Exception {
+    Mac mac = Mac.getInstance("HmacSHA256");
+    mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+    byte[] h = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    StringBuilder sb = new StringBuilder(h.length * 2);
+    for (byte b : h) sb.append(String.format("%02x", b));
+    return sb.toString();
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

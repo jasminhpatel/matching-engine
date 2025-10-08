@@ -86,7 +86,7 @@ public class XchangeTest {
   }
 
   private static XExchange.Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {
-    return xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency());
+    return xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency(), subscription);
   }
 
   public static XExchange createXExchange(final InfluencerSubscription subscription) {

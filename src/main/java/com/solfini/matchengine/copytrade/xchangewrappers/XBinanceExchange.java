@@ -6,6 +6,7 @@ import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.copytrade.CopyTrade;
 import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
+import com.solfini.matchengine.copytrade.InfluencerSubscription;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.StringUtil;
@@ -26,9 +27,9 @@ public class XBinanceExchange extends XExchange {
     super(exchange);
   }
 
-  public Balance getBalanceFromExchange(final String quoteCurrency) {
+  public Balance getBalanceFromExchange(final String quoteCurrency, final InfluencerSubscription subscription) {
     //todo margin balance logic
-    return super.getBalanceFromExchange(quoteCurrency);
+    return super.getBalanceFromExchange(quoteCurrency, subscription);
   }
 
   public double getPriceFromExchange(final Instrument currencyPair, final Side side) {
