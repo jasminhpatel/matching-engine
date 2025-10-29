@@ -745,7 +745,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         balance = ExternalExchangeHandler.getBalance(subscription, xExchange, baseSymbol);
         if (subscription.getPercentage() <= 10_000 /* no margin */) {
           if (subscription.isFuturesEnabled()) {
-            if (balance.getCoinBalance() >= 0) {
+            if (balance.getCoinBalance() > 0) {
               double maxExchangeValue = balance.getCoinBalance() * price;
               maxTradeValue = Math.min(availableMaxAmount, maxExchangeValue);
               LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
@@ -756,7 +756,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
               maxTradeValue = Math.min(availableMaxAmount, stableCoinBalance);
               LOGGER.info(Constants.LOG_FMT_6, "Max trade value adjusted based on the exchange balance. clOrdId: ", clOrdId,
-                  " new maxTradeValue: ", maxTradeValue, " exchange balance: ", stableCoinBalance);
+                  " new maxTradeValue: ", maxTradeValue, " exchange stable balance: ", stableCoinBalance);
               if (maxTradeValue <= 0) {
                 LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, "futures exchangeCoinBalance: ", balance.getCoinBalance(),
                     " exchangeStableCoinBalance: ", stableCoinBalance);
