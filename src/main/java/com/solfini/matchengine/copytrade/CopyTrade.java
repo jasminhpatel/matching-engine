@@ -10,6 +10,8 @@ import com.solfini.matchengine.persist.Persister;
 import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
+import java.util.ArrayList;
+import java.util.List;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.instrument.Instrument;
 
@@ -63,6 +65,8 @@ public class CopyTrade extends Message {
 
   //in-memory
   private XExchange xExchange;
+
+  private List<CopyTrade> openOrders = new ArrayList<>();
 
   public CopyTrade() {}
 
@@ -475,6 +479,14 @@ public class CopyTrade extends Message {
 
   public boolean isSuccessful() {
     return (result == null) || !(result.startsWith("FAILED") || result.startsWith("REJECTED"));
+  }
+
+  public List<CopyTrade> getOpenOrders() {
+    return openOrders;
+  }
+
+  public void setOpenOrders(List<CopyTrade> openOrders) {
+    this.openOrders = openOrders;
   }
 
   @Override
