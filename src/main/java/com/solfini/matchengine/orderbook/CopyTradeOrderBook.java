@@ -329,31 +329,32 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                   subscriptionWiseCopyTrades.getOrDefault(openCopyTrade.getSubscriptionId(), new HashMap<>());
               subscriptionWiseCopyTrades.put(openCopyTrade.getSubscriptionId(), pairWiseCopyTrades);
 
-              CopyTrade clct = pairWiseCopyTrades.get(openCopyTrade.getBaseSymbol());
-              if (clct == null) {
-                final String clOrdId = order.getClOrdId() + openCopyTrade.getSubscriptionId();
-                clct = new CopyTrade(openCopyTrade);
-                clct.setClOrdId(clOrdId);
-                clct.setOrigClOrdId(openCopyTrade.getClOrdId());
-                clct.setSide(openCopyTrade.getSide() == Side.BUY ? Side.SELL : Side.BUY);
-                clct.setOrdType(OrdType.LIMIT);
-                clct.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
-                clct.setToClose(true);
-                clct.setCreated(System.currentTimeMillis());
-                clct.setResult(null);
-                clct.setExternalId(null);
-                clct.setStatus(null);
-                clct.setToClose(order.isToClose());
-                clct.setOpenOrder(openCopyTrade);
-                clct.setKafkaRecordOffset(order.getKafkaRecordOffset());
-                clct.setSourceSendTime(order.getSourceSendTime());
+              CopyTrade closeCopyTrade = pairWiseCopyTrades.get(openCopyTrade.getBaseSymbol());
+              if (closeCopyTrade == null) {
+                count++;
+                final String clOrdId = order.getClOrdId() + openCopyTrade.getSubscriptionId() + count;
+                closeCopyTrade = new CopyTrade(openCopyTrade);
+                closeCopyTrade.setClOrdId(clOrdId);
+                closeCopyTrade.setOrigClOrdId(openCopyTrade.getClOrdId());
+                closeCopyTrade.setSide(openCopyTrade.getSide() == Side.BUY ? Side.SELL : Side.BUY);
+                closeCopyTrade.setOrdType(OrdType.LIMIT);
+                closeCopyTrade.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
+                closeCopyTrade.setToClose(true);
+                closeCopyTrade.setCreated(System.currentTimeMillis());
+                closeCopyTrade.setResult(null);
+                closeCopyTrade.setExternalId(null);
+                closeCopyTrade.setStatus(null);
+                closeCopyTrade.setToClose(order.isToClose());
+                closeCopyTrade.setOpenOrder(openCopyTrade);
+                closeCopyTrade.setKafkaRecordOffset(order.getKafkaRecordOffset());
+                closeCopyTrade.setSourceSendTime(order.getSourceSendTime());
 
-                clct.getOpenOrders().add(openCopyTrade);
-                pairWiseCopyTrades.put(openCopyTrade.getBaseSymbol(), clct);
+                closeCopyTrade.getOpenOrders().add(openCopyTrade);
+                pairWiseCopyTrades.put(openCopyTrade.getBaseSymbol(), closeCopyTrade);
               } else {
 
 
-                clct.getOpenOrders().add(openCopyTrade);
+                closeCopyTrade.getOpenOrders().add(openCopyTrade);
               }
             }
             count++;
@@ -1292,12 +1293,24 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ",
               openCopyTrade.getClOrdId());
 
-          closeCopyTrade.setResult("REJECTED: Failed to fetch price.");
-          closeCopyTrade.setxExchange(null);
-          matcherToPublisherQueue.addGuaranteed(closeCopyTrade);
+          //closeCopyTrade.setResult("REJECTED: Failed to fetch price.");
+          //closeCopyTrade.setxExchange(null);
+          //matcherToPublisherQueue.addGuaranteed(closeCopyTrade);
           continue;
         }
-        xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTrade.getCumulativeAmount()));
+
+        openCopyTradesToClose.add(openCopyTrade);
+        if (openCopyTrade.getSide().equals(Side.BUY)) {
+          xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTrade.getCumulativeAmount()));
+        } else {
+          xQuantity = xQuantity.subtract(BigDecimal.valueOf(openCopyTrade.getCumulativeAmount()));
+        }
+      }
+      if (xQuantity.compareTo(BigDecimal.ZERO) > 0) {
+        closeCopyTrade.setSide(Side.BUY);
+      } else {
+        closeCopyTrade.setSide(Side.SELL);
+        xQuantity = xQuantity.abs();
       }
 
       final SymbolStatus symbolStatus =
