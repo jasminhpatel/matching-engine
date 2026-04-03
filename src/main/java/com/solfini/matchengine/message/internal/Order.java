@@ -12,7 +12,6 @@ import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.schema.PayloadType;
-import com.solfini.matchengine.orderbook.CopyTradeOrderBook;
 import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.sbe.encoder.BooleanType;
@@ -78,11 +77,15 @@ public class Order extends Message implements Constants {
   private int quoteTargetUserId;
   private String platform;
   private String accountId;
-  private String symbol; //for copy trades
+  private String symbol; // for copy trades
   private long filterId;
+  private String ocoClOrdId;
+  private Order ocoOrder;
 
-  //for inmemory use only
+  // for inmemory use only
   private boolean orderModified;
+  private boolean executed;
+  private boolean rejected;
 
   public Order() {
     // default constructor
@@ -118,7 +121,7 @@ public class Order extends Message implements Constants {
     this.side = newOrderSingleDecoder.side();
 
     this.ordType = newOrderSingleDecoder.ordType();
-    //this.toClose = false;
+    // this.toClose = false;
     this.toClose = BooleanType.TRUE == newOrderSingleDecoder.isToClose();
 
     this.price2 = newOrderSingleDecoder.price2();
@@ -144,13 +147,16 @@ public class Order extends Message implements Constants {
     this.quoteType = newOrderSingleDecoder.quoteType();
     this.quoteTargetUserId = newOrderSingleDecoder.quoteTargetUserId();
     if (this.quoteType != null && this.quoteType != QuoteType.NULL_VAL) {
-      this.origOrderId = newOrderSingleDecoder.orderId();//for RFQ
-      if (this.origOrderId > 0) this.orderId = this.origOrderId;
+      this.origOrderId = newOrderSingleDecoder.orderId();// for RFQ
+      if (this.origOrderId > 0)
+        this.orderId = this.origOrderId;
     }
     this.platform = newOrderSingleDecoder.platform();
     this.accountId = newOrderSingleDecoder.accountId();
     // reuse secondaryOrderId field to get filterId from API. secondaryOrderId is empty until the engine assigns a value for it.
     this.filterId = newOrderSingleDecoder.secondaryOrderId();
+    //todo update SBE version and deloy the below change
+    //this.ocoClOrdId = newOrderSingleDecoder.ocoClOrdID();
   }
 
   // copy set order, used for stop limit orders
@@ -224,6 +230,8 @@ public class Order extends Message implements Constants {
     this.orderModified = source.orderModified;
     this.platform = source.platform;
     this.accountId = source.accountId;
+    this.ocoClOrdId = source.ocoClOrdId;
+    this.ocoOrder = source.ocoOrder;
   }
 
   public final int getSecurityId() {
@@ -344,6 +352,22 @@ public class Order extends Message implements Constants {
 
   public final void setNext(final Order next) {
     this.next = next;
+  }
+
+  public final String getOcoClOrdId() {
+    return ocoClOrdId;
+  }
+
+  public final void setOcoClOrdId(final String ocoClOrdId) {
+    this.ocoClOrdId = ocoClOrdId;
+  }
+
+  public final Order getOcoOrder() {
+    return ocoOrder;
+  }
+
+  public final void setOcoOrder(final Order ocoOrder) {
+    this.ocoOrder = ocoOrder;
   }
 
   public final int getType() {
@@ -546,6 +570,14 @@ public class Order extends Message implements Constants {
 
   public final void setQuantityOrigLong(final long quantityOrigLong) {
     this.quantityOrigLong = quantityOrigLong;
+  }
+
+  public short getQuantityOrigScale() {
+    return quantityOrigScale;
+  }
+
+  public void setQuantityOrigScale(short quantityOrigScale) {
+    this.quantityOrigScale = quantityOrigScale;
   }
 
   public TimeInForce getTimeInForce() {
@@ -788,15 +820,28 @@ public class Order extends Message implements Constants {
     this.filterId = filterId;
   }
 
+  public boolean isExecuted() {
+    return executed;
+  }
+
+  public void setExecuted(boolean executed) {
+    this.executed = executed;
+  }
+
+  public boolean isRejected() {
+    return rejected;
+  }
+
+  public void setRejected(boolean rejected) {
+    this.rejected = rejected;
+  }
+
   // TODO: remove this check used for debugging
   public void visit() {
-/*    if (markAsReturned) {
-      try {
-        throw new NullPointerException();
-      } catch (Exception e) {
-        LOGGER.error("visit marked AsReturned" + toString() + ", returnedStack=" + returnedStack, e);
-      }
-    }*/
+    /*
+     * if (markAsReturned) { try { throw new NullPointerException(); } catch (Exception e) { LOGGER.error("visit marked AsReturned" +
+     * toString() + ", returnedStack=" + returnedStack, e); } }
+     */
   }
 
   @Override
@@ -809,7 +854,7 @@ public class Order extends Message implements Constants {
       final StringWriter sw = new StringWriter();
       final PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
-      //returnedStack = sw.toString(); // stack trace as a string
+      // returnedStack = sw.toString(); // stack trace as a string
     }
   }
 
@@ -826,6 +871,7 @@ public class Order extends Message implements Constants {
     if (account != Context.getMarketMakerUserid()) {
       LOGGER.info("Order received: " + this.toJSON());
     }
+
     final InstrumentPair instrument = InstrumentCache.getPair(securityId);
     if (null != instrument) {
       final OrderBook orderbook = instrument.getOrderBook();
@@ -889,6 +935,20 @@ public class Order extends Message implements Constants {
     this.platform = null;
     this.accountId = null;
     this.symbol = null;
+    this.filterId = 0;
+    this.timeInForce = null;
+    this.orderModified = false;
+    this.toClose = false;
+    this.secondaryOrderId = 0;
+    this.orderPriority = 0;
+    this.side = null;
+    this.ordType = null;
+    this.clOrdId = null;
+    this.executed = false;
+    this.rejected = false;
+    this.inputTime = 0;
+    this.ocoClOrdId = null;
+    this.ocoOrder = null;
   }
 
   @Override
@@ -961,9 +1021,10 @@ public class Order extends Message implements Constants {
         .append(",\"feeEstimatedQuantity\":").append(feeEstimatedQuantity).append(",\"feeAccumulatedQuantity\":")
         .append(feeAccumulatedQuantity).append(",\"availableEstimatedQuantity\":").append(availableEstimatedQuantity)
         .append(",\"availableAccumulatedQuantity\":").append(availableAccumulatedQuantity).append(",\"assetId\":").append(assetId)
-        .append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":")
-        .append(selectId).append(",\"platform\":\"").append(platform).append("\",\"accountId\":\"").append(accountId)
-        .append("\",\"symbol\":\"").append(symbol).append("\"");
+        .append(",\"tokenId\":").append(tokenId).append(",\"groupAssetId\":").append(groupAssetId).append(",\"selectId\":").append(selectId)
+        .append(",\"platform\":\"").append(platform).append("\",\"accountId\":\"").append(accountId).append("\",\"symbol\":")
+        .append(symbol != null ? "\"" + symbol + "\"" : "null").append(",\"executed\":").append(executed).append(",\"rejected\":")
+        .append(rejected);
     if (quoteType != null) {
       sb.append(",\"quoteType\":\"").append(quoteType).append("\"");
     }

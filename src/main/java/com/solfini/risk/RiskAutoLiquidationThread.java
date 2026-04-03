@@ -1,5 +1,7 @@
 package com.solfini.risk;
 
+import com.solfini.matchengine.liquidity.LiquidityCache;
+import com.solfini.util.MbxMath;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -98,6 +100,7 @@ public class RiskAutoLiquidationThread implements Runnable, Constants {
         // regular messages
         user = riskToAutoLiquidatorQueue.poll();
         if (user != null) {
+          LOGGER.info(Constants.LOG_FMT_2, "Liquidating User: ", user);
           list.clear();
           if (LOGGER.isInfoEnabled()) {
             LOGGER.info(LOG_FMT_2, "RiskAutoLiquidationThread polled, user=", user);
@@ -287,8 +290,23 @@ public class RiskAutoLiquidationThread implements Runnable, Constants {
 
           Side side = Side.SELL;
           if (position.getQuantity() > 0) {
-            bankruptPriceInt = (int) ((position.getUsdAvgCostBasisDouble() - usdDeltaPerContract) * instrumentPair.getPriceScaleMultiplier()
+            bankruptPriceInt = (int) ((position.getUsdAvgCostBasisDouble() - usdDeltaPerContract)
+                * instrumentPair.getPriceScaleMultiplier()
                 * SLIPPAGE_PREMIUM);
+
+            if (instrumentPair.getOrderBook().getOrderBookStrategy() == LIQUIDITY_ORDER_BOOK) {
+              double liquidityPrice = LiquidityCache.getSymbolPrice(
+                  instrumentPair,
+                  side,
+                  instrumentPair.getBase().getSymbol(),
+                  MbxMath.scaleDown(position.getQuantity(), instrumentPair.getBase().getQuantityScale()));
+              if (liquidityPrice > 0) {
+                int liquidityBankruptPriceInt = (int) ((liquidityPrice - usdDeltaPerContract) * SLIPPAGE_PREMIUM);
+
+                LOGGER.info(Constants.LOG_FMT_6, "BankruptPriceInt: ", bankruptPriceInt , " liquidityBankruptPriceInt: ", liquidityBankruptPriceInt, " side: ", side);
+                bankruptPriceInt = Math.min(liquidityBankruptPriceInt, bankruptPriceInt);
+              }
+            }
 
             LOGGER.info(LOG_FMT_12, ">>> calcBankruptcyPrices2, SELL lossMargin=", lossMargin, ", hasEquity=", hasEquity, USDVALUE_EQ,
                 usdValue, ", positionValue=", usdPositionNotional, ", bankruptPriceInt=", bankruptPriceInt, ", UsdAvgCostBasisDouble=",
@@ -298,6 +316,19 @@ public class RiskAutoLiquidationThread implements Runnable, Constants {
 
             bankruptPriceInt = (int) ((position.getUsdAvgCostBasisDouble() + usdDeltaPerContract) * instrumentPair.getPriceScaleMultiplier()
                 * SLIPPAGE_DISCOUNT);
+
+            if (instrumentPair.getOrderBook().getOrderBookStrategy() == LIQUIDITY_ORDER_BOOK) {
+              double liquidityPrice = LiquidityCache.getSymbolPrice(
+                  instrumentPair,
+                  side,
+                  instrumentPair.getBase().getSymbol(),
+                  MbxMath.scaleDown(position.getQuantity(), instrumentPair.getBase().getQuantityScale()));
+              if (liquidityPrice > 0) {
+                int liquidityBankruptPriceInt = (int) ((liquidityPrice + usdDeltaPerContract) * SLIPPAGE_DISCOUNT);
+                LOGGER.info(Constants.LOG_FMT_6, "BankruptPriceInt: ", bankruptPriceInt , " liquidityBankruptPriceInt: ", liquidityBankruptPriceInt, " side: ", side);
+                bankruptPriceInt = Math.max(liquidityBankruptPriceInt, bankruptPriceInt);
+              }
+            }
 
             LOGGER.info(LOG_FMT_12, ">>> calcBankruptcyPrices2, SELL lossMargin=", lossMargin, ", hasEquity=", hasEquity, USDVALUE_EQ,
                 usdValue, ", positionValue=", usdPositionNotional, ", bankruptPriceInt=", bankruptPriceInt, ", UsdAvgCostBasisDouble=",
@@ -312,14 +343,18 @@ public class RiskAutoLiquidationThread implements Runnable, Constants {
           }
           position.setBankruptPriceInt(bankruptPriceInt);
 
-
           final String senderCompId = "" + 1_000_000_000 + user.getId();
           final Message message =
               newOrderSingleHandler.buildNewLiquidationOrder(user, senderCompId, position.getInstrumentId(), clOrdId, bankruptPriceInt,
                   price_scale, Math.abs(position.getQuantity()), instrumentPair.getQuantityScale(), side, OrdType.LIMIT, TO_CLOSE);
           LOGGER.debug(LOG_FMT_6, ">>> verbose autoLiquidate", user.getId(), MESSAGE_EQ, message, INSTRUMENT_PAIR_EQ, instrumentPair);
-          if (message instanceof LiquidationOrder)
-            list.add((LiquidationOrder) message);
+          if (message instanceof LiquidationOrder liquidationOrder) {
+            if (instrumentPair.getOrderBook().getOrderBookStrategy() == LIQUIDITY_ORDER_BOOK) {
+              liquidationOrder.setSymbol(instrumentPair.getSymbol());
+              liquidationOrder.setTargetStrategy(LIQUIDATION);
+            }
+            list.add(liquidationOrder);
+          }
         }
       }
     }

@@ -1,6 +1,7 @@
 package com.solfini.matchengine.copytrade;
 
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.instrument.Instrument;
 

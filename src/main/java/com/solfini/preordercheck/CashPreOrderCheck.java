@@ -113,6 +113,7 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
         }
       }
       if (!userOpenOrdersByPair.add(order, referencePrice)) {
+        LOGGER.info("Add order reject. ");
         return false;
       }
       user.incrementOpenOrderCount();
@@ -171,7 +172,6 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
               return true;
             }
           }
-
           break;
         default:
       }
@@ -243,7 +243,6 @@ public class CashPreOrderCheck implements PreOrderCheck, Constants {
           LOGGER.debug(LOG_FMT_2, ">>> updateFill fee calc not found for ", fee.getFeeInstrumentId());
         }
       }
-
       // System.out.println(" >>> FEE from " + order.getFeeEstimatedQuantity() + " " + order.getFeeAccumulatedQuantity());
       order.incrementFeeAccumulatedQuantity(feeQuantity);
       // System.out.println(" >>> FEE to " + order.getFeeEstimatedQuantity() + " " + order.getFeeAccumulatedQuantity());

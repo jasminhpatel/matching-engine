@@ -3,6 +3,7 @@ package com.solfini.pool;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.common.ManyToManyConcurrentArrayQueueCustom;
 import com.solfini.common.OneToOneConcurrentArrayQueueCustom;
 import com.solfini.matchengine.message.outbound.BusinessRejectMessage;
 import com.solfini.util.PropertyReader;
@@ -19,8 +20,11 @@ public class BusinessRejectObjectPool implements Constants {
 
   private static final int QUEUE_CAPACITY = PropertyReader.getProperty("BUSINESS_REJECT_POOL_QUEUE_CAPACITY", 2097152);
   private static final int START_CAPACITY = PropertyReader.getProperty("BUSINESS_REJECT_POOL_START_CAPACITY", 1048576);
-  private static final OneToOneConcurrentArrayQueueCustom<BusinessRejectMessage> pool =
-      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "BusinessRejectObjectPool");
+/*  private static final OneToOneConcurrentArrayQueueCustom<BusinessRejectMessage> pool =
+      new OneToOneConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "BusinessRejectObjectPool");*/
+  private static final ManyToManyConcurrentArrayQueueCustom<BusinessRejectMessage> pool =
+      new ManyToManyConcurrentArrayQueueCustom<>(QUEUE_CAPACITY, "BusinessRejectObjectPool");
+
   private static final PoolBenchmark benchmark = new PoolBenchmark(BusinessRejectObjectPool.class, START_CAPACITY);
   static {
     init();

@@ -26,47 +26,47 @@ public class OrderFilter extends Message {
     }
   }
 
-  public long getFilterId() {
+  public final long getFilterId() {
     return filterId;
   }
 
-  public void setFilterId(final long filterId) {
+  public final void setFilterId(final long filterId) {
     this.filterId = filterId;
   }
 
-  public long[] getOrderIdGroup() {
+  public final long[] getOrderIdGroup() {
     return orderIdGroup;
   }
 
-  public void setOrderIdGroup(final long[] orderIdGroup) {
+  public final void setOrderIdGroup(final long[] orderIdGroup) {
     this.orderIdGroup = orderIdGroup;
   }
 
-  public int[] getPriceIdGroup() {
+  public final int[] getPriceIdGroup() {
     return priceIdGroup;
   }
 
-  public void setPriceIdGroup(int[] priceIdGroup) {
+  public final void setPriceIdGroup(final int[] priceIdGroup) {
     this.priceIdGroup = priceIdGroup;
   }
 
   @Override
-  public PayloadType getPayloadType() {
+  public final PayloadType getPayloadType() {
     return PayloadType.orderEntry;
   }
 
   @Override
-  public MessageType getMessageType() {
+  public final MessageType getMessageType() {
     return MessageType.ORDER_FILTER;
   }
 
   @Override
-  public void onMatcher() {
+  public final void onMatcher() {
     OrderFilterCache.onModel(this);
   }
 
   @Override
-  public void clear() {
+  public final void clear() {
     super.clear();
     filterId = 0;
     orderIdGroup = null;
@@ -74,17 +74,17 @@ public class OrderFilter extends Message {
   }
 
   @Override
-  public String toString() {
-    StringBuilder s = new StringBuilder();
+  public final String toString() {
+    final StringBuilder s = new StringBuilder();
     appendTo(s);
     return s.toString();
   }
 
   @Override
-  public StringBuilder appendTo(final StringBuilder sb) {
+  public final StringBuilder appendTo(final StringBuilder sb) {
     sb.append("OrderFilter{");
     sb.append("filterId=").append(filterId);
-    //sb.append(", orderIdGroup=").append(orderIdGroup);
+    // sb.append(", orderIdGroup=").append(orderIdGroup);
     sb.append(", senderCompId='").append(senderCompId).append('\'');
     sb.append(", sequenceNumber=").append(sequenceNumber);
     sb.append(", snapId=").append(snapId);
@@ -99,7 +99,7 @@ public class OrderFilter extends Message {
   }
 
   @Override
-  public String toJSON() {
+  public final String toJSON() {
     final StringBuilder sb = new StringBuilder();
     sb.append("{\"class\":\"OrderFilter\"").append(",\"sequenceNumber\":").append(sequenceNumber).append(",\"sourceSeqNum\":")
         .append(sourceSeqNum).append(",\"sourceSendTime\":").append(sourceSendTime).append(",\"snapId\":").append(snapId)

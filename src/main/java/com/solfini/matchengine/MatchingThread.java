@@ -1,5 +1,7 @@
 package com.solfini.matchengine;
 
+import com.solfini.matchengine.message.admin.FundingRateCalcMessage;
+import com.solfini.matchengine.message.admin.StakeInterestCalcMessage;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -28,6 +30,7 @@ public class MatchingThread implements Runnable, Constants {
   private final FastArrayList<Message> list = new FastArrayList<>(4096);
   private final RateBenchmark benchmark = new RateBenchmark("MatchingThread");
   private final TransactionalOutputManyToOneConcurrentArrayQueue matcherToPublisherQueue;
+  private long lastInputKafkaOffset;
   
   public MatchingThread(final IdleStrategy idleStrategy) {
     this.receiverToMatcherQueue = Context.getReceiverToMatcherQueue();
@@ -47,8 +50,10 @@ public class MatchingThread implements Runnable, Constants {
         for (int i = 0; i < count; i++) {
           message = list.get(i);
           if (message != null) {
-            // LOGGER.info(LOG_FMT_2, "MATCH: ", message);
             final long t0 = System.currentTimeMillis();
+            if (message.getKafkaRecordOffset() > this.lastInputKafkaOffset) {
+              this.lastInputKafkaOffset = message.getKafkaRecordOffset();
+            }
 
             matcherToPublisherQueue.beginTransaction();
             try {
@@ -84,6 +89,13 @@ public class MatchingThread implements Runnable, Constants {
           message = list.get(i);
           if (message != null) {
             final long t0 = System.currentTimeMillis();
+            if (message.getKafkaRecordOffset() == 0) {
+              // since there is no kafka offset for timer Event generated messages
+              // as a temporary fix, use last message's kafka offset. This is required when persisting.
+              if (message instanceof FundingRateCalcMessage || message instanceof StakeInterestCalcMessage) {
+                message.setKafkaRecordOffset(this.lastInputKafkaOffset);
+              }
+            }
 
             matcherToPublisherQueue.beginTransaction();
             try {

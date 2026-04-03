@@ -43,6 +43,10 @@ public class OrderBookFactory implements Constants {
         return new TreeOrderBook2(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       case SELECT_ARRAY_ORDER_BOOK:
         return new SelectArrayOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
+      case COPY_TRADE_ORDER_BOOK:
+        return new CopyTradeOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
+      case LIQUIDITY_ORDER_BOOK:
+        return new LiquidityOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       default:
         return new TreeOrderBook(pair.getSymbol(), preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
     }
@@ -75,6 +79,8 @@ public class OrderBookFactory implements Constants {
         return new SelectArrayOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       case COPY_TRADE_ORDER_BOOK:
         return new CopyTradeOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
+      case LIQUIDITY_ORDER_BOOK:
+        return new LiquidityOrderBook(pair, preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
       default:
         return new TreeOrderBook(pair.getSymbol(), preOrderCheck, orderBookStrategy, preOrderCheckStrategy);
     }

@@ -39,6 +39,8 @@ public class UserAdminMessage extends AdminMessage {
   private int patchType;
   private int marginCurveIdOverride;
 
+  private boolean isRewardClaimed;
+
   private final List<Balance> balanceList = new FastArrayList<>();
 
   public UserAdminMessage() {}
@@ -62,6 +64,7 @@ public class UserAdminMessage extends AdminMessage {
     this.senderInstanceId = USER_DECODER.senderInstanceId();
     this.patchType = USER_DECODER.patchType();
     this.marginCurveIdOverride = USER_DECODER.marginCurveIdOverride();
+    this.isRewardClaimed = USER_DECODER.isRewardClaimed() == 1; //boolean
   }
 
   @Override
@@ -218,6 +221,14 @@ public class UserAdminMessage extends AdminMessage {
     this.marginCurveIdOverride = marginCurveIdOverride;
   }
 
+  public boolean isRewardClaimed() {
+    return isRewardClaimed;
+  }
+
+  public void setRewardClaimed(boolean rewardClaimed) {
+    isRewardClaimed = rewardClaimed;
+  }
+
   @Override
   public final void onMatcher() {
     UserCache.add(this);
@@ -243,6 +254,7 @@ public class UserAdminMessage extends AdminMessage {
         .append(FEETIER_EQ).append(feeTier).append(REQUESTSTATUS_EQ).append(requestStatus).append(STATUS_EQ).append(status)
         .append(MARGINCURVEIDOVERRIDE_EQ).append(marginCurveIdOverride).append(ACCOUNTTYPE_EQ).append(accountType).append(LMM_EQ)
         .append(lmm).append(ROUTETODESTINATION_EQ).append(routeToDestination).append(USEDISCOUNTFEESCOIN_EQ).append(useDiscountFeesCoin)
+        .append(ISREWARDCLAIMED_EQ).append(isRewardClaimed)
         .append(BALANCELIST_EQ).append(balanceList).append(SOURCESEQNUM_EQ).append(sourceSeqNum).append(SOURCESENDTIME_EQ)
         .append(sourceSendTime).append(']');
     return s;
@@ -260,6 +272,7 @@ public class UserAdminMessage extends AdminMessage {
         .append(",\"feeTier\":").append(feeTier).append(",\"requestStatus\":").append(requestStatus != null ? requestStatus.value(): RequestStatus.NULL_VAL).append(",\"status\":")
         .append(status).append(",\"accountType\":").append(accountType).append(",\"lmm\":").append(lmm)
         .append(",\"marginCurveIdOverride\":").append(marginCurveIdOverride).append(",\"useDiscountFeesCoin\":").append(useDiscountFeesCoin)
+        .append(",\"isRewardClaimed\":").append(isRewardClaimed)
         .append(",\"userType\":").append(userType).append(",\"username\":").append("\"").append(username).append("\"");
     sb.append(",\"balanceList\":[");
     boolean comma = false;

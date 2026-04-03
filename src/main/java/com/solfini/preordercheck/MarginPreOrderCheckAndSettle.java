@@ -27,6 +27,7 @@ import com.solfini.user.UserCache;
 import com.solfini.user.UserOpenOrdersByPair;
 import com.solfini.util.MbxMath;
 import com.solfini.util.PropertyReader;
+import java.util.Date;
 
 /**
  *
@@ -101,6 +102,17 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
             // collateral coin assets
             final Instrument instrument = InstrumentCache.get(position.getInstrumentId());
             if (instrument != null) {
+              // todo optimize lookup
+              final boolean stakeSymbol = Context.getStakeSymbolIdMap().contains(instrument.getId());
+              final boolean vToken = Context.getVtokenSymbolIdMap().contains(instrument.getId());
+
+              if (stakeSymbol) {
+                continue;
+              }
+
+              if (vToken) {
+                continue;
+              }
               final double usdMark = instrument.getIndexFeedUsdMark();
               if (usdMarkPricesToSet != null)
                 usdMarkPricesToSet[position.getInstrumentId()] = usdMark;
@@ -109,6 +121,11 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
               final double availableValue = instrument.getQuantityScaleFactor() * position.getAvailableQuantity() * usdMark;
 
               usdValue += value;
+  /*            if (user.getId() >= 1818) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("position.getInstrumentId()").append(position.getInstrumentId()).append(", tot usdValue=").append(usdValue).append(" value=").append(value);
+                LOGGER.info(sb.toString());
+              }*/
               usdMarginableValue += availableValue * (1 - instrument.getCollateralPremiumFactor());
               usdCollateralValue += value;
               position.setUsdValue(value);
@@ -128,6 +145,9 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
               }
             }
           } else {
+/*            if (Context.getLiquidityInstrumentPairId() == position.getInstrumentId()) {
+              continue;
+            }*/
             final InstrumentPair instrumentPair = InstrumentCache.getPair(position.getInstrumentId());
             if (instrumentPair != null) {
               final double usdMark = getUsdMark(instrumentPair);
@@ -165,12 +185,24 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
               usdUnrealized += unrealized;
               usdValue += unrealized;
+
               usdMarginableValue += unrealized;
               usdNotionalPositionValue += absNotional;
               if (instrumentPair.getAssetType() != AssetType.PAIR) { // don't include spot open orders in exposure
                 usdMarginRequiredValue += requiredMargin;
                 usdMarginMaintValue += maintMargin;
               }
+/*              if (user.getId() >= 1818) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("position.getInstrumentId(): ").append(position.getInstrumentId()).append(", tot usdValue=").append(usdValue)
+                    .append(", unrealized=").append(unrealized)
+                    .append(", usdOpenOrdersRequiredValue=").append(usdOpenOrdersRequiredValue)
+                    .append(", usdMaxExposurePositionAndOpenOrdersValue=").append(usdMaxExposurePositionAndOpenOrdersValue)
+                    .append(", usdMarginRequiredValue=").append(usdMarginRequiredValue)
+                    .append(", usdMarginMaintValue=").append(usdMarginMaintValue)
+                ;
+                LOGGER.info(sb.toString());
+              }*/
               position.setUsdValue(unrealized);
               position.setUsdUnrealized(unrealized);
               position.setQuotedUsdMark(usdMark);
@@ -183,6 +215,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
               // + ", usdMarginRequiredValue=" + usdMarginRequiredValue
               // + ", usdMarginMaintValue=" + usdMarginMaintValue);
 
+
               if (Context.isDebugLogRisk() && user.getId() == 18) {
                 LOGGER.debug(LOG_FMT_24, "verbose updateRisk", user.getId(), RISK_USER_EQ, user.getId(), PAIR_EQ, instrumentPair.getId(),
                     UNREALIZED_EQ, unrealized, MARK_EQ, usdMark, QUANTITY_EQ, position.getQuantity(), ABSNOTIONAL_EQ, absNotional,
@@ -192,8 +225,18 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
             }
           }
         }
+/*        if (user.getId() >= 1818) {
+          StringBuilder sb = new StringBuilder();
+          sb.append("usdValue=").append(usdValue).append(" usdMarginableValue=").append(usdMarginableValue)
+              .append(", usdNotionalPositionValue=").append(usdNotionalPositionValue).append(", usdOpenOrdersRequiredValue=").append(usdOpenOrdersRequiredValue).append(", usdMaxExposurePositionAndOpenOrdersValue=")
+              .append(usdMaxExposurePositionAndOpenOrdersValue).append(", usdMarginRequiredValue=").append(usdMarginRequiredValue)
+              .append(", usdMarginMaintValue=").append(usdMarginMaintValue)
+              .append(", usdUnrealized=").append(usdUnrealized)
+              .append(", usdCollateralValue=").append(usdCollateralValue).append(", otherCoinCollateralValue=")
+              .append(otherCoinCollateralValue);
+          LOGGER.info(sb.toString());
+        }*/
       }
-
       adjustAndSetRiskValues(user, usdMarginableValue, usdMarginMaintValue, usdMarginRequiredValue, usdOpenOrdersRequiredValue, positionArr,
           usdValue, usdMaxExposurePositionAndOpenOrdersValue, leverageRatio, usdNotionalPositionValue, usdUnrealized, usdCollateralValue,
           otherCoinCollateralValue);
@@ -277,6 +320,19 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
     // user.getUsdValue() < 0 ??
 
     // Checking for leverageRatio >= 100 has been disabled in order to address
+/*    if (user.getId() >= 1818) {
+      LOGGER.info(Constants.LOG_FMT_14, "Liquidation check. \nmode: ", LIQUIDATON_MODE,
+          " \nusdMarginableValue: ", usdMarginableValue,
+          " \nusdMarginMaintValue: ", usdMarginMaintValue,
+          " \nNAV_FEE_OFFSET: ", NAV_FEE_OFFSET,
+          " \nleverageRatio: ", leverageRatio,
+          " \nuser.getLastLiquidationTime(): ", user.getLastLiquidationTime(),
+          " \nADL_COOLOFF_TIME: ", ADL_COOLOFF_TIME,
+          " \ncondition 1: ", (LIQUIDATON_MODE
+              && (usdMarginableValue < 0 || (usdMarginMaintValue > 0 && usdMarginMaintValue >= usdMarginableValue * NAV_FEE_OFFSET) || leverageRatio < 0)),
+          " \ncondition 2: ", (user.getLastLiquidationTime() + ADL_COOLOFF_TIME > System.currentTimeMillis())
+      );
+    }*/
     if (LIQUIDATON_MODE
         && (usdMarginableValue < 0 || (usdMarginMaintValue > 0 && usdMarginMaintValue >= usdMarginableValue * NAV_FEE_OFFSET)
         /* || leverageRatio >= 100 */ || leverageRatio < 0)) {
@@ -294,6 +350,35 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       final User exchangeUser = UserCache.getExchangeUser();
       if (exchangeUser != null && user.getId() == exchangeUser.getId())
         return;
+      // skip if user is marketMaker
+      final User marketMakerUser = UserCache.getMarketMakerUser();
+      if (marketMakerUser != null && user.getId() == marketMakerUser.getId())
+        return;
+      // skip if user is tokenManager
+      final User tokenManagerUser = UserCache.getTokenManager();
+      if (tokenManagerUser != null && user.getId() == tokenManagerUser.getId())
+        return;
+
+/*      if (user.getId() >= 1818) {
+        LOGGER.info(Constants.LOG_FMT_14, "Liquidation check. \nmode: ", LIQUIDATON_MODE,
+            " \nusdMarginableValue: ", usdMarginableValue,
+            " \nusdMarginMaintValue: ", usdMarginMaintValue,
+            " \nNAV_FEE_OFFSET: ", NAV_FEE_OFFSET,
+            " \nleverageRatio: ", leverageRatio,
+            " \nuser.getLastLiquidationTime(): ", user.getLastLiquidationTime(),
+            " \nADL_COOLOFF_TIME: ", ADL_COOLOFF_TIME,
+            " \ncondition 1: ", (LIQUIDATON_MODE
+                && (usdMarginableValue < 0 || (usdMarginMaintValue > 0
+                && usdMarginMaintValue >= usdMarginableValue * NAV_FEE_OFFSET)
+                || leverageRatio < 0)),
+            " \ncondition 2: ",
+            (user.getLastLiquidationTime() + ADL_COOLOFF_TIME > System.currentTimeMillis()),
+            " \nlast(): ", new Date(user.getLastLiquidationTime()), " " + user.getLastLiquidationTime(),
+            " \nlast(): ", new Date(user.getLastLiquidationTime() + ADL_COOLOFF_TIME), " " + (user.getLastLiquidationTime() + ADL_COOLOFF_TIME),
+            " \n now(): ", new Date(System.currentTimeMillis()) + " " + System.currentTimeMillis()
+            " \"
+        );
+      }*/
       // skip if liquidation already just occured with the ADL_COOLOFF_TIME, default to 2 seconds
       if (user.getLastLiquidationTime() + ADL_COOLOFF_TIME > System.currentTimeMillis()) {
         if (LOGGER.isInfoEnabled()) {
@@ -351,8 +436,11 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
   public final boolean checkOrder(final Order order, final int referencePrice) {
     try {
       final User user = order.getUser();
-      if (user.getAutoLiquidationState().get() == 1 && !(order instanceof LiquidationOrder))
+      if (user.getAutoLiquidationState().get() == 1 && !(order instanceof LiquidationOrder)) {
+        LOGGER.info(Constants.LOG_FMT_6, "Order rejected: ", order.getClOrdId(), " AutoLiquidationState: ", user.getAutoLiquidationState().get()
+        , " notALiquidationOrder:", !(order instanceof LiquidationOrder));
         return false;
+      }
 
       final InstrumentPair instrumentPair = InstrumentCache.getPair(order.getSecurityId());
       double usdMark = instrumentPair.getIndexFeedUsdMark();
@@ -374,16 +462,59 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       final UserOpenOrdersByPair userOpenOrdersByPair = position.getUserOpenOrdersByPair();
 
       if (order.isReduceOnly() && !checkReduceOnlyOrder(order, referencePrice, position)) {
+        LOGGER.info(Constants.LOG_FMT_6, "Order rejected: ", order.getClOrdId(), " reduceOnly: ", order.isReduceOnly()
+            , " checkReduceOnlyOrder:", false);
         return false;
       }
 
+/*      if (user.getId() != UserCache.getMarketMakerUser().getId()) {
+        LOGGER.info(LOG_FMT_24, "Order for \nuser: ", user.getId(),
+            "\nusdValue: ", user.getUsdValue(),
+            "\nusdMarginableValue: ", user.getUsdMarginableValue(),
+            "\nusdNotionalPositionValue: ", user.getUsdNotionalPositionValue(),
+            "\nusdMaxExposurePositionAndOpenOrdersValue: ",
+            user.getUsdMaxExposurePositionAndOpenOrdersValue(),
+            "\nusdOpenOrdersRequiredValue: ", user.getUsdOpenOrdersRequiredValue(),
+            "\nusdMarginValue: ", user.getUsdMarginValue(),
+            "\nusdMarginRequiredValue: ", user.getUsdMarginRequiredValue(),
+            "\nusdMarginMaintValue: ", user.getUsdMarginMaintValue(),
+            "\nleverageRatio: ", user.getLeverageRatio(),
+            "\nusdUnrealized: ", user.getUsdUnrealized(),
+            "\nmarginRatio: ", user.getMarginRatio(),
+            "\nusdCollateralValue: ", user.getUsdCollateralValue(),
+            "\nusdCollateralValueDiscounted: ", user.getUsdCollateralValueDiscounted(),
+            "\nusdOpenOrdersValue: ", user.getUsdOpenOrdersValue());
+      }*/
+
       if (!userOpenOrdersByPair.add(order, referencePrice) && REJECT_MODE) {
+        LOGGER.info(Constants.LOG_FMT_6, "Order rejected: ", order.getClOrdId(), " REJECT_MODE: ", REJECT_MODE
+            , " userOpenOrdersByPair:", false);
         return false;
       }
       userOpenOrdersByPair.calcNotionalRequiredMargin(usdMark);
 
       updateRisk(user, null);
-
+      if (user.getId() != UserCache.getMarketMakerUser().getId()) {
+        LOGGER.info(LOG_FMT_24, "Order for \nuser: ", user.getId(),
+            "\nusdValue: ", user.getUsdValue(),
+            "\nusdMarginableValue: ", user.getUsdMarginableValue(),
+            "\nusdNotionalPositionValue: ", user.getUsdNotionalPositionValue(),
+            "\nusdMaxExposurePositionAndOpenOrdersValue: ",
+            user.getUsdMaxExposurePositionAndOpenOrdersValue(),
+            "\nusdOpenOrdersRequiredValue: ", user.getUsdOpenOrdersRequiredValue(),
+            "\nusdMarginValue: ", user.getUsdMarginValue(),
+            "\nusdMarginRequiredValue: ", user.getUsdMarginRequiredValue(),
+            "\nusdMarginMaintValue: ", user.getUsdMarginMaintValue(),
+            "\nleverageRatio: ", user.getLeverageRatio(),
+            "\nusdUnrealized: ", user.getUsdUnrealized(),
+            "\nmarginRatio: ", user.getMarginRatio(),
+            "\nusdCollateralValue: ", user.getUsdCollateralValue(),
+            "\nusdCollateralValueDiscounted: ", user.getUsdCollateralValueDiscounted(),
+            "\nusdOpenOrdersValue: ", user.getUsdOpenOrdersValue(),
+            "\naskCheck: ", (position.getQuantity() - userOpenOrdersByPair.getTotalAsksQuantity()),
+            "\nbidCheck: ", (userOpenOrdersByPair.getTotalBidsQuantity() + position.getQuantity())
+        );
+      }
       // reject order if UsdMarginRequiredValue() >= user.getUsdValue()
       if (user.getUsdMarginRequiredValue() >= user.getUsdMarginableValue() && REJECT_MODE) {
         // if its the only closing order, then allow it
@@ -394,13 +525,18 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
         } else {
           userOpenOrdersByPair.remove(order);
           userOpenOrdersByPair.calcNotionalRequiredMargin(usdMark);
-          if (LOGGER.isTraceEnabled()) {
+/*          if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(LOG_FMT_20, "precheck order rejected, usdMarginRequiredValue=", user.getUsdMarginRequiredValue(),
                 GETQUANTITYLONG_EQ, order.getQuantityLong(), OPENORDERCOUNT_EQ, user.getOpenOrderCount(), USDOPENORDERSVALUE_EQ,
                 user.getUsdMaxExposurePositionAndOpenOrdersValue(), ORDER_EQ, order, USERID_EQ, user.getId(), INSTRUMENT_PAIR_EQ,
                 instrumentPair, INSTRUMENT_PAIR_EQ, instrumentPair, USER_GETFEETIER_EQ, user.getFeeTier(), USER_EQ, user, USDMARK_EQ,
                 usdMark);
-          }
+          }*/
+          LOGGER.trace(LOG_FMT_24, "Order rejected:", order.getClOrdId(), " usdMarginRequiredValue=", user.getUsdMarginRequiredValue(),
+              GETQUANTITYLONG_EQ, order.getQuantityLong(), OPENORDERCOUNT_EQ, user.getOpenOrderCount(), USDOPENORDERSVALUE_EQ,
+              user.getUsdMaxExposurePositionAndOpenOrdersValue(), ORDER_EQ, order, USERID_EQ, user.getId(), INSTRUMENT_PAIR_EQ,
+              instrumentPair, INSTRUMENT_PAIR_EQ, instrumentPair, USER_GETFEETIER_EQ, user.getFeeTier(), USER_EQ, user, USDMARK_EQ,
+              usdMark);
           return false;
         }
       }
@@ -418,7 +554,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
     } catch (Exception e) {
       LOGGER.error("error in checkOrder " + order + REFERENCEPRICE_EQ + referencePrice, e);
     }
-
+    LOGGER.info(Constants.LOG_FMT_3, "Order rejected: ", order.getClOrdId(), " default path ");
     return false;
   }
 
@@ -510,7 +646,9 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       } else { // open, add to short
         final double newAvgCostBasis =
             newPositionQuantity == 0 ? 0 : MbxMath.roundToBestPrecision((totalOrigCostBasis - usdNotional) / newPositionQuantity); // was
-
+/*        LOGGER.info(Constants.LOG_FMT_16, "UserId: ", user.getId(), "SecurityId: ", pairPosition.getInstrumentId(), " Old acb: ", pairPosition.getUsdAvgCostBasisDouble(), " New acb: ", newAvgCostBasis,
+            " totalOrigCostBasis: ", totalOrigCostBasis, " usdNotional: ", usdNotional, " newPositionQuantity: ", newPositionQuantity,
+            " origPositionQuantity: ", origPositionQuantity);*/
         // positive
         // for a short
         pairPosition.setUsdAvgCostBasisDouble(newAvgCostBasis);
@@ -529,7 +667,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       double newUsdNotional = MbxMath.roundToBestPrecision(newPositionQuantity * referencePrice);
       newUsdNotional = MbxMath.roundToBestPrecision(newUsdNotional * instrumentPair.getPriceScaleFactor());
       newUsdNotional = MbxMath.roundToBestPrecision(newUsdNotional * instrumentPair.getQuoted().getIndexFeedUsdMark()); // was negative for
-                                                                                                                        // a short
+      // a short
       final double unrealizedUsd =
           MbxMath.roundToBestPrecision(newUsdNotional - (pairPosition.getUsdAvgCostBasisDouble() * newPositionQuantity));
       pairPosition.setUsdUnrealized(unrealizedUsd);
@@ -653,6 +791,9 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
       } else {
         final double newAvgCostBasis =
             MbxMath.roundToBestPrecision(newPositionQuantity == 0 ? 0 : (totalOrigCostBasis + usdNotional) / newPositionQuantity);
+/*        LOGGER.info(Constants.LOG_FMT_16, "UserId: ", user.getId(), "SecurityId: ", pairPosition.getInstrumentId(), " Old acb: ", pairPosition.getUsdAvgCostBasisDouble(), " New acb: ", newAvgCostBasis,
+            " totalOrigCostBasis: ", totalOrigCostBasis, " usdNotional: ", usdNotional, " newPositionQuantity: ", newPositionQuantity,
+            " origPositionQuantity: ", origPositionQuantity);*/
         pairPosition.setUsdAvgCostBasisDouble(newAvgCostBasis);
       }
 
@@ -759,6 +900,7 @@ public class MarginPreOrderCheckAndSettle implements PreOrderCheck, Constants {
 
       Position pairPosition = positionArr[order.getSecurityId()];
       Position feePosition = positionArr[fee.getFeeInstrumentId()];
+
       Position settlePosition = positionArr[SETTLE_INSTRUMENT_ID];
 
       if (settlePosition == null) {

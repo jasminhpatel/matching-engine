@@ -1,28 +1,20 @@
 package rnd;
 
 import com.solfini.common.Context;
-import com.solfini.matchengine.copytrade.ExternalExchangeHandler;
-import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
-import com.solfini.util.MbxMath;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XBinanceExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.binance.BinanceExchange;
-import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.trade.LimitOrder;
-import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.instrument.Instrument;
-import org.knowm.xchange.service.trade.params.orders.OrderQueryParams;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
@@ -42,7 +34,7 @@ public class BinanceTest2 {
     //FuturesContract pair = new FuturesContract(currencyPair, "PERP");
     String clOrdId = String.valueOf(System.currentTimeMillis());
 
-    InfluencerSubscription subscription = new InfluencerSubscription();
+    ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setId(1);
     subscription.setUserId(2);
     subscription.setPlatform("YOUTUBE");
@@ -95,7 +87,7 @@ public class BinanceTest2 {
     }*/
   }
 
-  public static XExchange createXExchange(final InfluencerSubscription subscription) {
+  public static XExchange createXExchange(final ExchangeSubscription subscription) {
     if (subscription.getExchange() == null) {
       return null;
     }
@@ -128,7 +120,7 @@ public class BinanceTest2 {
     return null;
   }
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription) {
+  private static void processSpecification(final ExchangeSpecification specification, final ExchangeSubscription subscription) {
     specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
 
     if (subscription != null) {

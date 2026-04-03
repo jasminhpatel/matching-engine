@@ -1,7 +1,9 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.binance.BinanceRestClient.BinanceExchangeInfoFull;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.binance.BinanceRestClient.BinanceSymbol;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
@@ -47,9 +49,12 @@ public class BinanceTest {
     //System.out.println("One");
     ExchangeSpecification specification = new BinanceExchange().getDefaultExchangeSpecification();
     //specification.setUserName();
-    specification.setApiKey("wKMy7kM3gU7jQhHnQiv1EbwPGjaxDDMXXqOFXCtRn40E1OfkUAZplNwzAqNLUhYF");
-    specification.setSecretKey("yEjUmAieysePtSIURDBxe3g7mWobaglRJUoWDd64elyftFGrZgdvxweBnTk9cJ7v");
+    specification.setApiKey("V0o4NPeKU9DoV4ZKmVTUWVXMLycjMi3MLHFbGqvWY4ZkZHmLRQrC945oeBymAjLX");
+    specification.setSecretKey("sRlLWo49i0lk0Tnm1BJa1vjJW4lzAZe47vKCaBidl1kNb6yqA2vfsIcdB28RI6in");
     specification.setExchangeSpecificParametersItem(BinanceExchange.EXCHANGE_TYPE, isFutures ? FUTURES : SPOT);
+    specification.setProxyHost("185.229.119.238");
+    specification.setProxyPort(8888);
+    //specification.setExchangeSpecificParametersItem(USE_SANDBOX, true);
     Exchange exchange = ExchangeFactory.INSTANCE.createExchange(specification);
 
     //System.out.println(getStableCoinBalanceFromExchange(exchange).toJson());
@@ -63,17 +68,19 @@ public class BinanceTest {
     //getOrders(exchange, instrument);
 
     String ret = null;
-    //ret = sendOrder(exchange, "60900.0", isFutures, Side.SELL);
+    //ret = sendOrder(exchange, "103405.0", isFutures, Side.SELL);
     //ret = "30913166773";
-    ret = "30913383038";
-    //getOrder(exchange, ret, isFutures);
+    //ret = "30913383038";
+    ret = "11838802";
+    System.out.println(ret);
+    getOrder(exchange, ret, isFutures);
     //getOrder(exchange, "410941678891");
     //getOrder(exchange, "410960650169");
     //getOrder(exchange, "411861921081");
     //cancelOrder(exchange, "410941678891");
-    System.out.println(getStableCoinBalanceFromExchange(exchange).toJson());
-    transferFunds(exchange);
-    System.out.println(getStableCoinBalanceFromExchange(exchange).toJson());
+    //System.out.println(getStableCoinBalanceFromExchange(exchange).toJson());
+    //transferFunds(exchange);
+    //System.out.println(getStableCoinBalanceFromExchange(exchange).toJson());
     System.out.println("Done");
   }
 
@@ -138,8 +145,8 @@ public class BinanceTest {
     return null;
   }
 
-  public static List<XExchange.SymbolStatus> getExchangeInstrumentsFull() {
-    List<XExchange.SymbolStatus> symbolStatuses = new ArrayList<>();
+  public static List<ExternalSymbol> getExchangeInstrumentsFull() {
+    List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = new BinanceExchange().getDefaultExchangeSpecification().getSslUri();
     HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
 /*    if (response != null && response.getCode() == 200) {
@@ -168,11 +175,11 @@ public class BinanceTest {
     response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>());
     if (response != null && response.getCode() == 200) {
       try {
-        final XBinanceExchange.BinanceExchangeInfoFull info = mapper.readValue(response.getData(), XBinanceExchange.BinanceExchangeInfoFull.class);
+        final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
         final long updated = System.currentTimeMillis();
         if (info.getSymbols() != null) {
-          for (XBinanceExchange.BinanceSymbol binanceSymbol : info.getSymbols()){
-            final XExchange.SymbolStatus symbolStatus = new XExchange.SymbolStatus();
+          for (BinanceSymbol binanceSymbol : info.getSymbols()){
+            final ExternalSymbol symbolStatus = new ExternalSymbol();
             symbolStatus.setExchange("binance");
             symbolStatus.setBase(binanceSymbol.getBaseAsset());
             symbolStatus.setQuote(binanceSymbol.getQuoteAsset());
@@ -250,10 +257,10 @@ public class BinanceTest {
 
           if (summary.getAveragePrice() != null)
             System.out.println("Price: " + MbxMath.changeScale(summary.getAveragePrice().doubleValue(), 2));
-          System.out.println(summary.getOriginalAmount().doubleValue());
-          System.out.println(summary.getCumulativeAmount().doubleValue());
-          System.out.println(summary.getStatus().name());
-          System.out.println(summary.getId());
+          System.out.println("OriginalAmount: " + summary.getOriginalAmount().doubleValue());
+          System.out.println("CumulativeAmount: " + summary.getCumulativeAmount().doubleValue());
+          System.out.println("Status: " + summary.getStatus().name());
+          System.out.println("Id: " + summary.getId());
           //System.out.println(summary.g());
           if ("FILLED".equalsIgnoreCase(summary.getStatus().name())) {
             System.out.println(summary.getCumulativeAmount().doubleValue() * summary.getAveragePrice().doubleValue());

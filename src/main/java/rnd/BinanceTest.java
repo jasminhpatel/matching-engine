@@ -1,9 +1,9 @@
 package rnd;
 
 import com.solfini.common.Context;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XBinanceExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.util.MbxMath;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
@@ -32,7 +32,7 @@ public class BinanceTest {
 
   public static void main(String[] args) {
     boolean isFutures = false;
-    InfluencerSubscription subscription = new InfluencerSubscription();
+    ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setId(1);
     subscription.setUserId(2);
     subscription.setPlatform("TWITTER");
@@ -113,7 +113,7 @@ public class BinanceTest {
     return null;
   }
 
-  public static XExchange createXExchange(final InfluencerSubscription subscription) {
+  public static XExchange createXExchange(final ExchangeSubscription subscription) {
     if (subscription.getExchange() == null) {
       return null;
     }
@@ -146,7 +146,7 @@ public class BinanceTest {
     return null;
   }
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription) {
+  private static void processSpecification(final ExchangeSpecification specification, final ExchangeSubscription subscription) {
     specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
 
     if (subscription != null) {

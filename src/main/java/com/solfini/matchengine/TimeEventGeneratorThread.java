@@ -1,9 +1,10 @@
 package com.solfini.matchengine;
 
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
+
+import com.solfini.instrument.StakeInterestRate;
+import com.solfini.matchengine.message.admin.StakeInterestCalcMessage;
+import com.solfini.matchengine.orderbook.LiquidityOrderBook;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -36,23 +37,31 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
 
   // default 8 hours
   // processed at 04:00, 12:00, and 20:00 UTC
-  public static final long FUNDING_RATE_MILLIS_SPAN = StringUtil.toLong(PropertyReader.getProperty("FUNDING_RATE_MILLIS_SPAN", "360000")); // "288000000"
+  public static final long FUNDING_RATE_MILLIS_SPAN = StringUtil.toLong(PropertyReader.getProperty("FUNDING_RATE_MILLIS_SPAN", "28800000"));//8 hours
   public static final long FUNDING_RATE_MILLIS_START_OFFSET =
-      StringUtil.toLong(PropertyReader.getProperty("FUNDING_RATE_MILLIS_START_OFFSET", "0")); // 144000000
+      StringUtil.toLong(PropertyReader.getProperty("FUNDING_RATE_MILLIS_START_OFFSET", "28800000"));//4 hours
 
   // public static double FUNDING_RATE_COLLAR = StringUtil.toDouble(PropertyReader.getProperty("FUNDING_RATE_COLLAR", ".00375"));
   public static double FUNDING_RATE_COLLAR = StringUtil.toDouble(PropertyReader.getProperty("FUNDING_RATE_COLLAR", "0"));
   public static double FUNDING_RATE_MIN = StringUtil.toDouble(PropertyReader.getProperty("FUNDING_RATE_MIN", "0")); // ".0000101"
   public static double FUNDING_RATE_INTEREST_RATE = StringUtil.toDouble(PropertyReader.getProperty("FUNDING_RATE_INTEREST_RATE", "0.02"));
+  public static double LIQUIDITY_FUNDING_RATE_INTEREST_RATE = StringUtil.toDouble(PropertyReader.getProperty("LIQUIDITY_FUNDING_RATE_INTEREST_RATE", "0.1095"));// annual rate 10.95%
   private static boolean USE_TWAP_FUNDING_RATE = TRUE.equalsIgnoreCase(PropertyReader.getProperty("USE_TWAP_FUNDING_RATE", TRUE));
   private static boolean GENERATE_FUNDING_RATE_EVENT =
       TRUE.equalsIgnoreCase(PropertyReader.getProperty("GENERATE_FUNDING_RATE_EVENT", TRUE));
 
   // default 24 hours, daily for dated futures and options
   public static final long CONTRACT_EXPIRE_MILLIS_SPAN =
-      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_EXPIRE_MILLIS_SPAN", "86400000")); // "86400000"
+      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_EXPIRE_MILLIS_SPAN", "86400000"));
   public static final long CONTRACT_RATE_MILLIS_START_OFFSET =
-      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_RATE_MILLIS_START_OFFSET", "86400000")); // 144000000
+      StringUtil.toLong(PropertyReader.getProperty("CONTRACT_RATE_MILLIS_START_OFFSET", "86400000"));
+
+  // default 8 hours
+  // processed at 04:00, 12:00, and 20:00 UTC
+  public static final long STAKE_INTEREST_RATE_MILLIS_SPAN = StringUtil.toLong(PropertyReader.getProperty("STAKE_INTEREST_RATE_MILLIS_SPAN", "28800000"));//8 hours
+  public static final long STAKE_INTEREST_RATE_MILLIS_START_OFFSET =
+      StringUtil.toLong(PropertyReader.getProperty("STAKE_INTEREST_RATE_MILLIS_START_OFFSET", "28800000"));//4 hours
+
   public static final long HOUR_23_MIN_59_SEC_55 = 86_395_000;
   public static final long ONE_DAY = 86_400_000;
 
@@ -60,6 +69,7 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
   private final IdleStrategy idleStrategy;
   private long nextFundingRateTime = 0;
   private long nextContractExpireTime = 0; // daily for dated futures and options
+  private long nextStakeInterestRateTime = 0;
 
 
   public TimeEventGeneratorThread(final IdleStrategy idleStrategy) {
@@ -72,23 +82,32 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
     calendar.set(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH), 0, 0, 0);
     nextFundingRateTime = calendar.getTimeInMillis() + FUNDING_RATE_MILLIS_START_OFFSET;
     nextContractExpireTime = calendar.getTimeInMillis() + CONTRACT_RATE_MILLIS_START_OFFSET;
+    nextStakeInterestRateTime = calendar.getTimeInMillis() + STAKE_INTEREST_RATE_MILLIS_START_OFFSET;
 
     while (nextFundingRateTime <= System.currentTimeMillis()) {
+      LOGGER.info("Timer: nextFundingRateTime: " + StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextFundingRateTime)
+          + " now: " + StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis())
+          + " next: " + StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextFundingRateTime + FUNDING_RATE_MILLIS_SPAN)
+          + " span: " + FUNDING_RATE_MILLIS_SPAN
+          + " offset: " + FUNDING_RATE_MILLIS_START_OFFSET
+      );
       nextFundingRateTime += FUNDING_RATE_MILLIS_SPAN;
     }
 
     while (nextContractExpireTime <= System.currentTimeMillis()) {
       nextContractExpireTime += CONTRACT_EXPIRE_MILLIS_SPAN;
     }
-    LOGGER.info(LOG_FMT_6, "starting TimeEventGeneratorThread, nextFundingRateTime=", nextFundingRateTime, ", nextContractExpireTime=",
-        nextContractExpireTime, ", GENERATE_FUNDING_RATE_EVENT=", GENERATE_FUNDING_RATE_EVENT);
+
+    while (nextStakeInterestRateTime <= System.currentTimeMillis()) {
+      nextStakeInterestRateTime += STAKE_INTEREST_RATE_MILLIS_SPAN;
+    }
+    LOGGER.info(LOG_FMT_8, "starting TimeEventGeneratorThread, \nnextFundingRateTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextFundingRateTime), ", \nnextContractExpireTime=",
+        StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextContractExpireTime), ", \nnextStakeInterestRateTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextStakeInterestRateTime),
+        ", \nGENERATE_FUNDING_RATE_EVENT=", GENERATE_FUNDING_RATE_EVENT);
   }
 
 
   private final void initPerpetualFunding() {
-    if (LOGGER.isInfoEnabled()) {
-      LOGGER.info(LOG_FMT_1, ">> initPerpetualFunding");
-    }
     try {
       for (int i = 0; i < InstrumentCache.getPairCapacity(); i++) {
         final InstrumentPair pair = InstrumentCache.getPair(i);
@@ -98,8 +117,8 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
         if (pair.getAssetType() == AssetType.PERPETUAL_SWAP) {
           if (pair.getFundingRateTime() == 0 || pair.getFundingRateTime() < System.currentTimeMillis() - 600_000) {
             if (LOGGER.isInfoEnabled()) {
-              LOGGER.info(LOG_FMT_6, "initPerpetualFunding, pairId=", pair.getId(), ", currentTime=", System.currentTimeMillis(),
-                  ", nextFundingRateTime=", (double) nextFundingRateTime);
+              LOGGER.info(LOG_FMT_6, "initPerpetualFunding, pairId=", pair.getId(), ", currentTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
+                  ", nextFundingRateTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextFundingRateTime));
             }
             // pair.setContractExpireTime(nextFundingRateTime);
             pair.setFundingRateTime(nextFundingRateTime);
@@ -112,7 +131,7 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
             pair.setPhysicalSettle(true);
 
             if (LOGGER.isInfoEnabled()) {
-              LOGGER.info(LOG_FMT_6, "initPerpetualFunding2, pairId=", pair.getId(), ", physicalSettle=", pair.isPhysicalSettle(),
+              LOGGER.info(LOG_FMT_12, "initPerpetualFunding2, pairId=", pair.getId(), ", physicalSettle=", pair.isPhysicalSettle(),
                   ", currentTime=", System.currentTimeMillis(), ", getContractExpireTime=", (double) pair.getContractExpireTime(),
                   ", nextContractExpireTime=", nextContractExpireTime, ", nextContractExpireTime=",
                   StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextContractExpireTime));
@@ -139,6 +158,30 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
     }
   }
 
+  private final void initStakeInterest() {
+    if (LOGGER.isInfoEnabled()) {
+      LOGGER.info(LOG_FMT_1, ">> initStakeInterest");
+    }
+    try {
+      final Set<Integer> stakeSymbols = Context.getStakeSymbolIdMap();
+      for (int i = 0; i < InstrumentCache.getPairCapacity(); i++) {
+        final InstrumentPair pair = InstrumentCache.getPair(i);
+        if (pair == null)
+          continue;
+        if (stakeSymbols.contains(pair.getBaseId())) {
+          if (pair.getStakeInterestRateTime() == 0 || pair.getStakeInterestRateTime() < System.currentTimeMillis() - 600_000) {
+            LOGGER.info(Constants.LOG_FMT_2, "instrumentId: ", pair.getId(), " symbol: ", pair.getSymbol(),
+                " nextStakeInterestRateTime: " + StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextStakeInterestRateTime));
+            pair.setStakeInterestRateTime(nextStakeInterestRateTime);
+            pair.setInterestRate(getStakeInterestRate(pair));
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+    }
+  }
+
   public void run() {
     try {
       Thread.sleep(5000);
@@ -147,6 +190,11 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
       }
       Thread.sleep(5000);
       initPerpetualFunding();
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+    }
+    try {
+      initStakeInterest();
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);
     }
@@ -171,8 +219,9 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
           nextFundingRateTime += FUNDING_RATE_MILLIS_SPAN;
           if (Context.isPerpetualsEnabled()) {
             if (LOGGER.isInfoEnabled()) {
-              LOGGER.info(LOG_FMT_4, "trigger funding rate, now=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
-                  ", currentTime=", System.currentTimeMillis(), ", nextFundingRateTime=", nextFundingRateTime,
+              LOGGER.info(LOG_FMT_8, "trigger funding rate, now=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
+                  ", currentTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()), ", nextFundingRateTime=",
+                  StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextFundingRateTime),
                   ", FUNDING_RATE_MILLIS_SPAN=", FUNDING_RATE_MILLIS_SPAN);
             }
             buildFundingRate();
@@ -184,12 +233,26 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
           nextContractExpireTime += CONTRACT_EXPIRE_MILLIS_SPAN;
           if (Context.isContractExpiryEnabled()) {
             if (LOGGER.isInfoEnabled()) {
-              LOGGER.info(LOG_FMT_4, "trigger expireContracts, now=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
+              LOGGER.info(LOG_FMT_10, "trigger expireContracts, now=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
                   "nextContractExpireTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextContractExpireTime), ", currentTime=",
-                  System.currentTimeMillis(), ", nextContractExpireTime=", nextContractExpireTime, ", CONTRACT_EXPIRE_MILLIS_SPAN=",
+                  StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()), ", CONTRACT_EXPIRE_MILLIS_SPAN=",
                   CONTRACT_EXPIRE_MILLIS_SPAN);
             }
             expireContracts();
+          }
+        }
+
+        // trigger stake interest rate
+        if (System.currentTimeMillis() >= nextStakeInterestRateTime) {
+          nextStakeInterestRateTime += STAKE_INTEREST_RATE_MILLIS_SPAN;
+          if (Context.isStakingEnabled()) {
+            if (LOGGER.isInfoEnabled()) {
+              LOGGER.info(LOG_FMT_8, "trigger stake interest rate, now=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()),
+                  ", currentTime=", StringUtil.getCurrentDateYYYMMDDHHMMSSsss(System.currentTimeMillis()), ", nextStakeInterestRateTime=",
+                  StringUtil.getCurrentDateYYYMMDDHHMMSSsss(nextStakeInterestRateTime),
+                  ", STAKE_INTEREST_RATE_MILLIS_SPAN=", STAKE_INTEREST_RATE_MILLIS_SPAN);
+            }
+            buildStakingInterestRate();
           }
         }
 
@@ -263,13 +326,18 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
         final AssetFundingRate assetFundingRate = new AssetFundingRate();
 
         double fundingRate = 0;
-        if (!GENERATE_FUNDING_RATE_EVENT) {
-          fundingRate = pair.getExternalFundingRate();
-          LOGGER.info("using externalFundingRate for pair" + i + ", fundingRate=" + fundingRate);
-        } else if (USE_TWAP_FUNDING_RATE && pair.getSymbol() != null && pair.getSymbol().indexOf("BTC/USD") == 0)
-          fundingRate = calcFundingRateUsingTWAPDiff(pair, assetFundingRate);
-        else
-          fundingRate = calcFundingRate(pair, assetFundingRate);
+        // Liquidity2OrderBook has a different funding logic
+        if (pair.getOrderBook() instanceof LiquidityOrderBook) {
+          fundingRate = LIQUIDITY_FUNDING_RATE_INTEREST_RATE / (365 * 3);
+        } else {
+          if (!GENERATE_FUNDING_RATE_EVENT) {
+            fundingRate = pair.getExternalFundingRate();
+            LOGGER.info("using externalFundingRate for pair" + i + ", fundingRate=" + fundingRate);
+          } else if (USE_TWAP_FUNDING_RATE && pair.getSymbol() != null && pair.getSymbol().indexOf("BTC/USD") == 0)
+            fundingRate = calcFundingRateUsingTWAPDiff(pair, assetFundingRate);
+          else
+            fundingRate = calcFundingRate(pair, assetFundingRate);
+        }
 
         // collar
         if (fundingRate > FUNDING_RATE_COLLAR && FUNDING_RATE_COLLAR != 0) // upper collar
@@ -331,7 +399,9 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
   private final double calcFundingRateUsingTWAPDiff(final InstrumentPair pair, final AssetFundingRate assetFundingRate) {
     try {
       final int perpTWAP = pair.getTradeHistory().getRolling8HrTWAP();
-      final String spotSymbol = pair.getSymbol().split("/")[0] + "/USDC";
+      //final String spotSymbol = pair.getSymbol().split("/")[0] + "/USDC";
+      // spot market is BTC/USD
+      final String spotSymbol = pair.getSymbol().split("/")[0] + "/USD";
       final InstrumentPair spotPair = InstrumentCache.getPairBySymbol(spotSymbol);
       if (spotPair == null) {
         LOGGER.warn(LOG_FMT_8, "calcFundingRateUsingTWAPDiff, getRolling8HrTWAP spotPair=", spotPair, ", spotSymbol=", spotSymbol);
@@ -451,6 +521,52 @@ public class TimeEventGeneratorThread implements Runnable, Constants {
     if (startTime < System.currentTimeMillis())
       startTime = startTime + ONE_DAY;
     return startTime;
+  }
+
+  private void buildStakingInterestRate() {
+    final long currentStakeInterestRateTime = nextStakeInterestRateTime - STAKE_INTEREST_RATE_MILLIS_SPAN;
+    final StakeInterestCalcMessage message = new StakeInterestCalcMessage();
+    message.setTriggerTimeMillis(currentStakeInterestRateTime);
+    final List<StakeInterestRate> list = message.getStakeInterestList();
+
+    try {
+      final Set<Integer> stakeSymbols = Context.getStakeSymbolIdMap();
+      final Set<Integer> processedAssets = new HashSet<>();
+      for (int i = 0; i < InstrumentCache.getPairCapacity(); i++) {
+        final InstrumentPair pair = InstrumentCache.getPair(i);
+        if (pair == null)
+          continue;
+
+        if (stakeSymbols.contains(pair.getBaseId())) {
+          if (processedAssets.contains(pair.getBaseId())) {//avoid multiple pairs for the same instrument
+            continue;
+          }
+          processedAssets.add(pair.getBaseId());
+
+          final double interestRate = pair.getInterestRate() / (double) (365 * 3);
+          final DecimalFloat rate = new DecimalFloat((long) (interestRate * 100000000), 8);
+          final StakeInterestRate stakeInterestRate = new StakeInterestRate(pair.getBaseId(), pair.getId(), rate);
+          list.add(stakeInterestRate);
+          pair.setStakeInterestRateTime(nextStakeInterestRateTime);
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+    }
+    if (!list.isEmpty()) {
+      riskToMatcherQueue.addGuaranteed(message);
+    }
+  }
+
+  private double getStakeInterestRate(final InstrumentPair pair) {
+    final String symbol = pair.getBase().getSymbol();
+    if (symbol == null) return 0D;
+    // todo load from a config
+    if (symbol.endsWith("24H")) return 5.0/100D;
+    if (symbol.endsWith("6M")) return 5.0/100D;
+    if (symbol.endsWith("12M")) return 5.5/100D;
+    if (symbol.endsWith("18M")) return 6.0/100D;
+    return 0D;
   }
 
   public static void main(String[] args) {

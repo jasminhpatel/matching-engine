@@ -10,6 +10,10 @@ import net.openhft.chronicle.core.Maths;
 
 public final class MbxMath {
 
+  private static final long[] POW10 = new long[] {1L, 10L, 100L, 1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L, 100_000_000L,
+      1_000_000_000L, 10_000_000_000L, 100_000_000_000L, 1_000_000_000_000L, 10_000_000_000_000L, 100_000_000_000_000L,
+      1_000_000_000_000_000L, 10_000_000_000_000_000L, 100_000_000_000_000_000L, 1_000_000_000_000_000_000L};
+
   private MbxMath() {}
 
   public static final long multiplyQtyAndPrice2(final long qty, final long qtyPrecDiv, final long price, final long pricePrecDiv) {
@@ -116,7 +120,8 @@ public final class MbxMath {
         return Long.parseLong(wholePart + fractionalPart.substring(0, decimalPlaces));
       } else if (fractionalPartLength < decimalPlaces) {
         truncatedIndicator.setValue(false);
-        return Math.multiplyExact(Long.parseLong(wholePart + fractionalPart), (long) Math.pow(10.0, (double) (decimalPlaces - fractionalPartLength)));
+        return Math.multiplyExact(Long.parseLong(wholePart + fractionalPart),
+            (long) Math.pow(10.0, (double) (decimalPlaces - fractionalPartLength)));
       } else {
         truncatedIndicator.setValue(false);
         return Long.parseLong(wholePart + fractionalPart);
@@ -226,11 +231,11 @@ public final class MbxMath {
     } else {
       int i;
       if (newScale > oldScale) {
-        for(i = 0; i < newScale - oldScale; ++i) {
+        for (i = 0; i < newScale - oldScale; ++i) {
           value *= 10L;
         }
       } else if (newScale < oldScale) {
-        for(i = 0; i < oldScale - newScale; ++i) {
+        for (i = 0; i < oldScale - newScale; ++i) {
           value /= 10L;
         }
       }
@@ -244,16 +249,41 @@ public final class MbxMath {
     } else {
       int i;
       if (newScale > 0) {
-        for(i = 0; i < newScale; ++i) {
+        for (i = 0; i < newScale; ++i) {
           value *= 10L;
         }
       } else if (newScale < 0) {
-        for(i = 0; i < - newScale; ++i) {
+        for (i = 0; i < -newScale; ++i) {
           value /= 10L;
         }
       }
       return (long) value;
     }
+  }
+
+  public static long changeScaleWithRounding(double value, int newScale) {
+    if (value == 0.0)
+      return 0L;
+    if (newScale < 0)
+      return 0L;
+    long scaleFactor = 0;
+    if (newScale <= 18) {
+      scaleFactor = POW10[newScale];
+    } else {
+      scaleFactor = (long) Math.pow(10, newScale);
+    }
+
+    // Multiply and round to handle precision issues
+    // Adding 0.5 before truncation rounds to nearest integer
+    final double scaled = value * scaleFactor;
+    return (long) (scaled + (scaled >= 0 ? 0.5 : -0.5));
+  }
+
+  public static long scaleUp(double value, short scale) {
+    if (scale < 0 || scale >= POW10.length) {
+      throw new IllegalArgumentException("Scale out of bounds: " + scale);
+    }
+    return (long) (value * POW10[scale]);
   }
 
   public static double scaleDown(final long amount, final int scale) {
@@ -267,6 +297,13 @@ public final class MbxMath {
   public static double roundUp(final double decimal, final int scale) {
     double multiplier = Math.pow(10, scale);
     final long l = (long) Math.ceil(decimal * multiplier);
+
+    return ((double) l) / multiplier;
+  }
+
+  public static double roundDown(final double decimal, final int scale) {
+    double multiplier = Math.pow(10, scale);
+    final long l = (long) Math.floor(decimal * multiplier);
 
     return ((double) l) / multiplier;
   }
@@ -290,5 +327,27 @@ public final class MbxMath {
     }
   }
 
+  public static double toDouble(final long amount, final int scale) {
+    if (scale < POW10.length) {
+      return amount / POW10[scale];
+    }
+    return amount / Math.pow(10.0, scale);
+  }
+
+  public static long toLong(final double amount, final int scale) {
+    if (scale == 0)
+      return (long) amount;
+    if (scale < POW10.length) {
+      return (long) (amount * POW10[scale]);
+    }
+    return (long) (amount * Math.pow(10.0, scale));
+  }
+
+  public static void main(String[] args) {
+    System.out.println(toLong(3.33, 0));
+    System.out.println(toLong(3.33, 2));
+    System.out.println(toLong(3.33, 4));
+
+  }
 }
 

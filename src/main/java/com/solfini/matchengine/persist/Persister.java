@@ -1,5 +1,6 @@
 package com.solfini.matchengine.persist;
 
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,8 +10,7 @@ import java.util.ArrayList;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
-import com.solfini.matchengine.copytrade.CopyTrade;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
+import com.solfini.matchengine.copytrade.CopyTradeOrder;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 
 /**
@@ -116,12 +116,12 @@ public class Persister implements Constants {
       active = true;
     }
     if (!active) {
-      //LOGGER.warn(Constants.WARN_LOG,
-      //    "Persist ExecutionReportMessage message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
+      LOGGER.warn(Constants.WARN_LOG,
+          "Persist ExecutionReportMessage message kafka offset: " + message.getKafkaRecordOffset() + " max previous kafka offset: " + getMaxKafkaRecordOffset());
       return;
     }
-    LOGGER.info(
-        "Persist message received (ExecutionReportMessage): " + message.getClOrdId() + " active: " + active + " symbol: " + message.getSymbol());
+    //LOGGER.info(
+    //    "Persist message received (ExecutionReportMessage): " + message.getClOrdId() + " user: " + message.getAccount() + " symbol: " + message.getSymbol());
     try {
       String clOrdId = message.getClOrdId();
       if (null != clOrdId && clOrdId.length() > 38) {
@@ -205,7 +205,7 @@ public class Persister implements Constants {
     }
   }
 
-  public static final void onMessage(final CopyTrade message) {
+  public static final void onMessage(final CopyTradeOrder message) {
     //todo single input message generate multiple copy trades. handle kafka record offset accordingly
     //but here we have only consider the kafka offset of execution reports.
     //    if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
@@ -282,7 +282,7 @@ public class Persister implements Constants {
     }
   }
 
-  public static final void onMessage(final InfluencerSubscription message) {
+  public static final void onMessage(final ExchangeSubscription message) {
     //todo single input message generate multiple copy trades. handle kafka record offset accordingly
     //but here we have only consider the kafka offset of execution reports.
     //if (message.getKafkaRecordOffset() >= getMaxKafkaRecordOffset()) {

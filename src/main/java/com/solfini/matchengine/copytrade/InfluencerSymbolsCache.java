@@ -36,6 +36,7 @@ public class InfluencerSymbolsCache {
   }
 
   public static void loadFromDB(final AtomicInteger loaderCounter) {
+    LOGGER.info("InfluencerSymbolsCache loading. ");
     int count = 0;
     final long t0 = System.currentTimeMillis();
     try (final Connection conn = DBManager.getConnection();
@@ -48,10 +49,11 @@ public class InfluencerSymbolsCache {
         count++;
       }
       LOGGER.info(LOG_FMT_4, "InfluencerSymbolsCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("InfluencerSymbolsCache loaded. " + id);
     } catch (final Exception e) {
-      System.out.println(e.getMessage());
       LOGGER.error("error", e);
+      e.printStackTrace();
     }
   }
 

@@ -1,5 +1,12 @@
 package com.solfini.user;
 
+import com.solfini.common.ManyToManyConcurrentArrayQueueCustom;
+import com.solfini.instrument.Instrument;
+import com.solfini.instrument.InstrumentPair;
+import com.solfini.matchengine.message.internal.Order;
+import com.solfini.matchengine.orderbook.LiquidityOrderBook;
+import com.solfini.matchengine.orderbook.OrderBook;
+import com.solfini.util.MbxMath;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +52,7 @@ public class UserCache implements Constants {
 
   private static final TickerTrie<User> loginToUser = new TickerTrie<>();
   private static ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
+  private static ManyToManyConcurrentArrayQueueCustom<User> riskToAutoConvertQueue = Context.getRiskToAutoConvertQueue();
   private static User[] userArr = buildInitialUserCache();
   private static int maxUserId = 0;
   private static final PreOrderCheck marginCheck = new MarginPreOrderCheckAndSettle();
@@ -57,6 +65,7 @@ public class UserCache implements Constants {
   private static User MARKET_MAKER_USER = new User(0);
   private static User TEST_USER = new User(0);
   private static User OTHER_USER = new User(0);
+  private static User TOKEN_MANAGER = new User(0);
   private static final List<BalanceAdminMessage> ADMIN_USER_BALANCE_LIST = new FastArrayList<>();
   private static final List<BalanceAdminMessage> EXCHANGE_USER_BALANCE_LIST = new FastArrayList<>();
   private static final List<BalanceAdminMessage> INSURANCE_FUND_BALANCE_LIST = new FastArrayList<>();
@@ -87,6 +96,10 @@ public class UserCache implements Constants {
 
   public static final User getOtherUser() {
     return OTHER_USER;
+  }
+
+  public static User getTokenManager() {
+    return TOKEN_MANAGER;
   }
 
   public static final void setAdminUser(final User adminUser) {
@@ -258,6 +271,9 @@ public class UserCache implements Constants {
         case User.OTHER:
           OTHER_USER = user;
           break;
+        case User.TOKEN_MANAGER:
+          TOKEN_MANAGER = user;
+          break;
         default:
       }
     }
@@ -321,6 +337,7 @@ public class UserCache implements Constants {
           userArr[balanceAdminMessage.getUserId()].override(balanceAdminMessage);
           break;
         case PATCH:
+          int txType = balanceAdminMessage.getTxType();
           userArr[balanceAdminMessage.getUserId()].updateIncrement(balanceAdminMessage); // mostly used to update balances
           // special case to handle internal balance transfers from this account to another
           // the first use should be withdrawing
@@ -329,6 +346,10 @@ public class UserCache implements Constants {
             counterBalanceAdminMessage.setUserId(balanceAdminMessage.getBalanceTransferToUserId());
             counterBalanceAdminMessage.setBalanceTransferToUserId(0);
             counterBalanceAdminMessage.inverseBalancesForTransfer();
+/*            if (txType == API_TX_COPY_TRADE_COMMISSION) {
+              counterBalanceAdminMessage.setTxType(API_TX_COPY_TRADE_EARNINGS);// counter transaction
+            }*/
+            LOGGER.info("Counter BalanceAdminMessage: " + counterBalanceAdminMessage.toJSON());
           }
           break;
         case DELETE:
@@ -370,9 +391,10 @@ public class UserCache implements Constants {
 
       addToReportCache(balanceAdminMessage);
       matcherToPublisherQueue.addGuaranteed(balanceAdminMessage);
-
-      if (counterBalanceAdminMessage != null)
+      if (counterBalanceAdminMessage != null) {
+        LOGGER.info("Trigger BalanceAdminMessage: " + counterBalanceAdminMessage.toJSON());
         addBalance(counterBalanceAdminMessage);
+      }
     } else { // Don't cache or publish when running as secondary
       BalanceAdminMessageObjectPool.returnObject(balanceAdminMessage);
     }
@@ -396,6 +418,11 @@ public class UserCache implements Constants {
 
   // called from risk thread
   public static final void processRisk(final double[] usdMarkPricesToSet) {
+    final boolean isTestnet = "TEST".equalsIgnoreCase(Context.getEnvironment());
+    final Instrument usd = InstrumentCache.getBySymbol(USD);
+    final Instrument usdc = InstrumentCache.getBySymbol(isTestnet? "T_USDC": USDC);
+    final Instrument usdt = InstrumentCache.getBySymbol(isTestnet? "T_USDT": USDT);
+
     for (int i = 0; i < Math.min(maxUserId + 1, userArr.length); i++) {
       final User user = userArr[i];
       if (user == null || !user.isActive())
@@ -404,8 +431,25 @@ public class UserCache implements Constants {
       try {
         marginCheck.updateRiskAndCalcBankruptcyPrices(user, usdMarkPricesToSet);
         UserRiskCache.reIndex(user);
-        if (IS_COLLATERAL_SWAP_ENABLED)
+        if (IS_COLLATERAL_SWAP_ENABLED) {
           CollateralSwapMessage.checkCollateralBalance(user);
+        }
+        // USDC/USDT -> USD auto conversion
+        // Auto converts Stable coins if user has a negative USD balance
+        if (Context.isLiquidityDexEnabled() && Context.isLiquidityImbalanceSettleEnabled() && user.getPositionArr() != null) {
+          if (UserCache.getMarketMakerUser().getId() != user.getId()) {
+            final Position usdPosition = user.getPositionArr()[usd.getId()];
+            if (usdPosition != null && usdPosition.getUsdValue() < 0) {
+              final Position usdcPosition = user.getPositionArr()[usdc.getId()];
+              final Position usdtPosition = user.getPositionArr()[usdt.getId()];
+              final double stableCoinBalance = (usdcPosition != null ? usdcPosition.getUsdValue() : 0) +
+                  (usdtPosition != null ? usdtPosition.getUsdValue() : 0);
+              if (stableCoinBalance > 0) {
+                riskToAutoConvertQueue.addGuaranteed(user);
+              }
+            }
+          }
+        }
 
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
@@ -575,4 +619,7 @@ public class UserCache implements Constants {
     return positionSummary;
   }
 
+  public static void setRewardClaimed(final int id) {
+    userArr[id].setRewardClaimed(true);
+  }
 }

@@ -2,6 +2,7 @@ package com.solfini.matchengine.copytrade;
 
 import com.solfini.common.CustomLogger;
 import com.solfini.db.DBManager;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.util.EncryptDecrypt2;
 
 import java.sql.Connection;
@@ -17,23 +18,23 @@ import static com.solfini.common.Constants.*;
 
 public class InfluencerSubscriptionCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(InfluencerSubscriptionCache.class);
-  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy,availableMaxAmount,subscriptionType FROM subscription_state order by id asc";
-  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy,availableMaxAmount,subscriptionType FROM subscription_state WHERE updated > ? order by id asc";
-  private static final ConcurrentHashMap<Long, InfluencerSubscription> SUBSCRIPTIONS = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, InfluencerSubscription>> ACCOUNT_SUBSCRIPTIONS = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, InfluencerSubscription>> TICKER_SUBSCRIPTIONS = new ConcurrentHashMap<>();
+  private static final String SELECT = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy,availableMaxAmount,subscriptionType,connectionType,restOnly,passphrase,forceToUseProxy FROM subscription_state order by id asc";
+  private static final String SELECT_UPDATED = "SELECT id,userId,platform,accountId,exchange,apiUser,apiSecret,percentage,maxAmount,status,created,expires,apiKey,updated,preferredQuoteCurrency,preferredCurrencies,inverseTrade,amountWithLeverage,futuresEnabled,hasPendingClose,lastUsedProxy,availableMaxAmount,subscriptionType,connectionType,restOnly,passphrase,forceToUseProxy FROM subscription_state WHERE updated > ? order by id asc";
+  private static final ConcurrentHashMap<Long, ExchangeSubscription> SUBSCRIPTIONS = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, ExchangeSubscription>> ACCOUNT_SUBSCRIPTIONS = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, ExchangeSubscription>> TICKER_SUBSCRIPTIONS = new ConcurrentHashMap<>();
 
-  public static void onLoad(final InfluencerSubscription subscription) {
+  public static void onLoad(final ExchangeSubscription subscription) {
     // todo No need to cache the subscription unless the user belongs to the partition
     /* if (!CopyTradeOrderBook.userPartitionMap.contains(subscription.getUserId() % Context.getNoOfTotalCopyTradeUserPartitions())) {
       return;
     }*/
-    final InfluencerSubscription prev = SUBSCRIPTIONS.get(subscription.getId());
+    final ExchangeSubscription prev = SUBSCRIPTIONS.get(subscription.getId());
     if (prev != null) { // remove old records in case of an update.
       if (prev.isTopBottom()) {
         if (!prev.getPreferredCurrencies().equalsIgnoreCase(subscription.getPreferredCurrencies())) {
           final String key = (prev.getPlatform() + "_" + prev.getPreferredCurrencies()).toLowerCase();
-          final ConcurrentHashMap<Long, InfluencerSubscription> subscriptions = TICKER_SUBSCRIPTIONS.get(key);
+          final ConcurrentHashMap<Long, ExchangeSubscription> subscriptions = TICKER_SUBSCRIPTIONS.get(key);
           if (subscriptions != null) {
             subscriptions.remove(prev.getId());
           }
@@ -41,7 +42,7 @@ public class InfluencerSubscriptionCache {
       } else if (prev.getAccountIds() != null) {
         for (final String accountId : prev.getAccountIds()) {
           final String key = (subscription.getPlatform() + "_" + accountId).toLowerCase();
-          final ConcurrentHashMap<Long, InfluencerSubscription> subscriptions =
+          final ConcurrentHashMap<Long, ExchangeSubscription> subscriptions =
               ACCOUNT_SUBSCRIPTIONS.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
           subscriptions.remove(subscription.getId());
         }
@@ -51,7 +52,7 @@ public class InfluencerSubscriptionCache {
     SUBSCRIPTIONS.put(subscription.getId(), subscription);
     if (subscription.isTopBottom()) {
       final String key = (subscription.getPlatform() + "_" + subscription.getPreferredCurrencies()).toLowerCase();
-      final ConcurrentHashMap<Long, InfluencerSubscription> subscriptions =
+      final ConcurrentHashMap<Long, ExchangeSubscription> subscriptions =
           TICKER_SUBSCRIPTIONS.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
       if (subscription.getExpires() <= System.currentTimeMillis() || subscription.getStatus() != 1 || subscription.getMaxAmount() <= 0) {
         subscriptions.remove(subscription.getId());
@@ -61,7 +62,7 @@ public class InfluencerSubscriptionCache {
     } else {
       for (final String accountId : subscription.getAccountIds()) {
         final String key = (subscription.getPlatform() + "_" + accountId).toLowerCase();
-        final ConcurrentHashMap<Long, InfluencerSubscription> subscriptions =
+        final ConcurrentHashMap<Long, ExchangeSubscription> subscriptions =
             ACCOUNT_SUBSCRIPTIONS.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
         if (subscription.getExpires() <= System.currentTimeMillis() || subscription.getStatus() != 1 || subscription.getMaxAmount() <= 0) {
           subscriptions.remove(subscription.getId());
@@ -72,21 +73,21 @@ public class InfluencerSubscriptionCache {
     }
   }
 
-  public static InfluencerSubscription get(final long id) {
+  public static ExchangeSubscription get(final long id) {
     return SUBSCRIPTIONS.get(id);
   }
 
-  public static Collection<InfluencerSubscription> getSubscriptions(final String platform, final String accountId, final String ticker) {
+  public static Collection<ExchangeSubscription> getSubscriptions(final String platform, final String accountId, final String ticker) {
     final String accountKey = (platform + "_" + accountId).toLowerCase();
     final String tickerKey = (platform + "_" + ticker).toLowerCase();
-    final Collection<InfluencerSubscription> matchingSubscriptions = new ArrayList<>();
-    ConcurrentHashMap<Long, InfluencerSubscription> subscriptions = ACCOUNT_SUBSCRIPTIONS.get(accountKey);
+    final Collection<ExchangeSubscription> matchingSubscriptions = new ArrayList<>();
+    ConcurrentHashMap<Long, ExchangeSubscription> subscriptions = ACCOUNT_SUBSCRIPTIONS.get(accountKey);
     if (subscriptions != null)
       matchingSubscriptions.addAll(subscriptions.values());
 
     subscriptions = TICKER_SUBSCRIPTIONS.get(tickerKey);
     if (subscriptions != null) {
-      for (InfluencerSubscription subscription : subscriptions.values()) {
+      for (ExchangeSubscription subscription : subscriptions.values()) {
         if (TickerTopBottomAccountCache.isTopBottomUser(ticker, accountId, subscription.getSubscriptionType())) {
           matchingSubscriptions.add(subscription);
         }
@@ -97,25 +98,28 @@ public class InfluencerSubscriptionCache {
   }
 
   public static void loadFromDB(final AtomicInteger loaderCounter) {
+    LOGGER.info("InfluencerSubscriptionCache loading. ");
     int count = 0;
     final long t0 = System.currentTimeMillis();
     try (final Connection conn = DBManager.getConnection();
         final PreparedStatement ps = conn.prepareStatement(SELECT);
         final ResultSet rs = ps.executeQuery();) {
       while (rs.next()) {
-        final InfluencerSubscription subscription = parse(rs);
+        final ExchangeSubscription subscription = parse(rs);
 
         onLoad(subscription);
         count++;
       }
       LOGGER.info(LOG_FMT_4, "InfluencerSubscriptionCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("InfluencerSubscriptionCache loaded. " + id);
     } catch (final Exception e) {
       LOGGER.error("error", e);
+      e.printStackTrace();
     }
 
-    for (ConcurrentHashMap<Long, InfluencerSubscription> ts: TICKER_SUBSCRIPTIONS.values()) {
-      for (InfluencerSubscription is : ts.values()) {
+    for (ConcurrentHashMap<Long, ExchangeSubscription> ts: TICKER_SUBSCRIPTIONS.values()) {
+      for (ExchangeSubscription is : ts.values()) {
         LOGGER.info(LOG_FMT_10, " id ",is.getId()," platform ",is.getPlatform()," exchange ",is.getExchange()," PreferredCurrencies ",is.getPreferredCurrencies()," Expires ",is.getExpires());
       }
     }
@@ -129,7 +133,7 @@ public class InfluencerSubscriptionCache {
       ps.setLong(1, (t0 - SIX_MINUTE));//overlap of 1 minute
       try (final ResultSet rs = ps.executeQuery();) {
         while (rs.next()) {
-          final InfluencerSubscription subscription = parse(rs);
+          final ExchangeSubscription subscription = parse(rs);
 
           onLoad(subscription);
           count++;
@@ -141,8 +145,8 @@ public class InfluencerSubscriptionCache {
     }
   }
 
-  private static InfluencerSubscription parse(final ResultSet rs) throws SQLException {
-    final InfluencerSubscription subscription = new InfluencerSubscription();
+  private static ExchangeSubscription parse(final ResultSet rs) throws SQLException {
+    final ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setId(rs.getLong(1));
     subscription.setUserId(rs.getInt(2));
     subscription.setPlatform(rs.getString(3));
@@ -171,6 +175,10 @@ public class InfluencerSubscriptionCache {
     subscription.setLastUsedProxy(rs.getString(21));
     subscription.setAvailableMaxAmount(rs.getLong(22));
     subscription.setSubscriptionType(rs.getInt(23));
+    subscription.setConnectionType(rs.getInt(24));
+    subscription.setRestOnly(rs.getBoolean(25));
+    subscription.setPassphrase(!(rs.getString(26) == null || rs.getString(26).isEmpty()) ? EncryptDecrypt2.decrypt(rs.getString(26)): null);
+    subscription.setForceToUseProxy(rs.getBoolean(27));
 
     return subscription;
   }

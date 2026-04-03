@@ -1,5 +1,7 @@
 package com.solfini.matchengine;
 
+import com.solfini.matchengine.liquidity.LiquidityCache;
+import com.solfini.preordercheck.MarginPreOrderCheckAndSettle;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -9,6 +11,13 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.solfini.matchengine.copytrade.*;
+import com.solfini.matchengine.liquidity.direct.BybitWebSocketClient;
+import com.solfini.matchengine.executionexchange.DefaultExchangeQuoteCache;
+import com.solfini.matchengine.executionexchange.ExternalExchangeHandler;
+import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
+import com.solfini.matchengine.liquidity.ExternalExchangeCache;
+import com.solfini.matchengine.liquidity.LiquiditySubscriptionCache;
+import com.solfini.util.blockchain.util.BlockChainKeyManager;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -32,14 +41,13 @@ import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
 
 /**
- *x
+ * x
+ *
  * @author Chris Mack
  *
  */
 public class MatchEngineStarter implements Constants {
   private static final Logger LOGGER = LoggerFactory.getLogger(MatchEngineStarter.class);
-
-
 
   public boolean initialize(String[] args) throws Exception {
     final Options options = new Options();
@@ -156,44 +164,38 @@ public class MatchEngineStarter implements Constants {
     return true;
   }
 
+  private void loadBlockchainKeyFile() {
+    // load blockchain keys
+    LOGGER.info("Blockchain key file loading " + Context.isBlockchainPositionManagerEnabled());
+    if (Context.isBlockchainPositionManagerEnabled()) {
+      try {
+        BlockChainKeyManager.loadKeys(Context.getBlockchainKeyFile());
+        LOGGER.info("Blockchain key file loaded.");
+      } catch (final Exception e) {
+        LOGGER.error(ERROR_LOG, e);
+        System.err.println("Error: " + e.getMessage());
+      }
+    }
+  }
+
   private void loadCachesFromDB() {
+    final AtomicInteger loaderCounter = new AtomicInteger(11);
+
     if (Context.isCopyTradeEnabled()) {
-      final AtomicInteger loaderCounter = new AtomicInteger(9);
-      new Thread(() -> {
-        InfluencerSubscriptionCache.loadFromDB(loaderCounter);
-        while (true) {
-          try {
-            Thread.sleep(FIVE_MINUTE);
-            InfluencerSubscriptionCache.loadUpdated();
-          } catch (Exception e) {
-          }
-        }
-      }).start();
-
-      new Thread(() -> {
-        ExternalInstrumentCache.loadFromDB(loaderCounter);
-        try {
-          ExternalInstrumentCache.loadFromExchange();//async loading
-        } catch (Exception e) {
-          LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
-        }
-        while (true) {
-          try {
-            Thread.sleep(ONE_DAY);
-            ExternalInstrumentCache.loadFromExchange();
-          } catch (Exception e) {
-            LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
-          }
-        }
-      }).start();
-
       new Thread(() -> {
         CopyTradeCache.loadFromDB(loaderCounter);
       }).start();
 
       new Thread(() -> {
         try {
-          MarketCapCache.loadFromCoinMarketCap(loaderCounter);
+          if ("TEST".equalsIgnoreCase(Context.getEnvironment())) {
+            //load async in testnet
+            loaderCounter.decrementAndGet();
+            MarketCapCache.loadFromCoinMarketCap(null);
+          } else {
+            MarketCapCache.loadFromCoinMarketCap(loaderCounter);
+          }
+
         } catch (Exception e) {
           LOGGER.error(ERROR_LOG, "Failed to load Market Cap from CoinMarketCap. ", e);
         }
@@ -207,15 +209,11 @@ public class MatchEngineStarter implements Constants {
       }).start();
 
       new Thread(() -> {
-        try {
-          MarketDepthCache.loadFromCoinMarketCap(loaderCounter);
-        } catch (Exception e) {
-          LOGGER.error(ERROR_LOG, "Failed to load Market Depth from CoinMarketCap. ", e);
-        }
+        InfluencerSubscriptionCache.loadFromDB(loaderCounter);
         while (true) {
           try {
-            Thread.sleep(ONE_DAY);
-            MarketDepthCache.loadFromCoinMarketCap(null);
+            Thread.sleep(FIVE_MINUTE);
+            InfluencerSubscriptionCache.loadUpdated();
           } catch (Exception e) {
           }
         }
@@ -237,7 +235,14 @@ public class MatchEngineStarter implements Constants {
       }).start();
 
       new Thread(() -> {
-        ExternalExchangeHandler.loadCoinMarketCapPriceFromMPDB(loaderCounter);
+        if ("TEST".equalsIgnoreCase(Context.getEnvironment())) {
+          //load async in testnet
+          loaderCounter.decrementAndGet();
+          ExternalExchangeHandler.loadCoinMarketCapPriceFromMPDB(null);
+        } else {
+          ExternalExchangeHandler.loadCoinMarketCapPriceFromMPDB(loaderCounter);
+        }
+
         while (true) {
           try {
             Thread.sleep(TWO_MINUTE);
@@ -248,20 +253,15 @@ public class MatchEngineStarter implements Constants {
       }).start();
 
       new Thread(() -> {
-        DefaultExchangeQuoteCache.loadFromDB(loaderCounter);
-        while (true) {
-          try {
-            Thread.sleep(ONE_HOUR);
-            DefaultExchangeQuoteCache.loadFromDB(null);
-          } catch (Exception e) {
-          }
+        if ("TEST".equalsIgnoreCase(Context.getEnvironment())) {
+          //load async in testnet
+          loaderCounter.decrementAndGet();
+          TickerTopBottomAccountCache.loadFromDB(null);
+        } else {
+          TickerTopBottomAccountCache.loadFromDB(loaderCounter);
         }
-      }).start();
 
-      new Thread(() -> {
-        TickerTopBottomAccountCache.loadFromDB(loaderCounter);
-
-        Calendar calendar = Calendar.getInstance();
+        final Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, Context.getTopBottomReloadHourInCest());
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
@@ -286,8 +286,103 @@ public class MatchEngineStarter implements Constants {
           }
         }
       }).start();
+    } else {
+      loaderCounter.addAndGet(-6);// to skip above 6
+    }
 
-      while (loaderCounter.get() != 0) {
+    if (Context.isLiquidityDexEnabled()) {
+      new Thread(() -> {
+        LiquiditySubscriptionCache.loadFromDB(loaderCounter);
+        ExternalExchangeCache.initialize();
+        //LiquidityOrderRouter.initialize(); // requires subscription data, lazy load if there is a new subscription
+        LiquiditySubscriptionCache.startAllSubscriptions();
+        //old implementation
+        BybitWebSocketClient.startListener(LiquiditySubscriptionCache.get("bybit", false));// bybit unified exchange
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            LiquiditySubscriptionCache.loadUpdated();
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        LiquidityCache.loadFromDb(loaderCounter);
+      }).start();
+
+      new Thread(() -> {
+        while (true) {
+          try {
+            ExternalExchangeCache.refreshBalances();
+            Thread.sleep(TEN_MINUTES);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+    } else {
+      loaderCounter.addAndGet(-2); // skip liquidity dex specific cache
+    }
+
+    if (Context.isCopyTradeEnabled() || Context.isLiquidityDexEnabled()) {
+      new Thread(() -> {
+        ExternalInstrumentCache.loadFromDB(loaderCounter);
+        try {
+          ExternalInstrumentCache.loadFromExchange();// async loading
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
+        }
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            ExternalInstrumentCache.loadFromExchange();
+          } catch (Exception e) {
+            LOGGER.error(ERROR_LOG, "Failed to load ExternalInstrumentCache  ", e);
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        DefaultExchangeQuoteCache.loadFromDB(loaderCounter);
+        while (true) {
+          try {
+            Thread.sleep(ONE_HOUR);
+            DefaultExchangeQuoteCache.loadFromDB(null);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+
+      new Thread(() -> {
+        try {
+          if ("TEST".equalsIgnoreCase(Context.getEnvironment())) {
+            //load async in testnet
+            loaderCounter.decrementAndGet();
+            MarketDepthCache.loadFromCoinMarketCap(null);
+          } else {
+            MarketDepthCache.loadFromCoinMarketCap(loaderCounter);
+          }
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, "Failed to load Market Depth from CoinMarketCap. ", e);
+        }
+        while (true) {
+          try {
+            Thread.sleep(ONE_DAY);
+            MarketDepthCache.loadFromCoinMarketCap(null);
+          } catch (Exception e) {
+          }
+        }
+      }).start();
+    } else {
+      loaderCounter.addAndGet(-3);// skip 2 cache loads for copy trade and liquidity
+    }
+
+    long lastLoggedTimeMillis = System.currentTimeMillis();
+    while (loaderCounter.get() != 0) {
+      if (System.currentTimeMillis() - lastLoggedTimeMillis > 5_000) {
+        lastLoggedTimeMillis = System.currentTimeMillis();
+        LOGGER.info("Cache loading in progress. " + loaderCounter.get() + " cache(s) left.");
+        System.out.println("Cache loading in progress. " + loaderCounter.get() + " cache(s) left.");
       }
     }
   }
@@ -312,6 +407,8 @@ public class MatchEngineStarter implements Constants {
     final LoggingThread loggingThread = Context.getLoggingThread();
 
     loadCachesFromDB();
+
+    loadBlockchainKeyFile();
 
     final MatchingThread matchingThread = Context.getMatchingThread();
     final PublisherThread publisherThread = Context.getPublisherThread();
@@ -364,6 +461,11 @@ public class MatchEngineStarter implements Constants {
 
     // Initialize the controller thread
     new Thread(new ControllerThread(), "controller").start();
+
+    Thread.sleep( 20_000);
+    if ("TEST".equalsIgnoreCase(Context.getEnvironment()) && !MarginPreOrderCheckAndSettle.isLIQUIDATON_MODE()) {
+      MarginPreOrderCheckAndSettle.setLIQUIDATON_MODE(true);
+    }
 
     long j = 0;
     while (true) {

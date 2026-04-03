@@ -1,9 +1,14 @@
 package com.solfini.util;
 
+import java.io.File;
+import java.io.IOException;
 import java.security.Security;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.PasswordAuthentication;
@@ -25,11 +30,13 @@ public class MailUtil implements Constants {
   public static final String SMTP_HOST = "mail.smtp.host";
   public static final String SMTP_PORT = "mail.smtp.port";
 
-  private static String user = PropertyReader.getProperty("mail.username", EMAIL_ADDRESS);
-  private static String password = PropertyReader.getProperty("mail.password", EncryptDecrypt2.decrypt("V-r7Tpvr2_7lIaC9qnAMwA=="));
   private static String host = PropertyReader.getProperty(SMTP_HOST, "mail.solfini1.com");
-  private static String from = PropertyReader.getProperty("mail.from", EMAIL_ADDRESS);
   private static String port = PropertyReader.getProperty(SMTP_PORT, "465");
+
+  private static String user = PropertyReader.getProperty("mail.username", "info@solfini.com");
+  private static String password = EncryptDecrypt2.decrypt(PropertyReader.getProperty("mail.password", "V-r7Tpvr2_7lIaC9qnAMwA=="));
+  private static String from = PropertyReader.getProperty("mail.from", "info@solfini.com");
+
   private static final String SSL_FACTORY = "javax.net.ssl.SSLSocketFactory";
   private static final Properties props = buildProps();
   private static final Properties sslProps = buildSSLProps();
@@ -123,6 +130,54 @@ public class MailUtil implements Constants {
     return true;
   }
 
+  public static void sendMessage(final String[] to, final String subject, final String text,
+      final List<MailAttachment> attachments) throws MessagingException, IOException {
+    Session session = Session.getDefaultInstance(props, new javax.mail.Authenticator() {
+      @Override
+      protected PasswordAuthentication getPasswordAuthentication() {
+        return new PasswordAuthentication(user, password);
+      }
+    });
+    session.setDebug(true);
+    // Define message
+    MimeMessage message = new MimeMessage(session);
+    message.setFrom(new InternetAddress(from));
+    if (to != null && to.length > 0) {
+      for (int i = 0; i < to.length; i++) {
+        message.addRecipient(Message.RecipientType.TO, new InternetAddress(to[i]));
+      }
+    }
+
+    message.setSubject(subject);
+
+    MimeMultipart content = new MimeMultipart();
+    MimeBodyPart bodyPart = new MimeBodyPart();
+    bodyPart.setText(text, "UTF-8");
+    content.addBodyPart(bodyPart);
+
+    // attach files
+    if (attachments != null) {
+      for (MailAttachment attachment : attachments) {
+        MimeBodyPart attachmentPart = new MimeBodyPart();
+        if ("text/csv".equalsIgnoreCase(attachment.getContentType())) {
+          DataSource source = new ByteArrayDataSource((String) attachment.getContent(), attachment.getContentType());
+          attachmentPart.setDataHandler(new DataHandler(source));
+        } else if ("application/pdf".equalsIgnoreCase(attachment.getContentType())) {
+          DataSource source = new ByteArrayDataSource((byte[]) attachment.getContent(), attachment.getContentType());
+          attachmentPart.setDataHandler(new DataHandler(source));
+        }
+        attachmentPart.setFileName(attachment.getFilename()); // Name of the CSV file
+        content.addBodyPart(attachmentPart);
+      }
+    }
+
+    message.setContent(content);
+
+    // Send message
+    Transport.send(message);
+  }
+
+
   public static void sendMessage(final String from, final String[] to, final String[] cc, final String[] bcc, final String subject,
       final String text, final String html, final byte[] excelBytes, final String filename) throws MessagingException {
 
@@ -211,5 +266,41 @@ public class MailUtil implements Constants {
     }
     LOGGER.info("sendSSLMessage SSL Message Sent");
     return true;
+  }
+
+  public static class MailAttachment {
+    private String filename;
+    private String contentType;
+    private Object content;
+
+    public MailAttachment(String filename, String contentType, Object content) {
+      this.filename = filename;
+      this.contentType = contentType;
+      this.content = content;
+    }
+
+    public String getFilename() {
+      return filename;
+    }
+
+    public void setFilename(String filename) {
+      this.filename = filename;
+    }
+
+    public String getContentType() {
+      return contentType;
+    }
+
+    public void setContentType(String contentType) {
+      this.contentType = contentType;
+    }
+
+    public Object getContent() {
+      return content;
+    }
+
+    public void setContent(Object content) {
+      this.content = content;
+    }
   }
 }

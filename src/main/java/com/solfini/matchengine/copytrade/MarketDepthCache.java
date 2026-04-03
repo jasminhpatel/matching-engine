@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
 
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.solfini.common.Constants.*;
-import static com.solfini.matchengine.copytrade.ExternalExchangeUtil.EXCHANGE_SLUGS;
+import static com.solfini.matchengine.executionexchange.ExternalExchangeUtil.EXCHANGE_SLUGS;
 
 public class MarketDepthCache {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(MarketDepthCache.class);
@@ -81,6 +82,7 @@ public class MarketDepthCache {
   }
 
   public static void loadFromCoinMarketCap(final AtomicInteger loaderCounter) throws JsonProcessingException {
+    LOGGER.info("MarketDepthCache loading. ");
     final long t0 = System.currentTimeMillis();
     final Map<String, Object> headers = new HashMap<>();
     headers.put(COIN_MARKET_CAP_API_HEADER, COIN_MARKET_CAP_API_KEY);
@@ -119,12 +121,14 @@ public class MarketDepthCache {
         } while (true);
       } catch (Exception e) {
         LOGGER.error(ERROR_LOG, e);
+        e.printStackTrace();
       }
       LOGGER.info(LOG_FMT_5, "MarketDepthCache.loadFromCoinMarketCap Exchange: ", exchangeSlug, (long) loaded, ", time=", System.currentTimeMillis() - t0);
     }
 
     if (loaderCounter != null) {
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("MarketDepthCache loaded. " + id);
     }
   }
 

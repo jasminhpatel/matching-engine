@@ -48,6 +48,7 @@ public class BalanceAdminMessage extends AdminMessage {
   private int positionsLength = 0;
   private int userType;
   private int balanceTransferToUserId = 0;
+  private long reference;
 
   private final List<Balance> balanceList = new FastArrayList<>();
   private final OneToOneConcurrentArrayQueueCustom<BalanceAdminMessage> pool;
@@ -104,6 +105,7 @@ public class BalanceAdminMessage extends AdminMessage {
     this.routeToDestination = BALANCE_DECODER.routeToDestination();
     this.senderInstanceId = BALANCE_DECODER.senderInstanceId();
     this.balanceTransferToUserId = BALANCE_DECODER.balanceTransferToUserId();
+    this.reference = BALANCE_DECODER.reference();
 
     user = UserCache.get(userId);
     if (LOGGER.isTraceEnabled()) {
@@ -159,6 +161,7 @@ public class BalanceAdminMessage extends AdminMessage {
     this.requestStatus = source.requestStatus;
     this.positionsLength = source.positionsLength;
     this.balanceTransferToUserId = source.balanceTransferToUserId;
+    this.reference = source.reference;
     if (source.positionArr != null)
       this.positionArr = Arrays.copyOf(source.positionArr, source.positionArr.length);
 
@@ -196,11 +199,13 @@ public class BalanceAdminMessage extends AdminMessage {
       if (balance == null)
         continue;
 
+      LOGGER.info("Balance before inverse: " + balance.getBalance() + " change: " + balance.getBalanceChange());
       final DecimalFloat balanceDecimalFloat = balance.getBalance();
       balanceDecimalFloat.value(-balanceDecimalFloat.value());
 
-      final DecimalFloat balanceChangeDecimalFloat = balance.getBalance();
+      final DecimalFloat balanceChangeDecimalFloat = balance.getBalanceChange();
       balanceChangeDecimalFloat.value(-balanceChangeDecimalFloat.value());
+      LOGGER.info("Balance after inverse: " + balance.getBalance() + " change: " + balance.getBalanceChange());
     }
   }
 
@@ -283,6 +288,14 @@ public class BalanceAdminMessage extends AdminMessage {
 
   public final void setTxId(final int txId) {
     this.txId = txId;
+  }
+
+  public long getReference() {
+    return reference;
+  }
+
+  public void setReference(long reference) {
+    this.reference = reference;
   }
 
   public final Position[] getPositionArr() {
@@ -421,6 +434,7 @@ public class BalanceAdminMessage extends AdminMessage {
 
   @Override
   public void onMatcher() {
+    //LOGGER.info(this.toJSON());
     UserCache.addBalance(this);
   }
 
@@ -466,6 +480,7 @@ public class BalanceAdminMessage extends AdminMessage {
         .append(requestStatus == null ? "" : String.valueOf(requestStatus.value())).append(",\"updateType\":")
         .append(updateType == null ? "" : String.valueOf(updateType.value())).append(",\"userId\":").append(userId).append(",\"firmId\":")
         .append(firmId).append(",\"checksum\":").append(checksum).append(",\"txType\":").append(txType).append(",\"txId\":").append(txId)
+        .append(",\"reference\":").append(reference).append(",\"balanceTransferToUserId\":").append(balanceTransferToUserId)
         .append(",\"routeToDestination\":").append("\"").append(routeToDestination).append("\"").append(",\"userType\":").append(userType)
         .append(",\"positionArr\":[");
     if (positionArr != null) {

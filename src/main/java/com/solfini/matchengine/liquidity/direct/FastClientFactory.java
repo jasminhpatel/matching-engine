@@ -1,0 +1,118 @@
+package com.solfini.matchengine.liquidity.direct;
+
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.BinanceFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.BitgetFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.BitmartFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.BybitFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.CoinbaseFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.DeribitFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.KrakenFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.KucoinFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.MexcFastClient;
+
+public class FastClientFactory {
+  private static final boolean REST_ONLY = true;
+
+  public static ExternalExchangeClient createRestOnlyClient(final ExchangeSubscription externalSubscription) {
+    if (externalSubscription.getExchange() == null) return null;
+
+    switch (externalSubscription.getExchange().toUpperCase()) {
+      case "BINANCE": {
+        final BinanceFastClient client = new BinanceFastClient(externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "BYBIT": {
+        final BybitFastClient client = new BybitFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "MEXC": {
+        final MexcFastClient client = new MexcFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "BITGET": {
+        final BitgetFastClient client = new BitgetFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription.getPassphrase(),
+            externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "DERIBIT": {
+        final DeribitFastClient client = new DeribitFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "BITMART": {
+        final BitmartFastClient client = new BitmartFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription.getPassphrase(),
+            externalSubscription, REST_ONLY);
+
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "KRAKEN": {
+        final KrakenFastClient client = new KrakenFastClient(externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "COINBASE": {
+        final CoinbaseFastClient client = new CoinbaseFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "KUCOIN": {
+        final KucoinFastClient client = new KucoinFastClient(externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      default:
+        return null;
+    }
+  }
+
+  public static ExchangeSubscription convert(final ExchangeSubscription influencerSubscription) {
+    final ExchangeSubscription subscription = new ExchangeSubscription();
+    subscription.setId(influencerSubscription.getId());
+    subscription.setExchange(influencerSubscription.getExchange().toUpperCase());
+    subscription.setApiUser(influencerSubscription.getApiUser());
+    subscription.setApiKey(influencerSubscription.getApiKey());
+    subscription.setApiSecret(influencerSubscription.getApiSecret());
+    //subscription.setApiKey2(i.getApiKey());
+    //subscription.setApiSecret2(i.getApiSecret());
+    subscription.setStatus(influencerSubscription.getStatus());
+    subscription.setCreated(influencerSubscription.getCreated());
+    subscription.setExpires(influencerSubscription.getExpires());
+    subscription.setFuturesEnabled(influencerSubscription.isFuturesEnabled());
+    subscription.setLeverage(influencerSubscription.hasLeverage());
+    subscription.setLastUsedProxy(influencerSubscription.getLastUsedProxy());
+
+    return subscription;
+  }
+
+}

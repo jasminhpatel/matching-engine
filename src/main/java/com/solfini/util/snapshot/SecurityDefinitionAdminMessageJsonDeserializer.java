@@ -23,6 +23,17 @@ public class SecurityDefinitionAdminMessageJsonDeserializer implements JsonDeser
     message.setMarketType(MarketType.get(json.get("marketType").getAsShort()));
     message.setSector(Sector.get(json.get("sector").getAsShort()));
 
+    if (json.has("maintMarginPercent")) {
+      int maintMarginPercent = json.get("maintMarginPercent").getAsInt();//name is different in the json
+      message.setMaintMarginBasisPoints(maintMarginPercent);
+    }
+
+    if (json.has("requiredMarginPercent")) {
+      int requiredMarginPercent = json.get("requiredMarginPercent").getAsInt();//name is different in the json
+      message.setRequiredMarginBasisPoints(requiredMarginPercent);
+    }
+
+
     // base?
     // quoted?
 

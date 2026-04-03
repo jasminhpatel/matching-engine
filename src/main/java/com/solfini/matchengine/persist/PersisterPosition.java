@@ -22,7 +22,9 @@ import com.solfini.user.UserCache;
 public class PersisterPosition implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(PersisterPosition.class);
   private static final String SELECT_REPORT_ID = "select max(reportId) from POSITION_REPORT";
+  private static final String SELECT_MAX_KAFKA_RECORD_OFFSET = "SELECT max(kafkarecordoffset) from position_report;";
   private static long maxPositionReportId = loadMaxPositionReportId();
+  private static long maxKafkaRecordOffset = loadMaxKafkaRecordOffset();
   private static boolean failed = false;
   private static boolean active = false;
 
@@ -108,9 +110,26 @@ public class PersisterPosition implements Constants {
     return maxExecReportId;
   }
 
-  public static final void onMessage(final PositionReportMessage message) {
-    if (message.getKafkaRecordOffset() > Persister.getMaxKafkaRecordOffset()) {
+  public static final long loadMaxKafkaRecordOffset() {
+    long maxKafkaRecordOffset = 0;
+    try (final Connection conn = DBManager.getConnection();
+        final PreparedStatement ps = conn.prepareStatement(SELECT_MAX_KAFKA_RECORD_OFFSET);
+        final ResultSet rs = ps.executeQuery();) {
+      if (rs.next()) {
+        maxKafkaRecordOffset = rs.getLong(1);
+      }
+    } catch (Exception e) {
+      LOGGER.error(ERROR_LOG, e);
+      return 0;
+    }
+    return maxKafkaRecordOffset;
+  }
+
+  public static void onMessage(final PositionReportMessage message) {
+    if (message.getKafkaRecordOffset() > getMaxKafkaRecordOffset()) {
       active = true;
+    } else {
+      LOGGER.info(Constants.LOG_FMT_4, "Position not persisted. persistedOffset: ", getMaxKafkaRecordOffset(), " messageOffset: ", message.getKafkaRecordOffset());
     }
     if (!active) {
       return;
@@ -268,5 +287,7 @@ public class PersisterPosition implements Constants {
     return !failed;
   }
 
-
+  public static long getMaxKafkaRecordOffset() {
+    return maxKafkaRecordOffset;
+  }
 }

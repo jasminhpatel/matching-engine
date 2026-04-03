@@ -105,6 +105,8 @@ public class PricingThread implements Runnable, Constants {
       // attempt to solve
       if (last > 0) {
         final boolean isCall = (AssetType.OPTION_CALL == pair.getAssetType());
+/*        LOGGER.info("calcImpliedVolatility. last: " + last + " isCall: " + isCall + " usdUnderlyerMark: " + usdUnderlyerMark + " strikePrice: "
+        + strikePrice + " rate: " + rate + " time: " + time + " div: " + div);*/
         final double exchangeIV = BlackScholesVolatilityBrentCalc.solve(last, isCall, usdUnderlyerMark, strikePrice, rate, time, div);
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug(LOG_FMT_24, "calcImpliedVolatility pairId=", pair.getId(), ", symbol=", pair.getSymbol(), ", exchangeIV=",
@@ -142,7 +144,8 @@ public class PricingThread implements Runnable, Constants {
       e.printStackTrace();
     }
 
-    return 5.0; // default
+    //return 5.0; // default
+    return 1.5; // default
   }
 
   private final void calcOptionPricing(final InstrumentPair pair, final long now, final int updateType) {
@@ -162,7 +165,6 @@ public class PricingThread implements Runnable, Constants {
 
     // Black Scholes calc
     final double[] result = BlackScholes.calc(usdUnderlyerPrice, strikePrice, interestRate, sigma, timeToExpire, div_yield);
-
     pair.setSigma(sigma);
     pair.setTimeToExpire(timeToExpire);
     final OptionPricingMessage message = new OptionPricingMessage();

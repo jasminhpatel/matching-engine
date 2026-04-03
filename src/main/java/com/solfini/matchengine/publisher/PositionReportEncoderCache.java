@@ -16,7 +16,7 @@ import com.solfini.sbe.encoder.PositionReportEncoder;
 public class PositionReportEncoderCache extends DecimalFloatCache {
   private static PositionReportEncoderCache[] cache = PositionReportEncoderCache.build();
   private final PositionReportEncoder encoder = new PositionReportEncoder();
-  private final ByteBuffer directBuffer = ByteBuffer.allocateDirect(32768);
+  private final ByteBuffer directBuffer = ByteBuffer.allocateDirect(32768 * 4);
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(directBuffer);
   private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
   private final double[] usdMarkPricesToSet = new double[Math.max(InstrumentCache.getPairCapacity(), 128)];

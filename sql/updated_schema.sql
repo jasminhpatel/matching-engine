@@ -1394,7 +1394,7 @@ ALTER TABLE copy_trade_state ADD isToClose bool;
 
 ALTER TABLE subscription_state ADD amountWithLeverage int8 default 0;
 ALTER TABLE subscription_payment_state ADD amountWithLeverage int8 default 0;
-ALTER TABLE pending_order_state ADD isToClose bool default FALSE;
+ALTER TABLE copy_trade_state ADD isToClose bool default FALSE;
 
 ALTER TABLE copy_trade_state ADD closeClOrdId VARCHAR(32);
 ALTER TABLE copy_trade_state ADD closed bool default false;
@@ -1522,3 +1522,128 @@ CREATE TABLE public.subscription_payment_intent_state (
 	paidAmount float8 DEFAULT 0,
 	PRIMARY KEY(id)
 );
+
+CREATE TABLE public.liquidity_exchange_state(
+    id serial NOT NULL,
+    name varchar(32),
+    externalReference varchar(32),
+    instrumentType integer,
+    status int4,
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE public.liquidity_pair_state(
+    id serial NOT NULL,
+    symbol varchar(32),
+    instrumentType integer,
+    status int4,
+    PRIMARY KEY(id)notification_state
+);
+
+CREATE TABLE public.liquidity_exchange_pair_state(
+    id serial NOT NULL,
+    exchange int4,
+    symbol varchar(32),
+    instrumentType integer,
+    base varchar(16),
+    quote varchar(16),
+    externalReference varchar(32),
+    status int4,
+    PRIMARY KEY(id)
+);
+
+ALTER TABLE liquidity_pair_state ADD alias varchar(16) default null;
+ALTER TABLE liquidity_pair_state ADD cmc_slug varchar(32) default null;
+ALTER TABLE liquidity_pair_state ADD name varchar(32) default null;
+ALTER TABLE liquidity_pair_state ADD address varchar(64) default null;
+
+ALTER TABLE contract_state ADD lastfetchedblocknumberLiq varchar(16) DEFAULT '0';
+
+CREATE TABLE liquidity_subscription_state (
+    id serial PRIMARY KEY NOT NULL,
+    exchange VARCHAR(64),
+    apiUser VARCHAR(128),
+    apiKey VARCHAR(128),
+    apiSecret VARCHAR(128),
+    status int,
+    created int8,
+    expires int8,
+    updated int8,
+    futuresEnabled bool default false,
+    hasLeverage bool default false,
+    lastUsedProxy VARCHAR(64)
+);
+
+CREATE TABLE blockchain_notional_state (
+    userId int PRIMARY KEY NOT NULL,
+    notional int8,
+    updated int8,
+    snapshotId int8
+);
+
+ALTER TABLE user_state ADD isRewardClaimed bool not NULL DEFAULT FALSE;
+ALTER TABLE external_instrument_state ADD symbol varchar(64) NULL;
+ALTER TABLE liquidity_subscription_state ADD apikey2 varchar(1024) NULL;
+ALTER TABLE liquidity_subscription_state ADD apisecret2 varchar(1024) NULL;
+
+
+ALTER TABLE subscription_state ADD influencer_userId int NULL;
+
+update subscription_state set influencer_userId =142 where accountid='Peaceful-Green-Hair';
+update subscription_state set influencer_userId =2 where accountid='Crowded-Yellow-Wall';
+update subscription_state set influencer_userId =98 where accountid='Lovely-Olden-Magazine';
+update subscription_state set influencer_userId =62 where accountid='Messy-Purple-Lock';
+update subscription_state set influencer_userId =60 where accountid='Silly-Cyan-Dog';
+update subscription_state set influencer_userId =1 where accountid='Obedient-Navy blue-Window';
+update subscription_state set influencer_userId =142 where accountid='0x0581d84dff0c3bca7c951dde76b516e89eb460a1';
+
+
+CREATE TABLE copy_trade_pnl_state (
+    created            BIGINT       NOT NULL, -- epoch millis
+    userid             INT       NOT NULL,
+    subscriptionid     INT       NOT NULL,
+    securityid         INT       NOT NULL,
+    influencerid       INT       NOT NULL,
+    symbol             VARCHAR(32)  NOT NULL,
+    realizedpnl        NUMERIC(20,8) NOT NULL,
+    paidpnl        NUMERIC(20,8) NOT NULL,
+    runningposition    NUMERIC(20,8) NOT NULL,
+    averagecost        NUMERIC(20,8) NOT NULL,
+    lastexecid         BIGINT        NOT NULL,
+    CONSTRAINT pk_copy_trade_pnl_State
+        PRIMARY KEY (userid,subscriptionid,securityid,created)
+);
+CREATE INDEX CONCURRENTLY idx_copy_trade_pnl_State_latest
+ON copy_trade_pnl_State (userid,subscriptionid,securityid,created DESC);
+
+CREATE TABLE referral_pnl_state (
+    created            BIGINT       NOT NULL, -- epoch millis
+    userid             INT       NOT NULL,
+    referredby         INT       NOT NULL,
+    pnl        NUMERIC(20,8) NOT NULL,
+    earnings    NUMERIC(20,8) NOT NULL,
+    lastexecid         BIGINT        NOT NULL,
+    CONSTRAINT pk_referral_pnl_State
+        PRIMARY KEY (userid,created)
+);
+
+CREATE INDEX CONCURRENTLY idx_referral_pnl_State_latest
+ON referral_pnl_State (userid,created DESC);
+
+(created,userid,referredBy,pnl,earnings,lastExecId)
+
+ALTER TABLE public.liquidity_exchange_pair_state ALTER COLUMN alias TYPE varchar(32) USING alias::varchar(32);
+ALTER TABLE public.liquidity_exchange_pair_state ALTER COLUMN base TYPE varchar(32) USING base::varchar(32);
+ALTER TABLE public.liquidity_pair_state ALTER COLUMN alias TYPE varchar(32) USING alias::varchar(32);
+
+
+ALTER TABLE subscription_state ADD connectionType int DEFAULT 0;
+
+ALTER TABLE external_instrument_state ADD instrumentType int default 0;
+UPDATE external_instrument_state set instrumentType = 1 where isFutures is true;  --perp
+UPDATE external_instrument_state set instrumentType = 2 where isFutures is false; --spot
+
+ALTER TABLE subscription_state ADD restOnly bool DEFAULT true;
+ALTER TABLE subscription_state ADD passphrase varchar(128);
+ALTER TABLE subscription_state ADD forceToUseProxy bool DEFAULT false;
+

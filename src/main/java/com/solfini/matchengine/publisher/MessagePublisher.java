@@ -6,13 +6,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
+import com.solfini.common.*;
 import com.solfini.internal.admin.schema.*;
+import com.solfini.matchengine.message.internal.*;
+import com.solfini.pool.*;
 import com.solfini.sbe.encoder.QuoteType;
 import org.agrona.concurrent.UnsafeBuffer;
-import com.solfini.common.Constants;
-import com.solfini.common.Context;
-import com.solfini.common.CustomLogger;
-import com.solfini.common.Message;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
@@ -26,9 +25,6 @@ import com.solfini.matchengine.message.admin.SecurityDefinitionAdminMessage;
 import com.solfini.matchengine.message.admin.SnapResponseAdminMessage;
 import com.solfini.matchengine.message.admin.TradeStateAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
-import com.solfini.matchengine.message.internal.AssetGroup;
-import com.solfini.matchengine.message.internal.MarketDataFeed;
-import com.solfini.matchengine.message.internal.MassCancelOrder;
 import com.solfini.matchengine.message.outbound.BusinessRejectMessage;
 import com.solfini.matchengine.message.outbound.CancelRejectMessage;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
@@ -42,13 +38,6 @@ import com.solfini.matchengine.message.session.NetworkStatusMessage;
 import com.solfini.matchengine.message.session.ResendRequestMessage;
 import com.solfini.matchengine.message.session.SequenceResetMessage;
 import com.solfini.matchengine.session.SessionInfo;
-import com.solfini.pool.BalanceAdminMessageObjectPool;
-import com.solfini.pool.BusinessRejectObjectPool;
-import com.solfini.pool.CancelRejectObjectPool;
-import com.solfini.pool.ExecutionReportObjectPool;
-import com.solfini.pool.MarketDataFeedObjectPool;
-import com.solfini.pool.OptionPricingObjectPool;
-import com.solfini.pool.PositionReportObjectPool;
 import com.solfini.preordercheck.MarginPreOrderCheckAndSettle;
 import com.solfini.preordercheck.PreOrderCheck;
 import com.solfini.sbe.encoder.AssetGroupEncoder;
@@ -93,10 +82,13 @@ public class MessagePublisher implements Constants {
   public static final String ME_KAFKA_TOPIC_SECONDARY = PropertyReader.getProperty("ME_KAFKA_TOPIC_SECONDARY", "me2");
   public static final String DEFAULT_SENDER_COMP_ID = PropertyReader.getProperty("DEFAULT_SENDER_COMP_ID", "1000000009");
 
-  public static final short COST_BASIS_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("COST_BASIS_PUBLISH_SCALE", "2"));
+  public static final short COST_BASIS_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("COST_BASIS_PUBLISH_SCALE", "8"));
   public static final short RISK_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("RISK_PUBLISH_SCALE", "2"));
   public static final long COST_BASIS_PUBLISH_MULT = MbxMath.multiplier(COST_BASIS_PUBLISH_SCALE);
   public static final long RISK_PUBLISH_MULT = MbxMath.multiplier(RISK_PUBLISH_SCALE);
+
+  // private static final ManyToOneConcurrentArrayQueueCustom<Message> publisherToBlockchainPositionQueue =
+  // Context.getPublisherToBlockchainPositionQueue();
 
   private String topic;
 
@@ -112,6 +104,9 @@ public class MessagePublisher implements Constants {
 
   private static final PreOrderCheck marginCheck = new MarginPreOrderCheckAndSettle();
   private volatile SnapUtil snapUtil = null;
+
+  private final ManyToOneConcurrentArrayQueueCustom<PositionReportMessage> persisterPositionQueue =
+      Context.getPublisherToPersisterPositionQueue();
 
   public MessagePublisher() {
     // Constructor
@@ -136,6 +131,7 @@ public class MessagePublisher implements Constants {
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace(LOG_FMT_2, ">>> addRiskDataToPositionMessage user=", user);
     }
+
     positionReportEncoder.usdValue((long) (user.getUsdValue() * RISK_PUBLISH_MULT));
     positionReportEncoder.usdValueScale(RISK_PUBLISH_SCALE);
 
@@ -168,25 +164,71 @@ public class MessagePublisher implements Constants {
     positionReportEncoder.usdUnrealizedScale(RISK_PUBLISH_SCALE);
   }
 
-
   private void addPositionDataToPositionMessage(final PositionReportEncoder positionReportEncoder, final User user,
       final Position[] positionArr, final int positionsLength) {
+    addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength, 0, 0);
+  }
+
+  private void addPositionDataToPositionMessage(final PositionReportEncoder positionReportEncoder, final User user,
+      final Position[] positionArr, final int positionsLength, final int lastInstrumentId, final int lastInstrumentPairId) {
 
     if (LOGGER.isDebugEnabled() && (user.getId() == 18)) {
       LOGGER.debug(LOG_FMT_6, ">>> 18publish3a positionsLength=", positionsLength, POSITIONARR_EQ, Arrays.toString(positionArr),
           POSITIONSGROUPENCODER_EQ, positionReportEncoder.toString());
     }
     if (positionsLength == 0 || positionArr == null || positionArr.length == 0) // skip if no positions to add
+    {
       return;
+    }
+    int touchedPositionCount = 0;
+    boolean isMarketMaker = false;
+    if (user.getId() != UserCache.getMarketMakerUser().getId()) {
+      for (int i = 1; i < positionsLength; i++) {
+        final Position position = positionArr[i];
+        if (position != null && position.isTouched()) {
+          final Instrument instrument = InstrumentCache.get(position.getInstrumentId());
+          final InstrumentPair pair = InstrumentCache.getPair(position.getInstrumentId());
+          if (instrument != null || pair != null) {
+            touchedPositionCount++;
+          }
+        }
+      }
+    } else {
+      // publish only non-zero positions for Market Maker because all positions are touched
+      isMarketMaker = true;
+      for (int i = 1; i < positionsLength; i++) {
+        final Position position = positionArr[i];
+        if (position != null && (position.getQuantity() != 0
+            || (position.getInstrumentId() == lastInstrumentId || position.getInstrumentId() == lastInstrumentPairId))) {
+          final Instrument instrument = InstrumentCache.get(position.getInstrumentId());
+          final InstrumentPair pair = InstrumentCache.getPair(position.getInstrumentId());
+          if (instrument != null || pair != null) {
+            touchedPositionCount++;
+          }
+        }
+      }
+    }
 
-    PositionsGroupEncoder groupEncoder = positionReportEncoder.positionsGroupCount(positionsLength - 1); // we skip 0
+    // LOGGER.info("Touched position count for user: " + user.getId() + " count; " + touchedPositionCount);
+
+    PositionsGroupEncoder groupEncoder = positionReportEncoder.positionsGroupCount(touchedPositionCount); // we skip 0
     for (int i = 1; i < positionsLength; i++) {
+      final Position position = positionArr[i];
+      if (isMarketMaker) {// publish only non-zero positions for Market Maker because all positions are touched
+        if (position == null || (position.getQuantity() == 0 && position.getInstrumentId() != lastInstrumentId
+            && position.getInstrumentId() != lastInstrumentPairId)) {
+          continue;
+        }
+      } else {
+        if (position == null || !position.isTouched()) {
+          continue;
+        }
+      }
+
       groupEncoder = groupEncoder.next();
 
-      final Position position = positionArr[i];
-
-      final Instrument instrument = (position == null) ? null : InstrumentCache.get(position.getInstrumentId());
-      final InstrumentPair pair = (position == null) ? null : InstrumentCache.getPair(position.getInstrumentId());
+      final Instrument instrument = InstrumentCache.get(position.getInstrumentId());
+      final InstrumentPair pair = InstrumentCache.getPair(position.getInstrumentId());
 
       if (instrument != null) {
         groupEncoder.assetType(AssetType.ASSET);
@@ -224,7 +266,7 @@ public class MessagePublisher implements Constants {
 
         // add assetId,tokenId,groupAssetId set
         final Set<long[]> assetIdtreeSet = position.getAssetIdtreeSet();
-        if (assetIdtreeSet != null && assetIdtreeSet.size() > 0) {
+        if (assetIdtreeSet != null && !assetIdtreeSet.isEmpty()) {
           PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(assetIdtreeSet.size());
           for (final long[] value : assetIdtreeSet) {
             assetGroupEncoder = assetGroupEncoder.next();
@@ -273,14 +315,11 @@ public class MessagePublisher implements Constants {
         assetGroupEncoder.assetId(0);
         assetGroupEncoder.tokenId(0);
         assetGroupEncoder.groupAssetId(0);
-      } else {// dummy to support positionsGroupCount
-        groupEncoder.instrumentId(0);
-        PositionsAssetIdGroupEncoder assetGroupEncoder = groupEncoder.positionsAssetIdGroupCount(1);
-        assetGroupEncoder = assetGroupEncoder.next();
-        assetGroupEncoder.assetId(0);
-        assetGroupEncoder.tokenId(0);
-        assetGroupEncoder.groupAssetId(0);
-      }
+      } /*
+         * else {// dummy to support positionsGroupCount groupEncoder.instrumentId(0); PositionsAssetIdGroupEncoder assetGroupEncoder =
+         * groupEncoder.positionsAssetIdGroupCount( 1); assetGroupEncoder = assetGroupEncoder.next(); assetGroupEncoder.assetId(0);
+         * assetGroupEncoder.tokenId(0); assetGroupEncoder.groupAssetId(0); }
+         */
     }
   }
 
@@ -366,11 +405,8 @@ public class MessagePublisher implements Constants {
     addRiskDataToPositionMessage(positionReportEncoder, user);
 
     // add position data
-    // if ((user.getId() == 18) && (positionArr.length > 31) && (positionArr[31] != null)) {
-    // LOGGER.info(LOG_FMT_6, "TRACK USD ", positionArr[31].getQuantity(), " ", positionArr[31].getAvailableQuantity(),
-    // " ", positionArr[31].getQuantity() - positionArr[31].getAvailableQuantity());
-    // }
-    addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength);
+    addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength, executionReport.getBasePositionId(),
+        executionReport.getSettlePositionId());
 
     // wrap header after populating groups
     populateHeader(headerEncoder, executionReport);
@@ -380,19 +416,11 @@ public class MessagePublisher implements Constants {
     directBuffer.limit(encodedLength);
     unsafeBuffer.putShort(0, encodedLength);
 
-    if (LOGGER.isDebugEnabled() && (user.getId() == 18)) {
-      LOGGER.debug(LOG_FMT_8, ">>> 18publish3 executionReport=", executionReport, TOTALCOUNT_EQ, positionsLength, POSITIONARR_EQ,
-          Arrays.toString(positionArr), POSITIONREPORTENCODER_EQ, positionReportEncoder.toString());
-    }
-
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
 
     if (executionReport.getSnapId() == 0) {
       // for normal case with no snap, reuse the executionReport in publish
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, executionReport);
-      if (LOGGER.isDebugEnabled() && user.getId() == 15) {
-        LOGGER.debug(LOG_FMT_2, USER18PUBLISH2_EXECUTIONREPORT_EQ, executionReport);
-      }
     } else {
       final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(posReqResult, user,
           executionReport.getSenderCompId(), executionReport.getPositionArr(), executionReport.getPositionsLength(),
@@ -401,9 +429,8 @@ public class MessagePublisher implements Constants {
       positionReportMessage.setKafkaRecordOffset(executionReport.getKafkaRecordOffset());
       positionReportMessage.setTransactionId(executionReport.getTransactionId());
 
-      if (LOGGER.isDebugEnabled() && user.getId() == 15) {
-        LOGGER.debug(LOG_FMT_2, USER18PUBLISH2_EXECUTIONREPORT_EQ, executionReport, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
-      }
+      // persisterPositionQueue.addGuaranteed(positionReportMessage);
+
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
       PositionReportObjectPool.returnObject(positionReportMessage);
     }
@@ -413,80 +440,88 @@ public class MessagePublisher implements Constants {
 
   private final void publishPositionReport(final BalanceAdminMessage balanceAdminMessage, final int posReqResult,
       final PositionReportEncoderCache cache) {
-    final PositionReportEncoder positionReportEncoder = cache.getEncoder();
-    final ByteBuffer directBuffer = cache.getDirectBuffer();
-    final UnsafeBuffer unsafeBuffer = cache.getUnsafeBuffer();
-    final MessageHeaderEncoder headerEncoder = cache.getHeaderEncoder();
+    try {
+      final PositionReportEncoder positionReportEncoder = cache.getEncoder();
+      final ByteBuffer directBuffer = cache.getDirectBuffer();
+      final UnsafeBuffer unsafeBuffer = cache.getUnsafeBuffer();
+      final MessageHeaderEncoder headerEncoder = cache.getHeaderEncoder();
 
-    short encodedLength = ADMIN_ENCODED_LENGTH_SIZE;
-    positionReportEncoder.wrapAndApplyHeader(unsafeBuffer, encodedLength, headerEncoder);
-    populateHeader(headerEncoder, balanceAdminMessage);
-    encodedLength += headerEncoder.encodedLength();
+      short encodedLength = ADMIN_ENCODED_LENGTH_SIZE;
+      positionReportEncoder.wrapAndApplyHeader(unsafeBuffer, encodedLength, headerEncoder);
+      populateHeader(headerEncoder, balanceAdminMessage);
+      encodedLength += headerEncoder.encodedLength();
 
-    positionReportEncoder.userId(balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId());
-    positionReportEncoder.posReqResult(posReqResult);
-    positionReportEncoder.transactTime(System.currentTimeMillis());
-    if (posReqResult == TX_FUNDING_RATE)
-      positionReportEncoder.execId(balanceAdminMessage.getTriggerTimeMillis());
-    else
-      positionReportEncoder.execId(0); // reset encoder value
-    positionReportEncoder.orderId(0); // reset encoder value
-    positionReportEncoder.txnId(balanceAdminMessage.getTxId());
+      positionReportEncoder.userId(balanceAdminMessage.getUser() == null ? 0 : balanceAdminMessage.getUser().getId());
+      positionReportEncoder.posReqResult(posReqResult);
+      positionReportEncoder.transactTime(System.currentTimeMillis());
+      if (posReqResult == TX_FUNDING_RATE)
+        positionReportEncoder.execId(balanceAdminMessage.getTriggerTimeMillis());
+      else
+        positionReportEncoder.execId(0); // reset encoder value
+      positionReportEncoder.orderId(0); // reset encoder value
+      positionReportEncoder.txnId(balanceAdminMessage.getTxId());
 
-    final User user = balanceAdminMessage.getUser();
-    final Position[] positionArr = balanceAdminMessage.getPositionArr();
-    final int positionsLength = balanceAdminMessage.getPositionsLength();
+      final User user = balanceAdminMessage.getUser();
+      final Position[] positionArr = balanceAdminMessage.getPositionArr();
+      final int positionsLength = balanceAdminMessage.getPositionsLength();
 
-    // set balance change for settleCoin to positionReport settlePrice
-    final List<Balance> balanceList = balanceAdminMessage.getBalanceList();
-    if (balanceList != null) {
-      for (final Balance balance : balanceList) {
-        if (balance != null && balance.getAssetId() == USDC_ID) {
-          final DecimalFloat change = balance.getBalanceChange();
-          positionReportEncoder.settleCoinChange(change.value());
-          positionReportEncoder.settleCoinChangeScale((short) change.scale());
-          break;
+      // set balance change for settleCoin to positionReport settlePrice
+      final List<Balance> balanceList = balanceAdminMessage.getBalanceList();
+      if (balanceList != null) {
+        for (final Balance balance : balanceList) {
+          if (balance != null && balance.getAssetId() == USDC_ID) {
+            final DecimalFloat change = balance.getBalanceChange();
+            positionReportEncoder.settleCoinChange(change.value());
+            positionReportEncoder.settleCoinChangeScale((short) change.scale());
+            break;
+          }
         }
       }
-    }
 
-    // add user risk to first position
-    addRiskDataToPositionMessage(positionReportEncoder, user);
+      // add user risk to first position
+      addRiskDataToPositionMessage(positionReportEncoder, user);
 
-    // add position data
-    addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength);
+      // add position data
+      addPositionDataToPositionMessage(positionReportEncoder, user, positionArr, positionsLength);
 
-    if (LOGGER.isDebugEnabled() && (user.getId() == 18)) {
-      LOGGER.debug(LOG_FMT_8, ">>> 18publish3 balanceAdminMessage=", balanceAdminMessage, TOTALCOUNT_EQ, positionsLength, POSITIONARR_EQ,
-          Arrays.toString(positionArr), POSITIONREPORTENCODER_EQ, positionReportEncoder.toString());
-    }
-
-    // convert and publish
-    encodedLength += positionReportEncoder.encodedLength();
-    directBuffer.limit(encodedLength);
-    unsafeBuffer.putShort(0, encodedLength);
-    final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
-    if (balanceAdminMessage.getSnapId() == 0) {
-      // for normal case with no snap, reuse the balanceAdminMessage in publish
-      publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
-
-      if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
-        LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, EXECUTIONREPORT_EQ, balanceAdminMessage);
+      if (LOGGER.isDebugEnabled() && (user.getId() == 18)) {
+        LOGGER.debug(LOG_FMT_8, ">>> 18publish3 balanceAdminMessage=", balanceAdminMessage, TOTALCOUNT_EQ, positionsLength, POSITIONARR_EQ,
+            Arrays.toString(positionArr), POSITIONREPORTENCODER_EQ, positionReportEncoder.toString());
       }
-    } else {
-      final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(posReqResult, user,
-          balanceAdminMessage.getSenderCompId(), balanceAdminMessage.getPositionArr(), balanceAdminMessage.getPositionsLength(), 0, 0);
-      positionReportMessage.setSnapId(balanceAdminMessage.getSnapId());
-      positionReportMessage.setSourceSeqNum(balanceAdminMessage.getSourceSeqNum());
-      positionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
-      positionReportMessage.setTransactionId(balanceAdminMessage.getTransactionId());
-      positionReportMessage.setLastMessageInTransaction(balanceAdminMessage.isLastMessageInTransaction());
 
-      if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
-        LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
+      // convert and publish
+      encodedLength += positionReportEncoder.encodedLength();
+      directBuffer.limit(encodedLength);
+      unsafeBuffer.putShort(0, encodedLength);
+      final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
+      if (balanceAdminMessage.getSnapId() == 0) {
+        // for normal case with no snap, reuse the balanceAdminMessage in publish
+        publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, balanceAdminMessage);
+
+        if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
+          LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, EXECUTIONREPORT_EQ, balanceAdminMessage);
+        }
+      } else {
+        final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(posReqResult, user,
+            balanceAdminMessage.getSenderCompId(), balanceAdminMessage.getPositionArr(), balanceAdminMessage.getPositionsLength(), 0, 0);
+        positionReportMessage.setSnapId(balanceAdminMessage.getSnapId());
+        positionReportMessage.setSourceSeqNum(balanceAdminMessage.getSourceSeqNum());
+        positionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+        positionReportMessage.setTransactionId(balanceAdminMessage.getTransactionId());
+        positionReportMessage.setLastMessageInTransaction(balanceAdminMessage.isLastMessageInTransaction());
+
+        // persisterPositionQueue.addGuaranteed(positionReportMessage);
+
+        if (LOGGER.isDebugEnabled() && balanceAdminMessage.getUser().getId() == 15) {
+          LOGGER.debug(LOG_FMT_4, USER18PUBLISH2_EXECUTIONREPORT_EQ, balanceAdminMessage, POSITIONREPORTMESSAGE_EQ, positionReportMessage);
+        }
+        publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
+
+        PositionReportObjectPool.returnObject(positionReportMessage);
       }
-      publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, positionReportMessage);
-      PositionReportObjectPool.returnObject(positionReportMessage);
+    } catch (Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+      e.printStackTrace();
     }
   }
 
@@ -512,11 +547,12 @@ public class MessagePublisher implements Constants {
       BalanceAdminMessageObjectPool.returnObject(balanceAdminMessage);
     } catch (Exception e) {
       LOGGER.error("error, balanceAdminMessage=" + balanceAdminMessage, e);
+      e.printStackTrace();
     }
   }
 
   public void publish(final UserAdminMessage userAdminMessage) {
-
+    LOGGER.info("userAdminMessage=" + userAdminMessage);
     try {
       short encodedLength = ADMIN_ENCODED_LENGTH_SIZE;
       final ByteBuffer adminMessageBuffer = ByteBuffer.allocateDirect(16384);
@@ -544,6 +580,7 @@ public class MessagePublisher implements Constants {
       userAdminMessageEncoder.status(userAdminMessage.getStatus());
       userAdminMessageEncoder.accountType(userAdminMessage.getAccountType());
       userAdminMessageEncoder.useDiscountFeesCoin(userAdminMessage.isUseDiscountFeesCoin() ? (short) 1 : 0);
+      userAdminMessageEncoder.isRewardClaimed(userAdminMessage.isRewardClaimed() ? (short) 1 : 0);
 
       userAdminMessageEncoder.sourceSeqNum(userAdminMessage.getSourceSeqNum()); // sourceSeqNum
       userAdminMessageEncoder.kafkaRecordOffset(userAdminMessage.getKafkaRecordOffset()); // kafkaRecordOffset
@@ -796,18 +833,20 @@ public class MessagePublisher implements Constants {
 
     if (Context.isPublishMarketData()) {
       final InstrumentPair instrumentPair = InstrumentCache.getPair(executionReport.getSecurityId());
-      if (instrumentPair.isInMarketDataQueue().compareAndSet(0, 1))
-        Context.getMarketDataBuilderQueue().add(instrumentPair);
-      else if (Context.getMarketDataBuilderQueue().isEmpty()) {
-        instrumentPair.isInMarketDataQueue().set(0);
-        if (LOGGER.isDebugEnabled()) {
-          LOGGER.debug(LOG_FMT_2, ">>> isPublishMarketData reset: ", instrumentPair.getSymbol(), ", lock=",
-              "" + instrumentPair.isInMarketDataQueue().get(), ", pair=", instrumentPair);
-        }
-      } else {
-        if (LOGGER.isDebugEnabled()) {
-          LOGGER.debug(LOG_FMT_2, ">>> isPublishMarketData skip: ", instrumentPair.getSymbol(), ", lock=",
-              "" + instrumentPair.isInMarketDataQueue().get(), ", pair=", instrumentPair);
+      if (instrumentPair != null) {// withdraw fee txn doesn't have a pair
+        if (instrumentPair.isInMarketDataQueue().compareAndSet(0, 1))
+          Context.getMarketDataBuilderQueue().add(instrumentPair);
+        else if (Context.getMarketDataBuilderQueue().isEmpty()) {
+          instrumentPair.isInMarketDataQueue().set(0);
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(LOG_FMT_2, ">>> isPublishMarketData reset: ", instrumentPair.getSymbol(), ", lock=",
+                "" + instrumentPair.isInMarketDataQueue().get(), ", pair=", instrumentPair);
+          }
+        } else {
+          if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(LOG_FMT_2, ">>> isPublishMarketData skip: ", instrumentPair.getSymbol(), ", lock=",
+                "" + instrumentPair.isInMarketDataQueue().get(), ", pair=", instrumentPair);
+          }
         }
       }
     }
@@ -843,6 +882,7 @@ public class MessagePublisher implements Constants {
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, executionReport);
 
+    // LOGGER.info(executionReport.toJSON());
     // return to pool
     ExecutionReportObjectPool.returnObject(executionReport);
   }
@@ -929,13 +969,15 @@ public class MessagePublisher implements Constants {
     businessRejectEncoder.clOrdId(businessRejectMessage.getClOrdId());
     businessRejectEncoder.pairId(businessRejectMessage.getPairId());
     businessRejectEncoder.secondaryOrderId(businessRejectMessage.getSecondaryOrderId());
+    businessRejectEncoder.submitterId(businessRejectMessage.getSubmitterId());
+    businessRejectEncoder.clOrdIdStr(businessRejectMessage.getClOrdIdStr());
 
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug("Order- Business Reject. orderId: " + businessRejectMessage.getClOrdId() + " pairId: "
           + businessRejectMessage.getPairId() + " reason: " + businessRejectMessage.getText());
     }
-    
-    //log business rejects
+
+    // log business rejects
     if (businessRejectMessage.getSubmitterId() > 0 && businessRejectMessage.getSubmitterId() != Context.getMarketMakerUserid()) {
       LOGGER.info(businessRejectMessage.toJSON());
     }
@@ -984,6 +1026,7 @@ public class MessagePublisher implements Constants {
     final PositionReportMessage positionReportMessage = PositionReportMessage.createPositionReportMessage(TX_RESTATE, user,
         logonMessage.getSenderCompId(), logonMessage.getPositionArr(), logonMessage.getPositionsLength(), 0, 0);
 
+    // persisterPositionQueue.addGuaranteed(positionReportMessage);
     final PositionReportEncoderCache positionEncoderCache = PositionReportEncoderCache.get();
     publish(positionReportMessage, DEFAULT_POS_RPT, positionEncoderCache);
   }
@@ -1141,17 +1184,25 @@ public class MessagePublisher implements Constants {
 
     mdFeedEncoder.messageSequenceNumber(mdFeed.getSequenceNumber());
     mdFeedEncoder.sentTime(mdFeed.getSentTime());
-
-    MarketDataFeedEncoder.MdEntrieGroupEncoder mdEntryGroupEncoder = mdFeedEncoder.mdEntrieGroupCount(mdFeed.getEntryCount());
     final int usdMarkArrSize = mdFeed.getUsdMarkArr().length;
-
+    int size = 0;
     for (int i = 0; i < usdMarkArrSize; i++) {
       if (mdFeed.getUsdMarkArr()[i] > 0) {
-        mdEntryGroupEncoder = mdEntryGroupEncoder.next();
-        mdEntryGroupEncoder.securityId(i);
-        mdEntryGroupEncoder.usdMark(mdFeed.getUsdMarkArr()[i]);
-        mdEntryGroupEncoder.usdSpotIndex(mdFeed.getUsdSpotIndexArr()[i]);
+        size++;
       }
+    }
+
+    MarketDataFeedEncoder.MdEntrieGroupEncoder mdEntryGroupEncoder = mdFeedEncoder.mdEntrieGroupCount(size);
+    try {
+      for (int i = 0; i < usdMarkArrSize; i++) {
+        if (mdFeed.getUsdMarkArr()[i] > 0) {
+          mdEntryGroupEncoder.next().securityId(i).usdMark(mdFeed.getUsdMarkArr()[i]).usdSpotIndex(mdFeed.getUsdSpotIndexArr()[i]);
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.error(mdFeed.toJSON());
+      LOGGER.error(Constants.ERROR_LOG, e);
+      throw e;
     }
 
     // convert and publish
@@ -1428,6 +1479,8 @@ public class MessagePublisher implements Constants {
       final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(adminMessageUnsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
 
       publishAndCache(bytesWithKafkaOffset, KafkaPublisher.ADMIN_API, securityDefinitionAdminMessage);
+      // LOGGER.info("securityId: " + securityDefinitionAdminMessage.getSecurityId() + " assetType: " +
+      // securityDefinitionAdminMessage.getAssetType().name() + " symbol: " + securityDefinitionAdminMessage.getSymbol());
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);
     }
@@ -1525,6 +1578,7 @@ public class MessagePublisher implements Constants {
       message.setSequenceNumber(sequenceNumber);
 
       if (message instanceof SnapResponseAdminMessage) {
+
         // publish marker
         ((SnapResponseAdminMessage) message).setSequenceNumber(sequenceNumber);
         snapUtil.snap(bytesWithKafkaOffset, messageType, message);

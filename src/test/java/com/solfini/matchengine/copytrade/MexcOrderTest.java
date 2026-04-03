@@ -1,6 +1,8 @@
 package com.solfini.matchengine.copytrade;
 
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import org.knowm.xchange.currency.Currency;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.dto.Order;
@@ -15,7 +17,7 @@ import java.util.Collection;
 
 public class MexcOrderTest {
   public static void main(String[] args) throws IOException {
-    InfluencerSubscription subscription = new InfluencerSubscription();
+    ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setExchange("MEXC");
     subscription.setApiKey("mx0vglEiMdG2Rab34T");
     subscription.setApiSecret("32dd98b573f3480c975df712c733f187");

@@ -34,7 +34,7 @@ public class BalanceAdminMessageJsonDeserializer implements JsonDeserializer<Bal
       JsonObject jsonPosition = jsonPositionArr.get(i).getAsJsonObject();
       final Position position = new Gson().fromJson(jsonPosition, Position.class);
       position.setAssetType(AssetType.get(jsonPosition.get("assetType").getAsShort()));
-      position.setUsdAvgCostBasis((long) jsonPosition.get("usdAvgCostBasis").getAsDouble() * Position.DEFAULT_COST_BASIS_SCALE_MULT);
+      position.setUsdAvgCostBasis((long) (jsonPosition.get("usdAvgCostBasis").getAsDouble() * Position.DEFAULT_COST_BASIS_SCALE_MULT));
       positionArr[i] = position;
     }
     message.setPositionArr(positionArr);

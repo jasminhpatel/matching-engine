@@ -1,5 +1,6 @@
 package com.solfini.matchengine.message.outbound;
 
+import com.solfini.matchengine.orderbook.GlobalOrderBook;
 import java.util.Arrays;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -27,9 +28,11 @@ import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.QuoteType;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
+import com.solfini.user.User;
 import com.solfini.user.UserStats;
 import com.solfini.util.StringUtil;
 import com.solfini.util.TimeUtil;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Chris Mack
@@ -84,6 +87,10 @@ public class ExecutionReportMessage extends Message {
   private int tokenId;
   private long groupAssetId;
 
+  // selectId is used for
+  // 1. selected order id in SelectArrayOrderBook,
+  // 2. influencer subscription id in LiquidityOrderBook
+  // 3. execId of the last copy trade when targetStrategy is 198 or 199 (earnings and commission)
   private long selectId;
   private QuoteType quoteType;
   private int quoteTargetUserId;
@@ -130,6 +137,8 @@ public class ExecutionReportMessage extends Message {
   private short bestPxScale = 0;
   private double notional;
   private short cancelType;
+  //# of concurrents threads i.e. PersistThread, EncoderThread
+  private final AtomicInteger concurrentUsageCount = new AtomicInteger(2);
 
   public ExecutionReportMessage() {
     timestamp = System.currentTimeMillis();
@@ -230,6 +239,7 @@ public class ExecutionReportMessage extends Message {
     selectId = 0;
     quoteType = null;
     quoteTargetUserId = 0;
+    concurrentUsageCount.set(2);
   }
 
   public static final ExecutionReportMessage createAckNewOrderExecutionReport(final Order order, final InstrumentPair pair) {
@@ -639,6 +649,161 @@ public class ExecutionReportMessage extends Message {
 
     executionReportMessage.avgPx = executionReportMessage.cumQty == 0 ? 0 : (order.getFillCumNotional() / executionReportMessage.cumQty);
     executionReportMessage.avgPxScale = pair.getPriceScale();
+
+    if (executionReportMessage.lastQty == 0) {
+      executionReportMessage.notional = 0;
+    } else {
+      executionReportMessage.notional = StringUtil.toDouble(executionReportMessage.lastQty, executionReportMessage.lastQtyScale)
+          * StringUtil.toDouble(executionReportMessage.lastPx, executionReportMessage.lastPxScale);
+    }
+
+    return executionReportMessage;
+  }
+
+  public static final ExecutionReportMessage createFundingExecutionReport(final long orderId, final User user, final int securityId, final String symbol,
+      final long fillPrice, final short fillPriceScale, final long quantity, final short quantityScale, final long execId, final long secondaryExecId,
+      final int counterpartyId, final int targetStrategy) {
+    final ExecutionReportMessage executionReportMessage = ExecutionReportObjectPool.get();
+
+    GlobalOrderBook.setOrderIdIfGreater(user.getId(), orderId);
+
+    executionReportMessage.securityId = securityId;
+    executionReportMessage.user = user;
+    executionReportMessage.symbol = symbol;
+    executionReportMessage.side = Side.SELL;
+    executionReportMessage.ordType = OrdType.LIMIT;
+    executionReportMessage.account = user.getId();
+    executionReportMessage.submitterId = user.getId();
+    executionReportMessage.cancelId = 0;
+    executionReportMessage.orderId = orderId;
+    executionReportMessage.secondaryOrderId = 0;
+    executionReportMessage.origOrderId = 0;
+
+    executionReportMessage.counterpartyId = counterpartyId;
+
+    executionReportMessage.orderQty = quantity;
+    executionReportMessage.orderQtyScale = quantityScale;
+    executionReportMessage.lastQty = quantity;
+    executionReportMessage.lastQtyScale = quantityScale;
+
+    executionReportMessage.price = fillPrice;
+    executionReportMessage.priceScale = fillPriceScale;
+    executionReportMessage.lastPx = fillPrice;
+    executionReportMessage.lastPxScale = fillPriceScale;
+    executionReportMessage.isPositionSideCrossed = false;
+    executionReportMessage.execId = execId;
+    executionReportMessage.secondaryExecId = secondaryExecId;
+    executionReportMessage.timeInForce = TimeInForce.GOOD_TILL_CANCEL;
+    executionReportMessage.expireTime = 0;
+    executionReportMessage.timestamp = System.currentTimeMillis();
+    executionReportMessage.targetStrategy = targetStrategy;
+    executionReportMessage.isHidden = false;
+    executionReportMessage.isLiquidation = false;
+    executionReportMessage.isLastLook = false;
+    executionReportMessage.price2 = 0;
+    executionReportMessage.price2Scale = 0;
+    executionReportMessage.avgPx = fillPrice;
+    executionReportMessage.avgPxScale = fillPriceScale;
+    executionReportMessage.execType = ExecType.TRADE;
+
+    executionReportMessage.ordStatus = OrdStatus.CALCULATED;
+    executionReportMessage.leavesQty = 0;
+    executionReportMessage.leavesQtyScale = 0;
+    executionReportMessage.cumQty = quantity;
+    executionReportMessage.cumQtyScale = quantityScale;
+
+    executionReportMessage.matchTime = TimeUtil.getTime();
+    executionReportMessage.clOrdId = String.valueOf(executionReportMessage.matchTime);
+    executionReportMessage.aggressorSide = Side.SELL;
+    //executionReportMessage.feeEstimatedQuantity = order.getFeeEstimatedQuantity();
+    //executionReportMessage.feeAccumulatedQuantity = order.getFeeAccumulatedQuantity();
+    //executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
+    //executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+
+
+    executionReportMessage.assetId = 0;
+    executionReportMessage.tokenId = 0;
+    executionReportMessage.groupAssetId = 0;
+
+    executionReportMessage.selectId = 0;
+    executionReportMessage.quoteType = QuoteType.NULL_VAL;
+    executionReportMessage.quoteTargetUserId = 0;
+
+    if (executionReportMessage.lastQty == 0) {
+      executionReportMessage.notional = 0;
+    } else {
+      executionReportMessage.notional = StringUtil.toDouble(executionReportMessage.lastQty, executionReportMessage.lastQtyScale)
+          * StringUtil.toDouble(executionReportMessage.lastPx, executionReportMessage.lastPxScale);
+    }
+
+    return executionReportMessage;
+  }
+
+  public static final ExecutionReportMessage createExternalExecutionReport(final long orderId, final User user, final int securityId, final String symbol,
+      final long fillPrice, final short fillPriceScale, final long quantity, final short quantityScale, final long execId, final long secondaryExecId,
+      final int counterpartyId, final int targetStrategy, final Side side, final long fee) {
+    final ExecutionReportMessage executionReportMessage = ExecutionReportObjectPool.get();
+
+    executionReportMessage.securityId = securityId;
+    executionReportMessage.user = user;
+    executionReportMessage.symbol = symbol;
+    executionReportMessage.side = side;
+    executionReportMessage.ordType = OrdType.LIMIT;
+    executionReportMessage.account = user.getId();
+    executionReportMessage.submitterId = user.getId();
+    executionReportMessage.cancelId = 0;
+    executionReportMessage.orderId = orderId;
+    executionReportMessage.secondaryOrderId = 0;
+    executionReportMessage.origOrderId = 0;
+
+    executionReportMessage.counterpartyId = counterpartyId;
+
+    executionReportMessage.orderQty = quantity;
+    executionReportMessage.orderQtyScale = quantityScale;
+    executionReportMessage.lastQty = quantity;
+    executionReportMessage.lastQtyScale = quantityScale;
+
+    executionReportMessage.price = fillPrice;
+    executionReportMessage.priceScale = fillPriceScale;
+    executionReportMessage.lastPx = fillPrice;
+    executionReportMessage.lastPxScale = fillPriceScale;
+    executionReportMessage.isPositionSideCrossed = false;
+    executionReportMessage.execId = execId;
+    executionReportMessage.secondaryExecId = secondaryExecId;
+    executionReportMessage.timeInForce = TimeInForce.FILL_OR_KILL;
+    executionReportMessage.expireTime = 0;
+    executionReportMessage.timestamp = System.currentTimeMillis();
+    executionReportMessage.targetStrategy = targetStrategy;
+    executionReportMessage.isHidden = false;
+    executionReportMessage.isLiquidation = false;
+    executionReportMessage.isLastLook = false;
+    executionReportMessage.price2 = 0;
+    executionReportMessage.price2Scale = 0;
+    executionReportMessage.avgPx = fillPrice;
+    executionReportMessage.avgPxScale = fillPriceScale;
+    executionReportMessage.execType = ExecType.TRADE;
+
+    executionReportMessage.ordStatus = OrdStatus.CALCULATED;
+    executionReportMessage.leavesQty = 0;
+    executionReportMessage.leavesQtyScale = 0;
+    executionReportMessage.cumQty = quantity;
+    executionReportMessage.cumQtyScale = quantityScale;
+
+    executionReportMessage.matchTime = TimeUtil.getTime();
+    executionReportMessage.clOrdId = String.valueOf(executionReportMessage.matchTime);
+    executionReportMessage.aggressorSide = Side.SELL;
+    //executionReportMessage.feeEstimatedQuantity = order.getFeeEstimatedQuantity();
+    executionReportMessage.feeAccumulatedQuantity = fee;
+    //executionReportMessage.availableEstimatedQuantity = order.getAvailableEstimatedQuantity();
+    //executionReportMessage.availableAccumulatedQuantity = order.getAvailableAccumulatedQuantity();
+
+    executionReportMessage.assetId = 0;
+    executionReportMessage.tokenId = 0;
+    executionReportMessage.groupAssetId = 0;
+
+    executionReportMessage.selectId = 0;
+    executionReportMessage.quoteType = QuoteType.NULL_VAL;
+    executionReportMessage.quoteTargetUserId = 0;
 
     if (executionReportMessage.lastQty == 0) {
       executionReportMessage.notional = 0;
@@ -1604,6 +1769,10 @@ public class ExecutionReportMessage extends Message {
     this.cancelType = cancelType;
   }
 
+  public AtomicInteger getConcurrentUsageCount() {
+    return concurrentUsageCount;
+  }
+
   @Override
   public final void onPublish() {
     Context.getMessagePublisher().publish(this);
@@ -1613,12 +1782,13 @@ public class ExecutionReportMessage extends Message {
   public final void onPersist() {
     if (!Context.isPersistMarketMakerOrders() && Context.getMarketMakerUserid() == this.account) {
       InstrumentPair pair = InstrumentCache.getPair(securityId);
-      if (pair != null && (USDC.equals(pair.getBase().getSymbol()) || USDT.equals(pair.getBase().getSymbol()))) {
+      if (targetStrategy == EXTERNAL) {
+        //persist
+      } else if (pair != null && (USDC.equals(pair.getBase().getSymbol()) || USDT.equals(pair.getBase().getSymbol()))) {
         //persist
       } else {
         return;
       }
-
     }
     if (Context.isUserStatsEnabled()) {
       UserStats.onMessage(this);

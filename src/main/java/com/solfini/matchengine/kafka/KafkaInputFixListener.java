@@ -4,7 +4,10 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
+import com.solfini.common.*;
 import com.solfini.matchengine.decoder.*;
+import com.solfini.matchengine.message.admin.BalanceAdminMessage;
+import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.session.HeartbeatMessage;
 import com.solfini.sbe.encoder.*;
@@ -13,10 +16,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
-import com.solfini.common.Context;
-import com.solfini.common.CustomLogger;
-import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
-import com.solfini.common.Message;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
 import com.solfini.util.TimeUtil;
@@ -40,6 +39,7 @@ public class KafkaInputFixListener extends KafkaListener {
   private final SessionHandler sessionHandler = new SessionHandler();
   private final AssetGroupRequestHandler assetGroupRequestHandler = new AssetGroupRequestHandler();
   private final OrderFilterHandler orderFilterHandler = new OrderFilterHandler();
+  private final LiquidityHandler liquidityHandler = new LiquidityHandler();
 
   private final UnsafeBuffer decoderUnsafeBuffer = new UnsafeBuffer();
   private final MessageHeaderDecoder headerDecoder = new MessageHeaderDecoder();
@@ -50,6 +50,7 @@ public class KafkaInputFixListener extends KafkaListener {
   private final MarketDataFeedDecoder marketDataFeedDecoder = new MarketDataFeedDecoder();
   private final AssetGroupDecoder assetGroupDecoder = new AssetGroupDecoder();
   private final OrderFilterDecoder orderFilterDecoder = new OrderFilterDecoder();
+  private final LiquidityResponseDecoder liquidityResponseDecoder = new LiquidityResponseDecoder();
 
   private final LogonDecoder logonDecoder = new LogonDecoder();
   private final HeartbeatDecoder heartbeatDecoder = new HeartbeatDecoder();
@@ -69,10 +70,23 @@ public class KafkaInputFixListener extends KafkaListener {
   private static final int OFFSET = 19;
 
   private final boolean replay; // replay from input queue starting from where we left off?
+  private final boolean replaySelected; // replay only selected messages (User, Deposit) from input queue starting from where we left off?
+  private long startPointOffset = 0;
 
   public KafkaInputFixListener(boolean replay) {
     super(API_KAFKA_TOPIC_IN);
     this.replay = replay;
+    this.replaySelected = false;
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(LOG_FMT_6, KAFKAINPUTFIXLISTENER_TOPIC_EQ, API_KAFKA_TOPIC_IN, LOADED_LASTSEQUENCENUMBER_EQ, lastSequenceNumber,
+          LASTIPCINDEX_EQ, lastIpcIndex);
+    }
+  }
+
+  public KafkaInputFixListener(boolean replay, boolean replaySelected) {
+    super(API_KAFKA_TOPIC_IN);
+    this.replay = replay;
+    this.replaySelected = replaySelected;
 
     if (LOGGER.isDebugEnabled()) {
       LOGGER.debug(LOG_FMT_6, KAFKAINPUTFIXLISTENER_TOPIC_EQ, API_KAFKA_TOPIC_IN, LOADED_LASTSEQUENCENUMBER_EQ, lastSequenceNumber,
@@ -90,8 +104,11 @@ public class KafkaInputFixListener extends KafkaListener {
     if (replay) {
       final long offset = getLastInputOffset();
       getConsumer().seek(partition, offset);
-      if (LOGGER.isInfoEnabled()) {
-        LOGGER.debug(LOG_FMT_2, "Moving input queue cursor to last processed offset: ", offset);
+      LOGGER.info(LOG_FMT_2, "Moving input queue cursor to last processed offset: ", offset);
+
+      if (replaySelected) {
+        startPointOffset = getStartPointOffsetOffset();
+        LOGGER.info(LOG_FMT_4, "Start point offset of the input queue: ", startPointOffset, " pendingMessages: ", (startPointOffset - offset));
       }
     } else {
       getConsumer().seekToEnd(partitions);
@@ -150,6 +167,18 @@ public class KafkaInputFixListener extends KafkaListener {
     return 0;
   }
 
+  public long getStartPointOffsetOffset() {
+    final KafkaListener reader = new KafkaListener(getTopic());
+    final KafkaConsumer<String, byte[]> consumer = reader.getConsumer();
+    final TopicPartition partition = new TopicPartition(getTopic(), 0);
+    final List<TopicPartition> partitions = Arrays.asList(partition);
+
+    consumer.assign(partitions);
+    consumer.seekToEnd(partitions);
+
+    return consumer.position(partition);
+  }
+
   @Override
   public void onMessage(final long seqNum, final long sendTime, final long recordOffset, final byte messageType, final byte[] data) {
     final int length = data.length - KAFKA_OFFSET;
@@ -160,7 +189,6 @@ public class KafkaInputFixListener extends KafkaListener {
       LOGGER.trace(LOG_FMT_14, RECEIVED_SEQNUM_EQ, seqNum, SENDTIME_EQ, sendTime, RECORDOFFSET_EQ, recordOffset, MESSAGETYPE_EQ,
           messageType, LATENCY_EQ, latency, INPUTTIME_EQ, inputTime, DATA_EQ, StringUtil.fixToString(data));
     }
-
     // route admin messages
     if (KafkaPublisher.ADMIN_API == messageType) {
       kafkaAdminInputFixListener.onMessage(seqNum, sendTime, recordOffset, messageType, data);
@@ -176,6 +204,20 @@ public class KafkaInputFixListener extends KafkaListener {
         LOGGER.error(
             "KafkaInputFixListener decode error, msgType=" + messageType + LENGTH_EQ + length + SB_EQ + StringUtil.fixToString(data), e);
         return;
+      }
+      //LOGGER.info(Constants.LOG_FMT_4, "replaySelected: ", replaySelected, " recordOffset: ", recordOffset, " startPointOffset: ", startPointOffset, " selected: ", (recordOffset <= startPointOffset));
+      if (replaySelected && recordOffset <= startPointOffset) {
+        if (message instanceof UserAdminMessage userAdminMessage) { // new user registrations
+          LOGGER.info(Constants.LOG_FMT_2, "Replaying input: ", userAdminMessage.toJSON());
+        } else if (message instanceof BalanceAdminMessage balanceAdminMessage) { // deposits
+          if (balanceAdminMessage.getTxType() == 3) {
+            LOGGER.info(Constants.LOG_FMT_2, "Replaying input: ", balanceAdminMessage.toJSON());
+          } else {
+            return;
+          }
+        } else {
+          return;
+        }
       }
 
       if (Context.isCopyTradeOnly()) {
@@ -197,7 +239,7 @@ public class KafkaInputFixListener extends KafkaListener {
           message.setLastMessageInTransaction(headerDecoder.transactionEnd() == 1);
         }
       } catch (Exception e) {
-        LOGGER.error(LOG_FMT_2, "Error decoding transaction. TargetLocationId:", headerDecoder.transactionId(), ", Message:", e);
+        LOGGER.error(LOG_FMT_3, "Error decoding transaction. TargetLocationId:", headerDecoder.transactionId(), ", Message:", e);
         return;
       }
 
@@ -281,6 +323,11 @@ public class KafkaInputFixListener extends KafkaListener {
               headerDecoder.version());
           message = orderFilterHandler.decodeOrderFilterRequest(headerDecoder, orderFilterDecoder);
           return message;
+        case LiquidityResponseDecoder.TEMPLATE_ID:
+          liquidityResponseDecoder.wrap(decoderUnsafeBuffer, OFFSET + headerDecoder.encodedLength(), headerDecoder.blockLength(),
+              headerDecoder.version());
+          message = liquidityHandler.decodeLiquidityMessage(headerDecoder, liquidityResponseDecoder);
+          return message;
         case MassCancelOrderDecoder.TEMPLATE_ID:
           if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(ORDER_MASS_CANCEL_REPLACE);
@@ -351,7 +398,5 @@ public class KafkaInputFixListener extends KafkaListener {
       throw e;
     }
   }
-
-
 
 }

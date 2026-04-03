@@ -45,6 +45,7 @@ public class InstrumentPair implements Appendable, Constants {
   private int requiredMarginBasisPoints;
   private double indexFeedUsdMark;
   private long fundingRateTime;
+  private long stakeInterestRateTime;
   private double estFundingRate;
   private long minOrderQuantity;
   private double circuitBreakerThreshold;
@@ -93,6 +94,7 @@ public class InstrumentPair implements Appendable, Constants {
   private long auctionLastStoppedTime; // used internally only
 
   private Sector sector;
+  private int preOrderCheckStrategy;
 
   private static final int FEE_TIER_CAPACITY = 16;
   private final Fee[] makerFeeArr;
@@ -182,6 +184,7 @@ public class InstrumentPair implements Appendable, Constants {
     this.midHistory = new TradeHistory(id, underlyerId);
 
     this.sector = sector;
+    this.stakeInterestRateTime = expireTimeMillis;
   }
 
   public final double getEffectiveVolumeScale() {
@@ -306,6 +309,14 @@ public class InstrumentPair implements Appendable, Constants {
 
   public final void setFundingRateTime(final long fundingRateTime) {
     this.fundingRateTime = fundingRateTime;
+  }
+
+  public long getStakeInterestRateTime() {
+    return stakeInterestRateTime;
+  }
+
+  public void setStakeInterestRateTime(long stakeInterestRateTime) {
+    this.stakeInterestRateTime = stakeInterestRateTime;
   }
 
   public final double getEstFundingRate() {
@@ -736,6 +747,14 @@ public class InstrumentPair implements Appendable, Constants {
     this.externalFundingRate = externalFundingRate;
   }
 
+  public int getPreOrderCheckStrategy() {
+    return preOrderCheckStrategy;
+  }
+
+  public void setPreOrderCheckStrategy(int preOrderCheckStrategy) {
+    this.preOrderCheckStrategy = preOrderCheckStrategy;
+  }
+
   public final double getUsdMark() {
     if (indexFeedUsdMark > 0) {
       return indexFeedUsdMark;
@@ -907,8 +926,8 @@ public class InstrumentPair implements Appendable, Constants {
         .append(underlyerId).append(QUOTEID_EQ).append(quotedId).append(MARGINCURVEID_EQ).append(marginCurveId).append(PRICESCALE_EQ)
         .append(priceScale).append(QUANTITYSCALE_EQ).append(quantityScale).append(", orderBook=").append(orderBook)
         .append(", marketStatus=").append(marketStatus).append(SETTLETYPE_EQ).append(", indexFeedUsdMark=").append(indexFeedUsdMark)
-        .append(", estFundingRate=").append(estFundingRate).append(", fundingRateTime=").append(fundingRateTime).append(settleType)
-        .append(", assetType=").append(assetType).append(MAINTMARGINPERCENT_EQ).append(maintMarginBasisPoints)
+        .append(", estFundingRate=").append(estFundingRate).append(", fundingRateTime=").append(fundingRateTime).append(", stakeInterestRateTime=")
+        .append(stakeInterestRateTime).append(settleType).append(", assetType=").append(assetType).append(MAINTMARGINPERCENT_EQ).append(maintMarginBasisPoints)
         .append(REQUIREDMARGINPERCENT_EQ).append(requiredMarginBasisPoints).append(", externalFundingRate=").append(externalFundingRate)
         .append(", makerFeeArr=").append(Arrays.toString(makerFeeArr)).append(", takerFeeArr=").append(Arrays.toString(takerFeeArr))
         .append("]");

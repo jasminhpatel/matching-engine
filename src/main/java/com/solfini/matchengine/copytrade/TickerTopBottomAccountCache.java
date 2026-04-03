@@ -2,6 +2,7 @@ package com.solfini.matchengine.copytrade;
 
 import com.solfini.db.DBManager;
 import com.solfini.db.ExternalDBManager;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -72,6 +73,7 @@ public class TickerTopBottomAccountCache {
   }
 
   public static void loadFromDB(final AtomicInteger loaderCounter) {
+    LOGGER.info("TickerTopBottomAccountCache loading. ");
     int count = 0;
     final Set<String> newTickers = new HashSet<>();
     final long t0 = System.currentTimeMillis();
@@ -91,12 +93,14 @@ public class TickerTopBottomAccountCache {
       LOGGER.info(LOG_FMT_4, "TickerTopBottomAccountCache.loadTickersFromDB=", count, ", time=", (System.currentTimeMillis() - t0));
     } catch (final Exception e) {
       LOGGER.error("error", e);
+      e.printStackTrace();
     }
     if (!newTickers.isEmpty()) {
       loadTopUsersFromDB(newTickers);
     }
     if (loaderCounter != null) {
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("TickerTopBottomAccountCache loaded. " + id);
       print("INITIAL");
     }
   }
@@ -123,7 +127,7 @@ public class TickerTopBottomAccountCache {
             while (rs.next()) {
               int recType = rs.getInt(1);
               String accountId = rs.getString(2);
-              if (recType == InfluencerSubscription.TYPE_TOP) {
+              if (recType == ExchangeSubscription.TYPE_TOP) {
                 topAccounts.add(accountId.toUpperCase());
               } else {
                 bottomAccounts.add(accountId.toUpperCase());
@@ -132,14 +136,15 @@ public class TickerTopBottomAccountCache {
             }
           }
           if (!topAccounts.isEmpty()) {
-            onLoad(ticker, topAccounts, InfluencerSubscription.TYPE_TOP);
+            onLoad(ticker, topAccounts, ExchangeSubscription.TYPE_TOP);
           }
           if (!bottomAccounts.isEmpty()){
-            onLoad(ticker, bottomAccounts, InfluencerSubscription.TYPE_BOTTOM);
+            onLoad(ticker, bottomAccounts, ExchangeSubscription.TYPE_BOTTOM);
           }
           LOGGER.info(LOG_FMT_6, "TickerTopBottomAccountCache.loadFromDB=", count, ", ticker=", ticker, ", time=", (System.currentTimeMillis() - t0));
         } catch (final Exception e) {
           LOGGER.error("error", e);
+          e.printStackTrace();
         }
       }
     }

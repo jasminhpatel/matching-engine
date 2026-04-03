@@ -27,34 +27,36 @@ public class CopyTradeCache {
 
   private static final String SELECT = "SELECT id,userid,securityid,subscriptionId,basesymbol,quotedsymbol,origClOrdId,clordid,platform,accountid,exchange,side,ordtype,timeinforce,signalpercentage,signalpercentagescale,signalprice,signalpricescale,orderqty,orderqtyscale,price,pricescale,\"result\",created,externalId,originalAmount,cumulativeAmount,status,istoclose,xquantity,xprice,kafkarecordoffset,borrowedAmount,repaid,futuresEnabled,tradeValue FROM copy_trade_state WHERE istoclose=false AND closed=false AND status is not null ORDER BY id asc;";
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Long, CopyTradeData>> COPY_TRADES_BY_ACCOUNT = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyTrade>> COPY_TRADES_BY_SUBSCRIPTION = new ConcurrentHashMap<>();
-  private static final ConcurrentHashMap<String, CopyTrade> OPEN_COPY_TRADE_ORDERS = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<Long, ConcurrentHashMap<String, CopyTradeOrder>> COPY_TRADES_BY_SUBSCRIPTION = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, CopyTradeOrder> OPEN_COPY_TRADE_ORDERS = new ConcurrentHashMap<>();
 
-  public static void onLoad(final CopyTrade copyTrade) {
-    final String key = (copyTrade.getPlatform() + "-" + copyTrade.getAccountId()).toLowerCase();
+  public static void onLoad(final CopyTradeOrder copyTradeOrder) {
+    final String key = (copyTradeOrder.getPlatform() + "-" + copyTradeOrder.getAccountId()).toLowerCase();
     final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
-    final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new CopyTradeData());
+    final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTradeOrder.getSubscriptionId(), v -> new CopyTradeData());
 
-    copyTradeData.add(copyTrade);
+    copyTradeData.add(copyTradeOrder);
 
-    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new ConcurrentHashMap<>());
-    copyTrades.put(copyTrade.getClOrdId(), copyTrade);
+    final ConcurrentHashMap<String, CopyTradeOrder> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.computeIfAbsent(
+        copyTradeOrder.getSubscriptionId(), v -> new ConcurrentHashMap<>());
+    copyTrades.put(copyTradeOrder.getClOrdId(), copyTradeOrder);
 
-    if (copyTrade.isToClose() && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTrade.getStatus())) {
-      OPEN_COPY_TRADE_ORDERS.put(copyTrade.getClOrdId(), copyTrade);
+    if (copyTradeOrder.isToClose() && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+      OPEN_COPY_TRADE_ORDERS.put(copyTradeOrder.getClOrdId(), copyTradeOrder);
     }
   }
 
-  public static void onRemove(final CopyTrade copyTrade) {
-    final String key = (copyTrade.getPlatform() + "-" + copyTrade.getAccountId()).toLowerCase();
+  public static void onRemove(final CopyTradeOrder copyTradeOrder) {
+    final String key = (copyTradeOrder.getPlatform() + "-" + copyTradeOrder.getAccountId()).toLowerCase();
     final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.computeIfAbsent(key, v -> new ConcurrentHashMap<>());
-    final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTrade.getSubscriptionId(), v -> new CopyTradeData());
+    final CopyTradeData copyTradeData = copyTradeDataMap.computeIfAbsent(copyTradeOrder.getSubscriptionId(), v -> new CopyTradeData());
 
-    copyTradeData.remove(copyTrade);
+    copyTradeData.remove(copyTradeOrder);
 
-    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(copyTrade.getSubscriptionId());
+    final ConcurrentHashMap<String, CopyTradeOrder> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(
+        copyTradeOrder.getSubscriptionId());
     if (copyTrades != null) {
-      copyTrades.remove(copyTrade.getClOrdId());
+      copyTrades.remove(copyTradeOrder.getClOrdId());
     }
   }
 
@@ -83,7 +85,7 @@ public class CopyTradeCache {
     final ConcurrentHashMap<Long, CopyTradeData> copyTradeDataMap = COPY_TRADES_BY_ACCOUNT.get(key);
     if (copyTradeDataMap != null) {
       for (CopyTradeData cd : copyTradeDataMap.values()) {
-        for (CopyTrade cp : cd.getCopyTrades()) {
+        for (CopyTradeOrder cp : cd.getCopyTrades()) {
           if (!cp.isToClose() && !cp.isClosed() && cp.getStatus() != null) {
             if (cp.getSide() == Side.BUY) {
               counts[0] = counts[0] + 1;
@@ -104,10 +106,10 @@ public class CopyTradeCache {
   }
 
   public static double getOpenOrderValue(final long subscriptionId, final String quoteSymbol, final String baseSymbol) {
-    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
+    final ConcurrentHashMap<String, CopyTradeOrder> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
     if (copyTrades != null) {
       double openOrderValue = 0;
-      for (CopyTrade c : copyTrades.values()) {
+      for (CopyTradeOrder c : copyTrades.values()) {
         if (!c.isToClose() && !c.isClosed() && c.getResult() == null && quoteSymbol.equalsIgnoreCase(c.getQuotedSymbol()) &&
             baseSymbol.equalsIgnoreCase(c.getBaseSymbol())) {
           openOrderValue += c.getTradeValue();
@@ -119,8 +121,8 @@ public class CopyTradeCache {
     return 0D;
   }
 
-  public static Collection<CopyTrade> getCopyTrades(final long subscriptionId) {
-    final ConcurrentHashMap<String, CopyTrade> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
+  public static Collection<CopyTradeOrder> getCopyTrades(final long subscriptionId) {
+    final ConcurrentHashMap<String, CopyTradeOrder> copyTrades = COPY_TRADES_BY_SUBSCRIPTION.get(subscriptionId);
     if (copyTrades != null) {
       return copyTrades.values();
     }
@@ -128,100 +130,104 @@ public class CopyTradeCache {
     return null;
   }
 
-  public static void addOpenOrder(final CopyTrade copyTrade) {
-    OPEN_COPY_TRADE_ORDERS.put(copyTrade.getClOrdId(), copyTrade);
+  public static void addOpenOrder(final CopyTradeOrder copyTradeOrder) {
+    OPEN_COPY_TRADE_ORDERS.put(copyTradeOrder.getClOrdId(), copyTradeOrder);
   }
 
-  public static void removeOpenOrder(final CopyTrade copyTrade) {
-    OPEN_COPY_TRADE_ORDERS.remove(copyTrade.getClOrdId());
+  public static void removeOpenOrder(final CopyTradeOrder copyTradeOrder) {
+    OPEN_COPY_TRADE_ORDERS.remove(copyTradeOrder.getClOrdId());
   }
 
-  public static Collection<CopyTrade> getAllOpenCopyTrades() {
+  public static Collection<CopyTradeOrder> getAllOpenCopyTrades() {
     return OPEN_COPY_TRADE_ORDERS.values();
   }
 
-  public static void add(final CopyTrade copyTrade) {
-    onLoad(copyTrade);
+  public static void add(final CopyTradeOrder copyTradeOrder) {
+    onLoad(copyTradeOrder);
   }
 
-  public static void remove(final CopyTrade copyTrade) {
-    onRemove(copyTrade);
+  public static void remove(final CopyTradeOrder copyTradeOrder) {
+    onRemove(copyTradeOrder);
   }
 
   public static void loadFromDB(final AtomicInteger loaderCounter) {
+    LOGGER.info("CopyTradeCache loading. ");
     int count = 0;
     final long t0 = System.currentTimeMillis();
     try (final Connection conn = DBManager.getConnection();
         final PreparedStatement ps = conn.prepareStatement(SELECT);
         final ResultSet rs = ps.executeQuery();) {
       while (rs.next()) {
-        final CopyTrade copyTrade = parse(rs);
-        onLoad(copyTrade);
+        final CopyTradeOrder copyTradeOrder = parse(rs);
+        onLoad(copyTradeOrder);
         count++;
       }
       LOGGER.info(LOG_FMT_4, "CopyTradeCache.loadFromDB=", (long) count, ", time=", System.currentTimeMillis() - t0);
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("CopyTradeCache loaded. " + id);
     } catch (final Exception e) {
       LOGGER.error("error", e);
+      e.printStackTrace();
     }
   }
 
-  private static CopyTrade parse(final ResultSet rs) throws SQLException {
-    final CopyTrade copyTrade = new CopyTrade();
+  private static CopyTradeOrder parse(final ResultSet rs) throws SQLException {
+    final CopyTradeOrder copyTradeOrder = new CopyTradeOrder();
     //copyTrade.setId(rs.getInt(1));
-    copyTrade.setUserId(rs.getInt(2));
-    copyTrade.setSecurityId(rs.getInt(3));
-    copyTrade.setSubscriptionId(rs.getLong(4));
-    copyTrade.setBaseSymbol(rs.getString(5));
-    copyTrade.setQuotedSymbol(rs.getString(6));
-    copyTrade.setOrigClOrdId(rs.getString(7));
-    copyTrade.setClOrdId(rs.getString(8));
-    copyTrade.setPlatform(rs.getString(9));
-    copyTrade.setAccountId(rs.getString(10));
-    copyTrade.setExchange(rs.getString(11));
-    copyTrade.setSide(Side.valueOf(rs.getString(12)));
-    copyTrade.setOrdType(OrdType.valueOf(rs.getString(13)));
-    copyTrade.setTimeInForce(TimeInForce.valueOf(rs.getString(14)));
-    copyTrade.setSignalPercentage(rs.getLong(15));
-    copyTrade.setSignalPercentageScale(rs.getShort(16));
-    copyTrade.setSignalPrice(rs.getLong(17));
-    copyTrade.setSignalPriceScale(rs.getShort(18));
-    copyTrade.setOrderQty(rs.getLong(19));
-    copyTrade.setOrderQtyScale(rs.getShort(20));
-    copyTrade.setPrice(rs.getLong(21));
-    copyTrade.setPriceScale(rs.getShort(22));
-    copyTrade.setResult(rs.getString(23));
-    copyTrade.setCreated(rs.getLong(24));
-    copyTrade.setExternalId(rs.getString(25));
-    copyTrade.setOriginalAmount(rs.getDouble(26));
-    copyTrade.setCumulativeAmount(rs.getDouble(27));
-    copyTrade.setStatus(rs.getString(28));
-    copyTrade.setToClose(rs.getBoolean(29));
-    copyTrade.setxQuantity(rs.getString(30) != null ? new BigDecimal(rs.getString(30)) : null);
-    copyTrade.setxPrice(rs.getString(31) != null ? new BigDecimal(rs.getString(31)) : null);
-    copyTrade.setKafkaRecordOffset(rs.getLong(32));
-    copyTrade.setClosed(false);
-    copyTrade.setBorrowedAmount(rs.getDouble(33));
-    copyTrade.setRepaid(rs.getBoolean(34));
-    copyTrade.setFuturesEnabled(rs.getBoolean(35));
-    copyTrade.setTradeValue(rs.getDouble(36));
+    copyTradeOrder.setUserId(rs.getInt(2));
+    copyTradeOrder.setSecurityId(rs.getInt(3));
+    copyTradeOrder.setSubscriptionId(rs.getLong(4));
+    copyTradeOrder.setBaseSymbol(rs.getString(5));
+    copyTradeOrder.setQuotedSymbol(rs.getString(6));
+    copyTradeOrder.setOrigClOrdId(rs.getString(7));
+    copyTradeOrder.setClOrdId(rs.getString(8));
+    copyTradeOrder.setPlatform(rs.getString(9));
+    copyTradeOrder.setAccountId(rs.getString(10));
+    copyTradeOrder.setExchange(rs.getString(11));
+    copyTradeOrder.setSide(Side.valueOf(rs.getString(12)));
+    copyTradeOrder.setOrdType(OrdType.valueOf(rs.getString(13)));
+    copyTradeOrder.setTimeInForce(TimeInForce.valueOf(rs.getString(14)));
+    copyTradeOrder.setSignalPercentage(rs.getLong(15));
+    copyTradeOrder.setSignalPercentageScale(rs.getShort(16));
+    copyTradeOrder.setSignalPrice(rs.getLong(17));
+    copyTradeOrder.setSignalPriceScale(rs.getShort(18));
+    copyTradeOrder.setOrderQty(rs.getLong(19));
+    copyTradeOrder.setOrderQtyScale(rs.getShort(20));
+    copyTradeOrder.setPrice(rs.getLong(21));
+    copyTradeOrder.setPriceScale(rs.getShort(22));
+    copyTradeOrder.setResult(rs.getString(23));
+    copyTradeOrder.setCreated(rs.getLong(24));
+    copyTradeOrder.setExternalId(rs.getString(25));
+    copyTradeOrder.setOriginalAmount(rs.getDouble(26));
+    copyTradeOrder.setCumulativeAmount(rs.getDouble(27));
+    copyTradeOrder.setStatus(rs.getString(28));
+    copyTradeOrder.setToClose(rs.getBoolean(29));
+    copyTradeOrder.setxQuantity(rs.getString(30) != null ? new BigDecimal(rs.getString(30)) : null);
+    copyTradeOrder.setxPrice(rs.getString(31) != null ? new BigDecimal(rs.getString(31)) : null);
+    copyTradeOrder.setKafkaRecordOffset(rs.getLong(32));
+    copyTradeOrder.setClosed(false);
+    copyTradeOrder.setBorrowedAmount(rs.getDouble(33));
+    copyTradeOrder.setRepaid(rs.getBoolean(34));
+    copyTradeOrder.setFuturesEnabled(rs.getBoolean(35));
+    copyTradeOrder.setTradeValue(rs.getDouble(36));
 
-    return copyTrade;
+    return copyTradeOrder;
   }
 
   public static class CopyTradeData {
-    private final ConcurrentSkipListSet<CopyTrade> copyTrades = new ConcurrentSkipListSet<>(Comparator.comparing(CopyTrade::getClOrdId));
+    private final ConcurrentSkipListSet<CopyTradeOrder> copyTradeOrders = new ConcurrentSkipListSet<>(Comparator.comparing(
+        CopyTradeOrder::getClOrdId));
 
-    public ConcurrentSkipListSet<CopyTrade> getCopyTrades() {
-      return copyTrades;
+    public ConcurrentSkipListSet<CopyTradeOrder> getCopyTrades() {
+      return copyTradeOrders;
     }
 
-    public void add(CopyTrade copyTrade) {
-      this.copyTrades.add(copyTrade);
+    public void add(CopyTradeOrder copyTradeOrder) {
+      this.copyTradeOrders.add(copyTradeOrder);
     }
 
-    public void remove(CopyTrade copyTrade) {
-      this.copyTrades.remove(copyTrade);
+    public void remove(CopyTradeOrder copyTradeOrder) {
+      this.copyTradeOrders.remove(copyTradeOrder);
     }
   }
 

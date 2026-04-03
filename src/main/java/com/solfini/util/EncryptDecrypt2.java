@@ -91,10 +91,7 @@ public class EncryptDecrypt2 implements Constants {
   }
 
   public static void main(String[] args) {
-    System.out.println(decrypt("46sA6z4XseDCLMD6BrLe2QlSOIA_O-6-NSIQ2936xZYs0VEgRjpf0EilQKWwKI9ibrDATFug323cD8yh4rL0aZnjIIMX2con0A7s_I898wA=") + " " + decrypt("Wg3gCAVSdM3dOkXhi1v1-uxBqQ4ANAv9rZu0rX-z0oBo-gmRREtQU4aII8Ej6Td7E7PetWI3LQlQsDlCFbC3SezDbDS_Uw3whNywoICs1rY="));
-    System.out.println(decrypt("49cNEKAoDvAPkmpq1cpCNb_5GmQE2k8AhhbnDtcMGeg4ZDnKIIBjvYd4IX4SwK5DP4aI0BttmAjg7gmIIiedSkeApG4kFTOjdJJlVRgEIr4="));
-    System.out.println(decrypt("-IT3P-czVJiGW9pAfRzhJnMzihIojrRze0KLNyenlZOCmkEjWePorWxkUebWnnKmn5gukYy7quOgwxRbrlYATZqnBx8Juhhx4W-UxXlvPpo="));
-    System.out.println(decrypt("UquFxcPREp_sLSh1LdDIYqhwM8WsLv62RYMa97soIxc_KghNygKHe56iexltxLdMW_N8_sCSy20jPdAOqDw2zz7cusA0FZeUwjaMpInzLaU="));
-    System.out.println(decrypt("bQScGiRalv4jtsTM6BD9YsSbZULAFs7MBzFxy-RS_6pRbmhv0by4aptOswDRDrQziWFTNLAkVRF3gmNV3mBiFfgnDJtV9omzptsQiOjdlXI="));
+    System.out.println(EncryptDecrypt2.encrypt("V0o4NPeKU9DoV4ZKmVTUWVXMLycjMi3MLHFbGqvWY4ZkZHmLRQrC945oeBymAjLX"));
+    System.out.println(EncryptDecrypt2.encrypt("sRlLWo49i0lk0Tnm1BJa1vjJW4lzAZe47vKCaBidl1kNb6yqA2vfsIcdB28RI6in"));
   }
 }

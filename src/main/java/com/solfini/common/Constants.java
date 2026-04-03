@@ -18,10 +18,18 @@ public interface Constants {
   public static final String ETH = "ETH";
   public static final String BTC_USD = "BTC/USD";
   public static final String BTC_USDC = "BTC/USDC";
+  public static final String USDC_USD = "USDC/USD";
+  public static final String USDT_USD = "USDT/USD";
 
   public static final String ORDER_STATUS_FILLED = "FILLED";
+  public static final String ORDER_STATUS_CANCELED = "CANCELED";
+  public static final String ORDER_STATUS_REJECTED = "REJECTED";
+  public static final String ORDER_STATUS_EXPIRED = "EXPIRED";
+  public static final String SUCCESS = "SUCCESS";
+  public static final String FAILURE = "FAILURE";
 
-  public static final String SYMBOL_NOT_FOUND = "symbol not found";
+  public static final String SYMBOL_NOT_FOUND = "Symbol not found";
+  public static final String QUOTE_SYMBOL_NOT_FOUND = "Quote symbol not found";
   public static final String NO_PRICE = "no price in newOrderSingleDecoder";
   public static final String MARKET_IS_CLOSED = "Market is closed";
   public static final String USER_NOT_FOUND = "User not found";
@@ -34,7 +42,7 @@ public interface Constants {
   public static final String PRICE_IS_OUT_OF_BOUNDS = "Price is out of bounds";
   public static final String STOP_PRICE_IS_MISSING = "Stop price is missing";
   public static final String QUANTITY_IS_MISSING = "Quantity is missing";
-  public static final String SECURITY_ID_IS_MISSING = "missing SecurityID";
+  public static final String SECURITY_ID_IS_MISSING = "Missing SecurityID";
   public static final String MARKET_IS_PAUSED_OR_CLOSED = "Market is paused or closed";
   public static final String MARKET_CIRCUIT_BREAKER = "Market is on circuit breaker";
   public static final String INSTRUMENT_NOT_FOUND = "Instrument not found";
@@ -44,9 +52,14 @@ public interface Constants {
   public static final String INVALID_ALGO_ORDER_INTERVAL = "Algo Order interval time is too low";
   public static final String ONLY_LIMIT_ORDERS_ALLOWED = "Only limit orders are allowed";
   public static final String INVALID_ORDER_SELECT = "Order select is invalid";
+  public static final String INVALID__OCO_ORDER = "OCO Order is invalid";
   public static final String ASSET_GROUP_NOT_FOUND = "Asset Group not found";
   public static final String ASSET_GROUP_NOT_AVAILABLE = "Asset Group not available";
   public static final String ASSET_GROUP_NOT_ENOUGH = "Asset Group not enough";
+  public static final String REJECTED_FROM_EXTERNAL_EXCHANGE = "Rejected from external exchange";
+  public static final String ERROR_PLEASE_TRY_AGAIN_LATER = "Error, please try again later";
+  public static final String INSUFFICIENT_ORDER_QTY = "Insufficient order quantity";
+  public static final String EXCEEDS_THE_MAX_QUANTITY = "Exceeds the max quantity";
 
 
   public static final String TRUE = "true";
@@ -63,6 +76,33 @@ public interface Constants {
   public static final String PRIMARY = "primary";
   public static final String SECONDARY = "secondary";
   public static final String COPY_TRADE_ONLY = "copy_trade_only";
+
+  public static final String NONE = "NONE";
+  public static final String POLYGON = "POLYGON";
+  public static final String POLYGON_AMOY = "POLYGON_AMOY";
+  public static final String ETHEREUM = "ETHEREUM";
+  public static final String SEPOLIA = "SEPOLIA";
+  public static final String BITCOIN = "BITCOIN";
+
+  public static final char BRACE = '[';
+  public static final char BRACE_END = ']';
+  public static final char CURLY = '{';
+  public static final char CURLY_END = '}';
+  public static final char COMMA = ',';
+  public static final char QUOTE = '\'';
+  public static final char DOUBLE_QUOTE = '"';
+  public static final char NOT = '!';
+  public static final char SEMI = ';';
+  public static final char COLON = ':';
+
+  public static final String ERROR_TXT = "error";
+  public static final String SIGNED_MESSAGE = "signedMessage";
+  public static final String SIGNED_PUBLIC_ADDRESS = "signedPublicAddress";
+  public static final String CONTRACT_TEMPLATE_ID = "contractTemplateId";
+  public static final String NONCE = "nonce";
+
+  public static final int TARDIS_PERPS = 1;
+  public static final int TARDIS_SPOT = 2;
 
   public static final int BUY_LIMIT = 0;
   public static final int SELL_LIMIT = 1;
@@ -100,7 +140,19 @@ public interface Constants {
   public static final int TWAP = 180; // TWAP
   public static final int TWAP_REDUCE_ONLY = 181; // TWAP with REDUCE_ONLY
   public static final int FILTERED = 190; // for filtering orderbook
-
+  public static final int STAKING = 191; // for staking
+  public static final int VIRTUAL_TOKEN_SWAP = 192; // convert to virtual tokens
+  public static final int FUNDING = 193; // execution reports for funding calculation
+  public static final int INTEREST = 194; // execution reports for interest calculation
+  public static final int AUTO_CONVERT = 195; // execution reports auto convert stable coins to settle usd
+  public static final int EXTERNAL = 196; // to be executed in external exchanges
+  public static final int WITHDRAW_FEE = 197; // withdrawal transaction fee
+  public static final int COPY_TRADE_COMMISSION = 198; // copy trade commission
+  public static final int COPY_TRADE_EARNING = 199; // copy trade earning
+  public static final int REFERRAL_EARNING = 200; // referral earning
+  public static final int REFERRAL_COMMISSION = 201; // referral commisson
+  public static final int CURRENCY_CONVERT = 202; // USDC/USDT <=> USD
+  public static final int LIQUIDATION = 203;
 
   // order book types
   public static final int TREE_ORDER_BOOK = 1;
@@ -109,7 +161,7 @@ public interface Constants {
   public static final int TREE_ORDER_BOOK2 = 4;
   public static final int SELECT_ARRAY_ORDER_BOOK = 5;
   public static final int COPY_TRADE_ORDER_BOOK = 6;
-  public static final int FILTER_ARRAY_ORDER_BOOK = 7;
+  public static final int LIQUIDITY_ORDER_BOOK = 7;
 
   public static final int DEFAULT_TEST_ORDER_BOOK = ARRAY_ORDER_BOOK;
 
@@ -127,6 +179,23 @@ public interface Constants {
 
   public static final int SETTLE_TYPE_PHYSICAL = 0;
   public static final int SETTLE_TYPE_CONTRACT = 1;
+
+  public static final int API_TX_DEPOSIT = 1;
+  public static final int API_TX_WITHDRAW = 2;
+  public static final int API_TX_ADMIN_DEPOSIT = 3;
+  public static final int API_TX_ADMIN_WITHDRAW = 4;
+  public static final int API_TX_FEE = 5;
+  public static final int API_TX_ADJUSTMENT = 6;
+  public static final int API_TX_INVEST_FUND = 7;
+  public static final int API_TX_DIVEST_FUND = 8;
+  public static final int API_TX_TRADE_FILL = 9;
+  public static final int API_TX_FUNDING_RATE = 10;
+  public static final int API_TX_RESTATE = 11;
+  public static final int API_TX_CANCEL_WITHDRAW = 12;
+  public static final int API_TX_COPY_TRADE_COMMISSION = 13;
+  public static final int API_TX_COPY_TRADE_EARNINGS = 14;
+  public static final int API_TX_REFERRAL_TRADE_COMMISSION = 15;
+  public static final int API_TX_REFERRAL_TRADE_EARNINGS = 16;
 
   public static final int TX_DEPOSIT = 4011;
   public static final int TX_WITHDRAW = 4012;
@@ -166,11 +235,13 @@ public interface Constants {
 
   // times
   public static final int ONE_SECOND = 1_000;
+  public static final int TWO_SECOND = 2_000;
   public static final int ONE_MINUTE = 60_000;
   public static final int TWO_MINUTE = 120_000;
   public static final int FIVE_MINUTE = 300_000;
   public static final int SIX_MINUTE = 360_000;
   public static final int TEN_MINUTES = 600_000;
+  public static final int ELEVEN_MINUTES = 660_000;
   public static final int FIFTEEN_MINUTE = 900_000;
   public static final int ONE_HOUR = 3_600_000;
   public static final int SIX_HOUR = 21_600_000;
@@ -326,6 +397,8 @@ public interface Constants {
   public static final String REJECT_ORDER_EQ = ">>> reject order ";
   public static final String ORDER_EQ = ", order=";
   public static final String UNKNOWN_ORDER_CANCELORDER_EQ = "createCancelReject UNKNOWN_ORDER cancelOrder=";
+  public static final String OCO_BIND_EQ = "OCO bind Order=";
+  public static final String OCO_TRIGGER_EQ = "OCO trigger Order=";
   public static final String QUANTITYFILLED_EQ = ", quantityFilled=";
   public static final String COUNTERPARTYUSER_EQ = ", counterpartyUser=";
   public static final String INSTR_EQ = ", instr=";
@@ -540,6 +613,7 @@ public interface Constants {
   public static final String EXECUTIONREPORTMESSAGE_SECURITYID_EQ = "ExecutionReportMessage [securityId=";
   public static final String BUSINESSREJECTMESSAGE_BUSINESSREJECTREASON_EQ = "BusinessRejectMessage [businessRejectReason=";
   public static final String USEDISCOUNTFEESCOIN_EQ = ", useDiscountFeesCoin=";
+  public static final String ISREWARDCLAIMED_EQ = ", isRewardClaimed=";
   public static final String SECURITYDEFINITIONADMINMESSAGE_UPDATETYPE_EQ = "SecurityDefinitionAdminMessage [updateType=";
   public static final String COLLATERALMARGINPERCENTDISCOUNT_EQ = ", collateralMarginPercentDiscount=";
   public static final String ARRSIZE_EQ = ", arrSize=";
@@ -692,5 +766,6 @@ public interface Constants {
   public static final String WITHDRAW_FEE_EQ = ", withdrawFee=";
   public static final String IS_WITHDRAW_FEE_PERCENT_EQ = ", isWithdrawFeePercent=";
   public static final String WITHDRAW_FEE_INSTRUMENT_EQ = ", withdrawFeeInstrument=";
+  public static final String ERROR = "ERROR";
 
 }

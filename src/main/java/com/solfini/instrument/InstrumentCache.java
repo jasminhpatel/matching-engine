@@ -36,7 +36,7 @@ public class InstrumentCache implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(InstrumentCache.class);
   private static final TimeZone GMT = TimeZone.getTimeZone("GMT");
 
-  private static final int INITIAL_SIZE = 64;
+  private static final int INITIAL_SIZE = 1024;
   private static final int INCREASE_SIZE = 2;
   private static int maxSecurityId = 0;
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
@@ -293,6 +293,7 @@ public class InstrumentCache implements Constants {
             && securityDefinitionAdminMessage.getBaseId() == currentPair.getBaseId()
             && securityDefinitionAdminMessage.getQuotedId() == currentPair.getQuotedId()
             && !securityDefinitionAdminMessage.isSnapConverterMode()) {
+
           currentPair.setMarginCurveId(marginCurveId);
           currentPair.setMaintMarginBasisPoints(maintMarginPercent);
           currentPair.setRequiredMarginBasisPoints(requiredMarginPercent);
@@ -336,6 +337,7 @@ public class InstrumentCache implements Constants {
       }
 
       instrumentPair.setOrderBook(OrderBookFactory.create(orderBookStrategy, preOrderCheckStrategy, instrumentPair, arrSize, cacheDepth));
+      instrumentPair.setPreOrderCheckStrategy(preOrderCheckStrategy);
       InstrumentCache.addPair(instrumentPair);
 
       NewOrderSingleHandler.setSecondaryOrderIdIfGreater(instrumentPair.getId(), securityDefinitionAdminMessage.getSecondaryOrderId());
@@ -475,6 +477,7 @@ public class InstrumentCache implements Constants {
           sector);
 
       OrderBookFactory.recreateReplace(orderBookStrategy, preOrderCheckStrategy, currentPair, instrumentPair, arrSize, cacheDepth);
+      instrumentPair.setPreOrderCheckStrategy(preOrderCheckStrategy);
 
       instrumentPairArr[instrumentPair.getId()] = instrumentPair;
       symbolToInstrumentPair.add(instrumentPair.getSymbol(), instrumentPair);
@@ -610,5 +613,132 @@ public class InstrumentCache implements Constants {
   public static final int getMaxSpotPairIndex() {
     return maxSpotPairIndex;
   }
+
+  public static void updateSecurityDefinitionAsCacheOnly(final SecurityDefinitionAdminMessage securityDefinitionAdminMessage) {
+    if (AssetType.ASSET == securityDefinitionAdminMessage.getAssetType()) {
+      final Instrument instrument = new Instrument(securityDefinitionAdminMessage.getSecurityId(),
+          securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(),
+          (short) securityDefinitionAdminMessage.getPriceScale(), (short) securityDefinitionAdminMessage.getQuantityScale(), 0,
+          securityDefinitionAdminMessage.getCollateralMarginPercentDiscount(), securityDefinitionAdminMessage.getWithdrawFee(),
+          securityDefinitionAdminMessage.isWithdrawFeePercent(), securityDefinitionAdminMessage.getWithdrawFeeInstrument(),
+          securityDefinitionAdminMessage.getSector());
+      if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
+        instrument.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
+      InstrumentCache.addInstrument(instrument);
+    } else {
+      final String symbol = securityDefinitionAdminMessage.getSymbol();
+      final String name = securityDefinitionAdminMessage.getName();
+      final int priceScale = securityDefinitionAdminMessage.getPriceScale();
+      final int quantityScale = securityDefinitionAdminMessage.getQuantityScale();
+      final int orderBookStrategy = securityDefinitionAdminMessage.getOrderBookStrategy();
+      final int preOrderCheckStrategy = securityDefinitionAdminMessage.getPreOrderCheckStrategy();
+      final int settleType = securityDefinitionAdminMessage.getSettleType();
+      final AssetType assetType = securityDefinitionAdminMessage.getAssetType();
+      final MarketType marketType = securityDefinitionAdminMessage.getMarketType();
+      final int maintMarginPercent = securityDefinitionAdminMessage.getMaintMarginBasisPoints();
+      final int requiredMarginPercent = securityDefinitionAdminMessage.getRequiredMarginBasisPoints();
+      final int marginCurveId = securityDefinitionAdminMessage.getMarginCurveId();
+      final long expireTimeMillis = securityDefinitionAdminMessage.getExpireTimeMillis();
+      final int strikePrice = securityDefinitionAdminMessage.getStrikePrice();
+      final int underlyerId = securityDefinitionAdminMessage.getUnderlyerId();
+
+      final double usdStrikePrice = securityDefinitionAdminMessage.getUsdStrikePrice(); // for options, calculated from strikePrice
+      final double usdUnderlyerPrice = securityDefinitionAdminMessage.getUsdUnderlyerPrice(); // stock price
+      final double usdModelPrice = securityDefinitionAdminMessage.getUsdModelPrice(); // model option price
+      final double interestRate = securityDefinitionAdminMessage.getInterestRate(); // interestRate used for option calc
+      final double timeToExpire = securityDefinitionAdminMessage.getTimeToExpire(); // option time to expire, in annual format of
+      // contractExpireTime
+      final long expireRollTimeMillis = securityDefinitionAdminMessage.getExpireRollTimeMillis();
+      final int symbolRollCount = securityDefinitionAdminMessage.getSymbolRollCount();
+      final double dividend = securityDefinitionAdminMessage.getDividend(); // dividend for option calc
+      final double delta = securityDefinitionAdminMessage.getDelta();
+      final double theta = securityDefinitionAdminMessage.getTheta();
+      final double rho = securityDefinitionAdminMessage.getRho();
+      final double normalCDF = securityDefinitionAdminMessage.getNormalCDF();
+      final double gamma = securityDefinitionAdminMessage.getGamma();
+      final double vega = securityDefinitionAdminMessage.getVega();
+      final double sigma = securityDefinitionAdminMessage.getSigma();
+      final double circuitBreakerThreshold = securityDefinitionAdminMessage.getCircuitBreakerThreshold();
+
+      final long minOrderQuantity = securityDefinitionAdminMessage.getMinQty();
+      final int auctionStartTimeHrGMT = securityDefinitionAdminMessage.auctionStartTimeHrGMT;
+      final long auctionDurationTime = securityDefinitionAdminMessage.auctionDurationTime;
+      final int auctionFixingAttempts = securityDefinitionAdminMessage.auctionFixingAttempts;
+      final long auctionFixingWaitTime = securityDefinitionAdminMessage.auctionFixingWaitTime;
+      final boolean physicalSettle = securityDefinitionAdminMessage.isPhysicalSettle();
+      final boolean isLimitOnlyMode = securityDefinitionAdminMessage.isLimitOnlyMode();
+      final Sector sector = securityDefinitionAdminMessage.getSector();
+
+      if (Context.isCopyTradeOnly() && orderBookStrategy != COPY_TRADE_ORDER_BOOK) {
+        return;
+      }
+
+      final Instrument base = InstrumentCache.get(securityDefinitionAdminMessage.getBaseId());
+      final Instrument quoted = InstrumentCache.get(securityDefinitionAdminMessage.getQuotedId());
+      if (base == null || quoted == null) {
+        return;
+      }
+      int arrSize = securityDefinitionAdminMessage.getArrSize();
+      final int cacheDepth = securityDefinitionAdminMessage.getCacheDepth();
+      // check if we need to rebuild the orderbook or just update the fields
+      final InstrumentPair currentPair = getPair(securityDefinitionAdminMessage.getSecurityId());
+      if (null != currentPair) {
+        final OrderBook orderBook = currentPair.getOrderBook();
+        if (priceScale == currentPair.getPriceScale() && quantityScale == currentPair.getQuantityScale()
+            && assetType == currentPair.getAssetType() && orderBook != null && arrSize == orderBook.getArrSize()
+            && securityDefinitionAdminMessage.getBaseId() == currentPair.getBaseId()
+            && securityDefinitionAdminMessage.getQuotedId() == currentPair.getQuotedId()
+            && !securityDefinitionAdminMessage.isSnapConverterMode()) {
+
+          currentPair.setMarginCurveId(marginCurveId);
+          currentPair.setMaintMarginBasisPoints(maintMarginPercent);
+          currentPair.setRequiredMarginBasisPoints(requiredMarginPercent);
+          currentPair.setSymbol(symbol);
+          currentPair.setName(name);
+          currentPair.setContractExpireTime(expireTimeMillis);
+          currentPair.setExpireRollTimeMillis(expireRollTimeMillis);
+          currentPair.setSymbolRollCount(symbolRollCount);
+          currentPair.setCircuitBreakerThreshold(circuitBreakerThreshold);
+          currentPair.setAuctionStartTimeHrGMT(auctionStartTimeHrGMT);
+          currentPair.setAuctionDurationTime(auctionDurationTime);
+          currentPair.setAuctionFixingAttempts(auctionFixingAttempts);
+          currentPair.setAuctionFixingWaitTime(auctionFixingWaitTime);
+          currentPair.setStrikePrice(strikePrice);
+          currentPair.setInterestRate(interestRate);
+          currentPair.setDividend(dividend);
+          currentPair.setDelta(delta);
+          currentPair.setUnderlyerId(underlyerId);
+          currentPair.setMinOrderQuantity(minOrderQuantity);
+          currentPair.setPhysicalSettle(physicalSettle);
+          currentPair.setLimitOnlyMode(isLimitOnlyMode);
+          currentPair.setSector(sector);
+          return;
+        }
+      }
+
+      final InstrumentPair instrumentPair = new InstrumentPair(securityDefinitionAdminMessage.getSecurityId(),
+          securityDefinitionAdminMessage.getSymbol(), securityDefinitionAdminMessage.getName(), base, quoted, (short) priceScale,
+          (short) quantityScale, settleType, assetType, maintMarginPercent, requiredMarginPercent, 0, marginCurveId, expireTimeMillis,
+          strikePrice, underlyerId, minOrderQuantity, auctionStartTimeHrGMT, auctionDurationTime, auctionFixingAttempts,
+          auctionFixingWaitTime, circuitBreakerThreshold, expireRollTimeMillis, symbolRollCount, physicalSettle, isLimitOnlyMode, marketType,
+          sector);
+      if (securityDefinitionAdminMessage.getIndexFeedUsdMark() > 0)
+        instrumentPair.setIndexFeedUsdMark(securityDefinitionAdminMessage.getIndexFeedUsdMark());
+
+      // Set the array size to 0 on snap converter mode
+      if (securityDefinitionAdminMessage.isSnapConverterMode()) {
+        arrSize = 0;
+      }
+
+      instrumentPair.setOrderBook(OrderBookFactory.create(orderBookStrategy, preOrderCheckStrategy, instrumentPair, arrSize, cacheDepth));
+      instrumentPair.setPreOrderCheckStrategy(preOrderCheckStrategy);
+      InstrumentCache.addPair(instrumentPair);
+
+      NewOrderSingleHandler.setSecondaryOrderIdIfGreater(instrumentPair.getId(), securityDefinitionAdminMessage.getSecondaryOrderId());
+      instrumentPair.getOrderBook().setSecondaryOrderIdIfGreater(securityDefinitionAdminMessage.getSecondaryOrderId());
+      instrumentPair.getOrderBook().setFilledCountIfGreater(securityDefinitionAdminMessage.getSecondaryExecId());
+    }
+  }
+
 
 }

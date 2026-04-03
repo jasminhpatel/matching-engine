@@ -1,5 +1,7 @@
 package com.solfini.matchengine;
 
+import com.solfini.matchengine.controller.Mode;
+import com.solfini.pool.ExecutionReportObjectPool;
 import org.agrona.concurrent.IdleStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -85,8 +87,13 @@ public class PersistThread implements Runnable, Constants {
 
         for (int i = 0; i < count; i++) {
           final Message message = list.get(i);
-          if (message instanceof ExecutionReportMessage) {
-            PersistExecutionReportObjectPool.returnObject((ExecutionReportMessage) message);
+          if (message instanceof ExecutionReportMessage executionReportMessage) {
+            if (Mode.PRIMARY == Context.getControllerMode()) {
+              ExecutionReportObjectPool.returnObjectIfNotUsed(executionReportMessage);
+            } else {
+            LOGGER.info("Cleaning ExeReport: " + executionReportMessage.toJSON());
+              PersistExecutionReportObjectPool.returnObject(executionReportMessage);
+            }
           } else if (message instanceof PositionReportMessage) {
             PersistPositionReportObjectPool.returnObject((PositionReportMessage) message);
           }

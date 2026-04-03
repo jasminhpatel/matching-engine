@@ -430,7 +430,7 @@ public class ReportUtil implements Constants {
 
 
       final String from = "info@solfini.com";
-      final String[] to = {"commoditybull@gmail.com"};
+      final String[] to = {"alerts.rohanw@gmail.com"};
       final String[] cc = {"info@solfini.com"};
       final String[] bcc = new String[0];
       final String subject = "Futures Status Report";

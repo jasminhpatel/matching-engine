@@ -858,4 +858,18 @@ update SECURITY_DEFINITION_LOG set status=0 where securityId in(6,7,1)
 INSERT INTO SECURITY_DEFINITION_LOG (id,sequence_number,insert_time,updateType,securityId,symbol,name,assetType,quotedId,baseId,priceScale,quantityScale,orderBookStrategy,preOrderCheckStrategy,settleType,maintMarginPercent,requiredMarginPercent,usdMark,status) VALUES (20,9,'20180507-00:09:58.756',1,9,'ETH/USD[F]','ETH/USD[F]',1,2,1,2,6,2,12,1,10,20,150.0,1);
 
 
+CREATE TABLE user_trade_pnl (
+    id BIGINT NOT NULL,
+    user_id BIGINT,
+    security_id BIGINT,
+    symbol VARCHAR(32) DEFAULT NULL,
+    running_position DOUBLE PRECISION,
+    avg_cost DOUBLE PRECISION,
+    realized_pnl DOUBLE PRECISION,
+    notional DOUBLE PRECISION,
+    total_notional DOUBLE PRECISION,
+    trade_count BIGINT,
+    created TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (id)
+);
 

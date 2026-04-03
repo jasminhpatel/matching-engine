@@ -1,15 +1,13 @@
 package com.solfini.util;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
+import java.util.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.solfini.common.Constants;
 import com.solfini.internal.admin.schema.DecimalFloatDecoder;
 import com.solfini.sbe.encoder.MessageHeaderDecoder;
@@ -65,6 +63,15 @@ public final class StringUtil implements Constants {
     }
   }
 
+  public static final double toDouble(final BigDecimal s) {
+    try {
+      if (s == null)
+        return 0;
+      return s.doubleValue();
+    } catch (Exception e) {
+      return 0;
+    }
+  }
 
   public static final int charArrayToInt(final char[] data) {
     int result = 0;
@@ -566,5 +573,101 @@ public final class StringUtil implements Constants {
       sb.append(CHAR_ZERO);
     sb.append(mMillis);
     return sb.toString();
+  }
+
+  public static String toNumericString(final double v) {
+    // render with US decimal point, plenty of precision, no grouping
+    final String s = String.format(Locale.US, "%.20f", v);
+    // trim trailing zeros and an optional trailing dot
+    int end = s.length() - 1;
+    while (end > 0 && s.charAt(end) == '0')
+      end--;
+    if (s.charAt(end) == '.')
+      end--;
+    return s.substring(0, end + 1);
+  }
+
+  public static final String toNumericString(final long amount, final int scale) {
+    if (scale == 0) {
+      return Long.toString(amount);
+    }
+
+    if (amount >= 0) {
+      // Fast path: positive numbers
+      final String value = Long.toString(amount);
+      final int len = value.length();
+
+      if (len <= scale) {
+        // Pad with leading zeros: "0.00...value"
+        final StringBuilder sb = new StringBuilder(scale + 2);
+        sb.append("0.");
+        for (int i = len; i < scale; i++) {
+          sb.append('0');
+        }
+        sb.append(value);
+        return sb.toString();
+      } else {
+        // Insert decimal point
+        final int pointIndex = len - scale;
+        final StringBuilder sb = new StringBuilder(len + 1);
+        sb.append(value, 0, pointIndex);
+        sb.append('.');
+        sb.append(value, pointIndex, len);
+        return sb.toString();
+      }
+    } else {
+      // Negative branch (slower, rare)
+      final long absAmount = -amount;
+      final String value = Long.toString(absAmount);
+      final int len = value.length();
+
+      if (len <= scale) {
+        final StringBuilder sb = new StringBuilder(scale + 3);
+        sb.append("-0.");
+        for (int i = len; i < scale; i++) {
+          sb.append('0');
+        }
+        sb.append(value);
+        return sb.toString();
+      } else {
+        final int pointIndex = len - scale;
+        final StringBuilder sb = new StringBuilder(len + 2);
+        sb.append('-');
+        sb.append(value, 0, pointIndex);
+        sb.append('.');
+        sb.append(value, pointIndex, len);
+        return sb.toString();
+      }
+    }
+  }
+
+  public static String processRSA(final String pem) {
+    return pem.replaceAll("-----BEGIN [A-Z ]+-----", "")
+        .replaceAll("-----END [A-Z ]+-----", "")
+        .replaceAll("\\s", "");
+  }
+
+  public static double roundUp(final double decimal, final int multiplier) {
+    final long l = (long) Math.ceil(decimal * multiplier);
+    return ((double) l) / multiplier;
+  }
+
+  public static double roundDown(final double decimal, final int multiplier) {
+    final long l = (long) Math.floor(decimal * multiplier);
+    return ((double) l) / multiplier;
+  }
+
+  public static void main(String[] args) {
+    long t0 = System.nanoTime();
+    for (int i = 0; i < 50_000_000; i++) {
+      toNumericString(123456, 2);
+    }
+    System.out.println((System.nanoTime() - t0) / 1_000_000);
+
+    System.out.println(toNumericString(123456, 2)); // "1234.56"
+    System.out.println(toNumericString(123, 5)); // "0.00123"
+    System.out.println(toNumericString(123, 12)); // "0.00123"
+    System.out.println(toNumericString(-98765, 3)); // "-98.765"
+    System.out.println(toNumericString(1000, 0)); // "1000"
   }
 }

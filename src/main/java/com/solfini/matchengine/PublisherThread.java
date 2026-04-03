@@ -1,6 +1,9 @@
 package com.solfini.matchengine;
 
-import com.solfini.matchengine.copytrade.CopyTrade;
+import com.solfini.matchengine.controller.Mode;
+import com.solfini.matchengine.copytrade.CopyTradeOrder;
+import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.pool.ExecutionReportObjectPool;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -44,7 +47,7 @@ public class PublisherThread implements Runnable, Constants {
         int count = matcherToPublisherQueue.drainTo(list, 4096);
         for (int i = 0; i < count; i++) {
           Message message = list.get(i);
-          if (message != null && !(message instanceof CopyTrade)) { // copy trades are not published
+          if (message != null && !(message instanceof CopyTradeOrder)) { // copy trades are not published
             // LOGGER.info(LOG_FMT_2, "PUBLISH: ", message + " KafkaOffset=" + message.getKafkaRecordOffset());
             if (LOGGER.isTraceEnabled()) {
               LOGGER.trace(LOG_FMT_4, ONPUBLISH_ROUNDROBINID_EQ, roundRobinId, MESSAGE_EQ, message);
@@ -64,6 +67,10 @@ public class PublisherThread implements Runnable, Constants {
               final long decodedTime = message.getDecodedTime();
               final long matchTime = message.getMatchTime();
               message.onPublish();
+
+              if (Mode.PRIMARY == Context.getControllerMode() && message instanceof ExecutionReportMessage executionReportMessage) {
+                ExecutionReportObjectPool.returnObjectIfNotUsed(executionReportMessage);
+              }
 
               final long publishTime = TimeUtil.getTime();
               PublisherEncoderThread.updateBenchmark(inputTime, decodedTime, matchTime, publishTime);

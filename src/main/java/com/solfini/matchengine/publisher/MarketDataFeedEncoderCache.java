@@ -15,7 +15,7 @@ import com.solfini.sbe.encoder.MessageHeaderEncoder;
 public class MarketDataFeedEncoderCache {
   private static MarketDataFeedEncoderCache[] cache = MarketDataFeedEncoderCache.build();
   private final MarketDataFeedEncoder encoder = new MarketDataFeedEncoder();
-  private final ByteBuffer directBuffer = ByteBuffer.allocateDirect(4096);
+  private final ByteBuffer directBuffer = ByteBuffer.allocateDirect(4096 * 4);
   private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(directBuffer);
   private final MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
 

@@ -3,15 +3,15 @@ package com.solfini.user;
 import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.solfini.common.*;
 import com.solfini.common.Appendable;
-import com.solfini.common.Constants;
-import com.solfini.common.Context;
-import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
@@ -21,6 +21,7 @@ import com.solfini.internal.admin.schema.RequestStatus;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
 import com.solfini.matchengine.AssetGroupCache;
+import com.solfini.matchengine.decoder.NewOrderSingleHandler;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.matchengine.message.internal.AssetGroup;
@@ -34,6 +35,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
 import uk.co.real_logic.artio.fields.DecimalFloat;
 import static com.solfini.instrument.Position.assetIdComparator;
+import static com.solfini.matchengine.orderbook.GlobalOrderBook.incrementAndGetFilledCountGlobal;
 
 /**
  *
@@ -43,6 +45,7 @@ import static com.solfini.instrument.Position.assetIdComparator;
 public class User implements Appendable, Serializable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(User.class);
   private static final int SETTLE_INSTRUMENT_QUANTITY_SCALE_MULT = InstrumentCache.getSettleInstrumentQuantityScaleMult();
+  private static final ManyToOneConcurrentArrayQueueCustom<Message> MATCHER_TO_PUBLISHER_QUEUE = Context.getMatcherToPublisherQueue();
 
   public static final int USER_STATUS_RESET_AUTO_LIQUIDATION_STATE = 0x0100;
 
@@ -54,6 +57,7 @@ public class User implements Appendable, Serializable, Constants {
   public static final int MARKET_MAKER = 4;
   public static final int TEST = 5;
   public static final int OTHER = 6;
+  public static final int TOKEN_MANAGER = 7;
 
   private final int id;
   private String login;
@@ -86,6 +90,8 @@ public class User implements Appendable, Serializable, Constants {
   private double marginRatio;
   private double usdCollateralValue;
   private double usdCollateralValueDiscounted;
+
+  private boolean isRewardClaimed;
 
   private final AtomicInteger autoLiquidationState;
   private final AtomicInteger autoLiquidationCounter;
@@ -170,6 +176,7 @@ public class User implements Appendable, Serializable, Constants {
     userAdminMessage.setUserType(userType);
     userAdminMessage.setStatus(0);
     userAdminMessage.setMarginCurveIdOverride(marginCurveIdOverride);
+    userAdminMessage.setRewardClaimed(isRewardClaimed);
 
     final List<Balance> balanceList = userAdminMessage.getBalanceList();
     balanceList.clear();
@@ -201,6 +208,7 @@ public class User implements Appendable, Serializable, Constants {
     this.userType = userAdminMessage.getUserType();
     this.marginCurveIdOverride = userAdminMessage.getMarginCurveIdOverride();
     this.feeTierOrig = feeTier;
+    this.isRewardClaimed = userAdminMessage.isRewardClaimed();
     if (positionArr == null) // only recreate if null
       this.positionArr = new Position[Math.max(InstrumentCache.getInstrumentCapacity(), InstrumentCache.getPairCapacity())];
 
@@ -259,6 +267,7 @@ public class User implements Appendable, Serializable, Constants {
   }
 
   public final void setLastLiquidationTime(final long lastLiquidationTime) {
+    LOGGER.info("setLastLiquidationTime: " + new Date(lastLiquidationTime));
     this.lastLiquidationTime = lastLiquidationTime;
   }
 
@@ -271,6 +280,7 @@ public class User implements Appendable, Serializable, Constants {
     this.feeTierOrig = feeTier;
     this.externalId = userAdminMessage.getExternalId();
     this.userType = userAdminMessage.getUserType();
+    this.isRewardClaimed = userAdminMessage.isRewardClaimed();
 
     if (positionArr == null)
       positionArr = new Position[Math.max(InstrumentCache.getInstrumentCapacity(), InstrumentCache.getPairCapacity())];
@@ -310,7 +320,9 @@ public class User implements Appendable, Serializable, Constants {
 
   // must be called from the matching engine thread
   public void override(final BalanceAdminMessage balanceAdminMessage) {
-    LOGGER.info("override.balanceAdminMessage: " + balanceAdminMessage.toJSON());
+    if (LOGGER.isDebugEnabled()) {
+      LOGGER.debug(LOG_FMT_2, "override.balanceAdminMessage: ", balanceAdminMessage.toJSON());
+    }
     this.externalId = balanceAdminMessage.getExternalId();
     if (positionArr == null) // only recreate if null
       this.positionArr = new Position[Math.max(InstrumentCache.getInstrumentCapacity(), InstrumentCache.getPairCapacity())];
@@ -380,9 +392,9 @@ public class User implements Appendable, Serializable, Constants {
         quantityLong = quantityLong / 10;
     }
 
-    if (balanceAdminMessage.getTxType() == 1) { // map old txn_type from api
+    if (balanceAdminMessage.getTxType() == API_TX_DEPOSIT) { // map old txn_type from api
       balanceAdminMessage.setTxType(TX_DEPOSIT);
-    } else if (balanceAdminMessage.getTxType() == 2) {
+    } else if (balanceAdminMessage.getTxType() == API_TX_WITHDRAW) {
       balanceAdminMessage.setTxType(TX_WITHDRAW);
       //process withdraw fee
       final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
@@ -405,7 +417,7 @@ public class User implements Appendable, Serializable, Constants {
           String exBalBeforeWF = df.format(exchangePosition.getQuantity());
           String exAvailBalBeforeWF = df.format(exchangePosition.getAvailableQuantity());
 
-          LOGGER.info("Withdraw fee. userId: " + balanceAdminMessage.getUserId() + " withdrawFee: " + withdrawFee);
+          LOGGER.info(LOG_FMT_6, "Withdraw fee. userId: ", balanceAdminMessage.getUserId(), " withdrawFee: ", withdrawFee , " " ,feeInstrument.getSymbol());
           feePosition = addPosition(feeInstrument.getId(), (long) -withdrawFee, null, 0, TokenType.ERC20_GROUP);
           exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), (long) withdrawFee, null, 0, TokenType.ERC20_GROUP);
 
@@ -420,13 +432,31 @@ public class User implements Appendable, Serializable, Constants {
               + "\nexBalBeforeWF\t\t:" + exBalBeforeWF + "\nbalAfterWF\t\t\t:" + balAfterWF
               + "\nexAvailBalBeforeWF\t:" + exAvailBalBeforeWF + "\nexAvailBalAfterWF\t:" + exAvailBalAfterWF);
 
+          final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+              NewOrderSingleHandler.getNextOrderId(),
+              this, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) -withdrawFee, (short) feeInstrument.getQuantityScale(),
+              incrementAndGetFilledCountGlobal(), 0, exchangeUser.getId(), Constants.WITHDRAW_FEE);
+          executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+          this.copySetPositionArr(executionReportMessage);
+
+          MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
+
+          final ExecutionReportMessage counterExecutionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+              NewOrderSingleHandler.getNextOrderId(),
+              exchangeUser, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) withdrawFee, (short) feeInstrument.getQuantityScale(),
+              incrementAndGetFilledCountGlobal(), 0, this.getId(), Constants.WITHDRAW_FEE);
+          counterExecutionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+          this.copySetPositionArr(counterExecutionReportMessage);
+
+          MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(counterExecutionReportMessage);
+
         } else {
           LOGGER.info("Zero withdraw fee. symbol: " + instrument.getSymbol());
         }
       } else {
         LOGGER.info("Withdraw fee is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
       }
-    } else if (balanceAdminMessage.getTxType() == 12) { // cancel withdraw
+    } else if (balanceAdminMessage.getTxType() == API_TX_CANCEL_WITHDRAW) { // cancel withdraw
       balanceAdminMessage.setTxType(TX_DEPOSIT);
       //refund withdraw fee
       final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
@@ -471,17 +501,72 @@ public class User implements Appendable, Serializable, Constants {
         LOGGER.info("Withdraw fee refund is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
       }
     }
-    if (quantityLong <= 0 && Context.isEnableBalanceWithdrawExactLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
+
+    if (balanceAdminMessage.getTxType() == API_TX_COPY_TRADE_COMMISSION
+        || balanceAdminMessage.getTxType() == API_TX_REFERRAL_TRADE_COMMISSION) {
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
+      LOGGER.info(LOG_FMT_10, "Copy trade/Referral commission: ",
+          position.getAvailableQuantity(), " fromUserId: ", balanceAdminMessage.getUserId(), " toUserId: ", balanceAdminMessage.getBalanceTransferToUserId(),
+          " quantity: ", quantityLong, " scale: ", instrument.getQuantityScale());
+      balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
+      balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
+
+      final int targetStrategy = balanceAdminMessage.getTxType() == API_TX_COPY_TRADE_COMMISSION? Constants.COPY_TRADE_COMMISSION : Constants.REFERRAL_COMMISSION;
+
+      final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+          NewOrderSingleHandler.getNextOrderId(),
+          this, balance.getAssetId(), instrument.getSymbol(), 1L, (short) 0, quantityLong, instrument.getQuantityScale(),
+          incrementAndGetFilledCountGlobal(), 0, balanceAdminMessage.getBalanceTransferToUserId(), targetStrategy);
+      executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+      executionReportMessage.setSelectId(balanceAdminMessage.getReference());
+      this.copySetPositionArr(executionReportMessage);
+
+      MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
+
+    } else if (balanceAdminMessage.getTxType() == API_TX_COPY_TRADE_EARNINGS || balanceAdminMessage.getTxType() == API_TX_REFERRAL_TRADE_EARNINGS) {
+
+      final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
+      LOGGER.info(LOG_FMT_10, "Copy trade/Referral earnings: ",
+          position.getAvailableQuantity(), " fromUserId: ", balanceAdminMessage.getUserId(), " toUserId: ", balanceAdminMessage.getBalanceTransferToUserId(),
+          " quantity: ", quantityLong, " scale: ", instrument.getQuantityScale());
+      balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
+      balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
+
+      final int targetStrategy = balanceAdminMessage.getTxType() == API_TX_COPY_TRADE_EARNINGS ? Constants.COPY_TRADE_EARNING : Constants.REFERRAL_EARNING;
+
+      final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+          NewOrderSingleHandler.getNextOrderId(),
+          this, balance.getAssetId(), instrument.getSymbol(), 1L, (short) 0, quantityLong, instrument.getQuantityScale(),
+          incrementAndGetFilledCountGlobal(), 0, 0, targetStrategy);
+      executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+      executionReportMessage.setSelectId(balanceAdminMessage.getReference());
+      this.copySetPositionArr(executionReportMessage);
+
+      MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
+
+    } else if (quantityLong <= 0 && Context.isEnableBalanceWithdrawSpotLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {// spot positions
+      final Position p = getPosition(balance.getAssetId());
+      LOGGER.info(LOG_FMT_4, "Withdraw position (spot) available: ", p.getAvailableQuantity(), " requested: ", -quantityLong);
+      if (p.getAvailableQuantity() + quantityLong >= 0) {
+        final Position position =
+            addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
+        balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
+        balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
+        return;
+      }
+    } else if (quantityLong <= 0 && Context.isEnableBalanceWithdrawExactLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       // if withdrawing with limits, must be exact don't reduce amounts
       final Position position = getPosition(balance.getAssetId());
       long tempQuantityLong = quantityLong;
       if (position.getAvailableQuantity() > 0 && usdMarginableValue > usdMarginRequiredValue) {
         tempQuantityLong = -Math.min(Math.abs(quantityLong), position.getAvailableQuantity()); // limit to available position
-
+        //LOGGER.info("Withdraw position.getAvailableQuantity() : " + position.getAvailableQuantity()  + " usdMarginableValue: " + usdMarginableValue
+        //+ " usdMarginRequiredValue: " + usdMarginRequiredValue);
         if (usdMarginRequiredValue > 0) { // limit to requiredMargin
           long usdAvailableAdjusted = (long) MbxMath.roundToBestPrecision(
               MbxMath.roundToBestPrecision(usdMarginableValue - usdMarginRequiredValue) * SETTLE_INSTRUMENT_QUANTITY_SCALE_MULT);
           tempQuantityLong = -Math.min(Math.abs(quantityLong), Math.abs(usdAvailableAdjusted));
+         // LOGGER.info("Withdraw tempQuantityLong : " + tempQuantityLong);
         }
       } else
         tempQuantityLong = 0;
@@ -489,6 +574,7 @@ public class User implements Appendable, Serializable, Constants {
       if (tempQuantityLong == quantityLong) // accepted
         addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       else { // rejected
+        //LOGGER.info("Withdraw rejected. tempQuantityLong: " + tempQuantityLong + " quantityLong: " + quantityLong);
         quantityLong = 0;
         balanceAdminMessage.setTxType(TX_ADMIN_WITHDRAW_REJECTED);
       }
@@ -810,6 +896,14 @@ public class User implements Appendable, Serializable, Constants {
 
   public final double getUsdCollateralValueDiscounted() {
     return usdCollateralValueDiscounted;
+  }
+
+  public boolean isRewardClaimed() {
+    return isRewardClaimed;
+  }
+
+  public void setRewardClaimed(boolean rewardClaimed) {
+    isRewardClaimed = rewardClaimed;
   }
 
   public final int getMaxActivePositionIndexHint() {
@@ -1170,6 +1264,7 @@ public class User implements Appendable, Serializable, Constants {
     s.append(USER_ID_EQ).append(id).append(EXTERNALID_EQ).append(externalId).append(USERTYPE_EQ).append(userType).append(LOGIN_EQ)
         .append(login).append(FIRMID_EQ).append(firmId).append(FEETIER_EQ).append(feeTier).append(FEETIERORIG_EQ).append(feeTierOrig)
         .append(LMM_EQ).append(lmm).append(USEDISCOUNTFEESCOIN_EQ).append(useDiscountFeesCoin).append(VERIFICATION_EQ).append(verification)
+        .append(ISREWARDCLAIMED_EQ).append(isRewardClaimed)
         .append(USDVALUE_EQ).append(usdValue).append(USDNOTIONALPOSITIONVALUE_EQ).append(usdNotionalPositionValue)
         .append(USDOPENORDERSVALUE_EQ).append(usdMaxExposurePositionAndOpenOrdersValue).append(USDOPENORDERSREQUIREDVALUE_EQ)
         .append(usdOpenOrdersRequiredValue).append(USDMARGINVALUE_EQ).append(usdMarginValue).append(USDMARGINREQUIREDVALUE_EQ)
@@ -1178,8 +1273,25 @@ public class User implements Appendable, Serializable, Constants {
         .append(MARGINCURVEIDOVERRIDE_EQ).append(marginCurveIdOverride).append(USDUNREALIZED_EQ).append(usdUnrealized)
         .append(USDCOLLATERALVALUE_EQ).append(usdCollateralValue).append(USDCOLLATERALVALUEDISCOUNTED_EQ)
         .append(usdCollateralValueDiscounted).append(AUTOLIQUIDATIONSTATE_EQ).append(autoLiquidationState).append(COLLATERALSWAPSTATE_EQ)
-        .append(collateralSwapState).append(POSITIONARR_EQ).append(Arrays.toString(positionArr)).append(']');
+        .append(collateralSwapState).append(POSITIONARR_EQ);
+    arrayToString(positionArr, s);
+    s.append(']');
     return s;
+  }
+
+  public void arrayToString(final Position[] positionArr, final StringBuilder sb) {
+    sb.setLength(0);  // Clear without allocation
+    sb.append('[');
+
+    boolean first = true;
+    for (int i = 0; i < positionArr.length; i++) {
+      if (positionArr[i] != null) {
+        if (!first) sb.append(", ");
+        sb.append(positionArr[i]);
+        first = false;
+      }
+    }
+    sb.append(']');
   }
 
 }

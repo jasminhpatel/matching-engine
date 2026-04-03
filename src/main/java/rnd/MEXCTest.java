@@ -1,16 +1,15 @@
 package rnd;
 
-import com.solfini.matchengine.copytrade.ExternalExchangeHandler;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XMEXCExchange;
+import com.solfini.matchengine.executionexchange.ExternalExchangeHandler;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XMEXCExchange;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import org.knowm.xchange.Exchange;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
 import org.knowm.xchange.currency.CurrencyPair;
 import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.Order;
-import org.knowm.xchange.dto.trade.LimitOrder;
 import org.knowm.xchange.dto.trade.MarketOrder;
 import org.knowm.xchange.instrument.Instrument;
 import org.knowm.xchange.mexc.MEXCExchange;
@@ -37,7 +36,7 @@ public class MEXCTest {
     final MarketOrder
         marketOrder = new MarketOrder(xOrderType, xQuantity, currencyPair, clOrdId, null);
 
-    InfluencerSubscription subscription = new InfluencerSubscription();
+    ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setId(1);
     subscription.setUserId(2);
     subscription.setPlatform("YOUTUBE");
@@ -81,7 +80,7 @@ public class MEXCTest {
     }
   }
 
-  public static XExchange createXExchange(final InfluencerSubscription subscription) {
+  public static XExchange createXExchange(final ExchangeSubscription subscription) {
     if (subscription.getExchange() == null) {
       return null;
     }
@@ -116,7 +115,7 @@ public class MEXCTest {
     return null;
   }
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription) {
+  private static void processSpecification(final ExchangeSpecification specification, final ExchangeSubscription subscription) {
     specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
 
     if (subscription != null) {

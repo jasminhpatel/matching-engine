@@ -8,6 +8,7 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.instrument.Position;
+import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.preordercheck.NotionalMarginCalc;
 import com.solfini.sbe.encoder.Side;
@@ -268,6 +269,7 @@ public class UserOpenOrdersByPair implements Appendable, Constants {
       return -maxAsksNotional;
     else
       return maxBidsNotional;
+
   }
 
   public double calcNotionalRequiredMargin(final double markPrice) {
@@ -287,6 +289,20 @@ public class UserOpenOrdersByPair implements Appendable, Constants {
       final double requiredMaxMargin = NotionalMarginCalc.calcRequiredMargin(maxNotionalTemp, positionQuantity, markPrice, pair, user);
       positionRequiredMargin = NotionalMarginCalc.calcRequiredMargin(positionNotional, positionQuantity, markPrice, pair, user);
       openOrderRequiredMargin = requiredMaxMargin - positionRequiredMargin;
+
+/*      if (Context.getEnableDetailLogsForUserId() == user.getId()) {
+        LOGGER.info(
+            "\npositionQuantity: " + positionQuantity
+        + "\npair.getQuantityScaleFactor(): " + pair.getQuantityScaleFactor()
+        + "\nbidsNotional: " + bidsNotional
+        + "\nasksNotional: " + asksNotional
+        + "\npositionNotional: " + positionNotional
+        + "\nmaxNotionalTemp: " + maxNotionalTemp
+        + "\nrequiredMaxMargin: " + requiredMaxMargin
+        + "\npositionRequiredMargin: " + positionRequiredMargin
+        + "\nopenOrderRequiredMargin: " + openOrderRequiredMargin
+        );
+      }*/
 
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);

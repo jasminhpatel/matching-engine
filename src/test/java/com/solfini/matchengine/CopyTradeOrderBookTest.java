@@ -7,11 +7,11 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.Sector;
 import com.solfini.internal.admin.schema.UpdateType;
-import com.solfini.matchengine.copytrade.CopyTrade;
-import com.solfini.matchengine.copytrade.ExternalInstrumentCache;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
+import com.solfini.matchengine.copytrade.CopyTradeOrder;
+import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.matchengine.copytrade.InfluencerSubscriptionCache;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.CopyTradeOrderBook;
@@ -41,7 +41,7 @@ public class CopyTradeOrderBookTest {
     properties.setProperty("ROUTER_THREAD_POOL_MAX_SIZE", "100");
     properties.setProperty("QUEUE_CAPACITY", "20000");
 
-    XExchange.SymbolStatus symbolStatus = new XExchange.SymbolStatus();
+    ExternalSymbol symbolStatus = new ExternalSymbol();
     symbolStatus.setExchange("BINANCE");
     symbolStatus.setBase("BTC");
     symbolStatus.setQuote("USDC");
@@ -61,7 +61,7 @@ public class CopyTradeOrderBookTest {
       user.setUpdateType(UpdateType.PUT);
       UserCache.add(user);
 
-      InfluencerSubscription influencerSubscription = new InfluencerSubscription();
+      ExchangeSubscription influencerSubscription = new ExchangeSubscription();
       influencerSubscription.setId(i);
       influencerSubscription.setUserId(mod);
       influencerSubscription.setPlatform("YOUTUBE");
@@ -81,7 +81,7 @@ public class CopyTradeOrderBookTest {
       while (true) {
         try {
           final Message message = matcherToPublisherQueue.poll();
-          if (message instanceof CopyTrade) {
+          if (message instanceof CopyTradeOrder) {
             rateBenchmark.sample();
           }
         } catch (Exception e) {

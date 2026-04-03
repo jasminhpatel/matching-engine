@@ -36,6 +36,7 @@ public class MarketCapCache {
   }
 
   public static void loadFromCoinMarketCap(final AtomicInteger loaderCounter) throws JsonProcessingException {
+    LOGGER.info("CoinMarketCapCache loading. ");
     final long t0 = System.currentTimeMillis();
     final Map<String, Object> headers = new HashMap<>();
     headers.put(COIN_MARKET_CAP_API_HEADER, COIN_MARKET_CAP_API_KEY);
@@ -82,12 +83,14 @@ public class MarketCapCache {
 
     } catch (Exception e) {
       LOGGER.error(ERROR_LOG, e);
+      e.printStackTrace();
     }
 
     LOGGER.info(LOG_FMT_4, "MarketCapCache.loadFromCoinMarketCap=", (long) loaded, ", time=", System.currentTimeMillis() - t0);
 
     if (loaderCounter != null) {
-      loaderCounter.decrementAndGet();
+      int id = loaderCounter.decrementAndGet();
+      LOGGER.info("CoinMarketCapCache loaded. " + id);
     }
   }
 

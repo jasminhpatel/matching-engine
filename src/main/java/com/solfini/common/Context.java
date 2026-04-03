@@ -1,6 +1,11 @@
 package com.solfini.common;
 
+import com.solfini.util.EncryptDecrypt2;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
+import org.agrona.collections.IntHashSet;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +70,7 @@ public final class Context implements Constants {
   private static final int DR_TO_MATCHER_QUEUE_CAPACITY = PropertyReader.getProperty("DR_TO_MATCHER_QUEUE_CAPACITY", QUEUE_CAPACITY);
   private static final int MARKET_DATA_BUILDER_QUEUE_CAPACITY = PropertyReader.getProperty("MARKET_DATA_BUILDER_QUEUE_CAPACITY", QUEUE_CAPACITY);
   private static final int COPY_TRADE_QUEUE_CAPACITY = PropertyReader.getProperty("COPY_TRADE_QUEUE_CAPACITY", QUEUE_CAPACITY);
+  private static final int LIQUIDITY_DEX_QUEUE_CAPACITY = PropertyReader.getProperty("LIQUIDITY_DEX_QUEUE_CAPACITY", QUEUE_CAPACITY);
 
   private static MarketStatus MARKET_STATUS = MarketStatus.get(Short.parseShort(PropertyReader.getProperty("MARKET_STATUS", "0")));
 
@@ -99,13 +105,17 @@ public final class Context implements Constants {
   private static boolean CONTRACT_EXPIRY_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("CONTRACT_EXPIRY_ENABLED", TRUE));
   private static boolean CROSS_COLLATERAL_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("CROSS_COLLATERAL_ENABLED", TRUE));
   private static final boolean COLLATERAL_SWAP_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("COLLATERAL_SWAP_ENABLED", TRUE));
+  private static final boolean STAKING_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("STAKING_ENABLED", TRUE));
   private static final boolean USE_SPOT_MARKET_INDEX_PRICE =
       TRUE.equalsIgnoreCase(PropertyReader.getProperty("USE_SPOT_MARKET_INDEX_PRICE", TRUE));
   private static final int SPOT_MARKET_INDEX_TWAP_SECONDS = PropertyReader.getProperty("SPOT_MARKET_INDEX_TWAP_SECONDS", 3);
   private static final double SPOT_MARKET_INDEX_TWAP_THRESHOLD = PropertyReader.getProperty("SPOT_MARKET_INDEX_TWAP_THRESHOLD", 0.002d);
 
-  private static boolean USER_STATS_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("USER_STATS_ENABLED", FALSE));
-  private static int USER_STATS_INTERVAL = PropertyReader.getProperty("USER_STATS_INTERVAL", 3600);
+  private final static boolean USER_STATS_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("USER_STATS_ENABLED", FALSE));
+  private final static int USER_STATS_INTERVAL = PropertyReader.getProperty("USER_STATS_INTERVAL", 3600);
+  private final static double MIN_ORDER_VALUE = PropertyReader.getProperty("MIN_TOP_THIRTY_ORDER_VALUE", 15.00d);
+  private final static double MIN_TOP_THIRTY_ORDER_VALUE = PropertyReader.getProperty("MIN_TOP_N_ORDER_VALUE", 200.00d);
+  private final static double LIQUIDITY_DEX_SMALL_ORDER_VALUE_THRESHOLD = PropertyReader.getProperty("LIQUIDITY_DEX_SMALL_ORDER_VALUE_THRESHOLD", 100.00d);
 
   private static final boolean DEBUG_LOG_RISK =
       LOGGER.isDebugEnabled() && TRUE.equalsIgnoreCase(PropertyReader.getProperty("DEBUG_LOG_RISK", FALSE));
@@ -116,6 +126,8 @@ public final class Context implements Constants {
       TRUE.equalsIgnoreCase(PropertyReader.getProperty("ENABLE_BALANCE_WITHDRAW_EXACT_LIMITS", TRUE));
   private static final boolean ENABLE_BALANCE_WITHDRAW_LIMITS =
       TRUE.equalsIgnoreCase(PropertyReader.getProperty("ENABLE_BALANCE_WITHDRAW_LIMITS", FALSE));
+  private static final boolean ENABLE_BALANCE_WITHDRAW_SPOT_LIMITS =
+      TRUE.equalsIgnoreCase(PropertyReader.getProperty("ENABLE_BALANCE_WITHDRAW_SPOT_LIMITS", TRUE));
 
   private static final boolean LIQUIDATION_ORDER_EXTERNAL_ROUTING =
       TRUE.equalsIgnoreCase(PropertyReader.getProperty("LIQUIDATION_ORDER_EXTERNAL_ROUTING", FALSE));
@@ -141,6 +153,7 @@ public final class Context implements Constants {
 
   private static final long CIRCUIT_BREAKER_TIME_INTERVAL = PropertyReader.getProperty("CIRCUIT_BREAKER_TIME_INTERVAL", 300_000); // 5 mins
   private static final String ASSET_GROUPS_COMPACTION_TOPIC = PropertyReader.getProperty("ASSET_GROUPS_COMPACTION_TOPIC", null);
+  private static final int LIQUIDITY_INSTRUMENT_PAIR_ID = PropertyReader.getProperty("LIQUIDITY_INSTRUMENT_PAIR_ID", 0);
 
   // same
   private static final String CHRONICLE_PRICING_OUTPUT_DIRECTORY =
@@ -159,6 +172,7 @@ public final class Context implements Constants {
   private static final String PUBLISHER_THREAD_IDLE = PropertyReader.getProperty("PUBLISHER_THREAD_IDLE", NO_OP_IDLE_STATEGY);
   private static final String RISK_THREAD_IDLE = PropertyReader.getProperty("RISK_THREAD_IDLE", NO_OP_IDLE_STATEGY);
   private static final String COPY_TRADE_THREAD_IDLE = PropertyReader.getProperty("COPY_TRADE_THREAD_IDLE", YIELDING_IDLE_STRATEGY);
+  private static final String LIQUIDITY_DEX_THREAD_IDLE = PropertyReader.getProperty("LIQUIDITY_DEX_THREAD_IDLE", YIELDING_IDLE_STRATEGY);
 
   private static final int INACTIVE_MARKET_DATA_PUBLISH_TIME = PropertyReader.getProperty("INACTIVE_MARKET_DATA_PUBLISH_TIME", 300_000);
   private static final String ENVIRONMENT = PropertyReader.getProperty("ENVIRONMENT", "PRODUCTION");
@@ -178,7 +192,94 @@ public final class Context implements Constants {
   private static final int NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS = PropertyReader.getProperty("NO_OF_TOTAL_COPY_TRADE_USER_PARTITIONS", 3);
   private static final boolean REJECT_OUT_OF_BOUND_ORDERS = TRUE.equalsIgnoreCase(PropertyReader.getProperty("REJECT_OUT_OF_BOUND_ORDERS", FALSE));
   private static final int TOP_BOTTOM_RELOAD_HOUR_IN_CEST = PropertyReader.getProperty("TOP_BOTTOM_RELOAD_HOUR_IN_CEST", 7); // 7 am CEST => 1am EST
-  private static final String BYBIT_EXCHANGE_BASE_URL = PropertyReader.getProperty("BYBIT_EXCHANGE_BASE_URL", "https://api-testnet.bybit.com");
+  private static final int LIQUIDITY_DEPTH_LEVELS = PropertyReader.getProperty("LIQUIDITY_DEPTH_LEVELS", 10);
+  private static final boolean BLOCKCHAIN_POSITION_MANAGER_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("BLOCKCHAIN_POSITION_MANAGER_ENABLED", FALSE));
+  private static final String[] LIQUIDITY_EXCHANGE_PREFERENCE =
+      PropertyReader.getProperty("LIQUIDITY_EXCHANGE_PREFERENCE", "bybit,binance,mexc,deribit").split(",");
+  private static final double PROMO_DEPOSIT_THRESHOLD = PropertyReader.getProperty("PROMO_DEPOSIT_THRESHOLD", 50.00D);
+  private static final double PROMO_DEPOSIT_VALUE = PropertyReader.getProperty("PROMO_DEPOSIT_VALUE", 5.00D);
+  private static final long EXTERNAL_EXCHANGE_BALANCE_CACHE_DURATION_MS = PropertyReader.getProperty("EXTERNAL_EXCHANGE_BALANCE_CACHE_DURATION_MS", ELEVEN_MINUTES);
+  private static final String BINANCE_EXCHANGE_BASE_URL = PropertyReader.getProperty("BINANCE_EXCHANGE_BASE_URL", "https://testnet.binance.vision");
+  private static final String BINANCE_FUTURES_EXCHANGE_BASE_URL = PropertyReader.getProperty("BINANCE_FUTURES_EXCHANGE_BASE_URL", "https://testnet.binancefuture.com");
+  private static final String BYBIT_EXCHANGE_BASE_URL = PropertyReader.getProperty("BYBIT_EXCHANGE_BASE_URL", "https://api.bybit.com");
+  private static final String BYBIT_EXCHANGE_RECV_WINDOW = PropertyReader.getProperty("BYBIT_EXCHANGE_RECV_WINDOW", "5000");
+  private static final String MEXC_EXCHANGE_BASE_URL = PropertyReader.getProperty("MEXC_EXCHANGE_BASE_URL", "https://api.mexc.com");
+  private static final String BITGET_EXCHANGE_BASE_URL = PropertyReader.getProperty("BITGET_EXCHANGE_BASE_URL", "https://api.bitget.com");
+  private static final boolean BITGET_EXCHANGE_DEMO_TRADING_ENABLE = TRUE.equalsIgnoreCase(PropertyReader.getProperty("BITGET_EXCHANGE_DEMO_TRADING_ENABLE", FALSE));
+  private static final BigInteger POLYGON_MAX_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("POLYGON_MAX_PRIORITY_GAS_PRICE", "100000000000")));// 100 Gwei
+  private static final BigInteger POLYGON_MIN_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("POLYGON_MIN_PRIORITY_GAS_PRICE", "1000000000")));// 1 Gwei
+  private static final BigInteger POLYGON_MAX_FEE_PER_GAS =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("POLYGON_MAX_FEE_PER_GAS", "80000000000")));// 80 Gwei
+  private static final BigInteger ETHEREUM_MAX_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("ETHEREUM_MAX_PRIORITY_GAS_PRICE", "200000000")));// 0.2 Gwei
+  private static final BigInteger ETHEREUM_MIN_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("ETHEREUM_MIN_PRIORITY_GAS_PRICE", "2000000000")));// 2 Gwei
+  private static final BigInteger ETHEREUM_MAX_FEE_PER_GAS =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("ETHEREUM_MAX_FEE_PER_GAS", "2000000000")));// 2 Gwei
+  private static final String POLYGON_WEB3_PROVIDER =
+      PropertyReader.getProperty("POLYGON_WEB3_PROVIDER", "https://polygon-amoy.g.alchemy.com/v2/1MH6JeN9slpV-Qh0x31QeMl4pOnRHq94");
+  private static final String POLYGON_WEB3_PROVIDER_2 =
+      PropertyReader.getProperty("POLYGON_WEB3_PROVIDER_2", "https://polygon-amoy.g.alchemy.com/v2/1MH6JeN9slpV-Qh0x31QeMl4pOnRHq94");
+  private static final String ETHEREUM_WEB3_PROVIDER =
+      PropertyReader.getProperty("ETHEREUM_WEB3_PROVIDER", "");
+  private static final String ETHEREUM_WEB3_PROVIDER_2 =
+      PropertyReader.getProperty("ETHEREUM_WEB3_PROVIDER_2", "");
+  private static final String SIGNER_REQUEST_SECRET = PropertyReader.getProperty("SIGNER_REQUEST_SECRET", "").length() > 0
+      ? EncryptDecrypt2.decrypt(System.getProperty("ENCRYPTION_KEY"), PropertyReader.getProperty("SIGNER_REQUEST_SECRET", ""))
+      : "";
+  private static final String USDC_CONTRACT = PropertyReader.getProperty("USDC_CONTRACT", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+  private static final String USDT_CONTRACT = PropertyReader.getProperty("USDT_CONTRACT", "0xdAC17F958D2ee523a2206206994597C13D831ec7");
+  private static final String POLYGON_SCAN_URL = PropertyReader.getProperty("POLYGON_SCAN_URL", "https://polygonscan.com");
+  private static final String POLYGON_AMOY_SCAN_URL = PropertyReader.getProperty("POLYGON_AMOY_SCAN_URL", "https://amoy.polygonscan.com");
+  private static final String ETHER_SCAN_URL = PropertyReader.getProperty("ETHER_SCAN_URL", "https://etherscan.io");
+  private static final String SEPOLIA_SCAN_URL = PropertyReader.getProperty("SEPOLIA_SCAN_URL", "https://sepolia.etherscan.io");
+
+  private static final String SIGNER_URL = PropertyReader.getProperty("SIGNER_URL", "");
+  private static final BigInteger GAS_LIMIT_FOR_POSITION_UPDATE = new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_POSITION_UPDATE", "500000"));
+  private static final String POSITION_MANAGER_CHAIN = PropertyReader.getProperty("POSITION_MANAGER_CHAIN", POLYGON);
+  private static final String POSITION_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("POSITION_MANAGER_CONTRACT_ADDRESS", "");
+  private static final int POSITION_MANAGER_EOD_EMAIL_AT_HOUR = PropertyReader.getProperty("POSITION_MANAGER_EOD_EMAIL_AT_HOUR", 6);
+  private static final String BLOCKCHAIN_KEY_FILE =
+      PropertyReader.getProperty("BLOCKCHAIN_KEY_FILE", "./blockchain-keys.txt");
+  private static final BigInteger GAS_LIMIT_FOR_WITHDRAWABLE_AMOUNT_UPDATE = new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_WITHDRAWABLE_AMOUNT_UPDATE", "500000"));
+  private static final String FUND_MANAGER_CHAIN = PropertyReader.getProperty("FUND_MANAGER_CHAIN", ETHEREUM);
+  private static final String FUND_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
+  private static final String STAKE_SYMBOL_IDS = PropertyReader.getProperty("STAKE_SYMBOL_IDS", "");
+  private static Set<Integer> STAKE_SYMBOL_ID_MAP;
+  private static final String VTOKEN_SYMBOL_IDS = PropertyReader.getProperty("VTOKEN_SYMBOL_IDS", "");
+  private static Set<Integer> VTOKEN_SYMBOL_ID_MAP;
+  private static int ENABLE_DETAIL_LOGS_FOR_USER_ID = PropertyReader.getProperty("ENABLE_DETAIL_LOGS_FOR_USER_ID", 41);
+  private static final boolean LIQUIDITY_DEX_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("LIQUIDITY_DEX_ENABLED", FALSE));
+  private static final double SAFETY_FACTOR_BPS_FOR_LIQUIDITY = PropertyReader.getProperty("SAFETY_FACTOR_BPS_FOR_LIQUIDITY", 0.002D);
+  private static final double PROFIT_MARGIN_BPS_FOR_LIQUIDITY = PropertyReader.getProperty("PROFIT_MARGIN_BPS_FOR_LIQUIDITY", 0.001D);
+  private static final double EXTERNAL_EXCHANGE_TRANSACTION_FEE = PropertyReader.getProperty("EXTERNAL_EXCHANGE_TRANSACTION_FEE", 0.001D); //0.1%
+  private static final double EXTERNAL_EXCHANGE_SELL_QTY_TOLERANCE_PERCENTAGE = PropertyReader.getProperty("EXTERNAL_EXCHANGE_SELL_QTY_TOLERANCE_PERCENTAGE", 0.01D); //1%
+  private static final double EXTERNAL_EXCHANGE_MAX_LEVERAGE = PropertyReader.getProperty("EXTERNAL_EXCHANGE_MAX_LEVERAGE", 2D); //max of 2x leverage
+  private static final String TEST_USER_STRING = PropertyReader.getProperty("TEST_USERS", "");
+  private static IntHashSet TEST_USERS = null;
+  private static final String BINANCE_SPOT_REST = PropertyReader.getProperty("BINANCE_SPOT_REST", "https://api.binance.com");
+  private static final String BINANCE_FUTURES_REST = PropertyReader.getProperty("BINANCE_FUTURES_REST", "https://fapi.binance.com");
+  private static final String BINANCE_SPOT_WS = PropertyReader.getProperty("BINANCE_SPOT_WS", "wss://ws-api.binance.com:443/ws-api/v3");
+  private static final String BINANCE_FUTURES_WS = PropertyReader.getProperty("BINANCE_FUTURES_WS", "wss://ws-fapi.binance.com/ws-fapi/v1");
+  private static final String BINANCE_FUTURES_USERDATA_WS = PropertyReader.getProperty("BINANCE_FUTURES_USERDATA_WS", "wss://fstream.binance.com/ws");
+
+  private static final String BYBIT_UNIFIED_REST = PropertyReader.getProperty("BYBIT_UNIFIED_REST", "https://api.bybit.com");
+  private static final String BYBIT_UNIFIED_WS = PropertyReader.getProperty("BYBIT_UNIFIED_WS", "wss://stream.bybit.com/v5");
+  private static final String OUTBOUND_IP = PropertyReader.getProperty("OUTBOUND_IP", null);
+  private static final String API_URL = PropertyReader.getProperty("API_URL", "https://bitorderly.com");
+  private static final String REQUEST_TOKEN = EncryptDecrypt2.decrypt(PropertyReader.getProperty("REQUEST_TOKEN", "Nvl8hT4o0_hUFUbWcQD6KaqFxrV9IvEhA_ziwnCjQm0="));
+  private static final String REQUEST_SECRET = EncryptDecrypt2.decrypt(PropertyReader.getProperty("REQUEST_SECRET", "DHHWqr3AbV697mK-Qvrwb5RmKcuKGa-JMPshOu_KEBc="));
+  private static final String RECONCILIATION_ALERT_EMAILS = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS", "alerts.rohanw@gmail.com");
+  private static final String RECONCILIATION_OUTPUT_DIRECTORY = PropertyReader.getProperty("RECONCILIATION_OUTPUT_DIRECTORY", "/mnt/data/reconciliation");
+  private static final boolean LIQUIDITY_IMBALANCE_SETTLE_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("LIQUIDITY_IMBALANCE_SETTLE_ENABLED", FALSE));
+  private static final boolean LIQUIDITY_STABLE_COIN_AUTO_CONVERT_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("LIQUIDITY_STABLE_COIN_AUTO_CONVERT_ENABLED", FALSE));
+  private static final double SPOT_PERP_SPREAD_THRESHOLD_PCT =  PropertyReader.getProperty("SPOT_PERP_SPREAD_THRESHOLD_PCT", 0.05);//5%
+  // todo added to handle the compile error. please review.
+  private static final String KUCOIN_SPOT_REST = PropertyReader.getProperty("KUCOIN_SPOT_REST", "https://api.kucoin.com");
+  private static final String KUCOIN_FUTURES_REST = PropertyReader.getProperty("KUCOIN_FUTURES_REST", "https://api-futures.kucoin.com");
+
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoLiquidatorQueue =
@@ -203,6 +304,13 @@ public final class Context implements Constants {
       new ManyToOneConcurrentArrayQueueCustom<>(MARKET_DATA_BUILDER_QUEUE_CAPACITY, "marketDataBuilderQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<Message> copyTradeQueue =
       new ManyToManyConcurrentArrayQueueCustom<>(COPY_TRADE_ENABLED ? COPY_TRADE_QUEUE_CAPACITY : 2, "copyTradeQueue");
+  private static final ManyToManyConcurrentArrayQueueCustom<Message> liquidityRouterQueue =
+      new ManyToManyConcurrentArrayQueueCustom<>(LIQUIDITY_DEX_ENABLED ? LIQUIDITY_DEX_QUEUE_CAPACITY : 2, "liquidityDexQueue");
+  private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoConvertQueue =
+      new ManyToManyConcurrentArrayQueueCustom<>(LIQUIDITY_DEX_ENABLED ? RISK_TO_MATCHER_QUEUE_CAPACITY : 2, "riskToAutoConvertQueue");
+
+  //private static final ManyToOneConcurrentArrayQueueCustom<Message> publisherToBlockchainPositionQueue =
+  //    new ManyToOneConcurrentArrayQueueCustom<>(BLOCKCHAIN_POSITION_MANAGER_ENABLED ? PUBLISHER_TO_PERSISTER_POSITION_QUEUE_CAPACITY : 2, "publisherToBlockchainPositionQueue");
 
   private static final LoggingThread LOGGING_THREAD = new LoggingThread(IdleStrategyFactory.create(MATCHING_THREAD_IDLE));
   private static final MatchingThread MATCHING_THREAD = new MatchingThread(IdleStrategyFactory.create(MATCHING_THREAD_IDLE));
@@ -561,6 +669,14 @@ public final class Context implements Constants {
     return USER_STATS_INTERVAL;
   }
 
+  public static double getMinOrderValue() {
+    return MIN_ORDER_VALUE;
+  }
+
+  public static double getMinTopThirtyOrderValue() {
+    return MIN_TOP_THIRTY_ORDER_VALUE;
+  }
+
   public static final int getSpotMarketIndexTwapSeconds() {
     return SPOT_MARKET_INDEX_TWAP_SECONDS;
   }
@@ -819,6 +935,336 @@ public final class Context implements Constants {
 
   public static int getTopBottomReloadHourInCest() {
     return TOP_BOTTOM_RELOAD_HOUR_IN_CEST;
+  }
+
+  public static int getLiquidityDepthLevels() {
+    return LIQUIDITY_DEPTH_LEVELS;
+  }
+
+  public static boolean isBlockchainPositionManagerEnabled() {
+    return BLOCKCHAIN_POSITION_MANAGER_ENABLED;
+  }
+
+/*  public static ManyToOneConcurrentArrayQueueCustom<Message> getPublisherToBlockchainPositionQueue() {
+    return publisherToBlockchainPositionQueue;
+  }*/
+
+  public static BigInteger getPolygonMaxPriorityGasPrice() {
+    return POLYGON_MAX_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getPolygonMinPriorityGasPrice() {
+    return POLYGON_MIN_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getPolygonMaxFeePerGas() {
+    return POLYGON_MAX_FEE_PER_GAS;
+  }
+
+  public static BigInteger getEthereumMaxPriorityGasPrice() {
+    return ETHEREUM_MAX_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getEthereumMinPriorityGasPrice() {
+    return ETHEREUM_MIN_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getEthereumMaxFeePerGas() {
+    return ETHEREUM_MAX_FEE_PER_GAS;
+  }
+
+  public static String getUsdcContract() {
+    return USDC_CONTRACT;
+  }
+
+  public static String getUsdtContract() {
+    return USDT_CONTRACT;
+  }
+
+  public static String getWeb3Provider(final String chainType, final boolean useSecondary) {
+    if (chainType == null) return useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
+    return switch (chainType.toUpperCase()) {
+      case ETHEREUM, SEPOLIA -> useSecondary ? ETHEREUM_WEB3_PROVIDER_2 : ETHEREUM_WEB3_PROVIDER;
+      case POLYGON -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
+      default -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
+    };
+  }
+
+  public static byte[] getSignerRequestSecret() {
+    return SIGNER_REQUEST_SECRET.getBytes();
+  }
+
+  public static String getScanUrlByTransaction(final String chainType) {
+    if (chainType == null) return "";
+    switch (chainType.toUpperCase()) {
+      case ETHEREUM:
+        return ETHER_SCAN_URL + "/tx/";
+      case SEPOLIA:
+        return SEPOLIA_SCAN_URL + "/tx/";
+      case POLYGON:
+        return POLYGON_SCAN_URL + "/tx/";
+      case POLYGON_AMOY:
+        return POLYGON_AMOY_SCAN_URL + "/tx/";
+    }
+    return "";
+  }
+
+  public static String getSignerUrl() {
+    return SIGNER_URL;
+  }
+
+  public static BigInteger getGasLimitForPositionUpdate() {
+    return GAS_LIMIT_FOR_POSITION_UPDATE;
+  }
+
+  public static String getPositionManagerChain() {
+    return POSITION_MANAGER_CHAIN;
+  }
+
+  public static String getPositionManagerContractAddress() {
+    return POSITION_MANAGER_CONTRACT_ADDRESS;
+  }
+
+  public static String getBlockchainKeyFile() {
+    return BLOCKCHAIN_KEY_FILE;
+  }
+
+  public static BigInteger getGasLimitForWithdrawableAmountUpdate() {
+    return GAS_LIMIT_FOR_WITHDRAWABLE_AMOUNT_UPDATE;
+  }
+
+  public static String getFundManagerChain() {
+    return FUND_MANAGER_CHAIN;
+  }
+
+  public static String getFundManagerContractAddress() {
+    return FUND_MANAGER_CONTRACT_ADDRESS;
+  }
+
+  public static boolean isStakingEnabled() {
+    return STAKING_ENABLED;
+  }
+
+  public static Set<Integer> getStakeSymbolIdMap() {
+    if (STAKE_SYMBOL_ID_MAP == null) {
+      synchronized (Context.class) {
+        if (STAKE_SYMBOL_ID_MAP == null) {
+          Set<Integer> symbolIdSet = new HashSet<>();
+          if (STAKE_SYMBOL_IDS != null && !STAKE_SYMBOL_IDS.isEmpty()) {
+            for (String id : STAKE_SYMBOL_IDS.split(",")) {
+              symbolIdSet.add(StringUtil.toInt(id.trim()));
+            }
+          }
+          STAKE_SYMBOL_ID_MAP = symbolIdSet;
+        }
+      }
+    }
+    return STAKE_SYMBOL_ID_MAP;
+  }
+
+  public static Set<Integer> getVtokenSymbolIdMap() {
+    if (VTOKEN_SYMBOL_ID_MAP == null) {
+      synchronized (Context.class) {
+        if (VTOKEN_SYMBOL_ID_MAP == null) {
+          Set<Integer> symbolIdSet = new HashSet<>();
+          if (VTOKEN_SYMBOL_IDS != null && !VTOKEN_SYMBOL_IDS.isEmpty()) {
+            for (String id : VTOKEN_SYMBOL_IDS.split(",")) {
+              symbolIdSet.add(StringUtil.toInt(id.trim()));
+            }
+          }
+          VTOKEN_SYMBOL_ID_MAP = symbolIdSet;
+        }
+      }
+    }
+    return VTOKEN_SYMBOL_ID_MAP;
+  }
+
+  public static int getEnableDetailLogsForUserId() {
+    return ENABLE_DETAIL_LOGS_FOR_USER_ID;
+  }
+
+  public static int getLiquidityInstrumentPairId() {
+    return LIQUIDITY_INSTRUMENT_PAIR_ID;
+  }
+
+  public static boolean isLiquidityDexEnabled() {
+    return LIQUIDITY_DEX_ENABLED;
+  }
+
+  public static ManyToManyConcurrentArrayQueueCustom<Message> getLiquidityRouterQueue() {
+    return liquidityRouterQueue;
+  }
+
+  public static String getLiquidityDexThreadIdle() {
+    return LIQUIDITY_DEX_THREAD_IDLE;
+  }
+
+  public static String[] getLiquidityExchangePreference() {
+    return LIQUIDITY_EXCHANGE_PREFERENCE;
+  }
+
+  public static boolean isEnableBalanceWithdrawSpotLimits() {
+    return ENABLE_BALANCE_WITHDRAW_SPOT_LIMITS;
+  }
+
+  public static double getPromoDepositThreshold() {
+    return PROMO_DEPOSIT_THRESHOLD;
+  }
+
+  public static double getPromoDepositValue() {
+    return PROMO_DEPOSIT_VALUE;
+  }
+
+  public static double getSafetyFactorBpsForLiquidity() {
+    return SAFETY_FACTOR_BPS_FOR_LIQUIDITY;
+  }
+
+  public static double getProfitMarginBpsForLiquidity() {
+    return PROFIT_MARGIN_BPS_FOR_LIQUIDITY;
+  }
+
+  public static double getExternalExchangeTransactionFee() {
+    return EXTERNAL_EXCHANGE_TRANSACTION_FEE;
+  }
+
+  public static long getExternalExchangeBalanceCacheDurationMs() {
+    return EXTERNAL_EXCHANGE_BALANCE_CACHE_DURATION_MS;
+  }
+
+  public static String getBinanceExchangeBaseUrl() {
+    return BINANCE_EXCHANGE_BASE_URL;
+  }
+
+  public static String getBinanceFuturesExchangeBaseUrl() {
+    return BINANCE_FUTURES_EXCHANGE_BASE_URL;
+  }
+
+  public static String getBybitExchangeRecvWindow() {
+    return BYBIT_EXCHANGE_RECV_WINDOW;
+  }
+
+  public static String getMexcExchangeBaseUrl() {
+    return MEXC_EXCHANGE_BASE_URL;
+  }
+
+  public static String getBitgetExchangeBaseUrl() {
+    return BITGET_EXCHANGE_BASE_URL;
+  }
+
+  public static boolean getBitgetExchangeDemoTradingEnable(){return  BITGET_EXCHANGE_DEMO_TRADING_ENABLE; }
+
+
+  public static double getExternalExchangeSellQtyTolerancePercentage() {
+    return EXTERNAL_EXCHANGE_SELL_QTY_TOLERANCE_PERCENTAGE;
+  }
+
+  public static double getExternalExchangeMaxLeverage() {
+    return EXTERNAL_EXCHANGE_MAX_LEVERAGE;
+  }
+
+  public static Set<Integer> getTestUsers() {
+    if (TEST_USERS == null) {
+      final String[] userIds = TEST_USER_STRING.split(",");
+      TEST_USERS = new IntHashSet(Math.max(1, userIds.length), 0.6f);
+
+      for (final String userId : userIds) {
+        TEST_USERS.add(StringUtil.toInt(userId));
+      }
+
+    }
+    return TEST_USERS;
+  }
+
+  public static String getBinanceSpotRest() {
+    return BINANCE_SPOT_REST;
+  }
+
+  public static String getBinanceFuturesRest() {
+    return BINANCE_FUTURES_REST;
+  }
+
+  public static String getBinanceSpotWs() {
+    return BINANCE_SPOT_WS;
+  }
+
+  public static String getBinanceFuturesWs() {
+    return BINANCE_FUTURES_WS;
+  }
+
+  public static String getBybitUnifiedRest() {
+    return BYBIT_UNIFIED_REST;
+  }
+
+  public static String getBybitUnifiedWs() {
+    return BYBIT_UNIFIED_WS;
+  }
+
+  public static String getBinanceFuturesUserdataWs() {
+    return BINANCE_FUTURES_USERDATA_WS;
+  }
+
+  public static String getOutboundIp() {
+    return OUTBOUND_IP;
+  }
+
+  public static String getApiUrl() {
+    return API_URL;
+  }
+
+  public static String getRequestToken() {
+    return REQUEST_TOKEN;
+  }
+
+  public static String getRequestSecret() {
+    return REQUEST_SECRET;
+  }
+
+  public static String getPolygonWeb3Provider2() {
+    return POLYGON_WEB3_PROVIDER_2;
+  }
+
+  public static String getEthereumWeb3Provider2() {
+    return ETHEREUM_WEB3_PROVIDER_2;
+  }
+
+  public static int getPositionManagerEodEmailAtHour() {
+    return POSITION_MANAGER_EOD_EMAIL_AT_HOUR;
+  }
+
+  public static String getReconciliationAlertEmails() {
+    return RECONCILIATION_ALERT_EMAILS;
+  }
+
+  public static String getReconciliationOutputDirectory() {
+    return RECONCILIATION_OUTPUT_DIRECTORY;
+  }
+
+  public static double getLiquidityDexSmallOrderValueThreshold() {
+    return LIQUIDITY_DEX_SMALL_ORDER_VALUE_THRESHOLD;
+  }
+
+  public static boolean isLiquidityImbalanceSettleEnabled() {
+    return LIQUIDITY_IMBALANCE_SETTLE_ENABLED;
+  }
+
+  public static String getKuCoinSpotRest() {
+    return KUCOIN_SPOT_REST;
+  }
+
+  public static String getKuCoinFuturesRest() {
+    return KUCOIN_FUTURES_REST;
+  }
+
+  public static ManyToManyConcurrentArrayQueueCustom<User> getRiskToAutoConvertQueue() {
+    return riskToAutoConvertQueue;
+  }
+
+  public static boolean isLiquidityStableCoinAutoConvertEnabled() {
+    return LIQUIDITY_STABLE_COIN_AUTO_CONVERT_ENABLED;
+  }
+
+  public static double getSpotPerpSpreadThresholdPct() {
+    return SPOT_PERP_SPREAD_THRESHOLD_PCT;
   }
 
   public static String getBybitExchangeBaseUrl() {

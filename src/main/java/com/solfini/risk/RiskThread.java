@@ -1,5 +1,6 @@
 package com.solfini.risk;
 
+import com.solfini.matchengine.liquidity.LiquiditySubscriptionCache;
 import org.agrona.concurrent.IdleStrategy;
 
 import com.solfini.common.Constants;
@@ -35,6 +36,8 @@ public class RiskThread implements Runnable, Constants {
 
         // calc risk
         UserCache.processRisk(usdMarkPricesToSet);
+        // handle QT imbalance
+        LiquiditySubscriptionCache.processImbalance();
 
         if (Context.isDebugLogRisk() && LOGGER.isDebugEnabled()) {
           LOGGER.debug(LOG_FMT_2, ">>>> stringValue()=", UserRiskCache.stringValue());

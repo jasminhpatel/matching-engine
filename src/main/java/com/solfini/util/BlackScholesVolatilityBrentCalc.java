@@ -1,9 +1,12 @@
 package com.solfini.util;
 
+import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.PricingThread;
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.solvers.BrentSolver;
 
 public final class BlackScholesVolatilityBrentCalc {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(BlackScholesVolatilityBrentCalc.class);
   public interface Function extends UnivariateFunction {
     public int getIterToSolve();
   }
@@ -62,11 +65,11 @@ public final class BlackScholesVolatilityBrentCalc {
     try {
       final Function f = new BlackScholesVolatilityFunction(optionPrice, isCall, stockPrice, strikePrice, rate, time, div);
       result = solver.solve(maxEval, f, min, max);
-      double yvalue = f.value(result);
+      //double yvalue = f.value(result);
       //System.err.println("result=" + result + ", count=" + (f.getIterToSolve() - 1) + ", yvalue=" + yvalue);
 
     } catch (Exception e) {
-      e.printStackTrace();
+      LOGGER.error(e.getMessage(), e);
     }
     return result;
   }

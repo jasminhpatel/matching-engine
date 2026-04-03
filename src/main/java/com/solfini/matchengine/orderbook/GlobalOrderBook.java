@@ -35,4 +35,8 @@ public class GlobalOrderBook {
   public static final long getOrderId() {
     return orderId;
   }
+
+  public static final long incrementAndGetFilledCountGlobal() {
+    return filledCountGlobal++;
+  }
 }

@@ -1,5 +1,5 @@
-import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.MbxMath;
 import org.knowm.xchange.Exchange;

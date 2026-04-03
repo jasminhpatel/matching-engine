@@ -1,6 +1,8 @@
 package com.solfini.matchengine.decoder;
 
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.solfini.sbe.encoder.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.solfini.common.Constants;
@@ -12,18 +14,10 @@ import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.BusinessRejectMessage;
 import com.solfini.pool.LiquidationOrderObjectPool;
 import com.solfini.pool.OrderObjectPool;
-import com.solfini.sbe.encoder.BooleanType;
-import com.solfini.sbe.encoder.BusinessRejectReason;
-import com.solfini.sbe.encoder.MessageHeaderDecoder;
-import com.solfini.sbe.encoder.MsgType;
-import com.solfini.sbe.encoder.NewOrderSingleDecoder;
-import com.solfini.sbe.encoder.OrdType;
-import com.solfini.sbe.encoder.Side;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
 import com.solfini.util.StringUtil;
 import com.solfini.util.TimeUtil;
-import com.solfini.sbe.encoder.TimeInForce;
 
 /**
  *
@@ -44,8 +38,8 @@ public class NewOrderSingleHandler implements Constants {
   }
 
   private static AtomicLong[] buildSecondaryOrderIdArr() {
-    final AtomicLong[] secondaryOrderIdArr = new AtomicLong[1024];
-    for (int i = 0; i < 1024; i++)
+    final AtomicLong[] secondaryOrderIdArr = new AtomicLong[8192];
+    for (int i = 0; i < 8192; i++)
       secondaryOrderIdArr[i] = new AtomicLong();
 
     return secondaryOrderIdArr;
@@ -56,17 +50,39 @@ public class NewOrderSingleHandler implements Constants {
   }
 
   public static final void setOrderId(final long newValue) {
+    //LOGGER.info("NOID : set to " + newValue);
     orderId.set(newValue);
   }
-
-  public static final void setOrderIdIfGreater(final long newValue) {
-    if (newValue > orderId.get())
+//Note: this method is not thread safe. could set to a lower value than the current value.
+/*  public static final void setOrderIdIfGreater(final long newValue) {
+    LOGGER.info("NOID : setIfGreater " + newValue + " > " + orderId.get());
+    if (newValue > orderId.get()) {
+      LOGGER.info("NOID : set to " + newValue);
       orderId.set(newValue);
+    }
+  }*/
+
+/*  public static void setOrderIdIfGreater(final long newValue) {
+    orderId.updateAndGet(current -> Math.max(current, newValue));
+  }
+*/
+  public static void setOrderIdIfGreater(final long newValue) {
+    //LOGGER.info("NOID : setIfGreater " + newValue + " > " + orderId.get());
+    long currentValue;
+    do {
+      currentValue = orderId.get();
+      if (newValue <= currentValue) {
+        return;
+      }
+    } while (!orderId.compareAndSet(currentValue, newValue));
+    //LOGGER.info("NOID : set to " + newValue);
   }
 
   public static final long getNextOrderId() {
     orderPriority++;
-    return orderId.incrementAndGet();
+    final long id = orderId.incrementAndGet();
+    //LOGGER.info("NOID : incrementAndGet " + id);
+    return id;
   }
 
   public static final long getSecondaryOrderId(final int pairId) {
@@ -174,6 +190,43 @@ public class NewOrderSingleHandler implements Constants {
         newOrderSingleDecoder.clOrdID(), BusinessRejectReason.UNABLE_TO_PARSE, UNABLE_TO_PARSE, 0, 0,
         newOrderSingleDecoder.secondaryOrderId(), newOrderSingleDecoder.securityId(), StringUtil.toLong(newOrderSingleDecoder.clOrdID()),
         newOrderSingleDecoder.submitterId());
+  }
+
+  public final Message buildNewAutoConvertOrder(final InstrumentPair pair, final User user, final long quantity, final short quantityScale,
+      final long price, final short priceScale, final long kafkaOffset) {
+    final Order order = OrderObjectPool.get();
+    order.setKafkaRecordOffset(kafkaOffset);
+    order.setClOrdId(String.valueOf(TimeUtil.getTime()));
+    order.setSecurityId(pair.getId());
+    order.setSymbol(pair.getSymbol());
+    order.setOrderId(NewOrderSingleHandler.getNextOrderId());
+    order.setOrderPriority(0);
+    order.setUser(user);
+    order.setSubmitterId(UserCache.getAdminUser().getId());
+    order.setTargetStrategy(AUTO_CONVERT);
+
+    order.setHidden(false);
+    order.setLiquidation(false);
+    order.setLastLook(false);
+
+    order.setAccount(user.getId());
+    order.setPrice(price, priceScale);
+    order.setQty(quantity, quantityScale);
+
+    order.setSide(Side.SELL);
+    order.setOrdType(OrdType.LIMIT);
+    order.setToClose(false);
+
+    order.setPrice2(0L,(short) 0);
+    order.setMarginCheckReferencePrice(0);
+    order.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
+    order.setExpireTime(0);
+    order.setStopPx(0l, (short) 0);
+    order.setQuoteType(QuoteType.NULL_VAL);
+
+    NewOrderSingleHandler.parseOrder(order);
+
+    return order;
   }
 
   public Message decodeNewOrderSingle(final MessageHeaderDecoder headerDecoder, final NewOrderSingleDecoder newOrderSingleDecoder) {

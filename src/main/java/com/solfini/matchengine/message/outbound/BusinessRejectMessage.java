@@ -1,11 +1,13 @@
 package com.solfini.matchengine.message.outbound;
 
 import com.solfini.common.Context;
+import com.solfini.common.CustomLogger;
 import com.solfini.common.Message;
 import com.solfini.common.MessageType;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.schema.PayloadType;
+import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.orderbook.GlobalOrderBook;
 import com.solfini.pool.BusinessRejectObjectPool;
 import com.solfini.sbe.encoder.BusinessRejectReason;
@@ -17,6 +19,7 @@ import com.solfini.sbe.encoder.MsgType;
  *
  */
 public class BusinessRejectMessage extends Message {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(Order.class);
   private BusinessRejectReason businessRejectReason;
   private String text;
   private MsgType refMsgType;
@@ -28,6 +31,7 @@ public class BusinessRejectMessage extends Message {
   private long cancelReplaceId; // Set if there is a cancel replace id associated with the order rejection.
   private long clOrdId; // Set if there is a clOrdId associated with the order rejection
   private int submitterId;
+  private String clOrdIdStr; // String 64 clOrdId from external users.
 
   public static BusinessRejectMessage createBusinessReject(final String senderCompId, final MsgType refMsgType,
       final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
@@ -44,7 +48,7 @@ public class BusinessRejectMessage extends Message {
     businessRejectMessage.secondaryOrderId = secondaryOrderId;
     businessRejectMessage.pairId = pairId;
     businessRejectMessage.submitterId = submitterId;
-
+    LOGGER.info("Order rejected. orderId: " + orderId + " businessRejectRefID: " + businessRejectRefID + " businessRejectReason: " + businessRejectReason);
     return businessRejectMessage;
   }
 
@@ -76,6 +80,16 @@ public class BusinessRejectMessage extends Message {
         orderId, sourceSeqNum, secondaryOrderId, pairId, submitterId);
 
     message.clOrdId = clOrdId;
+    return message;
+  }
+
+  public static BusinessRejectMessage createBusinessRejectWithClOrdIdStr(final String senderCompId, final MsgType refMsgType,
+      final String businessRejectRefID, final BusinessRejectReason businessRejectReason, final String text, final long orderId,
+      final long sourceSeqNum, final long secondaryOrderId, final int pairId, final String clOrdId, final int submitterId) {
+    final BusinessRejectMessage message = createBusinessReject(senderCompId, refMsgType, businessRejectRefID, businessRejectReason, text,
+        orderId, sourceSeqNum, secondaryOrderId, pairId, submitterId);
+
+    message.clOrdIdStr = clOrdId;
     return message;
   }
 
@@ -177,6 +191,14 @@ public class BusinessRejectMessage extends Message {
     this.submitterId = submitterId;
   }
 
+  public final String getClOrdIdStr() {
+    return clOrdIdStr;
+  }
+
+  public final void setClOrdIdStr(final String clOrdIdStr) {
+    this.clOrdIdStr = clOrdIdStr;
+  }
+
   @Override
   public void onMatcher() {
     GlobalOrderBook.setOrderIdIfGreater(12, getOrderId());
@@ -221,7 +243,8 @@ public class BusinessRejectMessage extends Message {
         .append(",\"snapId\":").append(snapId).append(",\"kafkaRecordOffset\":").append(kafkaRecordOffset);
     sb.append(",\"businessRejectReason\":").append("\"").append(businessRejectReason).append("\"").append(",\"text\":").append("\"")
         .append(text).append("\"").append(",\"refMsgType\":").append("\"").append(refMsgType).append("\"")
-        .append(",\"businessRejectRefID\":").append("\"").append(businessRejectRefID).append("\"").append(",\"orderId\":").append(orderId)
+        .append(",\"businessRejectRefID\":").append("\"").append(businessRejectRefID).append("\"")
+        .append(",\"clOrdIdStr\":").append("\"").append(clOrdIdStr).append("\"").append(",\"orderId\":").append(orderId)
         .append(",\"secondaryOrderId\":").append(secondaryOrderId).append(",\"pairId\":").append(pairId).append(",\"submitterId\":").append(submitterId);
     sb.append("}");
     return sb.toString();

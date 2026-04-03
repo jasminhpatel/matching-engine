@@ -1,5 +1,7 @@
 package com.solfini.preordercheck;
 
+import com.solfini.common.Context;
+import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.AssetType;
@@ -12,7 +14,7 @@ import com.solfini.util.PropertyReader;
  *
  */
 public class NotionalMarginCalc {
-
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(NotionalMarginCalc.class);
   // lowest tier threshold on the risk
   // curve to charge liquidation fee
   public static final double LOWEST_TIER_THRESHOLD = PropertyReader.getProperty("LOWEST_TIER_THRESHOLD", 500_000_000);
@@ -37,6 +39,12 @@ public class NotionalMarginCalc {
 
       final double startMarginRate = instrumentPair.getRequiredMarginBasisPoints() * .0001;
 
+/*      if (user != null && Context.getEnableDetailLogsForUserId() == user.getId()) {
+        LOGGER.info("marginCurveId: " + marginCurveId + " instrumentPair.getMarginCurveId(): " + instrumentPair.getMarginCurveId()
+            + " user.getMarginCurveIdOverride(): " + user.getMarginCurveIdOverride() + " startMarginRate: " + startMarginRate +
+            " instrumentPair.getAssetType(): " + instrumentPair.getAssetType() + " notional: " + notional + " positionQuantity: " + positionQuantity);
+      }*/
+
       if (marginCurveId == 0) {
         return calcMargin0(Math.abs(notional), startMarginRate);
       } else {
@@ -55,6 +63,10 @@ public class NotionalMarginCalc {
             return calcMargin5(Math.abs(notional), startMarginRate);
           case 6:
             return calcMargin6(Math.abs(notional), startMarginRate);
+          case 7:
+            return calcMargin7(Math.abs(notional), startMarginRate);
+          case 8:
+            return calcMargin8(Math.abs(notional), startMarginRate);
           default:
             return calcMargin0(Math.abs(notional), startMarginRate);
         }
@@ -99,6 +111,13 @@ public class NotionalMarginCalc {
       }
 
       final double startMarginRate = instrumentPair.getMaintMarginBasisPoints() * .0001;
+/*      if (Context.getEnableDetailLogsForUserId() == user.getId()) {
+        LOGGER.info("\nmarginCurveId: " + marginCurveId + " instrumentPair.getMarginCurveId(): " + instrumentPair.getMarginCurveId() +
+            " instrumentPair.getMaintMarginBasisPoints(): " + instrumentPair.getMaintMarginBasisPoints() +
+            " instrumentPair.getRequiredMarginBasisPoints(): " + instrumentPair.getRequiredMarginBasisPoints() +
+            " startMarginRate: " + startMarginRate + " notional: " + notional
+        );
+      }*/
 
       if (marginCurveId == 0) {
         return calcMargin0(Math.abs(notional), startMarginRate);
@@ -118,6 +137,10 @@ public class NotionalMarginCalc {
             return calcMargin5(Math.abs(notional), startMarginRate);
           case 6:
             return calcMargin6(Math.abs(notional), startMarginRate);
+          case 7:
+            return calcMargin7(Math.abs(notional), startMarginRate);
+          case 8:
+            return calcMargin8(Math.abs(notional), startMarginRate);
           default:
             return calcMargin0(Math.abs(notional), startMarginRate);
         }
@@ -517,6 +540,79 @@ public class NotionalMarginCalc {
   private static final double calcMargin6(double absNotional, final double startMarginRate) {
     return absNotional;
   }
+
+  private static final double calcMargin7(double absNotional, final double startMarginRate) {
+    if (absNotional < 500_000) {
+      return (absNotional) * startMarginRate;
+    } else {
+      double requiredMargin = (500_000) * startMarginRate;
+      absNotional -= 500_000;
+      if (absNotional < 2_000_000) {
+        return requiredMargin + (2 * (absNotional) * startMarginRate);
+      } else {
+        requiredMargin = requiredMargin + (2 * (2_000_000) * startMarginRate);
+        absNotional -= 2_000_000;
+        if (absNotional < 5_000_000) {
+          return requiredMargin + (2.5 * (absNotional) * startMarginRate);
+        } else {
+          requiredMargin = requiredMargin + (2.6 * (5_000_000) * startMarginRate);
+          absNotional -= 5_000_000;
+          if (absNotional < 8_000_000) {
+            return requiredMargin + (2.7 * (absNotional) * startMarginRate);
+          } else {
+            requiredMargin = requiredMargin + (2.8 * (8_000_000) * startMarginRate);
+            absNotional -= 8_000_000;
+            if (absNotional < 16_000_000) {
+              return requiredMargin + (2.9 * (absNotional) * startMarginRate);
+            } else {
+              requiredMargin = requiredMargin + (3 * (16_000_000) * startMarginRate);
+              absNotional -= 16_000_000;
+              return requiredMargin + (3 * (absNotional) * startMarginRate);
+            }
+          }
+
+        }
+      }
+    }
+  }
+
+
+  private static final double calcMargin8(double absNotional, final double startMarginRate) {
+    if (absNotional < 100_000) {
+      return (absNotional) * startMarginRate;
+    } else {
+      double requiredMargin = (100_000) * startMarginRate;
+      absNotional -= 100_000;
+      if (absNotional < 200_000) {
+        return requiredMargin + (1.2 * (absNotional) * startMarginRate);
+      } else {
+        requiredMargin = requiredMargin + (1.3 * (200_000) * startMarginRate);
+        absNotional -= 200_000;
+        if (absNotional < 500_000) {
+          return requiredMargin + (1.5 * (absNotional) * startMarginRate);
+        } else {
+          requiredMargin = requiredMargin + (1.7 * (500_000) * startMarginRate);
+          absNotional -= 500_000;
+          if (absNotional < 2_000_000) {
+            return requiredMargin + (1.8 * (absNotional) * startMarginRate);
+          } else {
+            requiredMargin = requiredMargin + (1.9 * (2_000_000) * startMarginRate);
+            absNotional -= 2_000_000;
+            if (absNotional < 4_000_000) {
+              return requiredMargin + (1.95 * (absNotional) * startMarginRate);
+            } else {
+              requiredMargin = requiredMargin + (2 * (4_000_000) * startMarginRate);
+              absNotional -= 4_000_000;
+              return requiredMargin + (2 * (absNotional) * startMarginRate);
+            }
+          }
+
+        }
+      }
+    }
+  }
+
+
 
   // reverse of margin curve
   public static final double calcEstMarginBuyingPower5(final double usdCollateral) {

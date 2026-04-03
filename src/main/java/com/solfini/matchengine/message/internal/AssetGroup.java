@@ -41,6 +41,10 @@ public class AssetGroup extends Message {
     // default constructor
   }
 
+  public AssetGroup(final AssetGroupDecoder decoder) {
+    set(decoder);
+  }
+
   @Override
   public PayloadType getPayloadType() {
     return PayloadType.orderEntry;

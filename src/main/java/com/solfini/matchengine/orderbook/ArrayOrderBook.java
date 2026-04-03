@@ -374,19 +374,19 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       final short newPriceScale = order.getPriceScale();
       final short newQtyScale = order.getQtyScale();
       final Order prev = rfqContainer.getOrder(order.getOrigOrderId());
-      if (prev != null /*&& newQuoteType != prev.getQuoteType()*/) {
-        LOGGER.info(Constants.LOG_FMT_2, " RFQ change quote type. orderId: ", prev.getOrderId(),
-            "prevQuoteType: ", prev.getQuoteType(), " newQuoteType: ", newQuoteType);
+      if (prev != null /* && newQuoteType != prev.getQuoteType() */) {
+        LOGGER.info(Constants.LOG_FMT_2, " RFQ change quote type. orderId: ", prev.getOrderId(), "prevQuoteType: ", prev.getQuoteType(),
+            " newQuoteType: ", newQuoteType);
         order.set(prev, prev.getOrderId(), prev.getSecondaryOrderId());
         if (prev.getSide() == Side.BUY)
           rfqContainer.removeBuyLimit(prev);
         else if (prev.getSide() == Side.SELL)
           rfqContainer.removeSellLimit(prev);
 
-        preOrderCheck.updateCancel(prev); //cancel and re-allocate
+        preOrderCheck.updateCancel(prev); // cancel and re-allocate
 
         order.setOrderId(prev.getOrderId());
-        order.setQuoteType(newQuoteType);//update quoteType
+        order.setQuoteType(newQuoteType);// update quoteType
         order.setOrderModified(true);
         order.setPrice(newPrice, newPriceScale);
         order.setPriceInt(newPriceInt);
@@ -482,6 +482,19 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       return;
     }
 
+    // bind oco if it exists
+    if (order.getOcoClOrdId() != null && order.getOcoClOrdId().length() > 0) {
+      if (!bindOCO(order)) {
+        if (LOGGER.isTraceEnabled()) {
+          LOGGER.trace(LOG_FMT_4, "OCO not bound. id=", id, ORDER_EQ, order);
+        }
+        matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(order.getSenderCompId(), MsgType.ORDER_SINGLE,
+            Long.toString(order.getOrderId()), BusinessRejectReason.SELECT_ORDER_NOT_FOUND, INVALID__OCO_ORDER, order.getOrderId(),
+            order.getSourceSeqNum(), order.getSecondaryOrderId(), order.getSecurityId(), order.getSubmitterId()));
+        return;
+      }
+    }
+
     switch (order.getType()) {
       case BUY_LIMIT:
         addBuyLimit(order);
@@ -503,6 +516,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         break;
       default:
     }
+
     processTriggeredOrders();
     checkCircuitBreaker();
   }
@@ -655,6 +669,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         preOrderCheck.updateCancel(tmpPtr);
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), tmpPtr,
             instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        triggerOCO(tmpPtr);
         OrderObjectPool.returnObject(tmpPtr);
         CancelOrderObjectPool.returnObject(cancelOrder);
       } else {
@@ -680,6 +695,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       if (order != null) {
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
             instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        triggerOCO(order);
         OrderObjectPool.returnObject(order);
         CancelOrderObjectPool.returnObject(cancelOrder);
         return;
@@ -693,6 +709,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       if (order != null) {
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
             instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        triggerOCO(order);
         OrderObjectPool.returnObject(order);
         CancelOrderObjectPool.returnObject(cancelOrder);
         return;
@@ -734,6 +751,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         preOrderCheck.updateCancel(order);
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
             instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        triggerOCO(order);
         OrderObjectPool.returnObject(order);
         CancelOrderObjectPool.returnObject(cancelOrder);
         return;
@@ -750,6 +768,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         preOrderCheck.updateCancel(order);
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
             instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+        triggerOCO(order);
         OrderObjectPool.returnObject(order);
         CancelOrderObjectPool.returnObject(cancelOrder);
         return;
@@ -787,6 +806,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       preOrderCheck.updateCancel(order);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelOrder.getCancelId(), order,
           instrumentPair, cancelOrder, cancelOrder.getCancelType()));
+      triggerOCO(order);
       OrderObjectPool.returnObject(order);
       CancelOrderObjectPool.returnObject(cancelOrder);
 
@@ -811,6 +831,62 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
   @Override
   public final void uncross() {
     // TODO Auto-generated method stub
+  }
+
+  /*
+   * second order should refer to first order. if first order is already filled, this order should be rejected
+   */
+  private boolean bindOCO(final Order order) {
+    final String ocoClOrdId = order.getOcoClOrdId();
+    if (order == null || ocoClOrdId == null || ocoClOrdId.length() == 0)
+      return false;
+
+    final User user = order.getUser();
+    if (user == null)
+      return false;
+
+    if (LogLevel.info())
+      LOGGER.info(LOG_FMT_4, OCO_BIND_EQ, order);
+
+    // lookup ocoOrder
+    Order ocoOrder = user.lookupOrderByClorid(ocoClOrdId, this.id, Side.BUY);
+    if (ocoOrder == null)
+      ocoOrder = user.lookupOrderByClorid(ocoClOrdId, this.id, Side.SELL);
+    if (ocoOrder == null) // scan all pairs, slower
+      user.lookupOrderByClorid(ocoClOrdId, Side.BUY);
+    if (ocoOrder == null) // scan all pairs, slower
+      user.lookupOrderByClorid(ocoClOrdId, Side.SELL);
+
+    // if ocoOrder isn't found and active, reject this order
+    if (ocoOrder == null || ocoOrder.getQuantityLong() <= 0) {
+      return false;
+    }
+
+    // bind
+    order.setOcoOrder(ocoOrder);
+    ocoOrder.setOcoOrder(order);
+    return true;
+  }
+
+  // called when order is filled or cancelled
+  private final void triggerOCO(final Order order) {
+    if (order == null)
+      return;
+
+    final Order ocoOrder = order.getOcoOrder();
+    if (ocoOrder == null)
+      return;
+
+    if (LogLevel.info())
+      LOGGER.info(LOG_FMT_4, OCO_TRIGGER_EQ, order);
+
+    // unbind
+    order.setOcoOrder(null);
+    ocoOrder.setOcoOrder(null);
+
+    // cancel oco
+    if (ocoOrder.getQuantityLong() >= 0)
+      cancelOrder(ocoOrder);
   }
 
   private final void triggerStopLimitOrders(final int price) {
@@ -964,6 +1040,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             removeSellOrder(tmpPtr);
 
             if (takerOrder.getMatchQuantityLong(tmpPtr) == 0) {
+              triggerOCO(tmpPtr);
               OrderObjectPool.returnObject(tmpPtr);
               return lastPriceLevelVisited;
             } else
@@ -974,6 +1051,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
         if (returnObject) {
           final Order next = tmpPtr.getNext();
+          triggerOCO(tmpPtr);
           OrderObjectPool.returnObject(tmpPtr);
           tmpPtr = next;
         } else
@@ -1031,6 +1109,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
           removeSellOrder(tmpPtr);
 
           if (takerOrder.getMatchQuantityLong(tmpPtr) == 0) {
+            triggerOCO(tmpPtr);
             OrderObjectPool.returnObject(tmpPtr);
             return lastPriceLevelVisited;
           } else
@@ -1039,6 +1118,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
         if (returnObject) {
           final Order next = tmpPtr.getNext();
+          triggerOCO(tmpPtr);
           OrderObjectPool.returnObject(tmpPtr);
           tmpPtr = next;
         } else
@@ -1119,6 +1199,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             removeBuyOrder(tmpPtr);
 
             if (takerOrder.getMatchQuantityLong(tmpPtr) == 0) {
+              triggerOCO(tmpPtr);
               OrderObjectPool.returnObject(tmpPtr);
               return lastPriceLevelVisited;
             } else
@@ -1129,6 +1210,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
         if (returnObject) {
           final Order next = tmpPtr.getNext();
+          triggerOCO(tmpPtr);
           OrderObjectPool.returnObject(tmpPtr);
           tmpPtr = next;
         } else
@@ -1187,6 +1269,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
           removeBuyOrder(tmpPtr);
 
           if (takerOrder.getMatchQuantityLong(tmpPtr) == 0) {
+            triggerOCO(tmpPtr);
             OrderObjectPool.returnObject(tmpPtr);
             return lastPriceLevelVisited;
           } else
@@ -1195,6 +1278,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
         if (returnObject) {
           final Order next = tmpPtr.getNext();
+          triggerOCO(tmpPtr);
           OrderObjectPool.returnObject(tmpPtr);
           tmpPtr = next;
         } else
@@ -1242,11 +1326,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       }
-      LOGGER.info("addBuyLimit pairId: " + newPtr.getSecurityId() + "ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
+      LOGGER.info(
+          "addBuyLimit pairId: " + newPtr.getSecurityId() + "ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1267,6 +1352,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1293,6 +1379,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1303,6 +1390,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1314,6 +1402,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     }
 
     if (newPtr.getQuantityLong() <= 0) {
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1321,6 +1410,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1371,11 +1461,12 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
             ExecutionReportMessage.createAckNewOrderRejectExecutionReport(newPtr, instrumentPair);
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       }
-      LOGGER.info("addSellLimit pairId: " + newPtr.getSecurityId() + "ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
+      LOGGER.info(
+          "addSellLimit pairId: " + newPtr.getSecurityId() + "ARR_SIZE: " + ARR_SIZE + " newPtr.getPriceInt(): " + newPtr.getPriceInt());
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1396,7 +1487,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1423,6 +1514,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1432,6 +1524,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1443,6 +1536,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     }
 
     if (newPtr.getQuantityLong() <= 0) {
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1450,6 +1544,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1520,7 +1615,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
               askLevelCachePtrArr[0] == 0 ? BusinessRejectReason.NO_LIQUIDITY_AVAILABLE : BusinessRejectReason.FAILED_PRE_CREDIT_CHECK,
               askLevelCachePtrArr[0] == 0 ? NO_LIQUIDITY_AVAILABLE : FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(), newPtr.getSourceSeqNum(),
               newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1547,6 +1642,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1556,6 +1652,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       final int lastPriceLevelVisited = matchOnAsksMarket(newPtr);
       triggerStopLimitOrders(lastPriceLevelVisited);
     }
+    triggerOCO(newPtr);
     OrderObjectPool.returnObject(newPtr);
   }
 
@@ -1612,6 +1709,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       // cancel old order from risk so UserOpenOrders is updated
       preOrderCheck.updateCancel(newPtr);
       matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createOrderEliminationExecutionReport(newPtr, instrumentPair));
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1621,6 +1719,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       final int lastPriceLevelVisited = matchOnBidsMarket(newPtr);
       triggerStopLimitOrders(lastPriceLevelVisited);
     }
+    triggerOCO(newPtr);
     OrderObjectPool.returnObject(newPtr);
   }
 
@@ -1661,7 +1760,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(),
+                newPtr.getSubmitterId()));
 
             return;
           }
@@ -1678,7 +1778,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(),
+                newPtr.getSubmitterId()));
             return;
           }
         }
@@ -1696,7 +1797,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(newPtr.getOrderId()), BusinessRejectReason.NOT_AUTHORIZED, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
             newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+        triggerOCO(newPtr);
         OrderObjectPool.returnObject(newPtr);
         return;
       }
@@ -1713,7 +1814,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
           Long.toString(newPtr.getOrderId()), BusinessRejectReason.PRICE_IS_OUT_OF_BOUNDS, PRICE_IS_OUT_OF_BOUNDS, newPtr.getOrderId(),
           newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1725,6 +1826,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     }
 
     if (newPtr.getQuantityLong() <= 0) {
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -1775,7 +1877,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(),
+                newPtr.getSubmitterId()));
             return;
           }
         } else if (newPtr.isTrailingStop()) { // stop profit
@@ -1791,7 +1894,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
             matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
                 Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, ORDER_WOULD_IMMEDIATELY_TRIGGER,
-                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
+                newPtr.getOrderId(), newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(),
+                newPtr.getSubmitterId()));
             return;
           }
         }
@@ -1809,7 +1913,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         matcherToPublisherQueue.addGuaranteed(BusinessRejectMessage.createBusinessReject(newPtr.getSenderCompId(), MsgType.ORDER_SINGLE,
             Long.toString(newPtr.getOrderId()), BusinessRejectReason.FAILED_PRE_CREDIT_CHECK, FAILED_PRE_CREDIT_CHECK, newPtr.getOrderId(),
             newPtr.getSourceSeqNum(), newPtr.getSecondaryOrderId(), newPtr.getSecurityId(), newPtr.getSubmitterId()));
-
+        triggerOCO(newPtr);
         OrderObjectPool.returnObject(newPtr);
         return;
       }
@@ -1831,6 +1935,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     }
 
     if (newPtr.getQuantityLong() <= 0) {
+      triggerOCO(newPtr);
       OrderObjectPool.returnObject(newPtr);
       return;
     }
@@ -2291,12 +2396,14 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelReplaceOrder.getCancelId(), tmpPtr,
             instrumentPair, cancelReplaceOrder, CANCEL_ON_REQUEST));
         outOfBoundsOrderMap.remove(cancelReplaceOrder.getOrigOrderId());
+        triggerOCO(tmpPtr);
         OrderObjectPool.returnObject(tmpPtr);
       } else {
         matcherToPublisherQueue
             .addGuaranteed(CancelRejectMessage.createCancelReject(cancelReplaceOrder, instrumentPair, CxlRejReason.UNKNOWN_ORDER));
 
         if (!cancelReplaceOrder.isForceAddOrder()) {
+          triggerOCO(cancelReplaceOrder.getOrder());
           OrderObjectPool.returnObject(cancelReplaceOrder.getOrder());
           cancelReplaceOrder.setOrder(null);
         }
@@ -2323,6 +2430,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         preOrderCheck.updateCancel(tmpPtr);
         matcherToPublisherQueue.addGuaranteed(ExecutionReportMessage.createCancelExecutionReport(cancelReplaceOrder.getCancelId(), tmpPtr,
             instrumentPair, cancelReplaceOrder, CANCEL_ON_REQUEST));
+        triggerOCO(tmpPtr);
         OrderObjectPool.returnObject(tmpPtr);
 
         return;
@@ -2334,6 +2442,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         .addGuaranteed(CancelRejectMessage.createCancelReject(cancelReplaceOrder, instrumentPair, CxlRejReason.UNKNOWN_ORDER));
     // if cancelreplace is rejected, remove order
     if (!cancelReplaceOrder.isForceAddOrder() && cancelReplaceOrder.getOrigOrderId() != 0) {
+      triggerOCO(cancelReplaceOrder.getOrder());
       OrderObjectPool.returnObject(cancelReplaceOrder.getOrder());
       cancelReplaceOrder.setOrder(null);
     }
@@ -2345,6 +2454,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         && (cancelReplaceOrder.getUser().getId() != cancelReplaceOrder.getOrder().getUser().getId())) {
       matcherToPublisherQueue
           .addGuaranteed(CancelRejectMessage.createCancelReject(cancelReplaceOrder, instrumentPair, CxlRejReason.UNKNOWN_ORDER));
+      triggerOCO(cancelReplaceOrder.getOrder());
       OrderObjectPool.returnObject(cancelReplaceOrder.getOrder());
       return;
     }
@@ -2635,7 +2745,13 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       marketDataSnapshotFullRefreshEncoder.auctionVolume(auctionContainer.getMaxQtyMatchedAtLevel());
     }
     // LOGGER.info("Publish MD bidIndex: " + bidIndex + " askIndex: " + askIndex + "==========================================");
+    // todo remove
+    bidIndex = Math.min(256, bidIndex);
+    askIndex = Math.min(256, askIndex);
+    // todo end of remove
+
     MdEntrieGroupEncoder entry = marketDataSnapshotFullRefreshEncoder.mdEntrieGroupCount(bidIndex + askIndex);
+
     for (int i = 0; i < bidIndex; i++) {
       entry = entry.next();
       entry.side(Side.BUY);
@@ -2645,6 +2761,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
       entry.quantityScale(instrumentPair.getQuantityScale());
       // LOGGER.info("Side: " + Side.BUY + " price: " + bidPricesArr[i] + " quantity: " + bidQuantityArr[i]);
     }
+
     for (int i = 0; i < askIndex; i++) {
       entry = entry.next();
       entry.side(Side.SELL);
@@ -3490,9 +3607,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         from.setSenderInstanceId(Context.getInstanceId());
         from.setTxType(Constants.TX_FROM_BANKRUPT_REMAINDER);
         from.setTxId(instrumentPair.getId());
-        from.addBalance(
-            new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
-                0, null));
+        from.addBalance(new Balance(assetId, 0, 0, -settlePosition.getQuantity(), instrument.getQuantityScale(),
+            settlePosition.getAssetIdtreeSet(), 0, null));
 
         final BalanceAdminMessage to = new BalanceAdminMessage();
         to.setUpdateType(UpdateType.PATCH);
@@ -3503,9 +3619,8 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
         to.setSenderInstanceId(Context.getInstanceId());
         to.setTxType(Constants.TX_TO_BANKRUPT_REMAINDER);
         to.setTxId(instrumentPair.getId());
-        to.addBalance(
-            new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(), settlePosition.getAssetIdtreeSet(),
-                0, null));
+        to.addBalance(new Balance(assetId, 0, 0, settlePosition.getQuantity(), instrument.getQuantityScale(),
+            settlePosition.getAssetIdtreeSet(), 0, null));
 
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug(LOG_FMT_4, "liquidation2 balanceTransferRemainingCollateral=", USER_EQ, user, ", from=", from, ", to=", to);
@@ -3701,6 +3816,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     GlobalOrderBook.setOrderIdIfGreater(18, cancelOrder.getOrigOrderId());
 
     final DROrder order = drOrderBookMap.remove(cancelOrder.getOrigOrderId());
+    triggerOCO(order);
     DROrderObjectPool.returnObject(order);
     DRCancelOrderObjectPool.returnObject(cancelOrder);
   }
@@ -3714,6 +3830,7 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
 
     if (OrdStatus.FILLED == executionReport.getOrdStatus() || OrdStatus.CANCELED == executionReport.getOrdStatus()) {
       final DROrder order = drOrderBookMap.remove(executionReport.getOrderId());
+      triggerOCO(order);
       DROrderObjectPool.returnObject(order);
     } else {
       final DROrder order = drOrderBookMap.get(executionReport.getOrderId());
@@ -4002,13 +4119,11 @@ public class ArrayOrderBook extends GlobalOrderBook implements OrderBook, Consta
     this.publishAcks = publishAcks;
   }
 
-/*  private void publish(final BusinessRejectMessage businessRejectMessage, final Order order) {
-    matcherToPublisherQueue.addGuaranteed(businessRejectMessage);
-    if (order.isRFQ()) {
-      final Order prevOrder = rfqContainer.getOrder(businessRejectMessage.getOrderId());
-      if (prevOrder != null) {
-
-      }
-    }
-  }*/
+  /*
+   * private void publish(final BusinessRejectMessage businessRejectMessage, final Order order) {
+   * matcherToPublisherQueue.addGuaranteed(businessRejectMessage); if (order.isRFQ()) { final Order prevOrder =
+   * rfqContainer.getOrder(businessRejectMessage.getOrderId()); if (prevOrder != null) {
+   * 
+   * } } }
+   */
 }

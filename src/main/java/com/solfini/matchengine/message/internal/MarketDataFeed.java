@@ -24,6 +24,7 @@ import com.solfini.sbe.encoder.MarketDataFeedDecoder.MdEntrieGroupDecoder;
  */
 public class MarketDataFeed extends Message implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(MarketDataFeed.class);
+  private static final int RECORDS_PER_BATCH = 512; // should be within the limit of 16k (header + (int, double, double, sbe group header) * RECORDS_PER_BATCH)
 
   private long sentTime;
   private double[] usdMarkArr;
@@ -63,6 +64,33 @@ public class MarketDataFeed extends Message implements Constants {
         usdMarkArr[securityId] = mdEntrieGroupDecoder.usdMark();
         usdSpotIndexArr[securityId] = mdEntrieGroupDecoder.usdSpotIndex();
       }
+    }
+  }
+
+  public void setBatch(final MarketDataFeed source, final int start, final int end) {
+    senderCompId = source.getSenderCompId();
+    sequenceNumber = source.getSequenceNumber();
+    persistTime = source.getPersistTime();
+    sourceSeqNum = source.getSourceSeqNum();
+    sourceSendTime = source.getSourceSendTime();
+    kafkaRecordOffset = source.getKafkaRecordOffset();
+    inputTime = source.getInputTime();
+    decodedTime = source.getDecodedTime();
+    matchTime = source.getMatchTime();
+    transactionId = source.getTransactionId();
+
+    sentTime = source.getSentTime();
+
+    int len = source.usdMarkArr.length;
+    usdMarkArr = new double[len];
+    usdSpotIndexArr = new double[len];
+    // copy only the range for batch publishing
+    for (int i = start; i < end; i++) {
+      if (i >= len) {
+        break;
+      }
+      usdMarkArr[i] = source.usdMarkArr[i];
+      usdSpotIndexArr[i] = source.usdSpotIndexArr[i];
     }
   }
 
@@ -135,7 +163,18 @@ public class MarketDataFeed extends Message implements Constants {
     }
 
     if (Context.getControllerMode() == Mode.PRIMARY) {
-      Context.getMatcherToPublisherQueue().addGuaranteed(this);
+      final int len = usdMarkArr.length;
+      for (int i = 0; i < len; i = i + RECORDS_PER_BATCH) {
+        final int end = Math.min(i + RECORDS_PER_BATCH, len);
+        final MarketDataFeed marketDataFeed = new MarketDataFeed(); //todo MarketDataFeedObjectPool.get();
+        marketDataFeed.setEntryCount(RECORDS_PER_BATCH);
+        marketDataFeed.setBatch(this, i, end);
+        // Publish batch
+        Context.getMatcherToPublisherQueue().addGuaranteed(marketDataFeed);
+
+      }
+      // old implementation without batches
+      //Context.getMatcherToPublisherQueue().addGuaranteed(this);
 
       try {
         // set LIQUIDATON_MODE if we have price data
@@ -181,4 +220,12 @@ public class MarketDataFeed extends Message implements Constants {
     Context.getMessagePublisher().publish(this);
   }
 
+  @Override
+  public void clear() {
+    super.clear();
+    this.sentTime = 0;
+    Arrays.fill(usdMarkArr, 0.0);
+    Arrays.fill(usdSpotIndexArr, 0.0);
+    this.entryCount = 0;
+  }
 }

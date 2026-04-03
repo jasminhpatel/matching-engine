@@ -1,7 +1,9 @@
 package com.solfini.matchengine.controller;
 
+import com.solfini.risk.StableCoinAutoConvertThread;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.Future;
 
 import com.solfini.common.Constants;
@@ -14,6 +16,7 @@ import com.solfini.marketdata.InactiveMarketDataPublisherThread;
 import com.solfini.marketdata.MarketDataOutputBuilderThread;
 import com.solfini.internal.admin.schema.MarketStatus;
 import com.solfini.internal.admin.schema.TradeStateAdminMessageEncoder;
+import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.matchengine.IpcPricingToEngineListener;
 import com.solfini.matchengine.MessageValidator;
 import com.solfini.matchengine.PricingThread;
@@ -27,6 +30,7 @@ import com.solfini.matchengine.kafka.KafkaListener.StopMode;
 import com.solfini.matchengine.message.controller.ModeControlMessage;
 import com.solfini.matchengine.message.controller.PublishControlMessage;
 import com.solfini.matchengine.message.controller.ShutdownControlMessage;
+import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.matchengine.publisher.MessagePublisher;
 import com.solfini.pool.*;
 import com.solfini.risk.RiskAutoLiquidationThread;
@@ -159,6 +163,13 @@ public class ControllerThread implements Runnable, Constants {
     new Thread(riskThreadIndexed4, "riskThreadIndexed4").start();
     new Thread(riskThreadIndexed5, "riskThreadIndexed5").start();
     new Thread(riskThreadIndexed6, "riskThreadIndexed6").start();
+
+    if (Context.isLiquidityDexEnabled() && Context.isLiquidityImbalanceSettleEnabled()) {
+      // Auto Convert stable coins to USD when there is a negative balance
+      final StableCoinAutoConvertThread stableCoinAutoConvertThread = new StableCoinAutoConvertThread(
+          IdleStrategyFactory.create(Context.getRiskThreadIdle()));
+      new Thread(stableCoinAutoConvertThread, "stableCoinAutoConvertThread").start();
+    }
   }
 
   private void startMarketDataThreads() throws IOException {
@@ -208,7 +219,7 @@ public class ControllerThread implements Runnable, Constants {
   }
 
   private enum ReplayMode {
-    NONE, INPUT, OUTPUT, BOTH
+    NONE, INPUT, OUTPUT, BOTH, SELECTED_INPUT
   }
 
   private long restorePrimaryState() {
@@ -216,15 +227,15 @@ public class ControllerThread implements Runnable, Constants {
     lastOutputSequence = 0;
     if (null != getSnapshotId()) {
       long snapId = StringUtil.toLong(getSnapshotId());
-      boolean replay = (ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY);
-
-      LOGGER.info(LOG_FMT_4, "WarmStart: Restoring state from snapshot: snapId=", snapId, ", replay=", replay);
+      boolean replay = ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY || ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY || ReplayMode.SELECTED_INPUT == LOAD_FROM_SNAP_AND_REPLAY;
+      LOGGER.info(LOG_FMT_6, "WarmStart: Restoring state from snapshot: snapId=", snapId, ", replay=", replay, ", replayMode=", LOAD_FROM_SNAP_AND_REPLAY);
       SnapLoader snapLoader = new SnapLoader(snapId);
       lastOffset = snapLoader.loadPrimary(replay);
       if (replay) {
         lastOutputSequence = snapLoader.getLastSequenceNumber();
       }
-      LOGGER.debug(LOG_FMT_4, "WarmStart: Restoring state from snapshot completed: snapId=", snapId, ", lastOutputOffset=", lastOffset);
+      LOGGER.info(LOG_FMT_6, "WarmStart: Restoring state from snapshot completed: snapId=", snapId, ", lastOutputOffset=", lastOffset,
+          ", lastOutputSequence=", lastOutputSequence);
     } else {
       LOGGER.warn("WarmStart: Skipping state restoration as no snapshot is specified");
     }
@@ -408,9 +419,12 @@ public class ControllerThread implements Runnable, Constants {
           startPricingThread();
         }
 
+
+
         // Start the input listener, with replay if configured
-        boolean replay = (ReplayMode.INPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY);
-        startListener(new KafkaInputFixListener(replay), "KafkaInputFixListener");
+        boolean replay = ReplayMode.INPUT == LOAD_FROM_SNAP_AND_REPLAY || ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY || ReplayMode.SELECTED_INPUT == LOAD_FROM_SNAP_AND_REPLAY;
+        boolean replaySelected = ReplayMode.SELECTED_INPUT == LOAD_FROM_SNAP_AND_REPLAY;
+        startListener(new KafkaInputFixListener(replay, replaySelected), "KafkaInputFixListener");
 
         LOGGER.info(LOG_FMT_1, ">>> READY <<<");
         break;
@@ -471,6 +485,17 @@ public class ControllerThread implements Runnable, Constants {
       RiskAutoLiquidationThread.getInstance().stopThread();
       if (LOGGER.isInfoEnabled()) {
         LOGGER.info(LOG_FMT_1, "Shutdown: Shutting down auto liquidation thread completed");
+      }
+    }
+
+    //shutdown Stable Coin Auto Conversion Thread
+    if (StableCoinAutoConvertThread.getInstance() != null) {
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info(LOG_FMT_1, "Shutdown: Shutting down auto conversion thread");
+      }
+      StableCoinAutoConvertThread.getInstance().stopThread();
+      if (LOGGER.isInfoEnabled()) {
+        LOGGER.info(LOG_FMT_1, "Shutdown: Shutting down auto conversion thread completed");
       }
     }
 

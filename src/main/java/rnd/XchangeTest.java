@@ -1,20 +1,14 @@
 package rnd;
 
 import com.solfini.common.Context;
-import com.solfini.matchengine.copytrade.CopyTrade;
-import com.solfini.matchengine.copytrade.ExternalExchangeUtil;
-import com.solfini.matchengine.copytrade.InfluencerSubscription;
-import com.solfini.matchengine.copytrade.xchangewrappers.XBinanceExchange;
-import com.solfini.matchengine.copytrade.xchangewrappers.XExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XBinanceExchange;
+import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
+import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.sbe.encoder.Side;
-import com.solfini.util.MbxMath;
 import org.knowm.xchange.ExchangeFactory;
 import org.knowm.xchange.ExchangeSpecification;
-import org.knowm.xchange.binance.BinanceAdapters;
 import org.knowm.xchange.binance.BinanceExchange;
 import org.knowm.xchange.binance.dto.trade.BinanceQueryOrderParams;
-import org.knowm.xchange.currency.CurrencyPair;
-import org.knowm.xchange.derivative.FuturesContract;
 import org.knowm.xchange.dto.Order;
 import org.knowm.xchange.dto.meta.InstrumentMetaData;
 import org.knowm.xchange.instrument.Instrument;
@@ -30,7 +24,7 @@ import static org.knowm.xchange.binance.dto.ExchangeType.PORTFOLIO_MARGIN;
 
 public class XchangeTest {
   public static void main(String[] args) throws Exception {
-    InfluencerSubscription subscription = new InfluencerSubscription();
+    ExchangeSubscription subscription = new ExchangeSubscription();
     subscription.setExchange("BINANCE");
     subscription.setPreferredQuoteCurrency("USDT");
 
@@ -81,15 +75,15 @@ public class XchangeTest {
     }
   }
 
-  private static Price getPriceFromExchange(final InfluencerSubscription subscription, final Instrument currencyPair, final Side side, final XExchange xExchange) {
+  private static Price getPriceFromExchange(final ExchangeSubscription subscription, final Instrument currencyPair, final Side side, final XExchange xExchange) {
     return new Price(xExchange.getPriceFromExchange(currencyPair, side), System.currentTimeMillis());
   }
 
-  private static XExchange.Balance getBalanceFromExchange(final InfluencerSubscription subscription, final XExchange xExchange) {
+  private static XExchange.Balance getBalanceFromExchange(final ExchangeSubscription subscription, final XExchange xExchange) {
     return xExchange.getBalanceFromExchange(subscription.getPreferredQuoteCurrency(), subscription);
   }
 
-  public static XExchange createXExchange(final InfluencerSubscription subscription) {
+  public static XExchange createXExchange(final ExchangeSubscription subscription) {
     final String exchange = subscription.getExchange().toUpperCase();
     ExchangeSpecification specification = null;
     switch (exchange) {
@@ -115,7 +109,7 @@ public class XchangeTest {
     return null;
   }
 
-  private static void processSpecification(final ExchangeSpecification specification, final InfluencerSubscription subscription, final String exchange) {
+  private static void processSpecification(final ExchangeSpecification specification, final ExchangeSubscription subscription, final String exchange) {
     if (!"PRODUCTION".equalsIgnoreCase("TEST")) {
       specification.setExchangeSpecificParametersItem("Use_Sandbox", true);
     }

@@ -122,7 +122,7 @@ public class DecoderThread implements Runnable, Constants {
     // wrap bytes
     decoderUnsafeBuffer.wrap(data);
     headerDecoder.wrap(decoderUnsafeBuffer, OFFSET);
-
+    LOGGER.info(LOG_FMT_2, "DecoderThread ", headerDecoder.templateId());
     try {
       switch (headerDecoder.templateId()) {
         case ExecutionReportDecoder.TEMPLATE_ID:
@@ -130,6 +130,7 @@ public class DecoderThread implements Runnable, Constants {
               headerDecoder.version());
 
           Message message = executionReportParser.parse(headerDecoder, executionReportDecoder);
+          LOGGER.info(LOG_FMT_2, "executionReport message=", message);
           if (message != null) {
             message.setSenderCompId(headerDecoder.senderCompId());
             message.setSequenceNumber(headerDecoder.msgSeqNum());
@@ -151,6 +152,7 @@ public class DecoderThread implements Runnable, Constants {
               headerDecoder.version());
 
           message = positionReportParser.parse(headerDecoder, positionReportDecoder);
+          LOGGER.info(LOG_FMT_2, "positionReport message=", message);
           if (message != null) {
             message.setSenderCompId(headerDecoder.senderCompId());
             message.setSequenceNumber(headerDecoder.msgSeqNum());

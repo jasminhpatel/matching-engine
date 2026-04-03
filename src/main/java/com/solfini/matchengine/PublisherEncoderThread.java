@@ -1,5 +1,8 @@
 package com.solfini.matchengine;
 
+import com.solfini.matchengine.controller.Mode;
+import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.pool.ExecutionReportObjectPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.agrona.concurrent.IdleStrategy;
 
@@ -109,7 +112,11 @@ public class PublisherEncoderThread implements Runnable, Constants {
             final long publishTime = TimeUtil.getTime();
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
           } catch (Exception e) {
+            try {
+              LOGGER.error(message.toJSON());
+            } catch (Exception ex) {}
             LOGGER.error(ERROR_LOG, e);
+
 
             // Acquire the round robin lock in case it has not been done due to the exception.
             // This being reentrant makes sure that we dont break the round robin cycle and cause out of order messages.
@@ -119,6 +126,10 @@ public class PublisherEncoderThread implements Runnable, Constants {
           if (!rc)
             LOGGER.error("error, lock release failed. lockId=" + this.lockId + NEXTID_EQ + nextId + ", roundRobinLockId=" + roundRobinLock
                 + MESSAGE_EQ + message);
+
+          if (Mode.PRIMARY == Context.getControllerMode() && message instanceof ExecutionReportMessage executionReportMessage) {
+            ExecutionReportObjectPool.returnObjectIfNotUsed(executionReportMessage);
+          }
         }
 
         idleStrategy.idle();

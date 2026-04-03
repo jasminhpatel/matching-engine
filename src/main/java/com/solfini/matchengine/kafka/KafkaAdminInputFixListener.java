@@ -255,6 +255,7 @@ public class KafkaAdminInputFixListener extends KafkaListener implements Constan
           snapResponseAdminMessage.setSourceSendTime(sendTime);
           snapResponseAdminMessage.setKafkaRecordOffset(recordOffset);
           snapResponseAdminMessage.setInputKafkaRecordOffset(recordOffset);
+          LOGGER.info(Constants.LOG_FMT_1, snapResponseAdminMessage.toJSON());
 
           Context.getReceiverToMatcherQueue().flush();
 

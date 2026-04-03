@@ -225,21 +225,21 @@ public class CollateralSwapMessage extends AdminMessage implements Constants {
             // sell full position to counterparty OR sell just enough to qtyRequired
             final long qty = qtyRequiredLong < positionQuantityLong ? qtyRequiredLong : positionQuantityLong;
 
-            LOGGER.info(LOG_FMT_2, ">>> applyCollateralSwap1 settlePosition=", settlePosition, ", coinposition=", position);
+            LOGGER.info(LOG_FMT_4, ">>> applyCollateralSwap1 settlePosition=", settlePosition, ", coinposition=", position);
 
             final Order order = orderBook.onCollateralSwapOrder(user, (long) (usdMarkTradePrice * 100), (short) 2, qty,
                 instrumentPair.getQuantityScale(), Side.SELL);
 
             LOGGER.info(LOG_FMT_2, ">>> applyCollateralSwap2 traded=", order);
-            LOGGER.info(LOG_FMT_2, ">>> applyCollateralSwap3 settlePosition=", settlePosition, ", coinposition=", position);
+            LOGGER.info(LOG_FMT_4, ">>> applyCollateralSwap3 settlePosition=", settlePosition, ", coinposition=", position);
 
-            if (order.getQuantityLong() == 0) {
+            if (order == null || order.getQuantityLong() == 0) {
               // success selling into market
               continue;
             }
           }
 
-          LOGGER.info(LOG_FMT_2, ">>> applyCollateralSwap4 settleNotional=", settleNotional, ", qtyRequiredEstimated=",
+          LOGGER.info(LOG_FMT_14, ">>> applyCollateralSwap4 settleNotional=", settleNotional, ", qtyRequiredEstimated=",
               qtyRequiredEstimated, ", discountMultiplier=", discountMultiplier, ", usdMarkTradePrice=", usdMarkTradePrice,
               ", coinPositionQuantity=", coinPositionQuantity, ", qtyRequired=", qtyRequired, ", settlePositionLong=", settlePositionLong);
 

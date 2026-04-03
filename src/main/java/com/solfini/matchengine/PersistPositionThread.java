@@ -44,6 +44,7 @@ public class PersistPositionThread implements Runnable, Constants {
   }
 
   public void run() {
+    LOGGER.info("Run persist position thread.");
     while (true) {
       try {
         final int count = persisterPositionQueue.drainTo(list, 4096);

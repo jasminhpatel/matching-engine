@@ -1,5 +1,7 @@
 package com.solfini.matchengine.kafka;
 
+import com.solfini.matchengine.decoder.NewOrderSingleHandler;
+import com.solfini.matchengine.orderbook.GlobalOrderBook;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -170,6 +172,9 @@ public class KafkaListener implements Runnable, Constants {
           if (!firstMessageReceived) {
             firstMessageReceived = true;
             final String content = StringUtil.fixToString(readData);
+            LOGGER.info(LOG_FMT_6, "Start Processing new messages. kafkaOffset: ", kafkaOffset ,
+                " lastOrderId: ", NewOrderSingleHandler.getOrderId(), " lastExecutionId: ",
+                GlobalOrderBook.getFilledCountGlobal());
             LOGGER.warn(LOG_FMT_8, "firstMessageReceived kafkaOffset: kafkaOffset=", kafkaOffset, ", messageType=", (long) messageType,
                 ", sendTime=", sendTime, ", readData=", content);
             ReportUtil.onFirstMessage(kafkaOffset, sendTime, content);
@@ -179,7 +184,6 @@ public class KafkaListener implements Runnable, Constants {
           }
           lastKafkaOffset = kafkaOffset;
           expectedKafkaOffset = kafkaOffset + 1;
-
           // process bytes with 17 offset
           onMessage(seqNum, sendTime, kafkaOffset, messageType, readData);
           benchmark.sample();

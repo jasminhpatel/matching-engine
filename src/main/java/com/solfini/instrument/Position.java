@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.solfini.common.Context;
 import com.solfini.matchengine.AssetGroupCache;
 import com.solfini.matchengine.message.internal.AssetGroup;
 import com.solfini.sbe.encoder.TokenType;
@@ -23,8 +24,8 @@ import com.solfini.user.UserOpenOrdersByPair;
  */
 public class  Position implements Appendable, Constants {
   private static final Logger LOGGER = LoggerFactory.getLogger(Position.class);
-  public static final int DEFAULT_COST_BASIS_SCALE = 6;
-  public static final int DEFAULT_COST_BASIS_SCALE_MULT = 1_000_000;
+  public static final int DEFAULT_COST_BASIS_SCALE = 8;
+  public static final int DEFAULT_COST_BASIS_SCALE_MULT = 100_000_000;
   private int instrumentId;
   private long quantity;
   private long availableQuantity;
@@ -34,8 +35,8 @@ public class  Position implements Appendable, Constants {
   private double usdCostBasis;
 
   private long usdAvgCostBasis;
-  private short usdAvgCostBasisScale = DEFAULT_COST_BASIS_SCALE; // defualt to 6
-  private int usdAvgCostBasisScaleMultiplier = DEFAULT_COST_BASIS_SCALE_MULT; // defualt to 6
+  private short usdAvgCostBasisScale = DEFAULT_COST_BASIS_SCALE; // default to 8
+  private int usdAvgCostBasisScaleMultiplier = DEFAULT_COST_BASIS_SCALE_MULT; // default to 8
 
 
   private double usdValue;
@@ -50,6 +51,7 @@ public class  Position implements Appendable, Constants {
   private boolean markAsReturned = false;
 
   private Set<long[]> assetIdtreeSet = null; // set contains pairs of [assetId, tokenId, groupAssetId]
+  private int userId;//todo remove after testing
 
   public Position() {
     // default constructor
@@ -63,6 +65,19 @@ public class  Position implements Appendable, Constants {
   // must be called from the matching thread
   // called frequently to copy set execution reports
   public static final Position set(final Position position, final User user, final Position source) {
+/*    if (Context.getEnableDetailLogsForUserId() == user.getId()) {
+      LOGGER.info("P_UserId: " + user.getId() +
+          "\nOld instrumentId: " + position.instrumentId + " new " + source.instrumentId + "\nOld quantity: " + position.quantity + " new " + source.quantity
+          + "\nOld availableQuantity: " + position.availableQuantity + " new " + source.availableQuantity + "\nOld usdCostBasis: "
+          + position.usdCostBasis + " new " + source.usdCostBasis + "\nOld usdAvgCostBasis: " + position.usdAvgCostBasis + " new " + source.usdAvgCostBasis
+          + "\nOld usdAvgCostBasisScale: " + position.usdAvgCostBasisScale + " new " + source.usdAvgCostBasisScale + "\nOld usdValue: " + position.usdValue + " new " + source.usdValue
+          + "\nOld usdUnrealized: " + position.usdUnrealized + " new " + source.usdUnrealized + "\nOld usdRealized: " + position.usdRealized + " new " + source.usdRealized
+          + "\nOld quotedUsdMark: " + position.quotedUsdMark + " new " + source.quotedUsdMark + "\nOld settleCoinUsdMark: " + position.settleCoinUsdMark + " new " + source.settleCoinUsdMark
+          + "\nOld settleCoinUnrealized: " + position.settleCoinUnrealized + " new " + source.settleCoinUnrealized + "\nOld settleCoinRealized: "
+          + position.settleCoinRealized + " new " + source.settleCoinRealized + "\nOld bankruptPriceInt: " + position.bankruptPriceInt + " new " + source.bankruptPriceInt
+          + "\nOld isTouched: " + position.isTouched + " new " + source.isTouched);
+    }*/
+    position.userId = user.getId();
     position.instrumentId = source.instrumentId;
     position.quantity = source.quantity;
     position.availableQuantity = source.availableQuantity;
@@ -109,6 +124,12 @@ public class  Position implements Appendable, Constants {
   // called less frequently when there is a fill or position change
   public static final Position set(final Position position, final User user, final int instrumentId, final long quantity,
       final long availableQuantity) {
+/*    if (Context.getEnableDetailLogsForUserId() == user.getId()) {
+      LOGGER.info("P_UserId: " + user.getId() +
+          "\nInstrumentId: " + position.instrumentId + "\nOld quantity: " + position.quantity + " new " + quantity + "\nOld availableQuantity: " + position.availableQuantity + " new " + availableQuantity);
+    }*/
+    position.userId = user.getId();
+
     position.instrumentId = instrumentId;
     position.quantity = quantity;
     position.availableQuantity = availableQuantity;
@@ -134,6 +155,7 @@ public class  Position implements Appendable, Constants {
   }
 
   public void clear() {
+    this.userId = 0;
     this.instrumentId = 0;
     this.quantity = 0;
     this.availableQuantity = 0;
@@ -214,6 +236,8 @@ public class  Position implements Appendable, Constants {
     if (availableQuantity >= quantity) {
       this.availableQuantity -= quantity;
       return true;
+    } else {
+      LOGGER.info("Insufficient balance. userId: " + userId + " availableQuantity: " + availableQuantity + " < quantity: " + quantity);
     }
     return false;
   }
@@ -224,6 +248,8 @@ public class  Position implements Appendable, Constants {
       if (groupId > 0)
         updateGroupAvailableBalance(userId, groupId, -quantity);
       return true;
+    } else {
+      LOGGER.info("Insufficient balance. userId: " + userId + " availableQuantity: " + availableQuantity + " < quantity: " + quantity);
     }
     return false;
   }
@@ -513,8 +539,8 @@ public class  Position implements Appendable, Constants {
       sb.append(",\"assetIdtreeSet\":");
       sb.append("[");
       String separator = "";
-      System.out.println("assetIdtreeSet.size()" + assetIdtreeSet.size());
-      System.out.println("assetIdtreeSet" + assetIdtreeSet);
+      //System.out.println("assetIdtreeSet.size()" + assetIdtreeSet.size());
+      //System.out.println("assetIdtreeSet" + assetIdtreeSet);
       for (long[] assetIds : assetIdtreeSet) {
         sb.append(separator).append("[").append(assetIds[0]).append(",").append(assetIds[1]).append(",").append(assetIds[2]).append("]");
         separator = ",";

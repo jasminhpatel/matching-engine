@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+
+import com.solfini.matchengine.AssetGroupCache;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -143,6 +145,8 @@ public class SnapLoader implements Constants {
     long offset = loadSnapshot();
     if (replay) {
       offset = replaySnapshot(0);
+      // reload AssetGroups in compacted Kafka first, because AssetGroup messages are not in the output topic.
+      AssetGroupCache.loadAssetGroupsFromKafka();
     }
 
     snapLoaderMode = false;
@@ -279,13 +283,13 @@ public class SnapLoader implements Constants {
     consumer.seekToEnd(partitions);
     long lastOffset = consumer.position(partition);
     if (LOGGER.isInfoEnabled()) {
-      LOGGER.info(LOG_FMT_2, "SnapLoader:Replay - Last offset on the output queue is ", (lastOffset - 1));
+      LOGGER.info(LOG_FMT_4, "SnapLoader:Replay - Last offset on the output queue is ", (lastOffset - 1), " replayEndOffset: ", replayEndOffset);
     }
 
     if (replayEndOffset > 0) {
       lastOffset = replayEndOffset + 1;
       if (LOGGER.isInfoEnabled()) {
-        LOGGER.info(LOG_FMT_2, "SnapLoader:Replay - Setting replay end offset to ", (lastOffset - 1));
+        LOGGER.info(LOG_FMT_4, "SnapLoader:Replay - Setting replay end offset to ", (lastOffset - 1), " replayEndOffset: ", replayEndOffset);
       }
     }
 
@@ -467,6 +471,7 @@ public class SnapLoader implements Constants {
             message.setSequenceNumber(headerDecoder.msgSeqNum());
             message.setSourceSeqNum(headerDecoder.sourceSeqNum());
             message.setKafkaRecordOffset(headerDecoder.kafkaRecordOffset());
+            //LOGGER.info("EXE Decoded: " + message.toJSON());
           }
           if (LOGGER.isDebugEnabled()) {
             LOGGER.debug(LOG_FMT_2, DECODED_EXECUTIONREPORT_EQ, message);

@@ -86,26 +86,23 @@ public class ExecutionReportParser implements Constants {
   }
 
   public final Message parse(final MessageHeaderDecoder headerDecoder, final ExecutionReportDecoder executionReportDecoder) {
-
     try {
+      // clOrdId
+      clOrdId = executionReportDecoder.clOrdID();
+      // orderId
+      orderId = executionReportDecoder.orderId();
+
       execType = executionReportDecoder.execType();
       if (execType == null)
         return null;
-
 
       // ordType
       ordType = executionReportDecoder.ordType();
       if (ordType == null)
         return null;
 
-      // orderId
-      orderId = executionReportDecoder.orderId();
-
       // secondaryOrderId
       secondaryOrderId = executionReportDecoder.secondaryOrderId();
-
-      // clOrdId
-      clOrdId = executionReportDecoder.clOrdID();
 
       // securityId, instrumentPair
       try {
@@ -151,6 +148,12 @@ public class ExecutionReportParser implements Constants {
       groupAssetId = executionReportDecoder.groupAssetId();
       selectId = executionReportDecoder.selectId();
 
+      if (orderId == 0 | orderId < NewOrderSingleHandler.getOrderId()) {
+        LOGGER.info("Suspicious ER: " + clOrdId + " orderId: " + orderId + " securityId: "
+        + securityId + " side: " + side + " execType: " + execType + " account: " + account
+        + " orderQtyLong: " + orderQtyLong + " priceLong: " + priceLong + " timeInForce: " + timeInForce
+        );
+      }
 
       // special case, set orderId seqNum if greater
       NewOrderSingleHandler.setOrderIdIfGreater(orderId);

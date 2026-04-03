@@ -2,12 +2,14 @@ package com.solfini.matchengine.message.admin;
 
 import com.solfini.common.AdminMessage;
 import com.solfini.common.Context;
+import com.solfini.common.CustomLogger;
 import com.solfini.common.MessageType;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
 import com.solfini.internal.admin.schema.*;
 import com.solfini.internal.schema.PayloadType;
+import com.solfini.matchengine.decoder.InboundAdminMessageHandler;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.util.MbxMath;
 import com.solfini.util.StringUtil;
@@ -18,6 +20,7 @@ import com.solfini.util.StringUtil;
  *
  */
 public class SecurityDefinitionAdminMessage extends AdminMessage {
+  private static final CustomLogger LOGGER = CustomLogger.getLogger(SecurityDefinitionAdminMessage.class);
   private UpdateType updateType;
   private int securityId;
   private String symbol;
@@ -163,6 +166,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     }
 
     // default
+    //LOGGER.info("Symbol: " + symbol + " maintMarginBasisPoints: " + maintMarginBasisPoints + " requiredMarginBasisPoints: " + requiredMarginBasisPoints);
     if (this.maintMarginBasisPoints == 0)
       this.maintMarginBasisPoints = 40;
     if (this.requiredMarginBasisPoints == 0)
@@ -172,6 +176,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.withdrawFeeInstrument = SECURITY_DEFINITION_DECODER.withdrawFeeInstrument();
     final Sector s = SECURITY_DEFINITION_DECODER.sector();
     this.sector = s != null ? s : Sector.NOT_DEFINED;
+
   }
 
   public SecurityDefinitionAdminMessage(final Instrument instrument) {
@@ -219,6 +224,7 @@ public class SecurityDefinitionAdminMessage extends AdminMessage {
     this.settleType = instrumentPair.getSettleType();
     this.maintMarginBasisPoints = instrumentPair.getMaintMarginBasisPoints();
     this.requiredMarginBasisPoints = instrumentPair.getRequiredMarginBasisPoints();
+    //LOGGER.info("Symbol: " + symbol + " maintMarginBasisPoints: " + maintMarginBasisPoints + " requiredMarginBasisPoints: " + requiredMarginBasisPoints);
     this.indexFeedUsdMark = instrumentPair.getIndexFeedUsdMark();
     this.marginCurveId = instrumentPair.getMarginCurveId();
     this.minQty = instrumentPair.getMinOrderQuantity();

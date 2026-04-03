@@ -41,7 +41,7 @@ public class ExpireContractMessage extends AdminMessage {
   public static final long TWO_WEEKS = 1_209_600_000;
   public static final long ONE_MONTH = 2_592_000_000L;
   public static final long ONE_QUARTER = 7_862_400_000L;
-  public static final long ONE_YEAR = 22_896_000_000L;
+  public static final long ONE_YEAR = 31_536_000_000L;
 
   private final List<AssetFundingRate> expireList = new FastArrayList<>();
 
@@ -138,6 +138,7 @@ public class ExpireContractMessage extends AdminMessage {
     final double usdSettlementMark = 1;
     // for all pairs
     for (final AssetFundingRate assetFundingRate : expireList) {
+
       try {
         final InstrumentPair instrumentPair = InstrumentCache.getPair(assetFundingRate.getAssetId());
         if (instrumentPair == null)

@@ -162,7 +162,7 @@ public class SnapConverter implements Constants {
     }
   }
 
-  public void exportSnapshot(final String snapshot, final String json) throws IOException {
+  public ArrayList<Message> exportSnapshot(final String snapshot, final String json) throws IOException {
     System.out.println("EXPORT: " + snapshot + " -> " + json);
 
     final BufferedWriter writer = new BufferedWriter(new FileWriter(json, false));
@@ -241,6 +241,7 @@ public class SnapConverter implements Constants {
     }
 
     writer.close();
+    return snapshotMessages;
   }
 
   public boolean validate() {
@@ -680,7 +681,6 @@ public class SnapConverter implements Constants {
     if (debug) {
       System.out.println("<< " + json);
     }
-
     final JsonElement jsonParser = new JsonParser().parse(json);
     final String type = jsonParser.getAsJsonObject().get("class").getAsString();
 

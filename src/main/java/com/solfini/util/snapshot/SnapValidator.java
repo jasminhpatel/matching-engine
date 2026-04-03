@@ -19,7 +19,7 @@ import com.solfini.user.User;
 public class SnapValidator {
 
   private static final int MAX_USER_TYPES = 8;
-  private static final int MAX_PAIRS = 1024;
+  private static final int MAX_PAIRS = 8192;
 
   private class PairOrder {
     private final long orderId;
