@@ -25,7 +25,7 @@ public class ExternalInstrumentCache implements Constants{
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalInstrumentCache.class);
   private static final String SELECT = "SELECT id, exchange, base, quoted, tradable, updated, closepricepercentage, isfutures, pricescale, qtyscale, openpricepercentage, symbol, instrumenttype FROM external_instrument_state ORDER BY ID ASC;";
   private static final String INSERT = "INSERT INTO external_instrument_state (exchange,base,quoted,tradable,updated,closePricePercentage,isFutures,pricescale,qtyscale,openPricePercentage,symbol,instrumenttype) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);";
-  private static final String UPDATE = "UPDATE external_instrument_state SET updated=?,pricescale=?,qtyscale=?,symbol=? WHERE exchange=? AND base=? AND quoted=? AND isFutures=?;";
+  private static final String UPDATE = "UPDATE external_instrument_state SET tradable=?,updated=?,pricescale=?,qtyscale=?,symbol=? WHERE exchange=? AND base=? AND quoted=? AND isFutures=? AND tradable=true;";
   private static final String SELECT_MAX_ID = "SELECT MAX(id) FROM external_instrument_state WHERE exchange=? AND base=? AND quoted=? AND isFutures=?";
 
   // key <lower(exchange_instrupentType_base_quote), SymbolData>
@@ -194,16 +194,16 @@ public class ExternalInstrumentCache implements Constants{
   private static void updateDB(final ExternalSymbol instrument) {
     try (final Connection conn = DBManager.getConnection();
         final PreparedStatement ps = conn.prepareStatement(UPDATE);) {
-      //ps.setBoolean(1, instrument.isTradable());
-      ps.setLong(1, instrument.getUpdated());
-      ps.setInt(2, instrument.getPriceScale());
-      ps.setInt(3, instrument.getQtyScale());
-      ps.setString(4, instrument.getSymbol());
+      ps.setBoolean(1, instrument.isTradable());
+      ps.setLong(2, instrument.getUpdated());
+      ps.setInt(3, instrument.getPriceScale());
+      ps.setInt(4, instrument.getQtyScale());
+      ps.setString(5, instrument.getSymbol());
 
-      ps.setString(5, instrument.getExchange().toLowerCase());
-      ps.setString(6, instrument.getBase().toLowerCase());
-      ps.setString(7, instrument.getQuote().toLowerCase());
-      ps.setBoolean(8, instrument.isFutures());
+      ps.setString(6, instrument.getExchange().toLowerCase());
+      ps.setString(7, instrument.getBase().toLowerCase());
+      ps.setString(8, instrument.getQuote().toLowerCase());
+      ps.setBoolean(9, instrument.isFutures());
 
       ps.executeUpdate();
 
