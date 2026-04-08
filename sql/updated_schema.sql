@@ -1537,7 +1537,7 @@ CREATE TABLE public.liquidity_pair_state(
     symbol varchar(32),
     instrumentType integer,
     status int4,
-    PRIMARY KEY(id)notification_state
+    PRIMARY KEY(id)
 );
 
 CREATE TABLE public.liquidity_exchange_pair_state(
@@ -1589,13 +1589,13 @@ ALTER TABLE liquidity_subscription_state ADD apisecret2 varchar(1024) NULL;
 
 ALTER TABLE subscription_state ADD influencer_userId int NULL;
 
-update subscription_state set influencer_userId =142 where accountid='Peaceful-Green-Hair';
-update subscription_state set influencer_userId =2 where accountid='Crowded-Yellow-Wall';
-update subscription_state set influencer_userId =98 where accountid='Lovely-Olden-Magazine';
-update subscription_state set influencer_userId =62 where accountid='Messy-Purple-Lock';
-update subscription_state set influencer_userId =60 where accountid='Silly-Cyan-Dog';
-update subscription_state set influencer_userId =1 where accountid='Obedient-Navy blue-Window';
-update subscription_state set influencer_userId =142 where accountid='0x0581d84dff0c3bca7c951dde76b516e89eb460a1';
+--update subscription_state set influencer_userId =142 where accountid='Peaceful-Green-Hair';
+--update subscription_state set influencer_userId =2 where accountid='Crowded-Yellow-Wall';
+--update subscription_state set influencer_userId =98 where accountid='Lovely-Olden-Magazine';
+--update subscription_state set influencer_userId =62 where accountid='Messy-Purple-Lock';
+--update subscription_state set influencer_userId =60 where accountid='Silly-Cyan-Dog';
+--update subscription_state set influencer_userId =1 where accountid='Obedient-Navy blue-Window';
+--update subscription_state set influencer_userId =142 where accountid='0x0581d84dff0c3bca7c951dde76b516e89eb460a1';
 
 
 CREATE TABLE copy_trade_pnl_state (
