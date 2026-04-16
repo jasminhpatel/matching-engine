@@ -9,10 +9,15 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.Sector;
 import com.solfini.matchengine.LoggingThread;
+import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.executionexchange.ExternalTickerCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.LastBalance;
 import com.solfini.matchengine.liquidity.LiquiditySubscriptionCache;
+import com.solfini.matchengine.liquidity.Ticker;
+import com.solfini.matchengine.liquidity.direct.FastClientFactory;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.BitgetFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClient;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.sbe.encoder.OrdType;
@@ -40,7 +45,7 @@ public class BitgetFastClientRestOnlyTest {
   static {
     try {
       Properties properties = new Properties();
-      properties.setProperty("OUTBOUND_IP", System.getenv("OUTBOUND_IP"));
+      //properties.setProperty("OUTBOUND_IP", System.getenv("OUTBOUND_IP"));
       properties.setProperty("EXECUTION_REPORT_POOL_QUEUE_CAPACITY", "100");
       properties.setProperty("EXECUTION_REPORT_POOL_START_CAPACITY", "50");
       properties.setProperty("INITIAL_USER_CACHE_SIZE", "128");
@@ -66,23 +71,14 @@ public class BitgetFastClientRestOnlyTest {
   public static void main(String[] args) throws InterruptedException, IOException {
 
     init();
-    LiquiditySubscriptionCache.onLoad(getBitgetSpotAccount());
+    ExternalSymbol externalSymbol = getExchangeSymbol();
+
+    ExchangeSubscription subscription = getBitgetSpotAccount();
+    final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
+    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
+    System.out.println(ticker.toString());
 
 
-
-
-    LiquiditySubscriptionCache.onLoad(getBitgetFutureAccount());
-
-    LiquiditySubscriptionCache.startAllSubscriptions();
-
-    Thread.sleep(1000);
-    ExchangeSubscription subscription = LiquiditySubscriptionCache.get(exchange, true);
-
-    Thread.sleep(2000);
-
-    //testSpotTrade(subscription, params);
-
-    printLatencyStats();
   }
 
   static void printCache(ExchangeSubscription futureSegmentSubscription) {
@@ -214,22 +210,6 @@ public class BitgetFastClientRestOnlyTest {
     LOGGER.info("################################################");
   }
 
-  static ExchangeSubscription getBitgetFutureAccount() {
-    final ExchangeSubscription subscription = new ExchangeSubscription();
-    subscription.setId(1);
-    subscription.setExchange(exchange);
-    subscription.setApiUser("dummyUser");
-    subscription.setApiKey(System.getenv("BITGET_DEMO_API_KEY"));
-    subscription.setApiSecret(System.getenv("BITGET_DEMO_API_SECRET"));
-    subscription.setPassphrase(System.getenv("BITGET_PASSPHRASE"));
-    subscription.setStatus(1);
-    subscription.setCreated(1700000000000L);
-    subscription.setExpires(1709999999999L);
-    subscription.setFuturesEnabled(true);
-    subscription.setLeverage(false);
-    subscription.setLastUsedProxy("localhost");
-    return subscription;
-  }
 
   static ExchangeSubscription getBitgetSpotAccount() {
     final ExchangeSubscription subscription = new ExchangeSubscription();
@@ -251,56 +231,17 @@ public class BitgetFastClientRestOnlyTest {
     return subscription;
   }
 
-  public static void printLatencyStats() {
-    if (latencyMeasurements.isEmpty()) {
-      LOGGER.info("No latency measurements available");
-      return;
-    }
+  static ExternalSymbol getExchangeSymbol() {
+    ExternalSymbol externalSymbol = new ExternalSymbol();
+    externalSymbol.setId(1);
+    externalSymbol.setExchange("bitget");
+    externalSymbol.setSymbol("BTCUSDT");
+    externalSymbol.setBase("BTC");
+    externalSymbol.setQuote("USDT");
+    //externalSymbol.setPrompt("btc");
+    externalSymbol.setFutures(false);
+    externalSymbol.setTradable(true);
 
-    long count = latencyMeasurements.size();
-    long sum = 0;
-    long min = Long.MAX_VALUE;
-    long max = Long.MIN_VALUE;
-
-    for (Long latency : latencyMeasurements) {
-      sum += latency;
-      if (latency < min) {
-        min = latency;
-      }
-      if (latency > max) {
-        max = latency;
-      }
-    }
-
-    long avgNanos = sum / count;
-    double avgMillis = avgNanos / 1_000_000.0;
-    double minMillis = min / 1_000_000.0;
-    double maxMillis = max / 1_000_000.0;
-
-    LOGGER.info("========== LATENCY STATISTICS ==========");
-    LOGGER.info("Total Samples: " + count);
-    LOGGER.info("Average Latency: " + avgNanos + " ns (" + String.format("%.3f", avgMillis) + " ms)");
-    LOGGER.info("Minimum Latency: " + min + " ns (" + String.format("%.3f", minMillis) + " ms)");
-    LOGGER.info("Maximum Latency: " + max + " ns (" + String.format("%.3f", maxMillis) + " ms)");
-    LOGGER.info("Total Time: " + sum + " ns (" + String.format("%.3f", sum / 1_000_000.0) + " ms)");
-    LOGGER.info("========================================");
-  }
-
-  public static void resetLatencyMeasurements() {
-    latencyMeasurements.clear();
-    LOGGER.info("Latency measurements reset");
-  }
-
-  private static Map<String, String> parseArgString(String arg) {
-    Map<String, String> map = new HashMap<>();
-    String[] pairs = arg.split(",");
-
-    for (String pair : pairs) {
-      String[] kv = pair.split("=", 2);
-      if (kv.length == 2) {
-        map.put(kv[0].trim(), kv[1].trim());
-      }
-    }
-    return map;
+    return externalSymbol;
   }
 }
