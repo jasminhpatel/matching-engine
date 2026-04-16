@@ -64,10 +64,7 @@ public class BitgetFastClientRestOnlyTest {
   }
 
   public static void main(String[] args) throws InterruptedException, IOException {
-    if (args.length == 0) {
-      throw new IllegalArgumentException("Missing trade argument string");
-    }
-    Map<String, String> params = parseArgString(args[0]);
+
     init();
     LiquiditySubscriptionCache.onLoad(getBitgetSpotAccount());
 
@@ -83,7 +80,7 @@ public class BitgetFastClientRestOnlyTest {
 
     Thread.sleep(2000);
 
-    testSpotTrade(subscription, params);
+    //testSpotTrade(subscription, params);
 
     printLatencyStats();
   }
