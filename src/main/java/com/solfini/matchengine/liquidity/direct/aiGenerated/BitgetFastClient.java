@@ -6,6 +6,7 @@ import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.AccountMode;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetTradeListener;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetUserDataListener;
 import com.solfini.matchengine.message.internal.Order;
@@ -40,19 +41,24 @@ public final class BitgetFastClient implements ExternalExchangeClient {
     private volatile Thread accountRefreshThread;
     private volatile boolean isAccountRefreshRunning = false;
 
-    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase, final ExchangeSubscription subscription) {
-        this(apiKey, secretKey, passphrase, subscription, false);
+    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase, final String apiVersion, final ExchangeSubscription subscription) {
+        this(apiKey, secretKey, passphrase, apiVersion, subscription, false);
     }
 
-    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase,
+    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase, final String apiVersion,
                             final ExchangeSubscription subscription, final boolean restOnly) {
         this.restOnly = restOnly;
         this.apiKey = apiKey;
         this.secretKey = secretKey;
         this.passphrase = passphrase;
         this.subscription = subscription;
-        this.bitgetRestClient = new BitgetRestClient(apiKey, secretKey, passphrase, subscription);
+        this.bitgetRestClient = new BitgetRestClient(apiKey, secretKey, passphrase, apiVersion, subscription);
         this.tradeListener = restOnly ? null : new BitgetTradeListener(apiKey, secretKey, passphrase, subscription);
+    }
+
+    public static AccountMode getAccountMode(final String apiKey, final String secretKey, final String passphrase,
+        final String lastUsedProxy, final boolean forceToUseProxy) {
+      return BitgetRestClient.getAccountMode(apiKey, secretKey, passphrase, lastUsedProxy, forceToUseProxy);
     }
 
     @Override

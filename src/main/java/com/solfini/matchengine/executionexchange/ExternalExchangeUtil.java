@@ -224,7 +224,7 @@ public class ExternalExchangeUtil {
             //below two keys are only for internal validations done by the XChange library. not sent to exchange
             specification.setApiKey("bg_cd1082d69976f19f8c4518009ca66b14");
             specification.setSecretKey("7eb6644560c5a06a10632c89411ecbb4ed4966b10e94e2a36deee3b1044ebc8d");
-            processSpecification(specification, null, retryCount);
+            processSpecification(specification, subscription, retryCount);
 
             xExchange = new XBitgetExchange(ExchangeFactory.INSTANCE.createExchange(specification));
             break;
@@ -295,6 +295,9 @@ public class ExternalExchangeUtil {
       specification.setUserName(subscription.getApiUser());
       specification.setApiKey(subscription.getApiKey());
       specification.setSecretKey(subscription.getApiSecret());
+      if ("BITGET".equalsIgnoreCase(subscription.getExchange())) {
+        specification.setPassword(subscription.getApiUser());
+      }
 
       if (PROXIES != null ) {
         if (subscription.getLastUsedProxy() == null) {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jose.shaded.json.JSONObject;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
@@ -37,22 +38,61 @@ public class BitgetRestClient {
   private final String apiKey;
   private final String secretKey;
   private final String passphrase;
+  private final String apiVersionPrefix;
   private final ExchangeSubscription subscription;
   private final boolean DEMO_TRADING_ENABLE = Context.getBitgetExchangeDemoTradingEnable();
 
-
-  public BitgetRestClient(final String apiKey, final String secretKey, final String passphrase, final ExchangeSubscription subscription) {
+  public BitgetRestClient(final String apiKey, final String secretKey, final String passphrase, final String apiVersion, final ExchangeSubscription subscription) {
     this.apiKey = apiKey;
     this.secretKey = secretKey;
     this.passphrase = passphrase;
+    this.apiVersionPrefix = "/api/" + apiVersion;
     this.subscription = subscription;
+  }
+
+  public static AccountMode getAccountMode(final String apiKey, final String secretKey, final String passphrase,
+      final String lastUsedProxy, final boolean forceToUseProxy) {
+    try {
+      final String timestamp = String.valueOf(Instant.now().toEpochMilli());
+      final String method = "GET";
+      final String requestPath = "/api/v3/account/settings";
+      final String body = "";
+
+      // Pre-hash string
+      final String preHash = timestamp + method + requestPath + body;
+
+      // Signature
+      String signature = HMAC.signHmacSHA256(preHash, secretKey);
+
+      final String url = REST_API_BASE + requestPath;
+
+      final Map<String, Object> headers = new HashMap<>();
+      headers.put("ACCESS-KEY", apiKey);
+      headers.put("ACCESS-SIGN", signature);
+      headers.put("ACCESS-TIMESTAMP", timestamp);
+      headers.put("ACCESS-PASSPHRASE", passphrase);
+      headers.put("Content-Type", "application/json");
+      headers.put("locale", "en-US");
+
+      final HttpUtils.Response response = HttpUtils.get(url, headers, lastUsedProxy, PROXY_PORT, forceToUseProxy);
+      if (response != null) {
+        if (response.getCode() == 200 && response.getData().contains("00000")) {
+          return AccountMode.UNIFIED;
+        } else {
+          return AccountMode.CLASSIC;
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.error("Balance Bootstrap failed: " + e.getMessage());
+    }
+    return AccountMode.UNIFIED;
   }
 
   public String getBalanceSnapshot() {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/account/assets";
+      final String requestPath = apiVersionPrefix + "/account/assets";
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -89,7 +129,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "POST";
-      final String requestPath = "/api/v3/trade/place-order";
+      final String requestPath = apiVersionPrefix + "/trade/place-order";
 
       final StringBuilder bodyBuilder = new StringBuilder();
       bodyBuilder.append("{");
@@ -177,7 +217,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "POST";
-      final String requestPath = "/api/v3/trade/place-order";
+      final String requestPath = apiVersionPrefix + "/trade/place-order";
 
       final StringBuilder bodyBuilder = new StringBuilder();
       bodyBuilder.append("{");
@@ -271,7 +311,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/position/current-position?category=" + settleCoin + "-FUTURES";
+      final String requestPath = apiVersionPrefix + "/position/current-position?category=" + settleCoin + "-FUTURES";
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -306,7 +346,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/trade/unfilled-orders";
+      final String requestPath = apiVersionPrefix + "/trade/unfilled-orders";
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -340,7 +380,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/trade/unfilled-orders?productType=USDT-FUTURES";
+      final String requestPath = apiVersionPrefix + "/trade/unfilled-orders?productType=USDT-FUTURES";
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -373,7 +413,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/trade/order-info?symbol=" + symbol + "&clientOid=" + clientOrderId;
+      final String requestPath = apiVersionPrefix + "/trade/order-info?symbol=" + symbol + "&clientOid=" + clientOrderId;
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -421,7 +461,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "GET";
-      final String requestPath = "/api/v3/trade/order-info?symbol=" + symbol + "&clientOid=" + clientOrderId + "&productType=USDT-FUTURES";
+      final String requestPath = apiVersionPrefix + "/trade/order-info?symbol=" + symbol + "&clientOid=" + clientOrderId + "&productType=USDT-FUTURES";
       final String body = "";
 
       final String signature = generateSignature(timestamp, method, requestPath, body);
@@ -469,7 +509,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "POST";
-      final String requestPath = "/api/v3/trade/cancel-order";
+      final String requestPath = apiVersionPrefix + "/trade/cancel-order";
 
       final String body = "{\"symbol\":\"" + symbol + "\",\"clientOid\":\"" + clientOrderId + "\"}";
 
@@ -527,7 +567,7 @@ public class BitgetRestClient {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "POST";
-      final String requestPath = "/api/v3/trade/cancel-order";
+      final String requestPath = apiVersionPrefix + "/trade/cancel-order";
 
       final String body = "{\"symbol\":\"" + symbol + "\",\"clientOid\":\"" + clientOrderId + "\",\"productType\":\"USDT-FUTURES\"}";
 
@@ -1171,5 +1211,10 @@ public class BitgetRestClient {
     public final void setOffTime(final String offTime) {
       this.offTime = offTime;
     }
+  }
+
+  public enum AccountMode {
+    CLASSIC,
+    UNIFIED
   }
 }

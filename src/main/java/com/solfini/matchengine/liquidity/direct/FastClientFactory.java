@@ -11,6 +11,7 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClie
 import com.solfini.matchengine.liquidity.direct.aiGenerated.KrakenFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.KucoinFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.MexcFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.AccountMode;
 
 public class FastClientFactory {
   private static final boolean REST_ONLY = true;
@@ -43,8 +44,12 @@ public class FastClientFactory {
         return client;
       }
       case "BITGET": {
-        final BitgetFastClient client = new BitgetFastClient(externalSubscription.getApiKey(),
+        final AccountMode accountMode = BitgetFastClient.getAccountMode(externalSubscription.getApiKey(),
             externalSubscription.getApiSecret(), externalSubscription.getPassphrase(),
+            externalSubscription.getLastUsedProxy(), externalSubscription.isForceToUseProxy());
+        final String apiVersion = accountMode == AccountMode.CLASSIC ? "v2" : "v3";
+        final BitgetFastClient client = new BitgetFastClient(externalSubscription.getApiKey(),
+            externalSubscription.getApiSecret(), externalSubscription.getPassphrase(), apiVersion,
             externalSubscription, REST_ONLY);
         externalSubscription.setClient(client);
         client.start();
