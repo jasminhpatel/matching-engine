@@ -31,6 +31,7 @@ public class ExternalExchangeUtil {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(ExternalExchangeUtil.class);
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
 
+
   public final static String[] EXCHANGES = {
       "BINANCE", "BYBIT", "MEXC", "OKEX", "KRAKEN", "BITGET"
 /*      "BINANCE", "BITFINEX", "BITFLYER", "BITHUMB", "BITMEX",
@@ -295,9 +296,7 @@ public class ExternalExchangeUtil {
       specification.setUserName(subscription.getApiUser());
       specification.setApiKey(subscription.getApiKey());
       specification.setSecretKey(subscription.getApiSecret());
-      if ("BITGET".equalsIgnoreCase(subscription.getExchange())) {
-        specification.setPassword(subscription.getApiUser());
-      }
+      specification.setPassword(subscription.getPassphrase());
 
       if (PROXIES != null ) {
         if (subscription.getLastUsedProxy() == null) {
@@ -314,12 +313,12 @@ public class ExternalExchangeUtil {
         if (retryCount > 0) {//use a different proxy in the next attempt
           specification.setProxyHost(getRandomProxy(subscription));
         }
-        specification.setProxyPort(8888);
+        specification.setProxyPort(Context.getExternalExchangeProxyPort());
       }
     } else {
       if (PROXIES != null) {// always go through a proxy if exists
         specification.setProxyHost(getStickyProxy(System.currentTimeMillis()));
-        specification.setProxyPort(8888);
+        specification.setProxyPort(Context.getExternalExchangeProxyPort());
       }
     }
   }

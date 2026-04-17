@@ -279,6 +279,7 @@ public final class Context implements Constants {
   // todo added to handle the compile error. please review.
   private static final String KUCOIN_SPOT_REST = PropertyReader.getProperty("KUCOIN_SPOT_REST", "https://api.kucoin.com");
   private static final String KUCOIN_FUTURES_REST = PropertyReader.getProperty("KUCOIN_FUTURES_REST", "https://api-futures.kucoin.com");
+  private static final int EXTERNAL_EXCHANGE_PROXY_PORT =  PropertyReader.getProperty("EXTERNAL_EXCHANGE_PROXY_PORT", 8888);
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
@@ -1269,5 +1270,9 @@ public final class Context implements Constants {
 
   public static String getBybitExchangeBaseUrl() {
     return BYBIT_EXCHANGE_BASE_URL;
+  }
+
+  public static int getExternalExchangeProxyPort() {
+    return EXTERNAL_EXCHANGE_PROXY_PORT;
   }
 }

@@ -53,7 +53,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 public class Bitget {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(Bitget.class);
   public static final String BITGET = "bitget";
-  private static final int PROXY_PORT = 8888;
+  private static final int PROXY_PORT = Context.getExternalExchangeProxyPort();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> receiverToMatcherQueue = Context.getReceiverToMatcherQueue();
 

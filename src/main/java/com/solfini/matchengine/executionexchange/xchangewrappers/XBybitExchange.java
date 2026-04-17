@@ -33,7 +33,7 @@ import org.knowm.xchange.service.account.AccountService;
 public class XBybitExchange extends XExchange {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(XBybitExchange.class);
   private final ObjectMapper mapper = new ObjectMapper();
-  private static final int PROXY_PORT = 8888;
+  private static final int PROXY_PORT = Context.getExternalExchangeProxyPort();
 
   public XBybitExchange(Exchange exchange) {
     super(exchange);

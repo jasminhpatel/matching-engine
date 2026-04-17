@@ -48,7 +48,7 @@ import org.knowm.xchange.currency.CurrencyPair;
 public class Mexc {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(Mexc.class);
   public static final String MEXC = "mexc";
-  private static final int PROXY_PORT = 8888;
+  private static final int PROXY_PORT = Context.getExternalExchangeProxyPort();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> receiverToMatcherQueue = Context.getReceiverToMatcherQueue();
   /*

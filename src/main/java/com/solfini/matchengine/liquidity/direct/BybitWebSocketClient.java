@@ -38,7 +38,7 @@ public class BybitWebSocketClient extends WebSocketClient {
       return;
     }
     final String proxyIp = ExternalExchangeUtil.getStickyProxy(subscription.getId());
-    final Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyIp, 8888)); // OR Proxy.Type.SOCKS
+    final Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyIp, Context.getExternalExchangeProxyPort())); // OR Proxy.Type.SOCKS
     final Runnable wsTask = () -> {
       try {
         final BybitWebSocketClient client =

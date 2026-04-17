@@ -42,7 +42,7 @@ public class Binance {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(LiquidityOrderRouter.class);
   public static final String BINANCE = "binance";
   public static final String BYBIT = "bybit";
-  private static final int PROXY_PORT = 8888;
+  private static final int PROXY_PORT = Context.getExternalExchangeProxyPort();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
   private static final ManyToOneConcurrentArrayQueueCustom<Message> receiverToMatcherQueue = Context.getReceiverToMatcherQueue();
   /*

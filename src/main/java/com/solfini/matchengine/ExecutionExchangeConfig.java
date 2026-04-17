@@ -11,4 +11,5 @@ public interface ExecutionExchangeConfig {
   String getLastUsedProxy();
   void setLastUsedProxy(String lastUsedProxy);
   boolean isForceToUseProxy();
+  String getPassphrase();
 }
