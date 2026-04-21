@@ -10,6 +10,7 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -669,7 +670,8 @@ public class BitgetRestClient {
             headers.put("Content-Type", "application/json");
             headers.put("locale", "en-US");
 
-            final HttpUtils.Response response = HttpUtils.get(url, headers);
+            final HttpUtils.Response response = HttpUtils.get(url, headers, ExternalExchangeUtil.getStickyProxy(0),
+                Context.getExternalExchangeProxyPort(), true);
             if (response == null || response.getCode() != 200) {
                 LOGGER.warn("Get ticker failed for symbol: " + symbol + " status: " + (response != null ? response.getCode() : "null"));
                 return null;

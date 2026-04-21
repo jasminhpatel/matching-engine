@@ -81,6 +81,7 @@ public final class BitgetFastClient implements ExternalExchangeClient {
             startPeriodicAccountRefresh();
 
             if (restOnly) {
+                bootstrapBalanceSnapshot();
                 LOGGER.info("BitgetFastClient started in REST-only mode — WebSocket connections skipped");
                 return;
             }
