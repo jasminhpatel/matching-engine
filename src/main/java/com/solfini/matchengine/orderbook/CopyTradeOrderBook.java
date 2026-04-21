@@ -879,8 +879,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
 
         // set final values for price and qty
-        copyTradeOrder.setxQuantity(BigDecimal.valueOf(quantity));
-        copyTradeOrder.setxPrice(BigDecimal.valueOf(price));
+        copyTradeOrder.setxQuantity(BigDecimal.valueOf(quantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
+        copyTradeOrder.setxPrice(BigDecimal.valueOf(price).setScale(externalSymbol.getPriceScale(), RoundingMode.HALF_UP));
         copyTradeOrder.setTradeValue(signalTradeValue);
 
         try {
@@ -905,7 +905,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               //todo fill the below fields from response
               //copyTradeOrder.setExternalId();
               copyTradeOrder.setPriceScale(executionReport.getPriceScale());
-              copyTradeOrder.setPrice(executionReport.getPrice());
+              copyTradeOrder.setPrice(MbxMath.changeScale(executionReport.getAvgPx(), executionReport.getPriceScale()));
               copyTradeOrder.setAveragePrice(MbxMath.scaleDown(executionReport.getAvgPx(), executionReport.getPriceScale()));
               copyTradeOrder.setOriginalAmount(quantity);
               copyTradeOrder.setCumulativeAmount(MbxMath.scaleDown(executionReport.getCumQty(),
@@ -1580,9 +1580,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           price = MbxMath.roundUp(price, externalSymbol.getPriceScale());
         }
 
-        closeCopyTradeOrder.setxPrice(new BigDecimal(price));
+        closeCopyTradeOrder.setxPrice(new BigDecimal(price).setScale(externalSymbol.getPriceScale(), RoundingMode.HALF_UP));
         quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
-        closeCopyTradeOrder.setxQuantity(new BigDecimal(quantity));
+        closeCopyTradeOrder.setxQuantity(new BigDecimal(quantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
         closeCopyTradeOrder.setCumulativeAmount(quantity);
 
         try {
@@ -1607,7 +1607,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               //todo fill the below fields from response
               //closeCopyTradeOrder.setExternalId();
               closeCopyTradeOrder.setPriceScale(executionReport.getPriceScale());
-              closeCopyTradeOrder.setPrice(executionReport.getPrice());
+              closeCopyTradeOrder.setPrice(MbxMath.changeScale(executionReport.getAvgPx(), executionReport.getPriceScale()));
               closeCopyTradeOrder.setAveragePrice(MbxMath.scaleDown(executionReport.getAvgPx(), executionReport.getPriceScale()));
               closeCopyTradeOrder.setOriginalAmount(quantity);
               closeCopyTradeOrder.setCumulativeAmount(MbxMath.scaleDown(executionReport.getCumQty(),
