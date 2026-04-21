@@ -884,8 +884,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         copyTradeOrder.setTradeValue(signalTradeValue);
 
         try {
+          final User user = UserCache.get(copyTradeOrder.getUserId());
           final Order externalOrder = OrderObjectPool.get();
-          externalOrder.setUser(copyTradeOrder.getUser());
+          externalOrder.setUser(user);
+          externalOrder.setAccount(user.getId());
           externalOrder.setClOrdId(copyTradeOrder.getClOrdId());
           externalOrder.setSide(copyTradeOrder.getSide());
           externalOrder.setSymbol(externalSymbol.getSymbol());
@@ -1584,8 +1586,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         closeCopyTradeOrder.setCumulativeAmount(quantity);
 
         try {
+          final User user = UserCache.get(subscription.getUserId());
           final Order externalOrder = OrderObjectPool.get();
-          externalOrder.setUser(closeCopyTradeOrder.getUser());
+          externalOrder.setUser(user);
+          externalOrder.setAccount(user.getId());
           externalOrder.setClOrdId(closeCopyTradeOrder.getClOrdId());
           externalOrder.setSide(closeCopyTradeOrder.getSide());
           externalOrder.setSymbol(externalSymbol.getSymbol());
