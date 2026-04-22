@@ -7,6 +7,7 @@ import com.solfini.common.Message;
 import com.solfini.instrument.Position;
 
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
+import com.solfini.user.UserCache;
 import com.solfini.util.*;
 import com.solfini.util.blockchain.BlockchainSenderFactory;
 import com.solfini.util.blockchain.BlockchainTransactionSender;
@@ -14,8 +15,6 @@ import com.solfini.util.blockchain.model.PositionUpdateTransaction;
 import com.solfini.util.blockchain.util.BlockChainKeyManager;
 import com.solfini.util.snapshot.SnapConverter;
 import com.solfini.util.snapshot.SnapTransformer;
-import org.agrona.collections.Int2ObjectHashMap;
-import org.agrona.collections.Long2LongHashMap;
 import org.apache.commons.cli.*;
 import org.slf4j.event.Level;
 
@@ -57,6 +56,7 @@ public class PositionManagerSnapUpdater {
     LOGGER.info("Loading snap diff between previous: " + snapshotIdPrev + " new: " + snapshotIdNew);
     final List<Message> newUserPositions = loadSnap(args, newSnapFile);
     sb.append("Latest snap file loaded to memory. file: ").append(newSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    UserCache.clearUserCache();
     final List<Message> prevUserPositions = loadSnap(args, prevSnapFile);
     sb.append("Previous snap file loaded to memory. file: ").append(prevSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
