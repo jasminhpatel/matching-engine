@@ -329,6 +329,19 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 //            }
 
             if (openCopyTradeOrder.isSuccessful() && validSymbolToClose && !openCopyTradeOrder.isClosed() && !openCopyTradeOrder.isToClose()) {
+              ExchangeSubscription sub = openCopyTradeOrder.getSubscription();
+              if (sub == null) {
+                sub = InfluencerSubscriptionCache.get(openCopyTradeOrder.getSubscriptionId());
+                if (sub != null) {
+                  openCopyTradeOrder.setSubscription(sub);
+                }
+              }
+              if (!copyTradeSubscriptionActiveForClose(sub)) {
+                LOGGER.info(Constants.LOG_FMT_6, "Skip MP copy-trade close (subscription not active). subscriptionId: ",
+                    openCopyTradeOrder.getSubscriptionId(), " openClOrdId: ", openCopyTradeOrder.getClOrdId(), " signalClOrdId: ",
+                    order.getClOrdId());
+                continue;
+              }
               HashMap<String, CopyTradeOrder> pairWiseCopyTrades =
                   subscriptionWiseCopyTrades.getOrDefault(openCopyTradeOrder.getSubscriptionId(), new HashMap<>());
               subscriptionWiseCopyTrades.put(openCopyTradeOrder.getSubscriptionId(), pairWiseCopyTrades);
@@ -592,6 +605,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       //todo load from exchange using xExchange
       return null;
     }
+  }
+
+  /**
+   * {@code subscription_state.status == 1} (Marketprophit copy-trade only; liquidity uses
+   * {@link com.solfini.matchengine.liquidity.LiquiditySubscriptionCache} and does not use this order book).
+   */
+  private static boolean copyTradeSubscriptionActiveForClose(final ExchangeSubscription subscription) {
+    return subscription != null && subscription.getStatus() == 1;
   }
 
   public static class Router implements Runnable {
@@ -1506,7 +1527,6 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
 
       final String clOrdId = closeCopyTradeOrder.getClOrdId();
-      final ExchangeSubscription subscription = closeCopyTradeOrder.getSubscription();
       final long now = System.currentTimeMillis();
 
       if ((closeCopyTradeOrder.getSourceSendTime() + Context.getMaxDelayToCloseOrderInMs()) < now) {
@@ -1514,6 +1534,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             " processed: ", now);
 
         closeCopyTradeOrder.setResult("REJECTED: timeout.");
+        matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+
+        return;
+      }
+      final ExchangeSubscription subscription = closeCopyTradeOrder.getSubscription();
+      if (!copyTradeSubscriptionActiveForClose(subscription)) {
+        LOGGER.info(Constants.LOG_FMT_4, "Close rejected: MP copy-trade subscription not active. clOrdId: ", clOrdId, " subscriptionId: ",
+            closeCopyTradeOrder.getSubscriptionId());
+        closeCopyTradeOrder.setResult("REJECTED: subscription not active.");
+        closeCopyTradeOrder.setxExchange(null);
         matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
 
         return;
