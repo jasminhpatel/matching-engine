@@ -53,6 +53,7 @@ public class MarketDepthCache {
   }
 
   public static String getBestQuoteCurrency(final String exchange, final String base, final Side side, final boolean futuresEnabled) {
+    LOGGER.info(LOG_FMT_8, " exchange: ", exchange, " base: ", base, " side: ", side.name(), " futuresEnabled: ", futuresEnabled);
     MarketDepth usdDepth = null, usdcDepth = null, usdtDepth = null;
     if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USD, futuresEnabled)) {
       final String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
