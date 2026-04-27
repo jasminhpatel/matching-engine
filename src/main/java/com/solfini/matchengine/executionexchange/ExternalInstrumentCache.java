@@ -99,11 +99,11 @@ public class ExternalInstrumentCache implements Constants{
     final String key = (exchange + "_" + (isFutures ? "1" :"2") + "_" + base + "_" + quoted).toLowerCase();
     final ExternalSymbol status = EXTERNAL_SYMBOL_CACHE.get(key);
     LOGGER.info(Constants.LOG_FMT_6, "Is tradable. key: ", key, " tradable: ", (status != null && status.isTradable()), " exchangeSymbol: ", status);
-    if (status == null) {
+/*    if (status == null) {
       for (String key1: EXTERNAL_SYMBOL_CACHE.keySet()) {
         LOGGER.info("key: " + key1);
       }
-    }
+    }*/
     return status != null && status.isTradable();
   }
 
