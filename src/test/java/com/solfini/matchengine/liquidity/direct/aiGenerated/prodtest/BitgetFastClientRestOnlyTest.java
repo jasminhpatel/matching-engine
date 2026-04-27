@@ -1,6 +1,8 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.prodtest;
 
 import static com.solfini.common.Constants.ADL_MAKER_ONLY;
+import static com.solfini.common.Constants.USDC;
+import static com.solfini.matchengine.executionexchange.ExternalInstrumentCache.PRICE_PERCENTAGE_SCALE;
 
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -25,6 +27,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
+import com.solfini.util.MbxMath;
 import com.solfini.util.PoolSize;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.TimeUtil;
@@ -60,8 +63,13 @@ public class BitgetFastClientRestOnlyTest {
     final LoggingThread loggingThread = Context.getLoggingThread();
     new Thread(loggingThread, "loggingThread").start();
 
-    final Instrument usdt = new Instrument(1, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,
+    final Instrument usdc = new Instrument(1, "USDC", "USDC", (short) 2, (short) 6, 1, 1000, 0,
         false, 1, Sector.NOT_DEFINED);
+    usdc.setIndexFeedUsdMark(1);
+    InstrumentCache.addInstrument(usdc);
+
+    final Instrument usdt = new Instrument(2, "USDT", "USDT", (short) 2, (short) 6, 1, 1000, 0,
+        false, 2, Sector.NOT_DEFINED);
     usdt.setIndexFeedUsdMark(1);
     InstrumentCache.addInstrument(usdt);
     final User user = new User(100);
@@ -75,10 +83,25 @@ public class BitgetFastClientRestOnlyTest {
 
     ExchangeSubscription subscription = getBitgetSpotAccount();
     final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
-    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
+/*    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
     System.out.println(ticker.toString());
+    Side side = Side.BUY;
+    double price = ticker.getPrice(side);
+    long openPricePercentage = externalSymbol.getOpenPricePercentage();
+    System.out.println(price);
+    System.out.println(openPricePercentage);
+    double totalStableCoinBalance = subscription.getTotalStableCoinBalance();
+    System.out.println(totalStableCoinBalance);
+    if (Side.SELL == side) {
+      price = price - (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      price = MbxMath.roundDown(price, externalSymbol.getPriceScale());
+    } else {
+      double price2 = price + (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      price2 = MbxMath.roundUp(price2, externalSymbol.getPriceScale());
 
-
+      System.out.println((price2 - price)/price);
+    }
+    System.out.println("Price 1: " + price);*/
   }
 
   static void printCache(ExchangeSubscription futureSegmentSubscription) {
@@ -235,12 +258,15 @@ public class BitgetFastClientRestOnlyTest {
     ExternalSymbol externalSymbol = new ExternalSymbol();
     externalSymbol.setId(1);
     externalSymbol.setExchange("bitget");
-    externalSymbol.setSymbol("BTCUSDT");
-    externalSymbol.setBase("BTC");
+    externalSymbol.setSymbol("ADAUSDT");
+    externalSymbol.setBase("ADA");
     externalSymbol.setQuote("USDT");
     //externalSymbol.setPrompt("btc");
     externalSymbol.setFutures(false);
     externalSymbol.setTradable(true);
+    externalSymbol.setOpenPricePercentage(10_000);
+    externalSymbol.setClosePricePercentage(5_000);
+    externalSymbol.setPriceScale(4);
 
     return externalSymbol;
   }
