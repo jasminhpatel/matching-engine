@@ -83,7 +83,7 @@ public class ExternalInstrumentCache implements Constants{
   }
 
   public static ExternalSymbol getSymbolStatus(final String exchange, final String base, final String quoted, final boolean isFutures) {
-    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"2")).toLowerCase();
+    final String key = (exchange + "_" + (isFutures ? "1" :"2") + "_" + base + "_" + quoted).toLowerCase();
     return EXTERNAL_SYMBOL_CACHE.get(key);
   }
 
@@ -96,7 +96,7 @@ public class ExternalInstrumentCache implements Constants{
   }
 
   public static boolean isTradeableOnExchange(final String exchange, final String base, final String quoted, final boolean isFutures) {
-    final String key = (exchange + "_" + base + "/" + quoted + "_" + (isFutures ? "1" :"2")).toLowerCase();
+    final String key = (exchange + "_" + (isFutures ? "1" :"2") + "_" + base + "_" + quoted).toLowerCase();
     final ExternalSymbol status = EXTERNAL_SYMBOL_CACHE.get(key);
     LOGGER.info(Constants.LOG_FMT_6, "Is tradable. key: ", key, " tradable: ", (status != null && status.isTradable()), " exchangeSymbol: ", status);
     if (status == null) {
