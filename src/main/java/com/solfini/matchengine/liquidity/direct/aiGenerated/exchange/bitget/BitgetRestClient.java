@@ -1216,7 +1216,7 @@ public class BitgetRestClient {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public class BitgetContractInfoFull {
+  public static class BitgetContractInfoFull {
 
     @JsonProperty("data")
     private List<BitgetContractInfo> contracts;
@@ -1231,7 +1231,7 @@ public class BitgetRestClient {
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public class BitgetContractInfo {
+  public static class BitgetContractInfo {
 
     @JsonProperty("symbol")
     private String symbol;
