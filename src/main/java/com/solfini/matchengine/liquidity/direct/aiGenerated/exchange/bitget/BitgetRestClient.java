@@ -1215,6 +1215,61 @@ public class BitgetRestClient {
     }
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public class BitgetContractInfoFull {
+
+    @JsonProperty("data")
+    private List<BitgetContractInfo> contracts;
+
+    public List<BitgetContractInfo> getContracts() {
+      return contracts;
+    }
+
+    public void setContracts(List<BitgetContractInfo> contracts) {
+      this.contracts = contracts;
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public class BitgetContractInfo {
+
+    @JsonProperty("symbol")
+    private String symbol;
+
+    @JsonProperty("baseCoin")
+    private String baseCoin;
+
+    @JsonProperty("quoteCoin")
+    private String quoteCoin;
+
+    @JsonProperty("symbolStatus")
+    private String symbolStatus;
+
+    @JsonProperty("pricePlace")
+    private String pricePlace;
+
+    @JsonProperty("volumePlace")
+    private String volumePlace;
+
+    public String getSymbol() { return symbol; }
+    public void setSymbol(String symbol) { this.symbol = symbol; }
+
+    public String getBaseCoin() { return baseCoin; }
+    public void setBaseCoin(String baseCoin) { this.baseCoin = baseCoin; }
+
+    public String getQuoteCoin() { return quoteCoin; }
+    public void setQuoteCoin(String quoteCoin) { this.quoteCoin = quoteCoin; }
+
+    public String getSymbolStatus() { return symbolStatus; }
+    public void setSymbolStatus(String symbolStatus) { this.symbolStatus = symbolStatus; }
+
+    public String getPricePlace() { return pricePlace; }
+    public void setPricePlace(String pricePlace) { this.pricePlace = pricePlace; }
+
+    public String getVolumePlace() { return volumePlace; }
+    public void setVolumePlace(String volumePlace) { this.volumePlace = volumePlace; }
+  }
+
   public enum AccountMode {
     CLASSIC,
     UNIFIED

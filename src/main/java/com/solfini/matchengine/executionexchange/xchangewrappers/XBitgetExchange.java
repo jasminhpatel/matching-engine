@@ -1,5 +1,6 @@
 package com.solfini.matchengine.executionexchange.xchangewrappers;
 
+import static com.solfini.common.Constants.TARDIS_PERPS;
 import static com.solfini.common.Constants.TARDIS_SPOT;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -8,12 +9,15 @@ import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.BitgetContractInfo;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.BitgetContractInfoFull;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.BitgetExchangeInfoFull;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetRestClient.BitgetSymbolInfo;
 import com.solfini.util.HttpUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.knowm.xchange.Exchange;
 
 public class XBitgetExchange extends XExchange {
@@ -25,6 +29,7 @@ public class XBitgetExchange extends XExchange {
   }
 
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
+    final List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
     HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v2/spot/public/symbols", new HashMap<>());
     if (response != null && response.getCode() == 200) {
@@ -32,7 +37,7 @@ public class XBitgetExchange extends XExchange {
         final BitgetExchangeInfoFull info = mapper.readValue(response.getData(), BitgetExchangeInfoFull.class);
         final long updated = System.currentTimeMillis();
         if (info.getSymbols() != null) {
-          List<ExternalSymbol> symbolStatuses = new ArrayList<>();
+
           for (BitgetSymbolInfo bitgetSymbolInfo : info.getSymbols()) {
             final ExternalSymbol symbolStatus = new ExternalSymbol();
             symbolStatus.setExchange("bitget");
@@ -56,13 +61,55 @@ public class XBitgetExchange extends XExchange {
             symbolStatus.setUpdated(updated);
             symbolStatuses.add(symbolStatus);
           }
-          return symbolStatuses;
         }
       } catch (JsonProcessingException e) {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    return null;
+
+    // ── Perps (USDT + USDC) ───────────────────────────────────────────────────
+    for (String productType : List.of("usdt-futures", "usdc-futures")) {
+      HttpUtils.Response perpResponse = HttpUtils.get(
+          apiUrl + "/api/v2/mix/market/contracts?productType=" + productType,
+          new HashMap<>());
+
+      if (perpResponse != null && perpResponse.getCode() == 200) {
+        final long updated = System.currentTimeMillis();
+        try {
+          final BitgetContractInfoFull contractInfo = mapper.readValue(perpResponse.getData(),
+              BitgetContractInfoFull.class);
+          if (contractInfo.getContracts() != null) {
+            for (BitgetContractInfo bitgetContractInfo : contractInfo.getContracts()) {
+              final ExternalSymbol symbolStatus = new ExternalSymbol();
+              symbolStatus.setExchange("bitget");
+              symbolStatus.setSymbol(bitgetContractInfo.getSymbol());
+              symbolStatus.setBase(bitgetContractInfo.getBaseCoin());
+              symbolStatus.setQuote(bitgetContractInfo.getQuoteCoin());
+              symbolStatus.setPrompt(bitgetContractInfo.getSymbol());
+              symbolStatus.setFutures(true);
+              symbolStatus.setInstrumentType(TARDIS_PERPS);
+              symbolStatus.setTradable(
+                  "normal".equalsIgnoreCase(bitgetContractInfo.getSymbolStatus()));
+              try {
+                symbolStatus.setPriceScale(Integer.parseInt(bitgetContractInfo.getPricePlace()));
+              } catch (NumberFormatException e) {
+                symbolStatus.setPriceScale(8);
+              }
+              try {
+                symbolStatus.setQtyScale(Integer.parseInt(bitgetContractInfo.getVolumePlace()));
+              } catch (NumberFormatException e) {
+                symbolStatus.setQtyScale(8);
+              }
+              symbolStatus.setUpdated(updated);
+              symbolStatuses.add(symbolStatus);
+            }
+          }
+        } catch (JsonProcessingException e) {
+          LOGGER.error(Constants.ERROR_LOG, e);
+        }
+      }
+    }
+    return symbolStatuses;
   }
 
   public static void main(final String[] args) {
