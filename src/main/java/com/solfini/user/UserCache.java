@@ -151,6 +151,13 @@ public class UserCache implements Constants {
     return userArr;
   }
 
+  public static void clearUserCache() {
+    for (int i = 0; i < userArr.length; i++) {
+      userArr[i] = new User(i);
+      userArr[i].setActive(false);
+    }
+  }
+
   public static final void add(final UserAdminMessage userAdminMessage) {
 
     UserAdminMessage message = userAdminMessage;
