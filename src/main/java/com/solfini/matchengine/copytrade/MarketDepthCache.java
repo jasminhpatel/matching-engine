@@ -6,11 +6,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.db.DBManager;
 import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.sbe.encoder.Side;
 import com.solfini.util.HttpUtils;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,6 +31,15 @@ public class MarketDepthCache {
   private static final String COIN_MARKET_CAP_API_KEY = Context.getCoinMarketCapApiKey();
   private static final ConcurrentHashMap<String, MarketDepth> MARKET_DEPTH = new ConcurrentHashMap<>();
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final String UPSERT_SQL = """
+        INSERT INTO coin_market_cap_depth (exchangeName, baseSymbol, quoteSymbol, category, depthUsdNegativeTwo, depthUsdPositiveTwo, updated)
+        VALUES (?, ?, ?, ?, ?, ?, now())
+        ON CONFLICT (exchangeName, baseSymbol, quoteSymbol, category)
+        DO UPDATE SET
+            depthUsdNegativeTwo = EXCLUDED.depthUsdNegativeTwo,
+            depthUsdPositiveTwo = EXCLUDED.depthUsdPositiveTwo,
+            updated = now()
+        """;
 
   public static void onLoad(final MarketDepth marketDepth) {
     final String key = (marketDepth.exchangeName + "_" + marketDepth.baseSymbol + "_" + marketDepth.quoteSymbol + "_" + marketDepth.category).toLowerCase();
@@ -88,6 +102,7 @@ public class MarketDepthCache {
     headers.put(COIN_MARKET_CAP_API_HEADER, COIN_MARKET_CAP_API_KEY);
 
     for (String exchangeSlug : EXCHANGE_SLUGS) {
+      final List<MarketDepth> marketDepths = new ArrayList<>();
       int total = 0, loaded = 0;
       int limit = 500;
       int skip = 1;
@@ -106,6 +121,7 @@ public class MarketDepthCache {
               total = depthResponse.data.numMarketPairs;
               for (MarketDepth data : depthResponse.data.marketPairs) {
                 onLoad(data);
+                marketDepths.add(data);
                 loaded++;
               }
             }
@@ -123,12 +139,64 @@ public class MarketDepthCache {
         LOGGER.error(ERROR_LOG, e);
         e.printStackTrace();
       }
+      if (!marketDepths.isEmpty()) {
+        try {
+          upsertBatch(marketDepths);
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, e);
+        }
+      }
       LOGGER.info(LOG_FMT_5, "MarketDepthCache.loadFromCoinMarketCap Exchange: ", exchangeSlug, (long) loaded, ", time=", System.currentTimeMillis() - t0);
     }
 
     if (loaderCounter != null) {
       int id = loaderCounter.decrementAndGet();
       LOGGER.info("MarketDepthCache loaded. " + id);
+    }
+  }
+
+  public static void upsertBatch(List<MarketDepth> marketDepths) {
+    final long t0 = System.currentTimeMillis();
+
+    try (final Connection conn = DBManager.getConnection();
+        final PreparedStatement ps = conn.prepareStatement(UPSERT_SQL)) {
+
+      conn.setAutoCommit(false);
+
+      try {
+        int count = 0;
+        for (final MarketDepth depth : marketDepths) {
+          ps.setString(1, depth.getExchangeName());
+          ps.setString(2, depth.getBaseSymbol());
+          ps.setString(3, depth.getQuoteSymbol());
+          ps.setString(4, depth.getCategory());
+          ps.setDouble(5, depth.getDepthUsdNegativeTwo());
+          ps.setDouble(6, depth.getDepthUsdPositiveTwo());
+          ps.addBatch();
+          count++;
+
+          if (count % 500 == 0) {
+            ps.executeBatch();
+            conn.commit();
+          }
+        }
+
+        ps.executeBatch();
+        conn.commit();
+
+        LOGGER.info("MarketDepth upsertBatch complete, count={}, time={}ms", count, System.currentTimeMillis() - t0);
+
+      } catch (final Exception e) {
+        conn.rollback();  // undo any uncommitted changes
+        LOGGER.error("error during upsertBatch, rolling back", e);
+        e.printStackTrace();
+      } finally {
+        conn.setAutoCommit(true);  // always restore before returning to pool
+      }
+
+    } catch (final Exception e) {
+      LOGGER.error("error acquiring connection", e);
+      e.printStackTrace();
     }
   }
 

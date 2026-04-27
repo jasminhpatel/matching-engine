@@ -1333,3 +1333,14 @@ CREATE TABLE reconciliation_state (
    alter table asset_details_state add    floorPrice double precision;
    alter table asset_details_state add    ceilingPrice double precision;
 
+
+CREATE TABLE coin_market_cap_depth (
+    exchangeName varchar(64) NOT NULL,
+    baseSymbol varchar(64) NOT NULL,
+    quoteSymbol varchar(64) NOT NULL,
+    category varchar(64) NOT NULL,
+    depthUsdNegativeTwo double precision DEFAULT 0,
+    depthUsdPositiveTwo double precision DEFAULT 0,
+    updated timestamp DEFAULT now(),
+    PRIMARY KEY (exchangeName, baseSymbol, quoteSymbol, category)
+);
