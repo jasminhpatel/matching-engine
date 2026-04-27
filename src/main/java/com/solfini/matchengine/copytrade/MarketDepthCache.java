@@ -57,14 +57,17 @@ public class MarketDepthCache {
     if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USD, futuresEnabled)) {
       final String keyUSD = (exchange + "_" + base + "_usd_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
       usdDepth = MARKET_DEPTH.get(keyUSD);
+      LOGGER.info(LOG_FMT_1, "keyUSD: " + keyUSD + " depth: " + usdDepth);
     }
     if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDC, futuresEnabled)) {
       final String keyUSDC = (exchange + "_" + base + "_usdc_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
       usdcDepth = MARKET_DEPTH.get(keyUSDC);
+      LOGGER.info(LOG_FMT_1, "keyUSDC: " + keyUSDC + " depth: " + usdcDepth);
     }
     if (ExternalInstrumentCache.isTradeableOnExchange(exchange, base, USDT, futuresEnabled)) {
       final String keyUSDT = (exchange + "_" + base + "_usdt_" + (futuresEnabled ? "perpetual" : "spot")).toLowerCase();
       usdtDepth = MARKET_DEPTH.get(keyUSDT);
+      LOGGER.info(LOG_FMT_1, "keyUSDT: " + keyUSDT + " depth: " + usdtDepth);
     }
 
     MarketDepth bestDepth = getBestDepth(usdDepth, usdcDepth, side);
