@@ -1,5 +1,11 @@
 package com.solfini.matchengine.liquidity.direct;
 
+import static com.solfini.matchengine.executionexchange.ExternalExchangeUtil.getStickyProxy;
+import static com.solfini.matchengine.liquidity.ExchangeSubscription.CONNECTION_VIA_DIRECT;
+
+import com.solfini.common.Context;
+import com.solfini.common.ManyToOneConcurrentArrayQueueCustom;
+import com.solfini.common.Message;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.BinanceFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.BitgetFastClient;
@@ -15,9 +21,22 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.Bitg
 
 public class FastClientFactory {
   private static final boolean REST_ONLY = true;
+  private static final ManyToOneConcurrentArrayQueueCustom<Message> matcherToPublisherQueue = Context.getMatcherToPublisherQueue();
 
   public static ExternalExchangeClient createRestOnlyClient(final ExchangeSubscription externalSubscription) {
     if (externalSubscription.getExchange() == null) return null;
+
+    if (externalSubscription.getLastUsedProxy() == null) {
+      if (externalSubscription.getConnectionType() == CONNECTION_VIA_DIRECT) {
+        //assign a sticky proxy per user because an exchange account can be shared among multiple subscriptions by the same user
+        externalSubscription.setLastUsedProxy(getStickyProxy(externalSubscription.getUserId()));
+        //to persist lastUsedProxy
+        matcherToPublisherQueue.addGuaranteed(externalSubscription);
+      } else {
+        externalSubscription.setLastUsedProxy(getStickyProxy(1));
+      }
+    }
+
 
     switch (externalSubscription.getExchange().toUpperCase()) {
       case "BINANCE": {
