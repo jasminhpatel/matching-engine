@@ -41,18 +41,14 @@ public final class BitgetFastClient implements ExternalExchangeClient {
     private volatile Thread accountRefreshThread;
     private volatile boolean isAccountRefreshRunning = false;
 
-    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase, final String apiVersion, final ExchangeSubscription subscription) {
-        this(apiKey, secretKey, passphrase, apiVersion, subscription, false);
-    }
-
-    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase, final String apiVersion,
+    public BitgetFastClient(final String apiKey, final String secretKey, final String passphrase,
                             final ExchangeSubscription subscription, final boolean restOnly) {
         this.restOnly = restOnly;
         this.apiKey = apiKey;
         this.secretKey = secretKey;
         this.passphrase = passphrase;
         this.subscription = subscription;
-        this.bitgetRestClient = new BitgetRestClient(apiKey, secretKey, passphrase, apiVersion, subscription);
+        this.bitgetRestClient = new BitgetRestClient(apiKey, secretKey, passphrase, subscription);
         this.tradeListener = restOnly ? null : new BitgetTradeListener(apiKey, secretKey, passphrase, subscription);
     }
 

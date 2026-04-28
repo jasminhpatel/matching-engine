@@ -90,7 +90,7 @@ public class LiquiditySubscriptionCache {
           client.start();
         } else if ("BITGET".equalsIgnoreCase(subscription.getExchange())) {
           final BitgetFastClient client = new BitgetFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription.getPassphrase(), "v3", subscription);// use default v3
+              subscription.getApiSecret(), subscription.getPassphrase(), subscription, false);// use default v3
           registerClients.add(client);
           subscription.setClient(client);
           client.start();

@@ -68,7 +68,7 @@ public class FastClientFactory {
             externalSubscription.getLastUsedProxy(), externalSubscription.isForceToUseProxy());
         final String apiVersion = accountMode == AccountMode.CLASSIC ? "v2" : "v3";
         final BitgetFastClient client = new BitgetFastClient(externalSubscription.getApiKey(),
-            externalSubscription.getApiSecret(), externalSubscription.getPassphrase(), apiVersion,
+            externalSubscription.getApiSecret(), externalSubscription.getPassphrase(),
             externalSubscription, REST_ONLY);
         externalSubscription.setClient(client);
         client.start();

@@ -916,6 +916,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           externalOrder.setTimeInForce(copyTradeOrder.getTimeInForce());
           externalOrder.setPrice(MbxMath.changeScaleWithRounding(price, externalSymbol.getPriceScale()), (short) externalSymbol.getPriceScale());
           externalOrder.setQty(MbxMath.changeScaleWithRounding(quantity, externalSymbol.getQtyScale()), (short) externalSymbol.getQtyScale());
+          externalOrder.setToClose(copyTradeOrder.isToClose());
 
           ExecutionReportMessage executionReport = subscription.getClient().sendOrder(externalOrder,
               subscription.isFuturesEnabled(), quotedSymbol, baseSymbol, externalSymbol.getPriceScale(),
