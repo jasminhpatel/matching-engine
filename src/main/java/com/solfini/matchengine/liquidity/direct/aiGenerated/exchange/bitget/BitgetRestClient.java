@@ -218,7 +218,7 @@ public class BitgetRestClient {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
       final String method = "POST";
       final String requestPath = "/api/v3/trade/place-order";
-      boolean hedgeMode = true;
+      boolean hedgeMode = false;
       String category = "USDT-FUTURES";
       if (symbol.toLowerCase().endsWith("USDC")) {
         category = "USDC-FUTURES";
