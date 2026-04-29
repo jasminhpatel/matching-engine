@@ -6,6 +6,7 @@ import static com.solfini.common.Constants.TARDIS_SPOT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
@@ -28,7 +29,8 @@ public class XMEXCExchange extends XExchange {
 
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final MEXCExchangeInfoFull info = mapper.readValue(response.getData(), MEXCExchangeInfoFull.class);

@@ -644,7 +644,8 @@ public class BitgetRestClient {
   }
 
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
-    HttpUtils.Response response = HttpUtils.get(REST_API_BASE + "/api/v2/spot/public/symbols", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(REST_API_BASE + "/api/v2/spot/public/symbols", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BitgetExchangeInfoFull info = MAPPER.readValue(response.getData(), BitgetExchangeInfoFull.class);

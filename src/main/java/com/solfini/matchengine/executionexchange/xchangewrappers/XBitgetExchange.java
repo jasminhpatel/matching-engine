@@ -6,6 +6,7 @@ import static com.solfini.common.Constants.TARDIS_SPOT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
@@ -31,7 +32,8 @@ public class XBitgetExchange extends XExchange {
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     final List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v2/spot/public/symbols", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v2/spot/public/symbols", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BitgetExchangeInfoFull info = mapper.readValue(response.getData(), BitgetExchangeInfoFull.class);
@@ -71,7 +73,7 @@ public class XBitgetExchange extends XExchange {
     for (String productType : List.of("usdt-futures", "usdc-futures")) {
       HttpUtils.Response perpResponse = HttpUtils.get(
           apiUrl + "/api/v2/mix/market/contracts?productType=" + productType,
-          new HashMap<>());
+          new HashMap<>(), ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
 
       if (perpResponse != null && perpResponse.getCode() == 200) {
         final long updated = System.currentTimeMillis();

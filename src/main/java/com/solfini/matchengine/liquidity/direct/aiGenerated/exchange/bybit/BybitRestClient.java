@@ -8,6 +8,7 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -790,7 +791,8 @@ public class BybitRestClient {
 
     public List<ExternalSymbol> getExchangeInstrumentsFull() {
     List<ExternalSymbol> symbolStatuses = new ArrayList<>();
-    HttpUtils.Response response = HttpUtils.get(MAINNET_BASE_URL + "/v5/market/instruments-info?category=spot", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(MAINNET_BASE_URL + "/v5/market/instruments-info?category=spot", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final ByBitExchangeInfoFull info = MAPPER.readValue(response.getData(), ByBitExchangeInfoFull.class);
@@ -816,7 +818,8 @@ public class BybitRestClient {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    response = HttpUtils.get(MAINNET_BASE_URL + "/v5/market/instruments-info?category=linear&limit=1000", new HashMap<>());
+    response = HttpUtils.get(MAINNET_BASE_URL + "/v5/market/instruments-info?category=linear&limit=1000", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final ByBitExchangeInfoFull info = MAPPER.readValue(response.getData(), ByBitExchangeInfoFull.class);

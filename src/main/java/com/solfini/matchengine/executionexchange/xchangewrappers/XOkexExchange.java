@@ -8,8 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.ExecutionExchangeConfig;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
@@ -38,7 +40,7 @@ public class XOkexExchange extends XExchange {
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
     HttpUtils.Response response =
-        HttpUtils.get(apiUrl + "/api/v5/public/instruments?instType=" + (futures ? "SWAP" : "SPOT"), new HashMap<>());
+        HttpUtils.get(apiUrl + "/api/v5/public/instruments?instType=" + (futures ? "SWAP" : "SPOT"), new HashMap<>(), ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final XOkexExchange.OkexExchangeInfoFull info = mapper.readValue(response.getData(), XOkexExchange.OkexExchangeInfoFull.class);

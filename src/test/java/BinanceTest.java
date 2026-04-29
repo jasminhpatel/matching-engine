@@ -1,4 +1,5 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solfini.common.Context;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.executionexchange.xchangewrappers.XExchange;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
@@ -148,7 +149,7 @@ public class BinanceTest {
   public static List<ExternalSymbol> getExchangeInstrumentsFull() {
     List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = new BinanceExchange().getDefaultExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>(), ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
 /*    if (response != null && response.getCode() == 200) {
       try {
         final XBinanceExchange.BinanceExchangeInfoFull info = mapper.readValue(response.getData(), XBinanceExchange.BinanceExchangeInfoFull.class);
@@ -172,7 +173,7 @@ public class BinanceTest {
         e.printStackTrace();
       }
     }*/
-    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>());
+    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>(), ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);

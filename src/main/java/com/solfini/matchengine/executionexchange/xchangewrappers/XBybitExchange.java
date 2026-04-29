@@ -43,7 +43,8 @@ public class XBybitExchange extends XExchange {
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=spot", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=spot", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final ByBitExchangeInfoFull info = mapper.readValue(response.getData(), ByBitExchangeInfoFull.class);
@@ -70,7 +71,8 @@ public class XBybitExchange extends XExchange {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=linear&limit=1000", new HashMap<>());
+    response = HttpUtils.get(apiUrl + "/v5/market/instruments-info?category=linear&limit=1000", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final ByBitExchangeInfoFull info = mapper.readValue(response.getData(), ByBitExchangeInfoFull.class);

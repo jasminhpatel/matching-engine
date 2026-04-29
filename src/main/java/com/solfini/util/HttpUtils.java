@@ -38,7 +38,7 @@ import javax.net.ssl.SSLSocketFactory;
 public class HttpUtils {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(HttpUtils.class);
 
-    public static Response get(final String httpsURL, final Map<String, Object> headers) {
+    public static Response get1(final String httpsURL, final Map<String, Object> headers) {
         return get(httpsURL, headers, null, 0, false);
     }
 

@@ -5,6 +5,7 @@ import static com.solfini.common.Constants.TARDIS_SPOT;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.ExecutionExchangeConfig;
 import com.solfini.matchengine.copytrade.CopyTradeOrder;
@@ -53,7 +54,8 @@ public class XBinanceExchange extends XExchange {
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     final List<ExternalSymbol> symbolStatuses = new ArrayList<>();
     final String apiUrl = exchange.getExchangeSpecification().getSslUri();
-    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(apiUrl + "/api/v3/exchangeInfo", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);
@@ -92,7 +94,8 @@ public class XBinanceExchange extends XExchange {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>());
+    response = HttpUtils.get(BinanceExchange.FUTURES_URL + "/fapi/v1/exchangeInfo", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = mapper.readValue(response.getData(), BinanceExchangeInfoFull.class);

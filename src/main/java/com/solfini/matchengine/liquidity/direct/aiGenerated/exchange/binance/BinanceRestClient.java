@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -567,7 +568,8 @@ public class BinanceRestClient {
     public List<ExternalSymbol> getExchangeInstrumentsFull() {
     // todo optimize Json handling
     final List<ExternalSymbol> symbolStatuses = new ArrayList<>();
-    HttpUtils.Response response = HttpUtils.get(REST_SPOT_BASE + "/api/v3/exchangeInfo", new HashMap<>());
+    HttpUtils.Response response = HttpUtils.get(REST_SPOT_BASE + "/api/v3/exchangeInfo", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = MAPPER.readValue(response.getData(), BinanceExchangeInfoFull.class);
@@ -605,7 +607,8 @@ public class BinanceRestClient {
         LOGGER.error(Constants.ERROR_LOG, e);
       }
     }
-    response = HttpUtils.get(REST_FUTURE_BASE + "/fapi/v1/exchangeInfo", new HashMap<>());
+    response = HttpUtils.get(REST_FUTURE_BASE + "/fapi/v1/exchangeInfo", new HashMap<>()
+        , ExternalExchangeUtil.getStickyProxy(0), Context.getExternalExchangeProxyPort(), true);
     if (response != null && response.getCode() == 200) {
       try {
         final BinanceExchangeInfoFull info = MAPPER.readValue(response.getData(), BinanceExchangeInfoFull.class);
