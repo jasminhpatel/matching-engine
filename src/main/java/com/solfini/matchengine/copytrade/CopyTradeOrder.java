@@ -449,12 +449,8 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     this.openOrder = openOrder;
   }
 
-  public final List<CopyTradeOrder> getOpenOrders() {
+  public final List<CopyTradeOrder> getOpenOrders1() {
     return openOrders;
-  }
-
-  public final void setOpenOrders(final List<CopyTradeOrder> openOrders) {
-    this.openOrders = openOrders;
   }
 
   public final XExchange getxExchange() {

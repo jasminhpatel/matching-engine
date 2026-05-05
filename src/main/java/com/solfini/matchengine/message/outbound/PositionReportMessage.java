@@ -40,7 +40,7 @@ public class PositionReportMessage extends Message implements Constants {
 
   public static PositionReportMessage createPositionReportMessage(final int txnType, final User user, final String senderCompId,
       final Position[] positions, final int positionsLength, final long execId, final long orderId) {
-    LOGGER.debug(LOG_FMT_2, "createPositionReportMessage=", positionsLength);
+    //LOGGER.debug(LOG_FMT_2, "createPositionReportMessage=", positionsLength);
     return createPositionReportMessage(PositionReportObjectPool.get(), txnType, user, senderCompId, positions, positionsLength, execId,
         orderId);
   }
