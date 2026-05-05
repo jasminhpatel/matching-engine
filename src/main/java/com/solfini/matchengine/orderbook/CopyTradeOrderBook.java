@@ -1586,7 +1586,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           //openCopyTradeOrder.setInstrument(instrument);
           //if open order status is not updated.
           if (!ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
-            updateOrderStatus(openCopyTradeOrder);
+            updateOrderStatusDirect(openCopyTradeOrder, subscription);
           }
           if (!(openCopyTradeOrder.getStatus() != null && openCopyTradeOrder.getStatus().contains(ORDER_STATUS_FILLED))) {
             LOGGER.warn(Constants.LOG_FMT_4, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ",
@@ -1869,6 +1869,69 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           matcherToPublisherQueue.addGuaranteed(subscription);
         }
       }
+      LOGGER.info(Constants.LOG_FMT_2, "Copy trade (status update) failed. clOrdId: ", copyTradeOrder.getClOrdId(), " symbol: ",
+          copyTradeOrder.getBaseSymbol().toUpperCase(), "/", copyTradeOrder.getQuotedSymbol().toUpperCase(), " side: ", copyTradeOrder.getSide().name(),
+          " quantity: ", copyTradeOrder.getxQuantity(), " price: ", copyTradeOrder.getxPrice(), " orderId:", copyTradeOrder.getExternalId(), " result: ",
+          copyTradeOrder.getResult());
+
+    }
+
+    private void updateOrderStatusDirect(final CopyTradeOrder copyTradeOrder, final ExchangeSubscription subscription) throws Exception {
+
+      final String prevStatus = copyTradeOrder.getStatus();
+      final ExecutionReportMessage executionReportMessage = subscription.getClient().getOrder(copyTradeOrder.getClOrdId(),
+            null);
+      if (executionReportMessage == null) {
+        copyTradeOrder.setResult(FAILURE);
+        copyTradeOrder.setStatus(ORDER_STATUS_REJECTED);
+      } else {
+        copyTradeOrder.setStatus(executionReportMessage.getOrdStatus().name());
+      }
+      LOGGER.info(Constants.LOG_FMT_6, "Check external order status, clOrdId: ", copyTradeOrder.getClOrdId(), " externalId: ",
+          copyTradeOrder.getExternalId(), " status: ", copyTradeOrder.getStatus());
+      if (ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+/*        if (summary.getFee() != null) {
+          externalOrder.setFee(summary.getFee().doubleValue());
+        }*/
+        copyTradeOrder.setPriceScale(executionReportMessage.getPriceScale());
+        copyTradeOrder.setPrice(executionReportMessage.getPrice());
+        copyTradeOrder.setAveragePrice(MbxMath.scaleDown(executionReportMessage.getAvgPx(),
+            executionReportMessage.getAvgPxScale()));
+        copyTradeOrder.setOriginalAmount(MbxMath.scaleDown(executionReportMessage.getOrderQty(),
+            executionReportMessage.getOrderQtyScale()));
+        copyTradeOrder.setCumulativeAmount(MbxMath.scaleDown(executionReportMessage.getCumQty(),
+            executionReportMessage.getCumQtyScale()));
+        copyTradeOrder.setTradeValue(copyTradeOrder.getCumulativeAmount() * copyTradeOrder.getAveragePrice());
+        copyTradeOrder.setResult(SUCCESS);
+
+      } else if (ORDER_STATUS_CANCELED.equalsIgnoreCase(copyTradeOrder.getStatus())
+          || ORDER_STATUS_REJECTED.equalsIgnoreCase(copyTradeOrder.getStatus())
+          || ORDER_STATUS_EXPIRED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+        copyTradeOrder.setResult(FAILURE);
+      }
+      if (!prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(
+          copyTradeOrder.getStatus())) {
+        CopyTradeCache.remove(copyTradeOrder);
+        CopyTradeCache.removeOpenOrder(copyTradeOrder);
+
+        subscription.setAvailableMaxAmount(subscription.getAvailableMaxAmount() + MbxMath.changeScale(
+            MbxMath.scaleDown(
+                copyTradeOrder.getPrice(), copyTradeOrder.getPriceScale()) * copyTradeOrder.getCumulativeAmount(), 2));
+        matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+        matcherToPublisherQueue.addGuaranteed(subscription);
+
+        LOGGER.info(Constants.LOG_FMT_2, "Copy trade (status update) successful. clOrdId: ", copyTradeOrder.getClOrdId(), " symbol: ",
+            copyTradeOrder.getBaseSymbol().toUpperCase(), "/", copyTradeOrder.getQuotedSymbol().toUpperCase(), " side: ",
+            copyTradeOrder.getSide().name(), " quantity: ", copyTradeOrder.getxQuantity(), " price: ", copyTradeOrder.getxPrice(), " orderId:",
+            copyTradeOrder.getExternalId(), " result: ", copyTradeOrder.getResult());
+
+        return;
+      } else if (!ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+        subscription.setKafkaRecordOffset(copyTradeOrder.getKafkaRecordOffset());
+        subscription.setHasPendingClose(true);
+        matcherToPublisherQueue.addGuaranteed(subscription);
+      }
+
       LOGGER.info(Constants.LOG_FMT_2, "Copy trade (status update) failed. clOrdId: ", copyTradeOrder.getClOrdId(), " symbol: ",
           copyTradeOrder.getBaseSymbol().toUpperCase(), "/", copyTradeOrder.getQuotedSymbol().toUpperCase(), " side: ", copyTradeOrder.getSide().name(),
           " quantity: ", copyTradeOrder.getxQuantity(), " price: ", copyTradeOrder.getxPrice(), " orderId:", copyTradeOrder.getExternalId(), " result: ",

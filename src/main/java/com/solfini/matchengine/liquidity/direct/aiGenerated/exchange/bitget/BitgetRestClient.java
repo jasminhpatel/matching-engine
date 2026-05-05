@@ -19,9 +19,11 @@ import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.sbe.encoder.ExecType;
 import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.sbe.encoder.Side;
+import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.util.HMAC;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
+import com.solfini.util.StringUtil;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ public class BitgetRestClient {
   private final String passphrase;
   private final ExchangeSubscription subscription;
   private final boolean DEMO_TRADING_ENABLE = Context.getBitgetExchangeDemoTradingEnable();
+  private static final String[] QUOTES = {"USDT", "USDC", "USD"};
 
   public BitgetRestClient(final String apiKey, final String secretKey, final String passphrase, final ExchangeSubscription subscription) {
     this.apiKey = apiKey;
@@ -526,6 +529,55 @@ public class BitgetRestClient {
     }
   }
 
+  public ExecutionReportMessage queryUTAOrderStatus(final String clOrdId, final String orderId) {
+    try {
+      final String timestamp = String.valueOf(Instant.now().toEpochMilli());
+      final String method = "GET";
+      final String requestPath = clOrdId != null ? ("/api/v3/trade/order-info?clientOid=" + clOrdId)
+          : ("/api/v3/trade/order-info?orderId=" + orderId);
+      final String body = "";
+
+      final String signature = generateSignature(timestamp, method, requestPath, body);
+      final String url = REST_API_BASE + requestPath;
+
+      final Map<String, Object> headers = new HashMap<>();
+      headers.put("ACCESS-KEY", apiKey);
+      headers.put("ACCESS-SIGN", signature);
+      headers.put("ACCESS-TIMESTAMP", timestamp);
+      headers.put("ACCESS-PASSPHRASE", passphrase);
+      headers.put("Content-Type", "application/json");
+      if (DEMO_TRADING_ENABLE) {
+        headers.put("PAPTRADING", "1");
+      }
+
+      LOGGER.debug(Constants.LOG_FMT_4, "Querying Bitget futures order status for clOrdId: ", clOrdId, " orderId: ", orderId);
+      final HttpUtils.Response resp = HttpUtils.get(url, headers, subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+      if (resp == null || resp.getCode() != 200) {
+        LOGGER.warn("Bitget futures order status query failed with status=" + (resp != null ? resp.getCode() : "null") + " body="
+            + (resp != null ? resp.getData() : "null"));
+        return null;
+      }
+
+      final String json = resp.getData();
+      LOGGER.debug("Full response: " + json);
+
+      final String code = minExtract(json, "code");
+      if ("00000".equals(code)) {
+        final String dataJson = extractJsonValue(json, "data");
+        if (dataJson != null) {
+          generateUTAOrderFromJson(dataJson, clOrdId, orderId);
+        }
+      } else {
+        final String msg = minExtract(json, "msg");
+        LOGGER.warn("Bitget futures order status query failed with code: " + code + ", msg: " + msg);
+      }
+      return null;
+    } catch (final Exception e) {
+      LOGGER.error("Bitget futures order status query failed: " + e.getMessage());
+      return null;
+    }
+  }
+
   public boolean cancelSpotOrderRest(final Order order, final String symbol, final String clientOrderId) {
     try {
       final String timestamp = String.valueOf(Instant.now().toEpochMilli());
@@ -957,6 +1009,106 @@ public class BitgetRestClient {
     subscription.updateOrder(clientOrderId, order);
   }
 
+  private ExecutionReportMessage generateUTAOrderFromJson(final String orderJson, final String clientOrderId,
+      final String orderId) {
+    // Extract all order fields from Bitget response
+    final String clientOid = minExtract(orderJson, "clientOid");
+    final String category = minExtract(orderJson, "category");
+    final String symbol = minExtract(orderJson, "symbol");
+    final String orderType = minExtract(orderJson, "orderType");
+    final String side = minExtract(orderJson, "side");
+    final String price = minExtract(orderJson, "price");
+    final String qty = minExtract(orderJson, "qty");
+    final String amount = minExtract(orderJson, "amount");
+    final String cumExecQty = minExtract(orderJson, "cumExecQty");
+    final String cumExecValue = minExtract(orderJson, "cumExecValue");
+    final String avgPrice = minExtract(orderJson, "avgPrice");
+    final String timeInForce = minExtract(orderJson, "timeInForce");
+    final String orderStatus = minExtract(orderJson, "orderStatus");
+    final String posSide = minExtract(orderJson, "posSide");
+    final String holdMode = minExtract(orderJson, "holdMode");
+    final String tradeSide = minExtract(orderJson, "tradeSide");
+    final String reduceOnly = minExtract(orderJson, "reduceOnly");
+    final String feeDetailSection = extractJsonValue(orderJson, "feeDetail");
+    final String cancelReason = minExtract(orderJson, "cancelReason");
+    final String execType = minExtract(orderJson, "execType");
+    final String updatedTime = minExtract(orderJson, "updatedTime");
+    //final String marginMode = minExtract(orderJson, "marginMode");
+
+    // Extract fee information from feeDetail array
+    final String feeCoin = extractFeeDetailsFromArray(feeDetailSection, "feeCoin");
+    final String feeAmount = extractFeeDetailsFromArray(feeDetailSection, "fee");
+
+    // Parse numeric values safely
+    final OrdStatus mappedOrderStatus = mapOrderStatus(orderStatus);
+    final double priceDouble = parseDoubleSafe(price);
+    final double qtyDouble = parseDoubleSafe(qty);
+    final double cumExecQtyDouble = parseDoubleSafe(cumExecQty);
+    final double avgPriceDouble = parseDoubleSafe(avgPrice);
+    final double feeDouble = parseDoubleSafe(feeAmount);
+    final long updatedTimeLong = parseLongSafe(updatedTime);
+    final Side sideValue = parseSide(side);
+    final String[] baseQuoteSymbols = parseSymbol(symbol);
+    final TimeInForce tif = parseTif(timeInForce);
+
+    LOGGER.debug("Extracted Bitget UTA order details - orderId: " + clientOrderId + ", status: " + orderStatus + ", cumExecQty: "
+        + cumExecQty + ", avgPrice: " + avgPrice + ", cumExecValue: " + cumExecValue + ", feeCoin: " + feeCoin + ", fee: " + feeAmount
+        + ", orderType: " + orderType + ", side: " + side + ", posSide: " + posSide + ", holdMode: " + holdMode);
+
+    // Create or update execution report with all extracted fields
+    ExecutionReportMessage executionMessage = subscription.getExecutionReport(clientOrderId);
+    if (executionMessage == null) {
+      executionMessage = ExecutionReportMessage.createExternalExecutionReport(StringUtil.toInt(orderId),
+          null, 0, baseQuoteSymbols[0], 0L, (short) 0, 0L, (short) 0,
+          0, 0, 0, 0, sideValue, 0);
+    }
+
+    if ("filled".equalsIgnoreCase(orderStatus)) {
+      LOGGER.debug("Bitget futures order status - FILLED for clientOrderId: " + clientOrderId + ", cumExecQty: " + cumExecQty
+          + ", avgPrice: " + avgPrice + ", cumExecValue: " + cumExecValue + ", fee: " + feeAmount + ", posSide: " + posSide);
+
+      // Set fee information if available
+      if (feeDouble > 0 && feeCoin != null && !feeCoin.isBlank()) {
+        // Convert commission with proper instrument scale
+        final Instrument feesInstrument =
+            InstrumentCache.getBySymbol(feeCoin.isBlank() ? getDefaultQuotedCurrency(baseQuoteSymbols[0]) : feeCoin);
+        if (feesInstrument != null) {
+          final long feesLong = MbxMath.changeScale(feeDouble, feesInstrument.getQuantityScale());
+          executionMessage.setFeeAccumulatedQuantity(feesLong);
+          executionMessage.setFeePositionId(feesInstrument.getId());
+        }
+      }
+    } else if ("cancelled".equalsIgnoreCase(orderStatus) || "rejected".equalsIgnoreCase(orderStatus)) {
+      LOGGER.debug("Bitget futures order status - " + orderStatus + " for clientOrderId: " + clientOrderId
+          + (cancelReason != null ? ", reason: " + cancelReason : ""));
+    }
+
+    // Set execution report fields
+    executionMessage.setClOrdId(clientOrderId);
+    //executionMessage.setOrderId(order.getOrderId());
+    executionMessage.setOrdStatus(mappedOrderStatus);
+    executionMessage.setTimeInForce(tif);
+    executionMessage.setInputTime(updatedTimeLong);
+    executionMessage.setPrice(MbxMath.changeScale(priceDouble, 8));
+    executionMessage.setPriceScale((short) 8);
+    executionMessage.setOrderQty(MbxMath.changeScale(qtyDouble, 6));
+    executionMessage.setOrderQtyScale((short) 6);
+    executionMessage.setCumQty(MbxMath.changeScale(cumExecQtyDouble, 6));
+    executionMessage.setCumQtyScale((short) 6);
+    executionMessage.setLeavesQty(executionMessage.getOrderQty() - executionMessage.getCumQty());
+    executionMessage.setLeavesQtyScale((short) 6);
+    executionMessage.setAvgPx(MbxMath.changeScale(avgPriceDouble, 8));
+    executionMessage.setAvgPxScale((short) 8);
+
+
+    LOGGER.debug("Updating execution report for clientOrderId: " + clientOrderId + " with status: " + orderStatus + ", posSide: " + posSide
+        + ", holdMode: " + holdMode);
+    subscription.updateExecutionReport(executionMessage);
+    subscription.updateOrder(clientOrderId, mappedOrderStatus.name());
+
+    return executionMessage;
+  }
+
   /**
    * Extracts a specific field value from the feeDetail array Expected format: [{"feeCoin":"BTC","fee":"0.001"}]
    *
@@ -1012,6 +1164,62 @@ public class BitgetRestClient {
     };
   }
 
+  public static Side parseSide(final String side) {
+    if (side == null) {
+      return Side.NULL_VAL;
+    }
+    switch (side) {
+      case "buy":
+        return Side.BUY;
+      case "sell":
+        return Side.SELL;
+      default:
+        return Side.NULL_VAL;
+    }
+  }
+
+  public static String[] parseSymbol(final String symbol) {
+    if (symbol == null || symbol.isBlank()) {
+      throw new IllegalArgumentException("Invalid symbol");
+    }
+
+    // Step 1: remove suffix (futures like BTCUSDT_UMCBL)
+    String clean = stripSuffix(symbol);
+
+    // Step 2: find matching quote
+    for (String quote : QUOTES) {
+      if (clean.endsWith(quote)) {
+        String base = clean.substring(0, clean.length() - quote.length());
+        return new String[]{base, quote};
+      }
+    }
+
+    throw new IllegalArgumentException("Unknown quote currency for symbol: " + symbol);
+  }
+
+  public static TimeInForce parseTif(final String tif) {
+    if (tif == null) {
+      return TimeInForce.NULL_VAL;
+    }
+    switch (tif) {
+      case "ioc":
+        return TimeInForce.IMMEDIATE_OR_CANCEL;
+      case "fok":
+        return TimeInForce.FILL_OR_KILL;
+      case "gtc":
+        return TimeInForce.GOOD_TILL_DATE;
+      default:
+        return TimeInForce.NULL_VAL;
+    }
+  }
+
+  private static String stripSuffix(String symbol) {
+    int idx = symbol.indexOf('_');
+    if (idx > 0) {
+      return symbol.substring(0, idx);
+    }
+    return symbol;
+  }
 
   /**
    * Returns default quote currency based on symbol pattern

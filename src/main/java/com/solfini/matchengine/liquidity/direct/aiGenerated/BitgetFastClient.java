@@ -11,6 +11,7 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.Bitg
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget.BitgetUserDataListener;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.pool.OrderObjectPool;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.util.StringUtil;
 
@@ -129,6 +130,15 @@ public final class BitgetFastClient implements ExternalExchangeClient {
     public List<ExternalSymbol> getExchangeInstrumentsFull() {
         return bitgetRestClient.getExchangeInstrumentsFull();
     }
+
+  @Override
+  public ExecutionReportMessage getOrder(final String clOrdId, final String orderId) {
+    ExecutionReportMessage executionReportMessage = subscription.getExecutionReport(clOrdId);
+    if (executionReportMessage != null) {
+      return executionReportMessage;
+    }
+    return bitgetRestClient.queryUTAOrderStatus(clOrdId, orderId);
+  }
 
     public boolean transferBalance(final String asset, final String amount, final boolean fromSpotToFutures) {
         // Bitget doesn't have direct transfer API, would need to be implemented differently

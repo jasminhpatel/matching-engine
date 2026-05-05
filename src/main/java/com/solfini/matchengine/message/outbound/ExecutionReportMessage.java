@@ -749,8 +749,10 @@ public class ExecutionReportMessage extends Message {
     executionReportMessage.symbol = symbol;
     executionReportMessage.side = side;
     executionReportMessage.ordType = OrdType.LIMIT;
-    executionReportMessage.account = user.getId();
-    executionReportMessage.submitterId = user.getId();
+    if (user != null) {
+      executionReportMessage.account = user.getId();
+      executionReportMessage.submitterId = user.getId();
+    }
     executionReportMessage.cancelId = 0;
     executionReportMessage.orderId = orderId;
     executionReportMessage.secondaryOrderId = 0;
