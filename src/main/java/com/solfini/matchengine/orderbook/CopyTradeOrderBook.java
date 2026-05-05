@@ -309,7 +309,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       //todo shuffle
       int count = 0;
       if (copyTradeData != null && !copyTradeData.isEmpty()) {
-        HashMap<Long, HashMap<String, CopyTradeOrder>> subscriptionWiseCopyTrades = new HashMap<>();
+        final HashMap<Long, HashMap<String, CopyTradeOrder>> subscriptionWiseCopyTrades = new HashMap<Long, HashMap<String, CopyTradeOrder>>();
 
         for (CopyTradeCache.CopyTradeData data : copyTradeData) {
           for (CopyTradeOrder openCopyTradeOrder : data.getCopyTrades()) {
@@ -342,14 +342,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                     order.getClOrdId());
                 continue;
               }
-              HashMap<String, CopyTradeOrder> pairWiseCopyTrades =
-                  subscriptionWiseCopyTrades.getOrDefault(openCopyTradeOrder.getSubscriptionId(), new HashMap<>());
-              subscriptionWiseCopyTrades.put(openCopyTradeOrder.getSubscriptionId(), pairWiseCopyTrades);
+              final HashMap<String, CopyTradeOrder> pairWiseCopyTrades =
+                  subscriptionWiseCopyTrades.computeIfAbsent(openCopyTradeOrder.getSubscriptionId(), v -> new HashMap<String, CopyTradeOrder>());
 
               CopyTradeOrder clct = pairWiseCopyTrades.get(openCopyTradeOrder.getBaseSymbol());
 
               if (clct == null) {
-                final String clOrdId = order.getClOrdId() + openCopyTradeOrder.getSubscriptionId();
+                count++;
+                final String clOrdId = order.getClOrdId() + openCopyTradeOrder.getSubscriptionId() + count;
                 clct = new CopyTradeOrder(openCopyTradeOrder);
                 clct.setClOrdId(clOrdId);
                 clct.setOrigClOrdId(openCopyTradeOrder.getClOrdId());
@@ -362,9 +362,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                 clct.setExternalId(null);
                 clct.setStatus(null);
                 clct.setToClose(order.isToClose());
-                clct.setOpenOrder(openCopyTradeOrder);
+                //clct.setOpenOrder(openCopyTradeOrder);
                 clct.setKafkaRecordOffset(order.getKafkaRecordOffset());
-                clct.setSourceSendTime(order.getSourceSendTime());
+                //clct.setSourceSendTime(order.getSourceSendTime());
+                clct.setSourceSendTime(System.currentTimeMillis());
 
                 clct.getOpenOrders().add(openCopyTradeOrder);
                 pairWiseCopyTrades.put(openCopyTradeOrder.getBaseSymbol(), clct);
@@ -1545,7 +1546,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             closeCopyTradeOrder.getSubscriptionId());
         closeCopyTradeOrder.setResult("REJECTED: subscription not active.");
         closeCopyTradeOrder.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+        // prevent duplicate publishes
+        //matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
 
         return;
       }
@@ -1597,6 +1599,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
             continue;
           }
+          openCopyTradesToCloseOrder.add(openCopyTradeOrder);
           quantity += openCopyTradeOrder.getCumulativeAmount();
         }
 
@@ -1649,19 +1652,18 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               closeCopyTradeOrder.setTradeValue(orderNotional);
               closeCopyTradeOrder.setResult(SUCCESS);
 
-              closeCopyTradeOrder.setClosed(false);
+              closeCopyTradeOrder.setClosed(true);
+              //update corresponding open order
+              for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
+                openCopyTradeOrder.setClosed(true);
+                openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
+                CopyTradeCache.remove(openCopyTradeOrder);
+                matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
+              }
             } else if (executionReport.getOrdStatus() == OrdStatus.REJECTED || executionReport.getOrdStatus() == OrdStatus.CANCELED) {
               closeCopyTradeOrder.setStatus(ORDER_STATUS_REJECTED);
               closeCopyTradeOrder.setResult(FAILURE);
             }
-          }
-
-          //update corresponding open order
-          for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
-            openCopyTradeOrder.setClosed(true);
-            openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
-            CopyTradeCache.remove(openCopyTradeOrder);
-            matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
           }
 
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(closeCopyTradeOrder.getStatus())) {
@@ -1749,6 +1751,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
             continue;
           }
+          openCopyTradesToCloseOrder.add(openCopyTradeOrder);
           xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
         }
 
@@ -1787,15 +1790,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           xExchange.placeOrder(closeCopyTradeOrder, null);
           closeCopyTradeOrder.setClosed(true);
 
-          //update corresponding open order
-          for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
-            openCopyTradeOrder.setClosed(true);
-            openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
-            CopyTradeCache.remove(openCopyTradeOrder);
-            matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
-          }
-
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(closeCopyTradeOrder.getStatus())) {
+            //update corresponding open order
+            for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
+              openCopyTradeOrder.setClosed(true);
+              openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
+              CopyTradeCache.remove(openCopyTradeOrder);
+              matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
+            }
             closeCopyTradeOrder.getSubscription().setAvailableMaxAmount(
                 closeCopyTradeOrder.getSubscription().getAvailableMaxAmount() + MbxMath.changeScale(
                     xPrice.multiply(xQuantity).doubleValue(), 2));

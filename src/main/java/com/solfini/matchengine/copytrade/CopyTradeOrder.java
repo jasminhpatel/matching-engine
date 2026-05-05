@@ -449,7 +449,7 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     this.openOrder = openOrder;
   }
 
-  public final List<CopyTradeOrder> getOpenOrders1() {
+  public final List<CopyTradeOrder> getOpenOrders() {
     return openOrders;
   }
 
