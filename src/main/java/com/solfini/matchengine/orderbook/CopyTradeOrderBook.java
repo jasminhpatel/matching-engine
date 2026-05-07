@@ -1531,7 +1531,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       final String clOrdId = closeCopyTradeOrder.getClOrdId();
       final long now = System.currentTimeMillis();
 
-      if ((closeCopyTradeOrder.getSourceSendTime() + Context.getMaxDelayToCloseOrderInMs()) < now) {
+/*      if ((closeCopyTradeOrder.getSourceSendTime() + Context.getMaxDelayToCloseOrderInMs()) < now) {
         LOGGER.info(Constants.LOG_FMT_6, "Order rejected. clOrdId: ", clOrdId, " timeout. sent: ", closeCopyTradeOrder.getSourceSendTime(),
             " processed: ", now);
 
@@ -1539,7 +1539,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
 
         return;
-      }
+      }*/
       final ExchangeSubscription subscription = closeCopyTradeOrder.getSubscription();
       if (!copyTradeSubscriptionActiveForClose(subscription)) {
         LOGGER.info(Constants.LOG_FMT_4, "Close rejected: MP copy-trade subscription not active. clOrdId: ", clOrdId, " subscriptionId: ",
