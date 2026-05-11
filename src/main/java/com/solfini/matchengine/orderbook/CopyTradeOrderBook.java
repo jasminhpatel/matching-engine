@@ -628,6 +628,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
     public void run() {
       while (true) {
         AtomicBoolean userLock = null;
+        int userId = 0;
+        String clOrdId = null;
         try {
           final Message message = COPY_TRADE_QUEUE.poll();
 
@@ -636,16 +638,20 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
           if (message instanceof CopyTradeOrder copyTradeOrder) {
             LOGGER.info(Constants.LOG_FMT_4, "Processing copy trade: ", copyTradeOrder.getClOrdId(), " isToClose: ", copyTradeOrder.isToClose());
+            userId = copyTradeOrder.getUserId();
+            clOrdId = copyTradeOrder.getClOrdId();
             //serialises all copy trades per user
             userLock = lock(copyTradeOrder);
             if (userLock == null) {
-              LOGGER.info(Constants.LOG_FMT_6, "Order rejected. Failed to lock user. clOrdId: ", copyTradeOrder.getClOrdId(), " timeout. sent: ",
-                  copyTradeOrder.getSourceSendTime(), " processed: ", System.currentTimeMillis());
+              LOGGER.info(Constants.LOG_FMT_8, "Order rejected. Failed to lock user. clOrdId: ", copyTradeOrder.getClOrdId(), " timeout. sent: ",
+                  copyTradeOrder.getSourceSendTime(), " processed: ", System.currentTimeMillis(), " userId: ", userId);
 
-              copyTradeOrder.setResult("REJECTED: Timeout.");
+              copyTradeOrder.setResult("REJECTED: Lock Timeout.");
               matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
 
               continue;
+            } else {
+              LOGGER.info(LOG_FMT_4, "User locked. id: ", userId, " orderId: ", clOrdId);
             }
             if (copyTradeOrder.isToClose()) {
               //processCloseOrder(copyTrade, copyTrade.getOpenOrder());
@@ -662,6 +668,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
         if (userLock != null) {
           release(userLock);
+          LOGGER.info(LOG_FMT_4, "User lock released. id: ", userId, " orderId: ", clOrdId);
         }
         idleStrategy.idle();
       }
@@ -669,14 +676,17 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     private AtomicBoolean lock(final CopyTradeOrder copyTradeOrder) {
       final long start = System.currentTimeMillis();
+      final long lockWaitTime = copyTradeOrder.isToClose() ? TEN_MINUTES : ONE_MINUTE;
       final AtomicBoolean userLock = UserCache.get(copyTradeOrder.getUserId()).getCopyTradeLock();
       while (!userLock.compareAndSet(false, true)) {
         LockSupport.parkNanos(50_000_000);// 50 ms
-        if (System.currentTimeMillis() - start > ONE_MINUTE) {
-          LOGGER.info(LOG_FMT_2, "Waiting more than 1 min to acquire a lock for order :", copyTradeOrder.getClOrdId());
+        if (System.currentTimeMillis() - start > lockWaitTime) {
+          LOGGER.info(LOG_FMT_6, "Waiting more than lockWaitTime mins to acquire a lock for order :", copyTradeOrder.getClOrdId(),
+              " userId: ", copyTradeOrder.getUserId(), " lockWaitTime: ", lockWaitTime);
           return null;
         }
       }
+
       return userLock;
     }
 
@@ -1393,6 +1403,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
 
     // todo remove old implementation
+/*
     private void processCloseOrder(final CopyTradeOrder closeCopyTradeOrder, final CopyTradeOrder openCopyTradeOrder) throws Exception {
       final String clOrdId = closeCopyTradeOrder.getClOrdId();
       final long now = System.currentTimeMillis();
@@ -1523,6 +1534,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
 
     }
+*/
 
     private void processCloseOrder(final CopyTradeOrder closeCopyTradeOrder, final List<CopyTradeOrder> openCopyTradeOrders) throws Exception {
       if (openCopyTradeOrders == null || openCopyTradeOrders.isEmpty())
@@ -1594,7 +1606,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             LOGGER.warn(Constants.LOG_FMT_4, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ",
                 openCopyTradeOrder.getClOrdId());
 
-            closeCopyTradeOrder.setResult("REJECTED: Failed to fetch price.");
+            closeCopyTradeOrder.setResult("REJECTED: Failed to fetch order status.");
             closeCopyTradeOrder.setxExchange(null);
             matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
             continue;
