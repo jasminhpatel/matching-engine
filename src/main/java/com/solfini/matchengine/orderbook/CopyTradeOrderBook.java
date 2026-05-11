@@ -992,7 +992,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         org.knowm.xchange.instrument.Instrument instrument =
             getInstrument(subscription.getExchange(), xExchange, currencyPair, subscription.isFuturesEnabled());
         if (instrument == null) {
-          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " invalid instrument: ", baseSymbol, " ", quotedSymbol);
+          LOGGER.info(Constants.LOG_FMT_6, "Order rejected. clOrdId: ", clOrdId, " invalid instrument: ", baseSymbol, " ", quotedSymbol);
 
           copyTradeOrder.setResult("REJECTED: Invalid instrument. " + baseSymbol + " " + quotedSymbol);
           matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
@@ -1606,13 +1606,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             LOGGER.warn(Constants.LOG_FMT_4, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ",
                 openCopyTradeOrder.getClOrdId());
 
-            closeCopyTradeOrder.setResult("REJECTED: Failed to fetch order status.");
-            closeCopyTradeOrder.setxExchange(null);
-            matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+            //closeCopyTradeOrder.setResult("REJECTED: Failed to fetch order status.");
+            //closeCopyTradeOrder.setxExchange(null);
+
+            //matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
             continue;
           }
-          openCopyTradesToCloseOrder.add(openCopyTradeOrder);
-          quantity += openCopyTradeOrder.getCumulativeAmount();
+          if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
+            openCopyTradesToCloseOrder.add(openCopyTradeOrder);
+            quantity += openCopyTradeOrder.getCumulativeAmount();
+          }
         }
 
 
@@ -1754,17 +1757,18 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           }
           if (!(openCopyTradeOrder.getStatus() != null && openCopyTradeOrder.getStatus()
               .contains(ORDER_STATUS_FILLED))) {
-            LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId,
-                " open order is not filled. open orderId: ",
+            LOGGER.warn(Constants.LOG_FMT_4, "Order rejected. clOrdId: ", clOrdId, " open order is not filled. open orderId: ",
                 openCopyTradeOrder.getClOrdId());
 
-            closeCopyTradeOrder.setResult("REJECTED: Failed to fetch price.");
-            closeCopyTradeOrder.setxExchange(null);
-            matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+            //closeCopyTradeOrder.setResult("REJECTED: Failed to fetch order status.");
+            //closeCopyTradeOrder.setxExchange(null);
+            //matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
             continue;
           }
-          openCopyTradesToCloseOrder.add(openCopyTradeOrder);
-          xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
+          if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
+            openCopyTradesToCloseOrder.add(openCopyTradeOrder);
+            xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
+          }
         }
 
         double price =
@@ -1772,7 +1776,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                 instrument, closeCopyTradeOrder.getSide(), xExchange);
 
         if (price == 0) {
-          LOGGER.warn(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " price: ", price);
+          LOGGER.warn(Constants.LOG_FMT_4, "Order rejected. clOrdId: ", clOrdId, " price: ", price);
 
           closeCopyTradeOrder.setResult("REJECTED: Failed to fetch price.");
           closeCopyTradeOrder.setxExchange(null);

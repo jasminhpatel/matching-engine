@@ -38,7 +38,7 @@ import static org.knowm.xchange.utils.DigestUtils.bytesToHex;
 public class ByBitTest {
   public static final String HMAC_SHA_256 = "HmacSHA256";
   public static void main(String[] args) throws Exception {
-
+    System.out.println(System.currentTimeMillis());
     //System.out.println(getSignature());
     boolean isFutures = true;
     ExchangeSpecification specification = new BybitExchange().getDefaultExchangeSpecification();
