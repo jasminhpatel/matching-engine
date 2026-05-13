@@ -77,13 +77,14 @@ public class BitgetFastClientRestOnlyTest {
   }
 
   public static void main(String[] args) throws InterruptedException, IOException {
+    testFuturesShortSellLogic();
 
-    init();
+    /*init();
     ExternalSymbol externalSymbol = getExchangeSymbol();
 
     ExchangeSubscription subscription = getBitgetSpotAccount();
     final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
-/*    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
+    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
     System.out.println(ticker.toString());
     Side side = Side.BUY;
     double price = ticker.getPrice(side);
@@ -101,7 +102,56 @@ public class BitgetFastClientRestOnlyTest {
 
       System.out.println((price2 - price)/price);
     }
-    System.out.println("Price 1: " + price);*/
+    System.out.println("Price 1: " + price); */
+  }
+
+  private static void testFuturesShortSellLogic() {
+    Side side = Side.SELL;
+    init();
+    ExternalSymbol externalSymbol = getExchangeSymbol();
+    String clOrdId = System.currentTimeMillis() + "";
+    String baseSymbol = externalSymbol.getBase();
+    String quotedSymbol = externalSymbol.getQuote();
+
+    ExchangeSubscription subscription = getBitgetSpotAccount();
+    final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
+    double maxTradeValue = MbxMath.scaleDown(subscription.getAmountWithLeverage(), 2);
+    double availableMaxAmount = MbxMath.scaleDown(subscription.getAvailableMaxAmount(), 2);
+    final Ticker ticker = ExternalTickerCache.getTicker(externalSymbol, fastClient);
+    double price = ticker.getPrice(side);
+    long openPricePercentage = externalSymbol.getOpenPricePercentage();
+    if (Side.SELL == side) {
+      price = price - (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      price = MbxMath.roundDown(price, externalSymbol.getPriceScale());
+    } else {
+      price = price + (price * openPricePercentage) / PRICE_PERCENTAGE_SCALE;
+      price = MbxMath.roundUp(price, externalSymbol.getPriceScale());
+    }
+    double tokenBalance = subscription.getBalance(baseSymbol);
+    if (tokenBalance > 0) {
+      double maxExchangeValue = tokenBalance * price;
+      maxTradeValue = Math.min(availableMaxAmount, maxExchangeValue);
+      System.out.println("Max trade value adjusted based on the exchange balance. clOrdId: " + clOrdId +
+          " new maxTradeValue: " + maxTradeValue + " exchange balance: " + maxExchangeValue);
+    } else {
+      // shorting
+      double stableCoinBalance = subscription.getBalance(quotedSymbol);
+
+      maxTradeValue = Math.min(availableMaxAmount, stableCoinBalance);
+      System.out.println("Max trade value adjusted based on the exchange balance. clOrdId: " + clOrdId +
+          " new maxTradeValue: " + maxTradeValue + " exchange stable balance: " + stableCoinBalance);
+      if (maxTradeValue <= 0) {
+        System.out.println("Order rejected. clOrdId: " + clOrdId + " futures baseBalance: " + tokenBalance +
+            " quoteBalance: " + stableCoinBalance);
+
+        System.out.println("REJECTED: Insufficient balance. balance: " + tokenBalance + " " + baseSymbol
+            + " stable coin balance: " + stableCoinBalance + " " + quotedSymbol );
+
+        return;
+      }
+    }
+
+    System.out.println("Done.");
   }
 
   static void printCache(ExchangeSubscription futureSegmentSubscription) {
@@ -245,7 +295,7 @@ public class BitgetFastClientRestOnlyTest {
     subscription.setStatus(1);
     subscription.setCreated(1700000000000L);
     subscription.setExpires(1709999999999L);
-    subscription.setFuturesEnabled(false);
+    subscription.setFuturesEnabled(true);
     subscription.setLeverage(false);
     subscription.setLastUsedProxy("38.242.225.103");
     subscription.setRestOnly(true);
@@ -258,13 +308,13 @@ public class BitgetFastClientRestOnlyTest {
     ExternalSymbol externalSymbol = new ExternalSymbol();
     externalSymbol.setId(1);
     externalSymbol.setExchange("bitget");
-    externalSymbol.setSymbol("ADAUSDT");
-    externalSymbol.setBase("ADA");
+    externalSymbol.setSymbol("NEARUSDT");
+    externalSymbol.setBase("NEAR");
     externalSymbol.setQuote("USDT");
     //externalSymbol.setPrompt("btc");
-    externalSymbol.setFutures(false);
+    externalSymbol.setFutures(true);
     externalSymbol.setTradable(true);
-    externalSymbol.setOpenPricePercentage(10_000);
+    externalSymbol.setOpenPricePercentage(15_000);
     externalSymbol.setClosePricePercentage(5_000);
     externalSymbol.setPriceScale(4);
 

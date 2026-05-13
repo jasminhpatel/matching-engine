@@ -31,7 +31,7 @@ public class BitgetGetOrderDetails {
     SECRET_KEY = System.getenv("BITGET_DEMO_API_SECRET");
     PASSPHRASE = System.getenv("BITGET_PASSPHRASE");
 
-    String orderId = "1777764637041791290174";
+    String orderId = "1778288438046174227181";
 
     String response = getOrderDetails(API_KEY, SECRET_KEY, PASSPHRASE, null, orderId);
     System.out.println(response);
