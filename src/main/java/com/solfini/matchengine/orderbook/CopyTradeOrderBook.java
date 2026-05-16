@@ -345,34 +345,33 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               final HashMap<String, CopyTradeOrder> pairWiseCopyTrades =
                   subscriptionWiseCopyTrades.computeIfAbsent(openCopyTradeOrder.getSubscriptionId(), v -> new HashMap<String, CopyTradeOrder>());
 
-              CopyTradeOrder clct = pairWiseCopyTrades.get(openCopyTradeOrder.getBaseSymbol());
+              CopyTradeOrder closeCopyTradeForSymbol = pairWiseCopyTrades.get(openCopyTradeOrder.getBaseSymbol());
 
-              if (clct == null) {
+              if (closeCopyTradeForSymbol == null) {
                 count++;
                 final String clOrdId = order.getClOrdId() + openCopyTradeOrder.getSubscriptionId() + count;
-                clct = new CopyTradeOrder(openCopyTradeOrder);
-                clct.setClOrdId(clOrdId);
-                clct.setOrigClOrdId(openCopyTradeOrder.getClOrdId());
-                clct.setSide(openCopyTradeOrder.getSide() == Side.BUY ? Side.SELL : Side.BUY);
-                clct.setOrdType(OrdType.LIMIT);
-                clct.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
-                clct.setToClose(true);
-                clct.setCreated(System.currentTimeMillis());
-                clct.setResult(null);
-                clct.setExternalId(null);
-                clct.setStatus(null);
-                clct.setToClose(order.isToClose());
+                closeCopyTradeForSymbol = new CopyTradeOrder(openCopyTradeOrder);
+                closeCopyTradeForSymbol.setClOrdId(clOrdId);
+                closeCopyTradeForSymbol.setOrigClOrdId(openCopyTradeOrder.getClOrdId());
+                closeCopyTradeForSymbol.setSide(openCopyTradeOrder.getSide() == Side.BUY ? Side.SELL : Side.BUY);
+                closeCopyTradeForSymbol.setOrdType(OrdType.LIMIT);
+                closeCopyTradeForSymbol.setTimeInForce(TimeInForce.GOOD_TILL_CANCEL);
+                closeCopyTradeForSymbol.setToClose(true);
+                closeCopyTradeForSymbol.setCreated(System.currentTimeMillis());
+                closeCopyTradeForSymbol.setResult(null);
+                closeCopyTradeForSymbol.setExternalId(null);
+                closeCopyTradeForSymbol.setStatus(null);
+                closeCopyTradeForSymbol.setToClose(order.isToClose());
                 //clct.setOpenOrder(openCopyTradeOrder);
-                clct.setKafkaRecordOffset(order.getKafkaRecordOffset());
+                closeCopyTradeForSymbol.setKafkaRecordOffset(order.getKafkaRecordOffset());
                 //clct.setSourceSendTime(order.getSourceSendTime());
-                clct.setSourceSendTime(System.currentTimeMillis());
+                closeCopyTradeForSymbol.setSourceSendTime(System.currentTimeMillis());
 
-                clct.getOpenOrders().add(openCopyTradeOrder);
-                pairWiseCopyTrades.put(openCopyTradeOrder.getBaseSymbol(), clct);
+                closeCopyTradeForSymbol.getOpenOrders().add(openCopyTradeOrder);
+                pairWiseCopyTrades.put(openCopyTradeOrder.getBaseSymbol(), closeCopyTradeForSymbol);
               } else {
 
-
-                clct.getOpenOrders().add(openCopyTradeOrder);
+                closeCopyTradeForSymbol.getOpenOrders().add(openCopyTradeOrder);
               }
             }
           }
@@ -1633,6 +1632,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
         closeCopyTradeOrder.setxQuantity(new BigDecimal(quantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
         closeCopyTradeOrder.setCumulativeAmount(quantity);
+        closeCopyTradeOrder.setOrderQty(MbxMath.changeScale(quantity, closeCopyTradeOrder.getOrderQtyScale()));
 
         try {
           final User user = UserCache.get(subscription.getUserId());
