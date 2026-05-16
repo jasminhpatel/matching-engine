@@ -277,11 +277,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             continue;
           }
         }
-        if (subscription.isHasPendingClose()) {
+/*        if (subscription.isHasPendingClose()) {
           LOGGER.info(Constants.LOG_FMT_8, "Subscription has pending close orders. symbol: ", baseSymbol, " exchange: ",
               subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", order.getClOrdId());
           continue;
-        }
+        }*/
         final String clOrdId = order.getClOrdId() + subscription.getId();
         final CopyTradeOrder openCopyTradeOrder =
             new CopyTradeOrder(clOrdId, baseSymbol, null, pair, order, subscription, order.getAccountId());
