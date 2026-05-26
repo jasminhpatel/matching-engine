@@ -32,6 +32,7 @@ import com.solfini.user.User;
 import com.solfini.util.LogLevel;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
+import org.web3j.abi.datatypes.Address;
 
 public final class Context implements Constants {
   private static final Logger LOGGER = LoggerFactory.getLogger(Context.class);
@@ -226,11 +227,17 @@ public final class Context implements Constants {
       PropertyReader.getProperty("ETHEREUM_WEB3_PROVIDER", "");
   private static final String ETHEREUM_WEB3_PROVIDER_2 =
       PropertyReader.getProperty("ETHEREUM_WEB3_PROVIDER_2", "");
+  private static final String XDC_WEB3_PROVIDER =
+      PropertyReader.getProperty("XDC_WEB3_PROVIDER", "");
+  private static final String XDC_WEB3_PROVIDER_2 =
+      PropertyReader.getProperty("XDC_WEB3_PROVIDER_2", "");
   private static final String SIGNER_REQUEST_SECRET = PropertyReader.getProperty("SIGNER_REQUEST_SECRET", "").length() > 0
       ? EncryptDecrypt2.decrypt(System.getProperty("ENCRYPTION_KEY"), PropertyReader.getProperty("SIGNER_REQUEST_SECRET", ""))
       : "";
   private static final String USDC_CONTRACT = PropertyReader.getProperty("USDC_CONTRACT", "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
   private static final String USDT_CONTRACT = PropertyReader.getProperty("USDT_CONTRACT", "0xdAC17F958D2ee523a2206206994597C13D831ec7");
+  private static final String XUSDC_CONTRACT = PropertyReader.getProperty("XUSDC_CONTRACT", "0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1");
+  private static final String XUSDT_CONTRACT = PropertyReader.getProperty("XUSDT_CONTRACT", "");
   private static final String POLYGON_SCAN_URL = PropertyReader.getProperty("POLYGON_SCAN_URL", "https://polygonscan.com");
   private static final String POLYGON_AMOY_SCAN_URL = PropertyReader.getProperty("POLYGON_AMOY_SCAN_URL", "https://amoy.polygonscan.com");
   private static final String ETHER_SCAN_URL = PropertyReader.getProperty("ETHER_SCAN_URL", "https://etherscan.io");
@@ -246,6 +253,10 @@ public final class Context implements Constants {
   private static final BigInteger GAS_LIMIT_FOR_WITHDRAWABLE_AMOUNT_UPDATE = new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_WITHDRAWABLE_AMOUNT_UPDATE", "500000"));
   private static final String FUND_MANAGER_CHAIN = PropertyReader.getProperty("FUND_MANAGER_CHAIN", ETHEREUM);
   private static final String FUND_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
+  private static final String FUND_MANAGER_V2_CHAIN = PropertyReader.getProperty("FUND_MANAGER_V2_CHAIN", ETHEREUM);
+  private static final String FUND_MANAGER_V2_CONTRACT_ADDRESS = PropertyReader.getProperty("FUND_MANAGER_V2_CONTRACT_ADDRESS", "");
+  private static final String XDC_FUND_MANAGER_V2_CHAIN = PropertyReader.getProperty("XDC_FUND_MANAGER_V2_CHAIN", XDC);
+  private static final String XDC_FUND_MANAGER_V2_CONTRACT_ADDRESS = PropertyReader.getProperty("XDC_FUND_MANAGER_V2_CONTRACT_ADDRESS", "");
   private static final String STAKE_SYMBOL_IDS = PropertyReader.getProperty("STAKE_SYMBOL_IDS", "");
   private static Set<Integer> STAKE_SYMBOL_ID_MAP;
   private static final String VTOKEN_SYMBOL_IDS = PropertyReader.getProperty("VTOKEN_SYMBOL_IDS", "");
@@ -986,6 +997,7 @@ public final class Context implements Constants {
     if (chainType == null) return useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
     return switch (chainType.toUpperCase()) {
       case ETHEREUM, SEPOLIA -> useSecondary ? ETHEREUM_WEB3_PROVIDER_2 : ETHEREUM_WEB3_PROVIDER;
+      case XDC, XDC_APOTHEM -> useSecondary ? XDC_WEB3_PROVIDER_2 : XDC_WEB3_PROVIDER;
       case POLYGON -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
       default -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
     };
@@ -1274,5 +1286,90 @@ public final class Context implements Constants {
 
   public static int getExternalExchangeProxyPort() {
     return EXTERNAL_EXCHANGE_PROXY_PORT;
+  }
+
+  public static String getXusdcContract() {
+    return XUSDC_CONTRACT;
+  }
+
+  public static String getXusdtContract() {
+    return XUSDT_CONTRACT;
+  }
+
+  public static String getFundManagerV2Chain() {
+    return FUND_MANAGER_V2_CHAIN;
+  }
+
+  public static String getFundManagerV2ContractAddress() {
+    return FUND_MANAGER_V2_CONTRACT_ADDRESS;
+  }
+
+  public static String getXdcFundManagerV2Chain() {
+    return XDC_FUND_MANAGER_V2_CHAIN;
+  }
+
+  public static String getXdcFundManagerV2ContractAddress() {
+    return XDC_FUND_MANAGER_V2_CONTRACT_ADDRESS;
+  }
+
+  public static String getXdcWeb3Provider() {
+    return XDC_WEB3_PROVIDER;
+  }
+
+  public static String getXdcWeb3Provider2() {
+    return XDC_WEB3_PROVIDER_2;
+  }
+
+  public static String getChainBySymbol(final String symbol) {
+    if (symbol == null) return NONE;
+    switch (symbol.toUpperCase()) {
+      case USDC:
+      case USDT:
+        return MAINNET;
+      case XUSDC:
+      case XUSDT:
+      case XDC:
+        return XDC;
+      default:
+        return NONE;
+    }
+  }
+
+  public static String getTokenAddressBySymbol(final String symbol) {
+    if (USDC.equalsIgnoreCase(symbol)) {
+      return Context.getUsdcContract();
+    } else if (USDT.equalsIgnoreCase(symbol)) {
+      return Context.getUsdtContract();
+    } else if (XUSDC.equalsIgnoreCase(symbol)) {
+      return Context.getXusdcContract();
+    } else if (XUSDT.equalsIgnoreCase(symbol)) {
+      return Context.getXusdtContract();
+    } else if (XDC.equalsIgnoreCase(symbol)) {
+      return Address.DEFAULT.toString();
+    }
+
+    return null;
+  }
+
+  public static String getContractBySymbolAndVersion(final String symbol, final int version) {
+    if ((USDC.equalsIgnoreCase(symbol) || USDT.equalsIgnoreCase(symbol)) && version == 1) {
+      return Context.getFundManagerContractAddress();
+    } else if ((USDC.equalsIgnoreCase(symbol) || USDT.equalsIgnoreCase(symbol)) && version == 2) {
+      return Context.getFundManagerV2ContractAddress();
+    } else if ((XUSDC.equalsIgnoreCase(symbol) || XUSDT.equalsIgnoreCase(symbol)) && version == 2) {
+      return Context.getXdcFundManagerV2ContractAddress();
+    }
+    return null;
+  }
+
+  public static String getFundManagerContractByNetworkAndVersion(final String network, final int version) {
+    if ((ETHEREUM.equalsIgnoreCase(network) || MAINNET.equalsIgnoreCase(network) || SEPOLIA.equalsIgnoreCase(network)) && version == 1) {
+      return Context.getFundManagerContractAddress();
+    } else if ((ETHEREUM.equalsIgnoreCase(network) || MAINNET.equalsIgnoreCase(network) || SEPOLIA.equalsIgnoreCase(network)) && version == 2) {
+      return Context.getFundManagerV2ContractAddress();
+    } else if ((XDC.equalsIgnoreCase(network) || XDC_APOTHEM.equalsIgnoreCase(network)) && version == 2) {
+      return Context.getXdcFundManagerV2ContractAddress();
+    }
+    return null;
   }
 }

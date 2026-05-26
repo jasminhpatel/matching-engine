@@ -4,6 +4,7 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.util.blockchain.model.WithdrawableAmountUpdateTransaction;
 import org.web3j.abi.FunctionEncoder;
+import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.DynamicBytes;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.utils.Numeric;
@@ -29,11 +30,20 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
   }
 
   @Override
-  protected void encodeFunction() {//todo
-    final Function function =
-        new Function("batchUpdatePositions", List.of(new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates()))),
-            Collections.emptyList());
-    this.encodedFunction = FunctionEncoder.encode(function);
+  protected void encodeFunction() {
+    if (withdrawableAmountUpdateTransaction.getContractVersion() == 2) {
+      final Function function =
+          new Function("batchSetAvailableAssetBalances",
+              List.of(new Address(withdrawableAmountUpdateTransaction.getTokenAddress()), new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates2()))),
+              Collections.emptyList());
+      this.encodedFunction = FunctionEncoder.encode(function);
+    } else {
+      final Function function =
+          new Function("batchUpdatePositions",
+              List.of(new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates()))),
+              Collections.emptyList());
+      this.encodedFunction = FunctionEncoder.encode(function);
+    }
   }
 
   @Override
@@ -97,6 +107,24 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
     final String totalBatchesHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(
         withdrawableAmountUpdateTransaction.getNoOfBatches())), 4);
     processed.append(snapshotIdHex).append(batchIdHex).append(totalBatchesHex);
+
+    for (WithdrawableAmountUpdateTransaction.UserWithdrawable notional : withdrawableAmountUpdateTransaction.getUserWithdrawables()) {
+      final String userIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(notional.getUserId())), 4);
+      processed.append(userIdHex);
+      final String amountHex = zeroPadToBytes(int64ToHex(notional.getQuantity()), 8);
+      processed.append(amountHex);
+    }
+
+    return processed.toString();
+  }
+
+  private String preprocessBatchUpdates2() {
+    StringBuilder processed = new StringBuilder("0x");
+    final String snapshotIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getId())), 8);
+    //final String batchIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getBatchId())), 4);//todo split in to batches
+    final String totalBatchesHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(
+        withdrawableAmountUpdateTransaction.getNoOfBatches())), 4);
+    processed.append(snapshotIdHex)/*.append(batchIdHex)*/.append(totalBatchesHex);
 
     for (WithdrawableAmountUpdateTransaction.UserWithdrawable notional : withdrawableAmountUpdateTransaction.getUserWithdrawables()) {
       final String userIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(notional.getUserId())), 4);

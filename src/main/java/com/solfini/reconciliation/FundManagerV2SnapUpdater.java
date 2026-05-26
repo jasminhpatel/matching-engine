@@ -1,35 +1,45 @@
-package com.solfini.reconciliation.pendingwithdraws;
+package com.solfini.reconciliation;
 
 import static com.solfini.common.Constants.COLD_START;
 import static com.solfini.common.Constants.COPY_TRADE_ONLY;
 import static com.solfini.common.Constants.ERROR_LOG;
 import static com.solfini.common.Constants.MODE;
+import static com.solfini.common.Constants.ONE_HOUR;
 import static com.solfini.common.Constants.PRIMARY;
 import static com.solfini.common.Constants.SECONDARY;
 import static com.solfini.common.Constants.SNAPSHOT_ID;
+import static com.solfini.common.Constants.USDC;
+import static com.solfini.common.Constants.USDT;
 import static com.solfini.common.Constants.WARM_START;
+import static com.solfini.common.Constants.XUSDC;
+import static com.solfini.common.Constants.XUSDT;
 
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.Message;
+import com.solfini.instrument.Instrument;
+import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.Position;
 import com.solfini.matchengine.drmode.SnapLoader;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
-import com.solfini.reconciliation.BlockchainNotionalCache;
-import com.solfini.reconciliation.FolderUtils;
 import com.solfini.util.LogLevel;
 import com.solfini.util.PoolSize;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
 import com.solfini.util.blockchain.BlockchainSenderFactory;
 import com.solfini.util.blockchain.BlockchainTransactionSender;
+import com.solfini.util.blockchain.gasstation.GasStationUtil;
+import com.solfini.util.blockchain.model.GasFee;
 import com.solfini.util.blockchain.model.WithdrawableAmountUpdateTransaction;
 import com.solfini.util.blockchain.util.BlockChainKeyManager;
+import com.solfini.util.blockchain.util.RpcUtil;
 import com.solfini.util.snapshot.SnapConverter;
 import com.solfini.util.snapshot.SnapTransformer;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -47,9 +58,13 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.slf4j.event.Level;
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.exceptions.ClientConnectionException;
 
-public class FundManagerSnapForPendingWithdrawsUpdater {
-  private static final Logger LOGGER = LogManager.getLogger(FundManagerSnapForPendingWithdrawsUpdater.class);
+public class FundManagerV2SnapUpdater {
+  private static final Logger LOGGER = LogManager.getLogger(FundManagerV2SnapUpdater.class);
+  private static final String MAINNET = "MAINNET";
+  private static final String XDC = "XDC";
 
   private static boolean initialize(String[] args) throws Exception {
     final Options options = new Options();
@@ -314,8 +329,10 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
     }
   }
 
-  public static boolean update(final String[] args, final StringBuilder sb, List<Integer> userIds) throws Exception {
-    sb.append("Fund manager (Ethereum) snap update started. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+  public static boolean update(final String[] args, final StringBuilder sb,
+      final List<Integer> selectedUsers,
+      final String network, final String symbol) throws Exception {
+    sb.append("Fund manager V2 (").append(network).append(" snap update started. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     initialize(args);
     final Properties overlay = new Properties();
     loadConfigurationFile(overlay);
@@ -332,25 +349,123 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
+    final Set<Integer> symbolsToAllowSet = new HashSet<>();
+
     if (symbolsToIgnore != null && !symbolsToIgnore.isEmpty()) {
       String[] symbolsToIgnoreArr = symbolsToIgnore.split(",");
       for (String s : symbolsToIgnoreArr) {
         symbolsToIgnoreSet.add(StringUtil.toInt(s));
       }
     }
+    if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins except XUSDC, XUSDT
+      final Instrument xusdc = InstrumentCache.getBySymbol(XUSDC);
+      if (xusdc != null) {
+        symbolsToIgnoreSet.add(xusdc.getId());
+      }
+      final Instrument xusdt = InstrumentCache.getBySymbol(XUSDT);
+      if (xusdt != null) {
+        symbolsToIgnoreSet.add(xusdt.getId());
+      }
+      if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
+        final Instrument usdt = InstrumentCache.getBySymbol(USDT);
+        symbolsToIgnoreSet.add(usdt.getId());
+      } else if (USDT.equalsIgnoreCase(symbol)) { // when processing USDT ignore USDC from withdrawable
+        final Instrument usdc = InstrumentCache.getBySymbol(USDC);
+        symbolsToIgnoreSet.add(usdc.getId());
+      }
+    } else if (XDC.equalsIgnoreCase(network)) { // allows to withdraw only XUSDC, XUSDT
+      final Instrument xusdc = InstrumentCache.getBySymbol(XUSDC);
+      if (xusdc != null) {
+        symbolsToAllowSet.add(xusdc.getId());
+      }
+      final Instrument xusdt = InstrumentCache.getBySymbol(XUSDT);
+      if (xusdt != null) {
+        symbolsToAllowSet.add(xusdt.getId());
+      }
+    }
+    // load from snap
     final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> latestUserWithdrawables =
-        loadFromSnap(latestSnapFile, args, symbolsToIgnoreSet);
-    sb.append("Latest snap file loaded to memory. file: ").append(latestSnapFile).append(" time: ")
-        .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        loadFromSnap(latestSnapFile, args, symbolsToIgnoreSet, symbolsToAllowSet, network);
+    sb.append("Latest snap file loaded to memory. file: ").append(latestSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
-    final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> diff = userWithdrawablesToUpdated(latestUserWithdrawables, userIds);
+    // load previous from DB
+    BlockchainNotionalCache.loadFromDB();
+    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap((network + "V2").toUpperCase());
+    sb.append("Previous snap status loaded from DB. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+    final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> diff =
+        getChangedNotional(prevUserWithdrawables, latestUserWithdrawables, diffPercentage, selectedUsers);
+
+    sb.append("Difference calculated. #OfUpdates: ").append(diff.size()).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    LOGGER.info("Fund Manager #OfNotionalUpdates: " + diff.size());
+    // wait until gas price goes down
+    boolean useSecondary = false, hasProxyError = false;
+    Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+    final long windowEnd = System.currentTimeMillis() + ONE_HOUR * 8; // 8 hours
+    while (true) {
+      try {
+        if (web3j == null) {
+          web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+        }
+        BigInteger maxFeePerGas = fetchCurrentMaxFeePerGas(web3j);
+        if (maxFeePerGas.compareTo(Context.getEthereumMaxFeePerGas()) < 0) {
+          break;
+        }
+        if (System.currentTimeMillis() > windowEnd) {
+          LOGGER.info("Fund Manager, Unable to update the notional within specified time.");
+          sb.append(
+                  "Unable to update the notional within specified time. Gas price is too high. time: ")
+              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          return false;
+        }
+        LOGGER.info("Fund Manager, Gas price is too high. Waiting for it to go down... gasPrice: "
+            + maxFeePerGas + " threshold: " + Context.getEthereumMaxFeePerGas());
+        sb.append("Gas price is too high. Waiting for it to go down... gasPrice: ")
+            .append(maxFeePerGas).append(" threshold: ")
+            .append(Context.getEthereumMaxFeePerGas()).append(" time: ")
+            .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        TimeUnit.MINUTES.sleep(1);
+      }  catch (ClientConnectionException e) {
+        String message = e.getMessage().toLowerCase();
+        if (message.contains("429") || message.contains("too many requests")) {
+          sb.append("Failed Reason ").append("RPC error.");
+          useSecondary = true;
+        } else if (message.contains("502") || message.contains("bad gateway")) {
+          sb.append("Failed Reason ").append("Proxy error.");
+          hasProxyError = true;
+        } else if (message.contains("503") || message.contains("service unavailable")) {
+          sb.append("Failed Reason ").append("RPC error.");
+          useSecondary = true;
+        } else if (message.contains("504") || message.contains("gateway timeout")) {
+          sb.append("Failed Reason ").append("RPC error.");
+          sb.append("Failed Reason ").append("Proxy error.");
+          hasProxyError = true;
+          useSecondary = true;
+        } else if (message.contains("407") || message.contains("proxy authentication")) {
+          sb.append("Failed Reason ").append("Proxy error.");
+          hasProxyError = true;
+        } else {
+          sb.append("Failed Reason ").append("RPC error.");
+          sb.append("Failed Reason ").append("Proxy error.");
+          hasProxyError = true;
+          useSecondary = true;
+        }
+        web3j = null;
+      } catch (IOException e) {
+        hasProxyError = true;
+        useSecondary = true;
+        web3j = null;
+      }
+    }
 
     final int noOfBatches = (int) Math.ceil(diff.size() / (double) fundManagerBatchSize);
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables = new ArrayList<>();
+    final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
     int batchId = 0;
     int recordCount = 0;
     boolean updateSent = false;
     boolean success = true;
+
     for (WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable : diff) {
       batchUserWithdrawables.add(userWithdrawable);
       recordCount++;
@@ -359,9 +474,12 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
         updateSent = true;
         try {
           final WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+          transaction.setTokenAddress(tokenAddress);
+          transaction.setNetwork(network.toUpperCase());
+          transaction.setContractVersion(2);
           transaction.setId(snapId);
-          transaction.setChainType(Context.getFundManagerChain());
-          transaction.setContractAddress(Context.getFundManagerContractAddress());
+          transaction.setChainType(network.toUpperCase());
+          transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
           transaction.setUserWithdrawables(batchUserWithdrawables);
           transaction.setBatchId(batchId);
           transaction.setNoOfBatches(noOfBatches);
@@ -369,16 +487,14 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
             success = success && status;
-            sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ")
-                .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           } else {
             success = false;
-            sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-                .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           }
         } catch (Exception e) {
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append(" ").append(e.getMessage()).append("\n");
+          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+              .append(" ").append(e.getMessage()).append("\n");
           LOGGER.error(ERROR_LOG, e);
         }
         recordCount = 0;
@@ -386,15 +502,17 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
       }
     }
 
-    System.out.println("noOfBatches " + noOfBatches);
     if (recordCount > 0) {
       batchId++;
       updateSent = true;
       try {
         WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+        transaction.setTokenAddress(tokenAddress);
+        transaction.setNetwork(network.toUpperCase());
+        transaction.setContractVersion(2);
         transaction.setId(snapId);
-        transaction.setChainType(Context.getFundManagerChain());
-        transaction.setContractAddress(Context.getFundManagerContractAddress());
+        transaction.setChainType(network.toUpperCase());
+        transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
         transaction.setBatchId(batchId);
         transaction.setNoOfBatches(noOfBatches);
@@ -402,16 +520,14 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ")
-              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-            .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append(" ").append(e.getMessage()).append("\n");
+        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+            .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
     }
@@ -419,9 +535,12 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
     if (!updateSent) {//send empty update
       try {
         WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+        transaction.setTokenAddress(tokenAddress);
+        transaction.setNetwork(network.toUpperCase());
+        transaction.setContractVersion(2);
         transaction.setId(snapId);
-        transaction.setChainType(Context.getFundManagerChain());
-        transaction.setContractAddress(Context.getFundManagerContractAddress());
+        transaction.setChainType(network.toUpperCase());
+        transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
         transaction.setBatchId(1);
         transaction.setNoOfBatches(1);
@@ -429,16 +548,14 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ")
-              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-              .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ")
-            .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append(" ").append(e.getMessage()).append("\n");
+        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+            .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
     }
@@ -452,43 +569,89 @@ public class FundManagerSnapForPendingWithdrawsUpdater {
     } else {
       sb.append("Snap update failed. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     }
+
     return success;
   }
 
   private static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> loadFromSnap(final String snapFile, final String[] args,
-      final Set<Integer> symbolsToIgnoreSet) {
+      final Set<Integer> symbolsToIgnoreSet, final Set<Integer> symbolsToAllowSet, final String network) {
     final List<Message> snapUserPositions = loadSnap(args, snapFile);
     final HashMap<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables = new HashMap<>();
-    final String chainKey = "MAINNET_V1";
+    final String contractKey = (network + "V2").toUpperCase();
+
     for (Message message : snapUserPositions) {
       if (message instanceof BalanceAdminMessage balanceAdminMessage) {
         double withdrawable = 0;
         for (Position p : balanceAdminMessage.getPositionArr()) {
           if (p != null) {
-            if (symbolsToIgnoreSet.contains(p.getInstrumentId())) {
-              continue;
+            if (MAINNET.equalsIgnoreCase(network)) {
+              if (!symbolsToIgnoreSet.contains(p.getInstrumentId())) {
+                if (p.getQuantity() != 0) {
+                  withdrawable = withdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+                  System.out.println(
+                      "InstrumentId: " + p.getInstrumentId() + " USD value " + p.getUsdValue()
+                          + " Unrealized " + p.getUsdUnrealized() + " withdrawable: "
+                          + withdrawable);
+                }
+              }
+            } else if (XDC.equalsIgnoreCase(network)) {
+              if (symbolsToAllowSet.contains(p.getInstrumentId())) {
+                if (p.getQuantity() != 0) {
+                  withdrawable = withdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+                  System.out.println(
+                      "InstrumentId: " + p.getInstrumentId() + " USD value " + p.getUsdValue()
+                          + " Unrealized " + p.getUsdUnrealized() + " withdrawable: "
+                          + withdrawable);
+                }
+              }
             }
-            withdrawable += p.getUsdValue() + p.getUsdUnrealized();
           }
         }
         System.out.println(balanceAdminMessage.getUserId() + " - " + withdrawable + " - " + (long) (withdrawable * 1_000_000));
         final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable =
-            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), chainKey, (long) (withdrawable * 1_000_000));
+            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), contractKey, (long) (withdrawable * 1_000_000));
         userWithdrawables.put(balanceAdminMessage.getUserId(), userWithdrawable);
       }
     }
     return userWithdrawables;
   }
 
-  private static List<WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawablesToUpdated(
-      final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables, final List<Integer> userIds) {
+  private static List<WithdrawableAmountUpdateTransaction.UserWithdrawable> getChangedNotional(
+      final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables,
+      final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> latestUserWithdrawables,
+      final double changeTolerance, final List<Integer> selectedUsers) {
+
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> list = new ArrayList<>();
-    for (Integer userId : userIds) {
-      if (userWithdrawables.containsKey(userId)) {
-        list.add(userWithdrawables.get(userId));
+    for (Map.Entry<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> entry : latestUserWithdrawables.entrySet()) {
+
+      WithdrawableAmountUpdateTransaction.UserWithdrawable prev = prevUserWithdrawables.get(entry.getKey());
+      WithdrawableAmountUpdateTransaction.UserWithdrawable current = entry.getValue();
+      if (selectedUsers != null && !selectedUsers.contains(current.getUserId())) {
+        continue;
+      }
+      long prevQuantity = prev != null ? prev.getQuantity() : 0;
+      long newQuantity = current != null ? current.getQuantity() : 0;
+
+      if (prevQuantity != 0) {
+        double change = Math.abs((newQuantity - prevQuantity) / (double) prevQuantity);
+        if (change > changeTolerance) { // more than 5%
+          list.add(current);
+          System.out.println("UserId: " + current.getUserId() + " percentage: " + change + " prevQuantity: " + prevQuantity + " newQuantity: " + newQuantity);
+        }
+      } else if (newQuantity != 0) {
+        list.add(current);
+        System.out.println("UserId: " + current.getUserId() + " prevQuantity: " + prevQuantity + " newQuantity: " + newQuantity);
       }
     }
     return list;
+  }
+
+  private static BigInteger fetchCurrentMaxFeePerGas(final Web3j web3j) throws Exception {
+    final GasFee gasFee = GasStationUtil.fetchGasFees(web3j);
+    if (gasFee != null) {
+      return gasFee.getMaxFeePerGas();
+    }
+    return new BigInteger("-1");
   }
 }
 

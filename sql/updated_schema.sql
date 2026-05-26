@@ -1647,3 +1647,6 @@ ALTER TABLE subscription_state ADD restOnly bool DEFAULT true;
 ALTER TABLE subscription_state ADD passphrase varchar(128);
 ALTER TABLE subscription_state ADD forceToUseProxy bool DEFAULT false;
 
+ALTER TABLE withdraw_request ADD "contractAddress" varchar(64) NULL;
+
+ALTER TABLE blockchain_notional_state ADD "contractKey" varchar(32) default 'MAINNET_V1';

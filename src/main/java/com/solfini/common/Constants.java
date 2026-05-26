@@ -14,12 +14,21 @@ public interface Constants {
   public static final String USD = "USD";
   public static final String USDC = "USDC";
   public static final String USDT = "USDT";
+  public static final String XUSDC = "XUSDC";
+  public static final String XUSDT = "XUSDT";
   public static final String BTC = "BTC";
   public static final String ETH = "ETH";
   public static final String BTC_USD = "BTC/USD";
   public static final String BTC_USDC = "BTC/USDC";
   public static final String USDC_USD = "USDC/USD";
   public static final String USDT_USD = "USDT/USD";
+
+  public static final String NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+  public static final String MAINNET = "MAINNET";
+  public static final String ETHEREUM = "ETHEREUM";
+  public static final String SEPOLIA = "SEPOLIA";
+  public static final String BITCOIN = "BITCOIN";
+  public static final String XDC = "XDC";
 
   public static final String ORDER_STATUS_FILLED = "FILLED";
   public static final String ORDER_STATUS_CANCELED = "CANCELED";
@@ -83,6 +92,8 @@ public interface Constants {
   public static final String ETHEREUM = "ETHEREUM";
   public static final String SEPOLIA = "SEPOLIA";
   public static final String BITCOIN = "BITCOIN";
+  public static final String XDC = "XDC";
+  public static final String XDC_APOTHEM = "XDC_APOTHEM";
 
   public static final char BRACE = '[';
   public static final char BRACE_END = ']';

@@ -14,8 +14,7 @@ public class BlockchainSenderFactory {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(BlockchainSenderFactory.class);
 
   public static BlockchainTransactionSender getSender(final PositionUpdateTransaction positionUpdateTransaction) {
-    if (POLYGON.equalsIgnoreCase(positionUpdateTransaction.getChainType()) || POLYGON_AMOY.equalsIgnoreCase(positionUpdateTransaction.getChainType())
-        || ETHEREUM.equalsIgnoreCase(positionUpdateTransaction.getChainType()) || SEPOLIA.equalsIgnoreCase(positionUpdateTransaction.getChainType())) {
+    if (evmCompatible(positionUpdateTransaction.getChainType())) {
       LOGGER.info("Sender loading " + positionUpdateTransaction.getChainType());
       return new EVMPositionUpdateSender(positionUpdateTransaction);
     }
@@ -24,8 +23,7 @@ public class BlockchainSenderFactory {
   }
 
   public static BlockchainTransactionSender getSender(final WithdrawableAmountUpdateTransaction notionalUpdateTransaction) {
-    if (POLYGON.equalsIgnoreCase(notionalUpdateTransaction.getChainType()) || POLYGON_AMOY.equalsIgnoreCase(notionalUpdateTransaction.getChainType())
-        || ETHEREUM.equalsIgnoreCase(notionalUpdateTransaction.getChainType()) || SEPOLIA.equalsIgnoreCase(notionalUpdateTransaction.getChainType())) {
+    if (evmCompatible(notionalUpdateTransaction.getChainType())) {
       LOGGER.info("Sender loading " + notionalUpdateTransaction.getChainType());
       return new EVMWithdrawableAmountUpdateSender(notionalUpdateTransaction);
     }
@@ -34,12 +32,18 @@ public class BlockchainSenderFactory {
   }
 
   public static BlockchainTransactionSender getSender(final WithdrawTransaction withdrawTransaction) {
-    if (POLYGON.equalsIgnoreCase(withdrawTransaction.getChainType()) || POLYGON_AMOY.equalsIgnoreCase(withdrawTransaction.getChainType())
-        || ETHEREUM.equalsIgnoreCase(withdrawTransaction.getChainType()) || SEPOLIA.equalsIgnoreCase(withdrawTransaction.getChainType())) {
+    if (evmCompatible(withdrawTransaction.getChainType())) {
       LOGGER.info("Sender loading " + withdrawTransaction.getChainType());
       return new EVMWithdrawSender(withdrawTransaction);
     }
 
     return null;
+  }
+
+  private static boolean evmCompatible(final String chainType) {
+    return (POLYGON.equalsIgnoreCase(chainType) || POLYGON_AMOY.equalsIgnoreCase(chainType)
+        || MAINNET.equalsIgnoreCase(chainType) || ETHEREUM.equalsIgnoreCase(chainType) || SEPOLIA.equalsIgnoreCase(chainType)
+        || XDC.equalsIgnoreCase(chainType) || XDC_APOTHEM.equalsIgnoreCase(chainType)
+    );
   }
 }

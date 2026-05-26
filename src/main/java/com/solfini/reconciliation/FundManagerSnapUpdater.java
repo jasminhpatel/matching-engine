@@ -333,8 +333,9 @@ public class FundManagerSnapUpdater {
         loadFromSnap(latestSnapFile, args, symbolsToIgnoreSet);
     sb.append("Latest snap file loaded to memory. file: ").append(latestSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
+    final String chainKey = "MAINNET_V1";
     BlockchainNotionalCache.loadFromDB();
-    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap();
+    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap(chainKey);
     sb.append("Previous snap status loaded from DB. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> diff =
@@ -511,6 +512,7 @@ public class FundManagerSnapUpdater {
       final Set<Integer> symbolsToIgnoreSet) {
     final List<Message> snapUserPositions = loadSnap(args, snapFile);
     final HashMap<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables = new HashMap<>();
+    final String chainKey = "MAINNET_V1";
 
     for (Message message : snapUserPositions) {
       if (message instanceof BalanceAdminMessage balanceAdminMessage) {
@@ -527,7 +529,7 @@ public class FundManagerSnapUpdater {
         }
         System.out.println(balanceAdminMessage.getUserId() + " - " + withdrawable + " - " + (long) (withdrawable * 1_000_000));
         final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable =
-            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), (long) (withdrawable * 1_000_000));
+            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), chainKey, (long) (withdrawable * 1_000_000));
         userWithdrawables.put(balanceAdminMessage.getUserId(), userWithdrawable);
       }
     }
