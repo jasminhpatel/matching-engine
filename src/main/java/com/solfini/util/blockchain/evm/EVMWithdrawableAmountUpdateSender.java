@@ -121,10 +121,10 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
   private String preprocessBatchUpdates2() {
     StringBuilder processed = new StringBuilder("0x");
     final String snapshotIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getId())), 8);
-    //final String batchIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getBatchId())), 4);//todo split in to batches
+    final String batchIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getBatchId())), 4);//todo split in to batches
     final String totalBatchesHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(
         withdrawableAmountUpdateTransaction.getNoOfBatches())), 4);
-    processed.append(snapshotIdHex)/*.append(batchIdHex)*/.append(totalBatchesHex);
+    processed.append(snapshotIdHex).append(batchIdHex).append(totalBatchesHex);
 
     for (WithdrawableAmountUpdateTransaction.UserWithdrawable notional : withdrawableAmountUpdateTransaction.getUserWithdrawables()) {
       final String userIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(notional.getUserId())), 4);
