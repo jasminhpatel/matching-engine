@@ -1,14 +1,5 @@
 package com.solfini.reconciliation;
 
-import static com.solfini.common.Constants.MAINNET;
-import static com.solfini.common.Constants.NONE;
-import static com.solfini.common.Constants.USDC;
-import static com.solfini.common.Constants.USDT;
-import static com.solfini.common.Constants.XDC;
-import static com.solfini.common.Constants.XUSDC;
-import static com.solfini.common.Constants.XUSDT;
-
-import com.solfini.common.Context;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
 import java.io.IOException;

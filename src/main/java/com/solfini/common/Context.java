@@ -1325,7 +1325,7 @@ public final class Context implements Constants {
     switch (symbol.toUpperCase()) {
       case USDC:
       case USDT:
-        return MAINNET;
+        return ETHEREUM;
       case XUSDC:
       case XUSDT:
       case XDC:

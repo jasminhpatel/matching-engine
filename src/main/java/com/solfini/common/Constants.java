@@ -83,6 +83,7 @@ public interface Constants {
   public static final String POLYGON = "POLYGON";
   public static final String POLYGON_AMOY = "POLYGON_AMOY";
   public static final String ETHEREUM = "ETHEREUM";
+  public static final String MAINNET = "MAINNET";
   public static final String SEPOLIA = "SEPOLIA";
   public static final String BITCOIN = "BITCOIN";
   public static final String XDC = "XDC";
