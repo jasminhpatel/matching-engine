@@ -23,13 +23,6 @@ public interface Constants {
   public static final String USDC_USD = "USDC/USD";
   public static final String USDT_USD = "USDT/USD";
 
-  public static final String NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
-  public static final String MAINNET = "MAINNET";
-  public static final String ETHEREUM = "ETHEREUM";
-  public static final String SEPOLIA = "SEPOLIA";
-  public static final String BITCOIN = "BITCOIN";
-  public static final String XDC = "XDC";
-
   public static final String ORDER_STATUS_FILLED = "FILLED";
   public static final String ORDER_STATUS_CANCELED = "CANCELED";
   public static final String ORDER_STATUS_REJECTED = "REJECTED";
