@@ -37,7 +37,7 @@ public class BlockchainNotionalCache {
   }
 
   public static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> getUserWithdrawableMap(final String contractKey) {
-    return USER_WITHDRAWABLE_MAP.get(contractKey);
+    return USER_WITHDRAWABLE_MAP.computeIfAbsent(contractKey, v -> new ConcurrentHashMap<>());
   }
 
   public static void upsert(final WithdrawableAmountUpdateTransaction.UserWithdrawable withdrawable, final long updated, final long snapshotId) {
