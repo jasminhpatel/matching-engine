@@ -219,6 +219,12 @@ public final class Context implements Constants {
       BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("ETHEREUM_MIN_PRIORITY_GAS_PRICE", "2000000000")));// 2 Gwei
   private static final BigInteger ETHEREUM_MAX_FEE_PER_GAS =
       BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("ETHEREUM_MAX_FEE_PER_GAS", "2000000000")));// 2 Gwei
+  private static final BigInteger XDC_MAX_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("XDC_MAX_PRIORITY_GAS_PRICE", "100000000000")));// 100 Gwei
+  private static final BigInteger XDC_MIN_PRIORITY_GAS_PRICE =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("XDC_MIN_PRIORITY_GAS_PRICE", "1000000000")));// 1 Gwei
+  private static final BigInteger XDC_MAX_FEE_PER_GAS =
+      BigInteger.valueOf(StringUtil.toLong(PropertyReader.getProperty("XDC_MAX_FEE_PER_GAS", "80000000000")));// 80 Gwei
   private static final String POLYGON_WEB3_PROVIDER =
       PropertyReader.getProperty("POLYGON_WEB3_PROVIDER", "https://polygon-amoy.g.alchemy.com/v2/1MH6JeN9slpV-Qh0x31QeMl4pOnRHq94");
   private static final String POLYGON_WEB3_PROVIDER_2 =
@@ -1393,5 +1399,17 @@ public final class Context implements Constants {
 
   public static int getXusdtId() {
     return XUSDT_ID;
+  }
+
+  public static BigInteger getXdcMaxFeePerGas() {
+    return XDC_MAX_FEE_PER_GAS;
+  }
+
+  public static BigInteger getXdcMaxPriorityGasPrice() {
+    return XDC_MAX_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getXdcMinPriorityGasPrice() {
+    return XDC_MIN_PRIORITY_GAS_PRICE;
   }
 }
