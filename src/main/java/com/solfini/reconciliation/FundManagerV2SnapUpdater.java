@@ -358,30 +358,17 @@ public class FundManagerV2SnapUpdater {
       }
     }
     if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins except XUSDC, XUSDT
-      final Instrument xusdc = InstrumentCache.getBySymbol(XUSDC);
-      if (xusdc != null) {
-        symbolsToIgnoreSet.add(xusdc.getId());
-      }
-      final Instrument xusdt = InstrumentCache.getBySymbol(XUSDT);
-      if (xusdt != null) {
-        symbolsToIgnoreSet.add(xusdt.getId());
-      }
+      symbolsToIgnoreSet.add(Context.getXusdcId());
+      symbolsToIgnoreSet.add(Context.getXusdtId());
+
       if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
-        final Instrument usdt = InstrumentCache.getBySymbol(USDT);
-        symbolsToIgnoreSet.add(usdt.getId());
+        symbolsToIgnoreSet.add(Context.getUsdtId());
       } else if (USDT.equalsIgnoreCase(symbol)) { // when processing USDT ignore USDC from withdrawable
-        final Instrument usdc = InstrumentCache.getBySymbol(USDC);
-        symbolsToIgnoreSet.add(usdc.getId());
+        symbolsToIgnoreSet.add(Context.getUsdcId());
       }
     } else if (XDC.equalsIgnoreCase(network)) { // allows to withdraw only XUSDC, XUSDT
-      final Instrument xusdc = InstrumentCache.getBySymbol(XUSDC);
-      if (xusdc != null) {
-        symbolsToAllowSet.add(xusdc.getId());
-      }
-      final Instrument xusdt = InstrumentCache.getBySymbol(XUSDT);
-      if (xusdt != null) {
-        symbolsToAllowSet.add(xusdt.getId());
-      }
+      symbolsToAllowSet.add(Context.getXusdcId());
+      symbolsToAllowSet.add(Context.getXusdtId());
     }
     // load from snap
     final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> latestUserWithdrawables =

@@ -292,6 +292,12 @@ public final class Context implements Constants {
   private static final String KUCOIN_FUTURES_REST = PropertyReader.getProperty("KUCOIN_FUTURES_REST", "https://api-futures.kucoin.com");
   private static final int EXTERNAL_EXCHANGE_PROXY_PORT =  PropertyReader.getProperty("EXTERNAL_EXCHANGE_PROXY_PORT", 8888);
 
+  private static final int USDC_ID =  PropertyReader.getProperty("USDC_ID", 0);
+  private static final int USDT_ID =  PropertyReader.getProperty("USDT_ID", 0);
+  private static final int XUSDC_ID =  PropertyReader.getProperty("XUSDC_ID", 0);
+  private static final int XUSDT_ID =  PropertyReader.getProperty("XUSDT_ID", 0);
+
+
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
   private static final ManyToManyConcurrentArrayQueueCustom<User> riskToAutoLiquidatorQueue =
@@ -1371,5 +1377,21 @@ public final class Context implements Constants {
       return Context.getXdcFundManagerV2ContractAddress();
     }
     return null;
+  }
+
+  public static int getUsdcId() {
+    return USDC_ID;
+  }
+
+  public static int getUsdtId() {
+    return USDT_ID;
+  }
+
+  public static int getXusdcId() {
+    return XUSDC_ID;
+  }
+
+  public static int getXusdtId() {
+    return XUSDT_ID;
   }
 }
