@@ -71,7 +71,11 @@ public class GasStationUtil {
 
       if (feeHistory.hasError()) {
         LOGGER.error("Error in getting type 2 gas prices. " + feeHistory.getError().getMessage());
-        return null;
+        // Some chains/networks (e.g. XDC testnet) may not support eth_feeHistory.
+        // In that case, fall back to legacy eth_gasPrice so gas isn't left as 0.
+        EthGasPrice legacy = web3j.ethGasPrice().send();
+        BigInteger gasPrice = legacy.getGasPrice();
+        return new GasFee(gasPrice, BigInteger.ZERO, gasPrice);
       }
 
       // Base fee
