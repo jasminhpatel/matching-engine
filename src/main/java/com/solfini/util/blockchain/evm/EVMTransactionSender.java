@@ -208,6 +208,7 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
         LOGGER.info(LOG_FMT_2, "Signer url: ", this.signerUrl);
         json = HTTPSClient.postWithSignature(this.signerUrl, this.signRequest.getBytes(), requestSecret);
         LOGGER.info(LOG_FMT_2, "Signer response: ", json);
+        System.out.println("Signer response: " + json);
         break;
       } catch (final Exception e) {
         System.out.println(e.getMessage());
