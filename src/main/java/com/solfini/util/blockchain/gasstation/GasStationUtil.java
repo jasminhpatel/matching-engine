@@ -126,6 +126,16 @@ public class GasStationUtil {
       } else {
         return price;
       }
+    } else if (XDC.equalsIgnoreCase(chainType) || XDC_APOTHEM.equalsIgnoreCase(chainType)) {
+      if (price.compareTo(Context.getXdcMaxPriorityGasPrice()) > 0) {
+        //return max;
+        return Context.getPolygonMaxPriorityGasPrice();
+      } else if (price.compareTo(Context.getXdcMinPriorityGasPrice()) < 0) {
+        //return min;
+        return Context.getXdcMinPriorityGasPrice();
+      } else {
+        return price;
+      }
     }
     return BigInteger.ZERO;
   }
