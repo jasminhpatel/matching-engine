@@ -3,6 +3,7 @@ package com.solfini.reconciliation;
 import static com.solfini.common.Constants.COLD_START;
 import static com.solfini.common.Constants.COPY_TRADE_ONLY;
 import static com.solfini.common.Constants.ERROR_LOG;
+import static com.solfini.common.Constants.ETHEREUM;
 import static com.solfini.common.Constants.MODE;
 import static com.solfini.common.Constants.ONE_HOUR;
 import static com.solfini.common.Constants.PRIMARY;
@@ -389,59 +390,61 @@ public class FundManagerV2SnapUpdater {
     boolean useSecondary = false, hasProxyError = false;
     Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
     final long windowEnd = System.currentTimeMillis() + ONE_HOUR * 8; // 8 hours
-    while (true) {
-      try {
-        if (web3j == null) {
-          web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
-        }
-        BigInteger maxFeePerGas = fetchCurrentMaxFeePerGas(web3j);
-        if (maxFeePerGas.compareTo(Context.getEthereumMaxFeePerGas()) < 0) {
-          break;
-        }
-        if (System.currentTimeMillis() > windowEnd) {
-          LOGGER.info("Fund Manager, Unable to update the notional within specified time.");
-          sb.append(
-                  "Unable to update the notional within specified time. Gas price is too high. time: ")
+    if (ETHEREUM.equalsIgnoreCase(network) || MAINNET.equalsIgnoreCase(network)) {
+      while (true) {
+        try {
+          if (web3j == null) {
+            web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+          }
+          BigInteger maxFeePerGas = fetchCurrentMaxFeePerGas(web3j);
+          if (maxFeePerGas.compareTo(Context.getEthereumMaxFeePerGas()) < 0) {
+            break;
+          }
+          if (System.currentTimeMillis() > windowEnd) {
+            LOGGER.info("Fund Manager, Unable to update the notional within specified time.");
+            sb.append(
+                    "Unable to update the notional within specified time. Gas price is too high. time: ")
+                .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            return false;
+          }
+          LOGGER.info("Fund Manager, Gas price is too high. Waiting for it to go down... gasPrice: "
+              + maxFeePerGas + " threshold: " + Context.getEthereumMaxFeePerGas());
+          sb.append("Gas price is too high. Waiting for it to go down... gasPrice: ")
+              .append(maxFeePerGas).append(" threshold: ")
+              .append(Context.getEthereumMaxFeePerGas()).append(" time: ")
               .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-          return false;
+          TimeUnit.MINUTES.sleep(1);
+        } catch (ClientConnectionException e) {
+          String message = e.getMessage().toLowerCase();
+          if (message.contains("429") || message.contains("too many requests")) {
+            sb.append("Failed Reason ").append("RPC error.");
+            useSecondary = true;
+          } else if (message.contains("502") || message.contains("bad gateway")) {
+            sb.append("Failed Reason ").append("Proxy error.");
+            hasProxyError = true;
+          } else if (message.contains("503") || message.contains("service unavailable")) {
+            sb.append("Failed Reason ").append("RPC error.");
+            useSecondary = true;
+          } else if (message.contains("504") || message.contains("gateway timeout")) {
+            sb.append("Failed Reason ").append("RPC error.");
+            sb.append("Failed Reason ").append("Proxy error.");
+            hasProxyError = true;
+            useSecondary = true;
+          } else if (message.contains("407") || message.contains("proxy authentication")) {
+            sb.append("Failed Reason ").append("Proxy error.");
+            hasProxyError = true;
+          } else {
+            sb.append("Failed Reason ").append("RPC error.");
+            sb.append("Failed Reason ").append("Proxy error.");
+            hasProxyError = true;
+            useSecondary = true;
+          }
+          web3j = null;
+        } catch (IOException e) {
+          hasProxyError = true;
+          useSecondary = true;
+          web3j = null;
         }
-        LOGGER.info("Fund Manager, Gas price is too high. Waiting for it to go down... gasPrice: "
-            + maxFeePerGas + " threshold: " + Context.getEthereumMaxFeePerGas());
-        sb.append("Gas price is too high. Waiting for it to go down... gasPrice: ")
-            .append(maxFeePerGas).append(" threshold: ")
-            .append(Context.getEthereumMaxFeePerGas()).append(" time: ")
-            .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-        TimeUnit.MINUTES.sleep(1);
-      }  catch (ClientConnectionException e) {
-        String message = e.getMessage().toLowerCase();
-        if (message.contains("429") || message.contains("too many requests")) {
-          sb.append("Failed Reason ").append("RPC error.");
-          useSecondary = true;
-        } else if (message.contains("502") || message.contains("bad gateway")) {
-          sb.append("Failed Reason ").append("Proxy error.");
-          hasProxyError = true;
-        } else if (message.contains("503") || message.contains("service unavailable")) {
-          sb.append("Failed Reason ").append("RPC error.");
-          useSecondary = true;
-        } else if (message.contains("504") || message.contains("gateway timeout")) {
-          sb.append("Failed Reason ").append("RPC error.");
-          sb.append("Failed Reason ").append("Proxy error.");
-          hasProxyError = true;
-          useSecondary = true;
-        } else if (message.contains("407") || message.contains("proxy authentication")) {
-          sb.append("Failed Reason ").append("Proxy error.");
-          hasProxyError = true;
-        } else {
-          sb.append("Failed Reason ").append("RPC error.");
-          sb.append("Failed Reason ").append("Proxy error.");
-          hasProxyError = true;
-          useSecondary = true;
-        }
-        web3j = null;
-      } catch (IOException e) {
-        hasProxyError = true;
-        useSecondary = true;
-        web3j = null;
       }
     }
 
