@@ -34,7 +34,9 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
     if (withdrawableAmountUpdateTransaction.getContractVersion() == 2) {
       final Function function =
           new Function("batchSetAvailableAssetBalances",
-              List.of(new Address(withdrawableAmountUpdateTransaction.getTokenAddress()), new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates2()))),
+              List.of(
+                  new Address(withdrawableAmountUpdateTransaction.getTokenAddress()),
+                  new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates2()))),
               Collections.emptyList());
       this.encodedFunction = FunctionEncoder.encode(function);
     } else {
@@ -120,16 +122,14 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
 
   private String preprocessBatchUpdates2() {
     StringBuilder processed = new StringBuilder("0x");
-    final String snapshotIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getId())), 8);
-    final String batchIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(withdrawableAmountUpdateTransaction.getBatchId())), 4);//todo split in to batches
-    final String totalBatchesHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(
-        withdrawableAmountUpdateTransaction.getNoOfBatches())), 4);
-    processed.append(snapshotIdHex).append(batchIdHex).append(totalBatchesHex);
+    processed.append(zeroPadToBytes(Long.toHexString(withdrawableAmountUpdateTransaction.getId()), 8));
+    processed.append(zeroPadToBytes(Integer.toHexString(withdrawableAmountUpdateTransaction.getBatchId()),  4));
+    processed.append(zeroPadToBytes(Integer.toHexString(withdrawableAmountUpdateTransaction.getNoOfBatches()), 4));
 
     for (WithdrawableAmountUpdateTransaction.UserWithdrawable notional : withdrawableAmountUpdateTransaction.getUserWithdrawables()) {
-      final String userIdHex = zeroPadToBytes(Numeric.toHexStringNoPrefix(BigInteger.valueOf(notional.getUserId())), 4);
+      final String userIdHex = zeroPadToBytes(Long.toHexString((long) notional.getUserId()), 4);
       processed.append(userIdHex);
-      final String amountHex = zeroPadToBytes(int64ToHex(notional.getQuantity()), 8);
+      final String amountHex = int64ToHex(notional.getQuantity());
       processed.append(amountHex);
     }
 
