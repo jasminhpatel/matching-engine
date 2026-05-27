@@ -451,7 +451,7 @@ public class FundManagerV2SnapUpdater {
     final int noOfBatches = (int) Math.ceil(diff.size() / (double) fundManagerBatchSize);
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables = new ArrayList<>();
     final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
-    int batchId = 0;
+    int batchIndex = 0; // 0-indexed; contract requires batchIndex < totalBatches
     int recordCount = 0;
     boolean updateSent = false;
     boolean success = true;
@@ -460,7 +460,6 @@ public class FundManagerV2SnapUpdater {
       batchUserWithdrawables.add(userWithdrawable);
       recordCount++;
       if (recordCount >= fundManagerBatchSize) {
-        batchId++;
         updateSent = true;
         try {
           final WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
@@ -471,29 +470,29 @@ public class FundManagerV2SnapUpdater {
           transaction.setChainType(network.toUpperCase());
           transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
           transaction.setUserWithdrawables(batchUserWithdrawables);
-          transaction.setBatchId(batchId);
+          transaction.setBatchId(batchIndex);
           transaction.setNoOfBatches(noOfBatches);
           final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
             success = success && status;
-            sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           } else {
             success = false;
-            sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           }
         } catch (Exception e) {
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
               .append(" ").append(e.getMessage()).append("\n");
           LOGGER.error(ERROR_LOG, e);
         }
+        batchIndex++;
         recordCount = 0;
         batchUserWithdrawables.clear();
       }
     }
 
     if (recordCount > 0) {
-      batchId++;
       updateSent = true;
       try {
         WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
@@ -504,19 +503,19 @@ public class FundManagerV2SnapUpdater {
         transaction.setChainType(network.toUpperCase());
         transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
-        transaction.setBatchId(batchId);
+        transaction.setBatchId(batchIndex);
         transaction.setNoOfBatches(noOfBatches);
         final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+        sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
             .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
@@ -532,19 +531,19 @@ public class FundManagerV2SnapUpdater {
         transaction.setChainType(network.toUpperCase());
         transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
-        transaction.setBatchId(1);
+        transaction.setBatchId(0);
         transaction.setNoOfBatches(1);
         final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(1).append(" of ").append(1).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(1).append(" of ").append(1).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+        sb.append("Snap update failed. batch ").append(1).append(" of ").append(1).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
             .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
