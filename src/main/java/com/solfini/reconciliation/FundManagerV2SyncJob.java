@@ -13,8 +13,9 @@ import javax.mail.MessagingException;
 
 public class FundManagerV2SyncJob {
   public static void main(String[] args) {
-    sync(args, MAINNET, USDC);
-    sync(args, MAINNET, USDT);
+    //todo uncomment after testing
+    //sync(args, MAINNET, USDC);
+    //sync(args, MAINNET, USDT);
     sync(args, XDC, XUSDC);
     System.exit(0); // clean exit
   }
