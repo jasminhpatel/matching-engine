@@ -358,15 +358,15 @@ public class FundManagerV2SnapUpdater {
         symbolsToIgnoreSet.add(StringUtil.toInt(s));
       }
     }
-    if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins except XUSDC, XUSDT
+    if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins + profit except XUSDC, XUSDT
       symbolsToIgnoreSet.add(Context.getXusdcId());
       symbolsToIgnoreSet.add(Context.getXusdtId());
-
-      if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
+      // uncomment if per asset restriction is required.
+      /* if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
         symbolsToIgnoreSet.add(Context.getUsdtId());
       } else if (USDT.equalsIgnoreCase(symbol)) { // when processing USDT ignore USDC from withdrawable
         symbolsToIgnoreSet.add(Context.getUsdcId());
-      }
+      }*/
     } else if (XDC.equalsIgnoreCase(network)) { // allows to withdraw only XUSDC, XUSDT
       symbolsToAllowSet.add(Context.getXusdcId());
       symbolsToAllowSet.add(Context.getXusdtId());
