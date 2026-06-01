@@ -1,7 +1,9 @@
 package com.solfini.reconciliation;
 
+import com.solfini.common.Context;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
+import com.solfini.util.blockchain.util.RpcUtil;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -30,7 +32,8 @@ public class FundManagerV2Loader {
   private static final String FUND_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
   private static final String CALLER_ADDRESS = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
 
-  public static FundManagerSnapData getUserPositions() throws IOException {
+  public static FundManagerSnapData getUserPositions(final String network, final String symbol) throws IOException {
+    final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
     final FundManagerSnapData blockchainSnapData = new FundManagerSnapData();
     int maxUserId =  getMaxUserId();
     final Map<Integer, Long> userPositionsMap = blockchainSnapData.getUserPositionsMap();
@@ -38,7 +41,7 @@ public class FundManagerV2Loader {
     int startUserId = 1;
     String snapshotId = null;
     while (startUserId <= maxUserId + 1) {
-      String snapId = getUserPositions(userPositionsMap, startUserId, batchSize);
+      String snapId = getUserPositions(userPositionsMap, startUserId, batchSize, network, tokenAddress);
       if (snapshotId == null) {
         snapshotId = snapId;
       }
@@ -52,6 +55,7 @@ public class FundManagerV2Loader {
       }
     }
     blockchainSnapData.setSnapshotId(snapshotId);
+
     return blockchainSnapData;
   }
 
@@ -76,20 +80,24 @@ public class FundManagerV2Loader {
     return Numeric.toBigInt(rawResult).intValue();
   }
 
-  private static String getUserPositions(final Map<Integer, Long> userPositionsMap, final int start, final int size) throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
+  private static String getUserPositions(final Map<Integer, Long> userPositionsMap, final int start,
+      final int size, final String network, final String tokenAddress) throws IOException {
+    final String fundManagerContract = Context.getFundManagerContractByNetworkAndVersion(network, 2);
+    boolean useSecondary = false, hasProxyError = false;
+    final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+    final Address address = new Address(tokenAddress);
     final Uint32 fromUserId = new Uint32(start);
     final Uint32 toUserId = new Uint32(start + size);
 
     final Function function = new Function(
         "getPositionsPaginated",
-        Arrays.asList(fromUserId, toUserId),
+        Arrays.asList(address, fromUserId, toUserId),
         Collections.emptyList()
     );
-    String encodedFunction = FunctionEncoder.encode(function);
-    Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS,
-        FUND_MANAGER_CONTRACT_ADDRESS, encodedFunction);
-    EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
+    final String encodedFunction = FunctionEncoder.encode(function);
+    final Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS,
+        fundManagerContract, encodedFunction);
+    final EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
 
     if (response.hasError()) {
       throw new RuntimeException(response.getError().getMessage());

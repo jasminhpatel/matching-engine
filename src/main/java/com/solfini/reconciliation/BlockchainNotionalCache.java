@@ -54,6 +54,61 @@ public class BlockchainNotionalCache {
     }
   }
 
+  public static long getOrCreateIncrementalId(final long snapshotId) {
+    final String sql = """
+        WITH inserted AS (
+            INSERT INTO blockchan_snap_mapping (snapshot_id)
+            VALUES (?)
+            ON CONFLICT (snapshot_id) DO NOTHING
+            RETURNING id
+        ),
+        existing AS (
+            SELECT id FROM blockchan_snap_mapping
+            WHERE snapshot_id = ?
+        )
+        SELECT id FROM inserted
+        UNION ALL
+        SELECT id FROM existing
+        LIMIT 1
+    """;
+
+    try (Connection conn = DBManager.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+
+      ps.setLong(1, snapshotId);
+      ps.setLong(2, snapshotId);
+
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getLong("id");
+        }
+        //throw new IllegalStateException("Failed to get or create incremental ID for snapshotId: " + snapshotId);
+      }
+    } catch (final Exception e) {
+      e.printStackTrace();
+    }
+    return -1;
+  }
+
+  public static long getSnapshotIdById(final long id) {
+    String sql = "SELECT snapshot_id FROM blockchan_snap_mapping WHERE id = ?";
+
+    try (Connection conn = DBManager.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+
+      ps.setLong(1, id);
+
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getLong("snapshot_id");
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return -1;
+  }
+
   private static void parse(final ResultSet rs) throws SQLException {
     while (rs.next()) {
       WithdrawableAmountUpdateTransaction.UserWithdrawable withdrawable =

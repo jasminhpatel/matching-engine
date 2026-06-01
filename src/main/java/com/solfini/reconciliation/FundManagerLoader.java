@@ -1,7 +1,9 @@
 package com.solfini.reconciliation;
 
+import com.solfini.common.Context;
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
+import com.solfini.util.blockchain.util.RpcUtil;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
@@ -112,11 +114,14 @@ public class FundManagerLoader {
     return decodeResponse2(actualPayload, userPositionsMap);
   }
 
-  public static double getBalance(final String contractAddress) throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
+  public static double getBalance(final String network, final String contractAddress) throws IOException {
+    boolean useSecondary = false, hasProxyError = false;
+    final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+    final String fundManagerContract = Context.getFundManagerContractByNetworkAndVersion(network, 2);
+
     final Function balanceOfFunction = new Function(
         "balanceOf",
-        List.of(new Address(FUND_MANAGER_CONTRACT_ADDRESS)),
+        List.of(new Address(fundManagerContract)),
         List.of(new TypeReference<Uint256>() {
         })
     );

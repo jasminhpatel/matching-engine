@@ -1,5 +1,7 @@
 package com.solfini.reconciliation;
 
+import static com.solfini.common.Constants.MAINNET;
+
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Position;
@@ -253,8 +255,8 @@ public class FundManagerReconciliation {
       }
     }
 
-    double contractUSDCValue = FundManagerLoader.getBalance(Context.getUsdcContract());
-    double contractUSDTValue = FundManagerLoader.getBalance(Context.getUsdtContract());
+    double contractUSDCValue = FundManagerLoader.getBalance(MAINNET, Context.getUsdcContract());
+    double contractUSDTValue = FundManagerLoader.getBalance(MAINNET, Context.getUsdtContract());
 
     // todo reverse check (users and assets not in snap but exists in blockchain)
     summary.append("Ethereum–User Withdrawable Reconciliation Summary: \n");

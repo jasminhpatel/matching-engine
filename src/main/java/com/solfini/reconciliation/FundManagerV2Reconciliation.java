@@ -1,5 +1,8 @@
 package com.solfini.reconciliation;
 
+import static com.solfini.common.Constants.MAINNET;
+import static com.solfini.common.Constants.XDC;
+
 import com.solfini.common.Context;
 import com.solfini.common.Message;
 import com.solfini.instrument.Position;
@@ -15,6 +18,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +34,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.web3j.abi.datatypes.Address;
+import org.web3j.utils.Numeric;
 
 public class FundManagerV2Reconciliation {
   private static final Logger LOGGER = LogManager.getLogger(FundManagerV2Reconciliation.class);
@@ -175,7 +181,8 @@ public class FundManagerV2Reconciliation {
     }
   }
 
-  public static void reconcile(final String[] args, final StringBuilder summary, final boolean eod) throws IOException, MessagingException {
+  public static void reconcile(final String[] args, final StringBuilder summary, final boolean eod,
+      final String network, final String symbol) throws IOException, MessagingException {
     summary.append("\n");
 
     final StringBuilder csv = new StringBuilder();
@@ -186,21 +193,38 @@ public class FundManagerV2Reconciliation {
 
     int missingUsers = 0, missingPositions = 0, mismatchedPositions = 0, matchedPositions = 0;
     // Load positions from PositionManager Smart Contract
-    final FundManagerSnapData blockchainSnapData = FundManagerV2Loader.getUserPositions();
+    final FundManagerSnapData blockchainSnapData = FundManagerV2Loader.getUserPositions(network, symbol);
     final Map<Integer, Long> blockchainPositionsMap = blockchainSnapData.getUserPositionsMap();
     // load positions from SnapFile
-    String snapshotId = blockchainSnapData.getSnapshotId();
+    String snapshotMappingId = blockchainSnapData.getSnapshotId();
+    String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdById(StringUtil.toInt(snapshotMappingId)));
+
     LOGGER.info("Fund Manager snapshotId: " + snapshotId);
     String snapFile = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "") + "/"  + snapshotId;
     String symbolsToIgnore = PropertyReader.getProperty("IGNORE_SYMBOL_LIST", "");
     final double tolerancePercentage = PropertyReader.getProperty("ETHEREUM_NOTIONAL_DIFF_PERCENTAGE", 0.05);
 
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
+    final Set<Integer> symbolsToAllowSet = new HashSet<>();
+
     if (symbolsToIgnore != null && !symbolsToIgnore.isEmpty()) {
       final String[] symbolsToIgnoreArr = symbolsToIgnore.split(",");
       for(String s : symbolsToIgnoreArr) {
         symbolsToIgnoreSet.add(StringUtil.toInt(s));
       }
+    }
+    if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins + profit except XUSDC, XUSDT
+      symbolsToIgnoreSet.add(Context.getXusdcId());
+      symbolsToIgnoreSet.add(Context.getXusdtId());
+      // uncomment if per asset restriction is required.
+      /* if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
+        symbolsToIgnoreSet.add(Context.getUsdtId());
+      } else if (USDT.equalsIgnoreCase(symbol)) { // when processing USDT ignore USDC from withdrawable
+        symbolsToIgnoreSet.add(Context.getUsdcId());
+      }*/
+    } else if (XDC.equalsIgnoreCase(network)) { // allows to withdraw only XUSDC, XUSDT
+      symbolsToAllowSet.add(Context.getXusdcId());
+      symbolsToAllowSet.add(Context.getXusdtId());
     }
     final List<Message> snapUserPositions = loadSnap(args, snapFile);
     double totalUserPositionsValue = 0;
@@ -214,14 +238,27 @@ public class FundManagerV2Reconciliation {
         if (balanceAdminMessage.getPositionArr() != null) {
           for (Position p : balanceAdminMessage.getPositionArr()) {
             if (p != null) {
-              if (userId == 8) { // market maker
-                totalMarketMakerPositionsValue += p.getUsdValue();
-              } else {
-                totalUserPositionsValue += p.getUsdValue();
-              }
-              if (!symbolsToIgnoreSet.contains(p.getInstrumentId())) {
-                if (p.getQuantity() != 0) {
-                  snapWithdrawable = snapWithdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+              if (MAINNET.equalsIgnoreCase(network)) {
+                if (!symbolsToIgnoreSet.contains(p.getInstrumentId())) {
+                  if (p.getQuantity() != 0) {
+                    if (userId == 8) { // market maker
+                      totalMarketMakerPositionsValue += p.getUsdValue();
+                    } else {
+                      totalUserPositionsValue += p.getUsdValue();
+                    }
+                    snapWithdrawable = snapWithdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+                  }
+                }
+              } else if (XDC.equalsIgnoreCase(network)) {
+                if (symbolsToAllowSet.contains(p.getInstrumentId())) {
+                  if (p.getQuantity() != 0) {
+                    if (userId == 8) { // market maker
+                      totalMarketMakerPositionsValue += p.getUsdValue();
+                    } else {
+                      totalUserPositionsValue += p.getUsdValue();
+                    }
+                    snapWithdrawable = snapWithdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+                  }
                 }
               }
             }
@@ -262,9 +299,6 @@ public class FundManagerV2Reconciliation {
       }
     }
 
-    double contractUSDCValue = FundManagerLoader.getBalance(Context.getUsdcContract());
-    double contractUSDTValue = FundManagerLoader.getBalance(Context.getUsdtContract());
-
     // todo reverse check (users and assets not in snap but exists in blockchain)
     summary.append("Ethereum–User Withdrawable Reconciliation Summary: \n");
     summary.append("\t Snapshot Id: ").append(blockchainSnapData.getSnapshotId()).append("\n");
@@ -275,8 +309,22 @@ public class FundManagerV2Reconciliation {
 
     summary.append("\t Total of user position in USD: ").append(totalUserPositionsValue).append("\n");
     summary.append("\t Total of market maker positions in USD: ").append(totalMarketMakerPositionsValue).append("\n");
-    summary.append("\t Total USDC balance of the contract: ").append(contractUSDCValue).append("\n");
-    summary.append("\t Total USDT balance of the contract: ").append(contractUSDTValue).append("\n");
+
+    if (MAINNET.equalsIgnoreCase(network)) {
+      double contractUSDCValue = FundManagerLoader.getBalance(network, Context.getUsdcContract());
+      double contractUSDTValue = FundManagerLoader.getBalance(network, Context.getUsdtContract());
+      summary.append("\t Total USDC balance of the contract: ").append(contractUSDCValue)
+          .append("\n");
+      summary.append("\t Total USDT balance of the contract: ").append(contractUSDTValue)
+          .append("\n");
+    } else if (XDC.equalsIgnoreCase(network)) {
+      double contractXUSDCValue = FundManagerLoader.getBalance(network, Context.getXusdcContract());
+      //double xdcNativeValue = FundManagerLoader.getBalance(network, Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ZERO, 40));
+      summary.append("\t Total XUSDC balance of the contract: ").append(contractXUSDCValue)
+          .append("\n");
+/*      summary.append("\t Total XDC balance of the contract: ").append(xdcNativeValue)
+          .append("\n");*/
+    }
 
     System.out.println(summary);
     System.out.println();

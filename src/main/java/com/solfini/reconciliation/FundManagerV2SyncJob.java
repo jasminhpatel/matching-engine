@@ -26,7 +26,7 @@ public class FundManagerV2SyncJob {
       boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol);
       if (success) {
         //todo handle reconciliation for XDC and mainnet
-        //FundManagerV2Reconciliation.reconcile(args, summary, true);
+        FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
       } else {
         System.out.println(summary);
         sendFailureEmail(summary);

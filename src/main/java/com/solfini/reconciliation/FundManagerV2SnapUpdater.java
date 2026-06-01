@@ -347,6 +347,7 @@ public class FundManagerV2SnapUpdater {
 
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
+    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId); // incremental id instead of UTC time
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
@@ -466,7 +467,7 @@ public class FundManagerV2SnapUpdater {
           transaction.setTokenAddress(tokenAddress);
           transaction.setNetwork(network.toUpperCase());
           transaction.setContractVersion(2);
-          transaction.setId(snapId);
+          transaction.setId(snapshotMappingId);
           transaction.setChainType(network.toUpperCase());
           transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
           transaction.setUserWithdrawables(batchUserWithdrawables);
@@ -499,7 +500,7 @@ public class FundManagerV2SnapUpdater {
         transaction.setTokenAddress(tokenAddress);
         transaction.setNetwork(network.toUpperCase());
         transaction.setContractVersion(2);
-        transaction.setId(snapId);
+        transaction.setId(snapshotMappingId);
         transaction.setChainType(network.toUpperCase());
         transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
@@ -527,7 +528,7 @@ public class FundManagerV2SnapUpdater {
         transaction.setTokenAddress(tokenAddress);
         transaction.setNetwork(network.toUpperCase());
         transaction.setContractVersion(2);
-        transaction.setId(snapId);
+        transaction.setId(snapshotMappingId);
         transaction.setChainType(network.toUpperCase());
         transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
