@@ -7,12 +7,18 @@ import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.DynamicBytes;
 import org.web3j.abi.datatypes.Function;
+import org.web3j.crypto.Hash;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.solfini.common.Constants.*;
 
@@ -21,6 +27,53 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
 
   private static final CustomLogger LOGGER = CustomLogger.getLogger(EVMWithdrawableAmountUpdateSender.class);
   private static final String SIGNER_URL = Context.getSignerUrl() + "/signApi/signFundManagerSnapshotUpdateRequest";
+  private static final Map<String, String> CUSTOM_ERROR_SELECTORS = buildErrorSelectors();
+
+  private static Map<String, String> buildErrorSelectors() {
+    String[] sigs = {
+        "InvalidBatchData()",
+        "SnapshotUpdatePending(address,uint256)",
+        "DuplicateBatchIndex(address,uint64,uint32)",
+        "SnapshotCommitCadenceNotMet(address,uint256,uint256)",
+        "AssetNotSupported(address)",
+        "NotBalancePoster()",
+        "NotAdmin()",
+        "NotAdminOrGuardian()",
+        "NotWithdrawalRole()",
+        "SignerKeyNotRotated(address)",
+        "EmergencyModeActive()",
+        "ZeroAddress()",
+        "ZeroAmount()",
+        "InvalidUserId()",
+        "UserAlreadyExists()",
+        "UserNotRegistered(address)",
+        "UserRegistrationTooRecent(address,uint256,uint256)",
+        "AddressAlreadyMapped()",
+        "AssetAlreadyRegistered(address)",
+        "AssetAlreadyRegisteredWithDifferentKind(address)",
+        "InvalidEngineScale(uint8)",
+        "InvalidTokenDecimals(uint8)",
+        "InsufficientSnapshots()",
+        "ExceedsMaxWithdrawable(address,uint256,uint256)",
+        "ExceedsAssetWithdrawalRateLimit(address,uint256,uint256,uint256)",
+        "InsufficientContractLiquidity(address,uint256,uint256)",
+        "BalanceTooLarge(uint256,uint256)",
+        "InvalidWithdrawalId()",
+        "WithdrawalAlreadyProcessed(bytes32)",
+        "WithdrawalCooldownActive(address,uint256)",
+        "DailySnapshotNotPublished(address,uint256,uint256)",
+        "NativeTransferFailed()",
+        "PageTooLarge(uint256,uint256)",
+        "NativeRecoveryBlockedOnNativeChain()",
+        "InvalidUserAddress(address)",
+    };
+    Map<String, String> map = new HashMap<>();
+    for (String sig : sigs) {
+      String hash = Numeric.toHexString(Hash.sha3(sig.getBytes(StandardCharsets.UTF_8)));
+      map.put(hash.substring(0, 10).toLowerCase(), sig);
+    }
+    return map;
+  }
   protected WithdrawableAmountUpdateTransaction withdrawableAmountUpdateTransaction;
 
   public EVMWithdrawableAmountUpdateSender(final WithdrawableAmountUpdateTransaction withdrawableAmountUpdateTransaction) {
@@ -87,10 +140,29 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
 
   @Override
   protected boolean processErrorResponse() {
+    String revertReason = this.error;
+    if (revertReason == null && this.web3j != null && this.encodedFunction != null) {
+      try {
+        org.web3j.protocol.core.methods.request.Transaction callTx =
+            org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(
+                this.senderAddress,
+                this.withdrawableAmountUpdateTransaction.getContractAddress(),
+                this.encodedFunction);
+        EthCall ethCall = this.web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+        String raw = ethCall.getValue();
+        System.out.println("eth_call revert data: " + raw);
+        if (raw != null && raw.length() >= 10) {
+          String selector = raw.substring(0, 10).toLowerCase();
+          revertReason = CUSTOM_ERROR_SELECTORS.getOrDefault(selector, "unknown custom error selector: " + selector);
+        }
+      } catch (Exception e) {
+        System.out.println("Could not simulate call for revert reason: " + e.getMessage());
+      }
+    }
     LOGGER.info(LOG_FMT_10, " Error in type 2 withdrawableAmountUpdate. contractAddress: ", this.withdrawableAmountUpdateTransaction.getContractAddress(), " maxFeePerGas: ",
-        this.gasFee.getMaxFeePerGas(), " gasLimit: ", this.gasLimit, " reason: ", this.error, " transactionHash: ", this.transactionHash);
+        this.gasFee.getMaxFeePerGas(), " gasLimit: ", this.gasLimit, " reason: ", revertReason, " transactionHash: ", this.transactionHash);
     System.out.println(" Error in type 2 withdrawableAmountUpdate. contractAddress: " + this.withdrawableAmountUpdateTransaction.getContractAddress() + " maxFeePerGas: " +
-        this.gasFee.getMaxFeePerGas() + " gasLimit: " + this.gasLimit + " reason: " + this.error + " transactionHash: " + this.transactionHash);
+        this.gasFee.getMaxFeePerGas() + " gasLimit: " + this.gasLimit + " reason: " + revertReason + " transactionHash: " + this.transactionHash);
     return false;
   }
 
