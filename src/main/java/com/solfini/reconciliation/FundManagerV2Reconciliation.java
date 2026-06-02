@@ -187,7 +187,7 @@ public class FundManagerV2Reconciliation {
 
     final StringBuilder csv = new StringBuilder();
     csv.append("UserId,SnapBalance,BlockchainBalance,Status\n");
-    LOGGER.info("Fund Manager reconciliation started.");
+    LOGGER.info("Fund Manager V2 reconciliation started.");
     final Properties overlay = new Properties();
     loadConfigurationFile(overlay);
 

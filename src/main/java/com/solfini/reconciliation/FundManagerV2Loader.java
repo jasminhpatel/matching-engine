@@ -35,8 +35,9 @@ public class FundManagerV2Loader {
   public static FundManagerSnapData getUserPositions(final String network, final String symbol) throws IOException {
     final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
     final FundManagerSnapData blockchainSnapData = new FundManagerSnapData();
-    int maxUserId =  getMaxUserId();
+    int maxUserId =  getMaxUserId(network);
     final Map<Integer, Long> userPositionsMap = blockchainSnapData.getUserPositionsMap();
+    System.out.println("network: " + network + " symbol: " + symbol + " tokenAddress: " + tokenAddress);
     final int batchSize = 300;
     int startUserId = 1;
     String snapshotId = null;
@@ -49,18 +50,20 @@ public class FundManagerV2Loader {
         snapshotId = snapId;
         startUserId = 1;
         userPositionsMap.clear();
-        maxUserId =  getMaxUserId();
+        maxUserId =  getMaxUserId(network);
       } else {
         startUserId += batchSize;
       }
     }
+    System.out.println("snapshotId: " + snapshotId + " startUserId: " + startUserId + " maxUserId: " + maxUserId);
     blockchainSnapData.setSnapshotId(snapshotId);
 
     return blockchainSnapData;
   }
 
-  private static int getMaxUserId() throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
+  private static int getMaxUserId(final String network) throws IOException {
+    boolean useSecondary = false, hasProxyError = false;
+    final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
 
     final Function function = new Function(
         "maxUserId",
@@ -69,7 +72,7 @@ public class FundManagerV2Loader {
     );
     String encodedFunction = FunctionEncoder.encode(function);
     Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS,
-        FUND_MANAGER_CONTRACT_ADDRESS, encodedFunction);
+        Context.getFundManagerContractByNetworkAndVersion(network, 2), encodedFunction);
     EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
 
     if (response.hasError()) {

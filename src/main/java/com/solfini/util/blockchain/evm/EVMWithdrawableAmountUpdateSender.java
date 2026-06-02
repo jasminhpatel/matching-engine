@@ -99,7 +99,8 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
     LOGGER.info(LOG_FMT_12, "Type 2 withdrawableAmountUpdate successful. contractAddress: ", this.withdrawableAmountUpdateTransaction.getContractAddress(),
         " fromAddress: ", this.withdrawableAmountUpdateTransaction.getFromWalletAddress(), " maxPriorityFee: ", this.gasFee.getMaxPriorityFeePerGas(), " maxFeePerGas: ",
         this.gasFee.getMaxFeePerGas(), " gasLimit: ", this.gasLimit, " transactionHash: ", this.transactionHash);
-
+    System.out.println(" Type 2 withdrawableAmountUpdate successful. contractAddress: " + this.withdrawableAmountUpdateTransaction.getContractAddress() + " maxFeePerGas: " +
+        this.gasFee.getMaxFeePerGas() + " gasLimit: " + this.gasLimit + " reason: " + this.error + " transactionHash: " + this.transactionHash);
     return true;
   }
 
