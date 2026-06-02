@@ -8,7 +8,7 @@ import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.DynamicBytes;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.crypto.Hash;
-import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.utils.Numeric;
 
@@ -141,16 +141,23 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
   @Override
   protected boolean processErrorResponse() {
     String revertReason = this.error;
-    if (revertReason == null && this.web3j != null && this.encodedFunction != null) {
+    if (revertReason == null && this.web3j != null && this.encodedFunction != null && this.txReceipt != null) {
       try {
+        // Replay at block N-1 so state matches what the node saw when the tx reverted.
+        // eth_call at LATEST returns null because the reverting condition no longer holds.
+        DefaultBlockParameter replayBlock = DefaultBlockParameter.valueOf(
+            this.txReceipt.getBlockNumber().subtract(BigInteger.ONE));
         org.web3j.protocol.core.methods.request.Transaction callTx =
             org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(
                 this.senderAddress,
                 this.withdrawableAmountUpdateTransaction.getContractAddress(),
                 this.encodedFunction);
-        EthCall ethCall = this.web3j.ethCall(callTx, DefaultBlockParameterName.LATEST).send();
+        EthCall ethCall = this.web3j.ethCall(callTx, replayBlock).send();
         String raw = ethCall.getValue();
-        System.out.println("eth_call revert data: " + raw);
+        System.out.println("eth_call revert data (block " + this.txReceipt.getBlockNumber().subtract(BigInteger.ONE) + "): " + raw);
+        if (ethCall.getError() != null) {
+          System.out.println("eth_call error: " + ethCall.getError().getMessage());
+        }
         if (raw != null && raw.length() >= 10) {
           String selector = raw.substring(0, 10).toLowerCase();
           revertReason = CUSTOM_ERROR_SELECTORS.getOrDefault(selector, "unknown custom error selector: " + selector);
