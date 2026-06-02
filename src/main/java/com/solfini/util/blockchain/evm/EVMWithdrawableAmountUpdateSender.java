@@ -158,6 +158,8 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
           // Standard JSON-RPC returns revert bytes in error.data, not in the result value
           raw = ethCall.getError().getData();
         }
+        // Some nodes wrap the hex in quotes — strip them
+        if (raw != null) raw = raw.replaceAll("^\"|\"$", "");
         System.out.println("eth_call revert data (block " + this.txReceipt.getBlockNumber().subtract(BigInteger.ONE) + "): " + raw);
         if (raw != null && raw.length() >= 10) {
           String selector = raw.substring(0, 10).toLowerCase();
