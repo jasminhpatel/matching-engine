@@ -154,10 +154,11 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
                 this.encodedFunction);
         EthCall ethCall = this.web3j.ethCall(callTx, replayBlock).send();
         String raw = ethCall.getValue();
-        System.out.println("eth_call revert data (block " + this.txReceipt.getBlockNumber().subtract(BigInteger.ONE) + "): " + raw);
-        if (ethCall.getError() != null) {
-          System.out.println("eth_call error: " + ethCall.getError().getMessage());
+        if ((raw == null || raw.length() < 10) && ethCall.getError() != null) {
+          // Standard JSON-RPC returns revert bytes in error.data, not in the result value
+          raw = ethCall.getError().getData();
         }
+        System.out.println("eth_call revert data (block " + this.txReceipt.getBlockNumber().subtract(BigInteger.ONE) + "): " + raw);
         if (raw != null && raw.length() >= 10) {
           String selector = raw.substring(0, 10).toLowerCase();
           revertReason = CUSTOM_ERROR_SELECTORS.getOrDefault(selector, "unknown custom error selector: " + selector);
