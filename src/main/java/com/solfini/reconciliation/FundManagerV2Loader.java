@@ -38,7 +38,7 @@ public class FundManagerV2Loader {
     int maxUserId =  getMaxUserId(network);
     final Map<Integer, Long> userPositionsMap = blockchainSnapData.getUserPositionsMap();
     System.out.println("network: " + network + " symbol: " + symbol + " tokenAddress: " + tokenAddress);
-    final int batchSize = 300;
+    final int batchSize = 200;
     int startUserId = 1;
     String snapshotId = null;
     while (startUserId <= maxUserId + 1) {
@@ -90,7 +90,7 @@ public class FundManagerV2Loader {
     final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
     final Address address = new Address(tokenAddress);
     final Uint32 fromUserId = new Uint32(start);
-    final Uint32 toUserId = new Uint32(start + size);
+    final Uint32 toUserId = new Uint32(start + size - 1);
 
     final Function function = new Function(
         "getPositionsPaginated",
