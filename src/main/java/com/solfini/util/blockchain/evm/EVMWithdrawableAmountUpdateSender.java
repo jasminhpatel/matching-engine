@@ -89,7 +89,8 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
   protected boolean processErrorResponse() {
     LOGGER.info(LOG_FMT_10, " Error in type 2 withdrawableAmountUpdate. contractAddress: ", this.withdrawableAmountUpdateTransaction.getContractAddress(), " maxFeePerGas: ",
         this.gasFee.getMaxFeePerGas(), " gasLimit: ", this.gasLimit, " reason: ", this.error, " transactionHash: ", this.transactionHash);
-
+    System.out.println(" Error in type 2 withdrawableAmountUpdate. contractAddress: " + this.withdrawableAmountUpdateTransaction.getContractAddress() + " maxFeePerGas: " +
+        this.gasFee.getMaxFeePerGas() + " gasLimit: " + this.gasLimit + " reason: " + this.error + " transactionHash: " + this.transactionHash);
     return false;
   }
 
