@@ -209,12 +209,17 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
     processed.append(zeroPadToBytes(Long.toHexString(withdrawableAmountUpdateTransaction.getId()), 8));
     processed.append(zeroPadToBytes(Integer.toHexString(withdrawableAmountUpdateTransaction.getBatchId()),  4));
     processed.append(zeroPadToBytes(Integer.toHexString(withdrawableAmountUpdateTransaction.getNoOfBatches()), 4));
+    System.out.println("snapshotId: " + withdrawableAmountUpdateTransaction.getId());
+    System.out.println("batchId: " + withdrawableAmountUpdateTransaction.getBatchId());
+    System.out.println("noOfBatches: " + withdrawableAmountUpdateTransaction.getNoOfBatches());
 
     for (WithdrawableAmountUpdateTransaction.UserWithdrawable notional : withdrawableAmountUpdateTransaction.getUserWithdrawables()) {
       final String userIdHex = zeroPadToBytes(Long.toHexString((long) notional.getUserId()), 4);
       processed.append(userIdHex);
       final String amountHex = int64ToHex(notional.getQuantity());
       processed.append(amountHex);
+      System.out.println("userId: " + notional.getUserId() + " hex: " + userIdHex);
+      System.out.println("balance: " + notional.getQuantity() + " hex: " + amountHex);
     }
 
     return processed.toString();
