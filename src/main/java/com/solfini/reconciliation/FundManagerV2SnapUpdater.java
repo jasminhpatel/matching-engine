@@ -449,10 +449,10 @@ public class FundManagerV2SnapUpdater {
       }
     }
 
-    final int noOfBatches = (int) Math.ceil(diff.size() / (double) fundManagerBatchSize);
+    final int noOfBatches = Math.max(1, (int) Math.ceil(diff.size() / (double) fundManagerBatchSize));
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables = new ArrayList<>();
     final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
-    int batchIndex = 1; // 0-indexed; contract requires batchIndex < totalBatches
+    int batchIndex = 1; // 1-indexed; contract requires batchIndex < totalBatches
     int recordCount = 0;
     boolean updateSent = false;
     boolean success = true;
