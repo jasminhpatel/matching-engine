@@ -1657,3 +1657,11 @@ CREATE TABLE blockchan_snap_mapping (
     id        BIGSERIAL PRIMARY KEY,
     snapshot_id BIGINT NOT NULL UNIQUE
 );
+
+CREATE TABLE blockchain_user_state (
+    id         INT          NOT NULL,
+    address    VARCHAR(255) NOT NULL,
+    createdAt  BIGINT       NOT NULL,
+    network    VARCHAR(50)  NOT NULL,
+    PRIMARY KEY (id, network)
+);

@@ -1,10 +1,7 @@
 package com.solfini.reconciliation;
 
-import static com.solfini.common.Constants.USDC;
-import static com.solfini.common.Constants.USDT;
 import static com.solfini.common.Constants.XDC;
 import static com.solfini.common.Constants.XUSDC;
-import static org.web3j.ens.Contracts.MAINNET;
 
 import com.solfini.util.MailUtil;
 import com.solfini.util.PropertyReader;
@@ -13,7 +10,7 @@ import javax.mail.MessagingException;
 
 public class FundManagerV2SyncJob {
   public static void main(String[] args) {
-    //todo uncomment after testing
+    //todo uncomment after testing and execute in multiple threads
     //sync(args, MAINNET, USDC);
     //sync(args, MAINNET, USDT);
     sync(args, XDC, XUSDC);
@@ -25,7 +22,6 @@ public class FundManagerV2SyncJob {
       final StringBuilder summary = new StringBuilder();
       boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol);
       if (success) {
-        //todo handle reconciliation for XDC and mainnet
         FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
       } else {
         System.out.println(summary);

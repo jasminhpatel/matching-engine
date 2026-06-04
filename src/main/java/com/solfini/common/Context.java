@@ -302,6 +302,8 @@ public final class Context implements Constants {
   private static final int USDT_ID =  PropertyReader.getProperty("USDT_ID", 0);
   private static final int XUSDC_ID =  PropertyReader.getProperty("XUSDC_ID", 0);
   private static final int XUSDT_ID =  PropertyReader.getProperty("XUSDT_ID", 0);
+  private static BigInteger GAS_LIMIT_FOR_USER_REGISTRATION =
+      new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_USER_REGISTRATION", "150000"));
 
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
@@ -1411,5 +1413,9 @@ public final class Context implements Constants {
 
   public static BigInteger getXdcMinPriorityGasPrice() {
     return XDC_MIN_PRIORITY_GAS_PRICE;
+  }
+
+  public static BigInteger getGasLimitForUserRegistration() {
+    return GAS_LIMIT_FOR_USER_REGISTRATION;
   }
 }

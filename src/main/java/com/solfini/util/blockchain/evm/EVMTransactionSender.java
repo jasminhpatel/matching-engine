@@ -33,7 +33,7 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
   protected Object synchronizeKey;
   protected final String transactionId;
   protected final String chainType;
-  protected final String txnType;
+  //protected final String txnType;
   protected String senderAddress;
   protected String encodedFunction;
   protected String signerUrl;

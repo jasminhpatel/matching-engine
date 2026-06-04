@@ -9,17 +9,11 @@ import static com.solfini.common.Constants.ONE_HOUR;
 import static com.solfini.common.Constants.PRIMARY;
 import static com.solfini.common.Constants.SECONDARY;
 import static com.solfini.common.Constants.SNAPSHOT_ID;
-import static com.solfini.common.Constants.USDC;
-import static com.solfini.common.Constants.USDT;
 import static com.solfini.common.Constants.WARM_START;
-import static com.solfini.common.Constants.XUSDC;
-import static com.solfini.common.Constants.XUSDT;
 
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.Message;
-import com.solfini.instrument.Instrument;
-import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.Position;
 import com.solfini.matchengine.drmode.SnapLoader;
 import com.solfini.matchengine.message.admin.BalanceAdminMessage;
@@ -30,7 +24,10 @@ import com.solfini.util.StringUtil;
 import com.solfini.util.blockchain.BlockchainSenderFactory;
 import com.solfini.util.blockchain.BlockchainTransactionSender;
 import com.solfini.util.blockchain.gasstation.GasStationUtil;
+import com.solfini.util.blockchain.model.BlockchainUser;
+import com.solfini.util.blockchain.model.EngineUser;
 import com.solfini.util.blockchain.model.GasFee;
+import com.solfini.util.blockchain.model.UserRegistrationTransaction;
 import com.solfini.util.blockchain.model.WithdrawableAmountUpdateTransaction;
 import com.solfini.util.blockchain.util.BlockChainKeyManager;
 import com.solfini.util.blockchain.util.RpcUtil;
@@ -561,6 +558,47 @@ public class FundManagerV2SnapUpdater {
     }
 
     return success;
+  }
+
+  private static void registerMissingUsers(final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> balanceChangedUser,
+      final String network, final StringBuilder sb) {
+    BlockchainUserCache.loadFromDb();
+    for(final WithdrawableAmountUpdateTransaction.UserWithdrawable balanceUpdate : balanceChangedUser) {
+      final BlockchainUser user = BlockchainUserCache.getBlockchainUser(balanceUpdate.getUserId(), network);
+      if (user == null) {
+        try {
+          final EngineUser engineUser = BlockchainUserCache.getEngineUser(balanceUpdate.getUserId());
+          if (engineUser == null) {
+            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(". User not found ").append("\n");
+            continue;
+          }
+          if (!engineUser.getAddress().startsWith("0x")) {
+            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId())
+                .append(". Invalid address: ").append(engineUser.getAddress()).append("\n");
+            continue;
+          }
+
+          final String userAddress = engineUser.getAddress();
+
+          final UserRegistrationTransaction userRegistrationTransaction = new UserRegistrationTransaction();
+          userRegistrationTransaction.setId(System.currentTimeMillis());
+          userRegistrationTransaction.setNewUserId(balanceUpdate.getUserId());
+          userRegistrationTransaction.setNewUserAddress(userAddress);
+          userRegistrationTransaction.setChainType(network);
+          userRegistrationTransaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
+          final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(userRegistrationTransaction);
+          if (sender != null) {
+            boolean status = sender.processTransaction(sb);
+            sb.append("Register user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
+          } else {
+            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
+          }
+        } catch (Exception e) {
+          sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" reason: ").append(e.getMessage()).append("\n");
+          LOGGER.error(ERROR_LOG, e);
+        }
+      }
+    }
   }
 
   private static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> loadFromSnap(final String snapFile, final String[] args,
