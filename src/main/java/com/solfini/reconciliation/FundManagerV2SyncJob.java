@@ -18,8 +18,8 @@ public class FundManagerV2SyncJob {
   }
 
   private static void sync(String[] args, final String network, final String symbol) {
+    final StringBuilder summary = new StringBuilder();
     try {
-      final StringBuilder summary = new StringBuilder();
       boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol);
       if (success) {
         FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
@@ -28,7 +28,6 @@ public class FundManagerV2SyncJob {
         sendFailureEmail(summary);
       }
     } catch (Exception e) {
-      final StringBuilder summary = new StringBuilder();
       summary.append("Ethereum–User Withdrawable Sync Job Failed:\n");
       summary.append(e.getMessage());
       try {
@@ -38,7 +37,7 @@ public class FundManagerV2SyncJob {
       }
       e.printStackTrace();
     }
-
+    System.out.println(summary);
   }
 
   private static void sendFailureEmail(final StringBuilder summary) throws MessagingException, IOException {
