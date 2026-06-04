@@ -1766,6 +1766,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             continue;
           }
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
+            LOGGER.info(Constants.LOG_FMT_17,
+                "Copy trade to close - ",
+                " ordId: ", openCopyTradeOrder.getClOrdId(),
+                " side: ", openCopyTradeOrder.getSide().name(),
+                " quantity: ", openCopyTradeOrder.getxQuantity(),
+                " cumulativeAmount: ", openCopyTradeOrder.getCumulativeAmount(),
+                " status: ", openCopyTradeOrder.getStatus(),
+                " price: ", openCopyTradeOrder.getxPrice(),
+                " open order result: ", openCopyTradeOrder.getResult(),
+                " clOrdId: ", clOrdId);
             openCopyTradesToCloseOrder.add(openCopyTradeOrder);
             xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
           }

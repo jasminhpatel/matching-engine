@@ -529,7 +529,7 @@ public class FundManagerV2SnapUpdater {
         transaction.setChainType(network.toUpperCase());
         transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
         transaction.setUserWithdrawables(batchUserWithdrawables);
-        transaction.setBatchId(0);
+        transaction.setBatchId(1);
         transaction.setNoOfBatches(1);
         final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
         if (sender != null) {
