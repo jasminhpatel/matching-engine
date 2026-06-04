@@ -446,6 +446,9 @@ public class FundManagerV2SnapUpdater {
       }
     }
 
+    // register missing users
+    registerMissingUsers(diff, network, sb);
+
     final int noOfBatches = Math.max(1, (int) Math.ceil(diff.size() / (double) fundManagerBatchSize));
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables = new ArrayList<>();
     final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
