@@ -903,6 +903,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         copyTradeOrder.setOrderQtyScale((short) externalSymbol.getQtyScale());
 
         // check min qty and reject
+        LOGGER.info(Constants.LOG_FMT_6, "ClOrdId: ", clOrdId, " qty: ", quantity, " min allowed: ",
+            externalSymbol.getMinimumAmount(), " exchange: ", externalSymbol.getExchange());
         if (externalSymbol.getMinimumAmount() > 0 && quantity < externalSymbol.getMinimumAmount()) {
           LOGGER.info(Constants.LOG_FMT_6, "Order rejected. Insufficient quantity. clOrdId: ", clOrdId, " qty: ", quantity,
               " min allowed: ", externalSymbol.getMinimumAmount());
@@ -955,7 +957,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               copyTradeOrder.setStatus(ORDER_STATUS_FILLED);
               // todo handle fee position
               //copyTradeOrder.setFee(MbxMath.scaleDown(executionReport.getFeeAccumulatedQuantity()));
-              copyTradeOrder.setTradeValue(orderNotional);
+              copyTradeOrder.setTradeValue(copyTradeOrder.getCumulativeAmount() * copyTradeOrder.getAveragePrice());
+              //copyTradeOrder.setTradeValue(orderNotional);
               copyTradeOrder.setResult(SUCCESS);
 
               copyTradeOrder.setClosed(false);
