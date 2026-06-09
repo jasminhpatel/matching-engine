@@ -25,6 +25,7 @@ import com.solfini.matchengine.orderbook.validator.OrderBookValidator;
 import com.solfini.pool.OrderObjectPool;
 import com.solfini.preordercheck.NoPreOrderCheck;
 import com.solfini.preordercheck.PreOrderCheck;
+import com.solfini.sbe.encoder.ExecType;
 import com.solfini.sbe.encoder.MarketDataSnapshotFullRefreshEncoder;
 import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.sbe.encoder.OrdType;
@@ -355,7 +356,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                   " cumulativeAmount: ", openCopyTradeOrder.getCumulativeAmount(),
                   " status: ", openCopyTradeOrder.getStatus(),
                   " price: ", openCopyTradeOrder.getxPrice(),
-                  " open order result: ", openCopyTradeOrder.getResult(),
+                  " result: ", openCopyTradeOrder.getResult(),
                   " symbol: ", openCopyTradeOrder.getBaseSymbol());
               if (closeCopyTradeForSymbol == null) {
                 count++;
@@ -389,7 +390,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         for (HashMap<String, CopyTradeOrder> pairWiseCopyTrades : subscriptionWiseCopyTrades.values()) {
           for (CopyTradeOrder closeCopyTradeOrder : pairWiseCopyTrades.values()) {
-            LOGGER.info(Constants.LOG_FMT_16, "CopyTrade Close order", closeCopyTradeOrder.getPlatform(),
+            LOGGER.info(Constants.LOG_FMT_20, "CopyTrade Close order ", closeCopyTradeOrder.getPlatform(),
+                " clOrdId: ", closeCopyTradeOrder.getClOrdId(),
+                " subscriptionId: ", closeCopyTradeOrder.getSubscriptionId(),
                 " accountId: ", closeCopyTradeOrder.getAccountId(),
                 " Symbol: ", closeCopyTradeOrder.getBaseSymbol(),
                 " Price: ", closeCopyTradeOrder.getPrice(),
@@ -962,9 +965,10 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               copyTradeOrder.setResult(SUCCESS);
 
               copyTradeOrder.setClosed(false);
-            } else if (executionReport.getOrdStatus() == OrdStatus.REJECTED || executionReport.getOrdStatus() == OrdStatus.CANCELED) {
+            } else if (executionReport.getOrdStatus() == OrdStatus.REJECTED || executionReport.getOrdStatus() == OrdStatus.CANCELED
+                || executionReport.getExecType() == ExecType.REJECTED) {
               copyTradeOrder.setStatus(ORDER_STATUS_REJECTED);
-              copyTradeOrder.setResult(FAILURE);
+              copyTradeOrder.setResult(executionReport.getError());
             }
           }
 
@@ -1590,6 +1594,14 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
       }
 
+      LOGGER.info(Constants.LOG_FMT_11,
+          "MP close copy-trade - ",
+          " ordId: ", clOrdId,
+          " side: ", closeCopyTradeOrder.getSide().name(),
+          " subscriptionId: ", closeCopyTradeOrder.getSubscriptionId(),
+          " order result: ", closeCopyTradeOrder.getResult(),
+          " symbol: ", closeCopyTradeOrder.getBaseSymbol());
+
       // use direct API first if configured
       if (subscription.getConnectionType() == ExchangeSubscription.CONNECTION_VIA_DIRECT) {
         final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
@@ -1677,7 +1689,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               closeCopyTradeOrder.setStatus(ORDER_STATUS_FILLED);
               // todo handle fee position
               //closeCopyTradeOrder.setFee(MbxMath.scaleDown(executionReport.getFeeAccumulatedQuantity()));
-              closeCopyTradeOrder.setTradeValue(orderNotional);
+              closeCopyTradeOrder.setTradeValue(closeCopyTradeOrder.getCumulativeAmount() * closeCopyTradeOrder.getAveragePrice());
+              //closeCopyTradeOrder.setTradeValue(orderNotional);
               closeCopyTradeOrder.setResult(SUCCESS);
 
               closeCopyTradeOrder.setClosed(true);
@@ -1688,7 +1701,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                 CopyTradeCache.remove(openCopyTradeOrder);
                 matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
               }
-            } else if (executionReport.getOrdStatus() == OrdStatus.REJECTED || executionReport.getOrdStatus() == OrdStatus.CANCELED) {
+            } else if (executionReport.getOrdStatus() == OrdStatus.REJECTED || executionReport.getOrdStatus() == OrdStatus.CANCELED
+                || executionReport.getExecType() == ExecType.REJECTED) {
               closeCopyTradeOrder.setStatus(ORDER_STATUS_REJECTED);
               closeCopyTradeOrder.setResult(FAILURE);
             }
@@ -1877,8 +1891,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
       if (xExchange != null) {
         final String prevStatus = copyTradeOrder.getStatus();
         xExchange.requestGetOrderStatus(copyTradeOrder);
-        if (!prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(
-            copyTradeOrder.getStatus())) {
+        //if (!prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+        if (ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())
+            && (prevStatus == null || !prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()))) {
           CopyTradeCache.remove(copyTradeOrder);
           CopyTradeCache.removeOpenOrder(copyTradeOrder);
 
@@ -1940,8 +1955,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           || ORDER_STATUS_EXPIRED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
         copyTradeOrder.setResult(FAILURE);
       }
-      if (!prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(
-          copyTradeOrder.getStatus())) {
+      //if (!prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()) && ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())) {
+      if (ORDER_STATUS_FILLED.equalsIgnoreCase(copyTradeOrder.getStatus())
+          && (prevStatus == null || !prevStatus.equalsIgnoreCase(copyTradeOrder.getStatus()))) {
         CopyTradeCache.remove(copyTradeOrder);
         CopyTradeCache.removeOpenOrder(copyTradeOrder);
 
