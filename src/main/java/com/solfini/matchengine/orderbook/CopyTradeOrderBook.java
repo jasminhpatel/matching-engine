@@ -1639,7 +1639,19 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
             openCopyTradesToCloseOrder.add(openCopyTradeOrder);
             quantity += openCopyTradeOrder.getCumulativeAmount();
+
+            if (openCopyTradeOrder.getSide().equals(Side.BUY)) {
+              quantity += openCopyTradeOrder.getCumulativeAmount();
+            } else {
+              quantity -= openCopyTradeOrder.getCumulativeAmount();
+            }
           }
+        }
+        if (quantity > 0) {
+          closeCopyTradeOrder.setSide(Side.SELL);
+        } else {
+          closeCopyTradeOrder.setSide(Side.BUY);
+          quantity = Math.abs(quantity);
         }
 
 
@@ -1774,7 +1786,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         final List<CopyTradeOrder> openCopyTradesToCloseOrder = new ArrayList<>(
             openCopyTradeOrders.size());
-        BigDecimal xQuantity = BigDecimal.ZERO;
+        double xQuantity = 0;
         for (final CopyTradeOrder openCopyTradeOrder : openCopyTradeOrders) {
           openCopyTradeOrder.setCurrencyPair(currencyPair);
           openCopyTradeOrder.setInstrument(instrument);
@@ -1794,8 +1806,19 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           }
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
             openCopyTradesToCloseOrder.add(openCopyTradeOrder);
-            xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
+            //xQuantity = xQuantity.add(BigDecimal.valueOf(openCopyTradeOrder.getCumulativeAmount()));
+            if (openCopyTradeOrder.getSide().equals(Side.BUY)) {
+              xQuantity += openCopyTradeOrder.getCumulativeAmount();
+            } else {
+              xQuantity -= openCopyTradeOrder.getCumulativeAmount();
+            }
           }
+        }
+        if (xQuantity > 0) {
+          closeCopyTradeOrder.setSide(Side.SELL);
+        } else {
+          closeCopyTradeOrder.setSide(Side.BUY);
+          xQuantity = Math.abs(xQuantity);
         }
 
         double price =
@@ -1825,9 +1848,9 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
 
         closeCopyTradeOrder.setxPrice(xPrice);
-        xQuantity = xQuantity.setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP);
-        closeCopyTradeOrder.setxQuantity(xQuantity);
-        closeCopyTradeOrder.setCumulativeAmount(xQuantity.doubleValue());
+
+        closeCopyTradeOrder.setxQuantity(new BigDecimal(xQuantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
+        closeCopyTradeOrder.setCumulativeAmount(xQuantity);
 
         try {
           xExchange.placeOrder(closeCopyTradeOrder, null);
@@ -1843,7 +1866,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             }
             closeCopyTradeOrder.getSubscription().setAvailableMaxAmount(
                 closeCopyTradeOrder.getSubscription().getAvailableMaxAmount() + MbxMath.changeScale(
-                    xPrice.multiply(xQuantity).doubleValue(), 2));
+                    xPrice.multiply(BigDecimal.valueOf(xQuantity)).doubleValue(), 2));
             matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder.getSubscription());
           } else {
             CopyTradeCache.addOpenOrder(closeCopyTradeOrder);
