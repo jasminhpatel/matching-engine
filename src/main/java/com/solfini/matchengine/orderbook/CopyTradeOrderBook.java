@@ -880,15 +880,15 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         //percentage of subscription amount assigned by the user
         double userDefinedPercentage = MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         final double signalTradeValue = Math.min(maxRemainingAmount, maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-/*      if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
-        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
-        copyTrade.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
-        copyTrade.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(copyTrade);
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
 
-        return;
-      }*/
+          return;
+        }
         double balanceRequired = signalTradeValue * Context.getCopyTradeStableCoinConversionSafeFactor();
 
         LOGGER.info(Constants.LOG_FMT_8, "Trade value for order after sentiment: ", copyTradeOrder.getClOrdId(), " is ", signalTradeValue,
@@ -1161,15 +1161,15 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         double signalTradeValue = Math.min(maxRemainingAmount,
             maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-/*      if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
-        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
-        copyTrade.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
-        copyTrade.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(copyTrade);
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
 
-        return;
-      }*/
+          return;
+        }
         double balanceRequired =
             signalTradeValue * Context.getCopyTradeStableCoinConversionSafeFactor();
         LOGGER.info(Constants.LOG_FMT_2, "Trade value for order after sentiment: ",
