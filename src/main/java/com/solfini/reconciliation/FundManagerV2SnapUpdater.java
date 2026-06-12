@@ -344,7 +344,7 @@ public class FundManagerV2SnapUpdater {
 
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
-    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId); // incremental id instead of UTC time
+    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId, network.toUpperCase());
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
@@ -555,6 +555,7 @@ public class FundManagerV2SnapUpdater {
       for (WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable : diff) {
         BlockchainNotionalCache.upsert(userWithdrawable, updated, snapId);
       }
+      BlockchainNotionalCache.confirmSnapMapping(snapId, network.toUpperCase());
       sb.append("Snap update successful. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     } else {
       sb.append("Snap update failed. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");

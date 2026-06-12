@@ -1665,3 +1665,9 @@ CREATE TABLE blockchain_user_state (
     network    VARCHAR(50)  NOT NULL,
     PRIMARY KEY (id, network)
 );
+
+-- TSYS-67 migrations: per-network snap ID sequencing with confirmed tracking
+ALTER TABLE blockchan_snap_mapping ADD COLUMN IF NOT EXISTS network   VARCHAR(20) NOT NULL DEFAULT 'MAINNET';
+ALTER TABLE blockchan_snap_mapping ADD COLUMN IF NOT EXISTS confirmed BOOLEAN     NOT NULL DEFAULT FALSE;
+ALTER TABLE blockchan_snap_mapping DROP CONSTRAINT IF EXISTS blockchan_snap_mapping_snapshot_id_key;
+ALTER TABLE blockchan_snap_mapping ADD CONSTRAINT blockchan_snap_mapping_snapshot_id_network_key UNIQUE (snapshot_id, network);
