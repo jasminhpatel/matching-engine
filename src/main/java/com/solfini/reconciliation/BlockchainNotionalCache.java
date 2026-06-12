@@ -54,26 +54,28 @@ public class BlockchainNotionalCache {
     }
   }
 
-  public static long getOrCreateIncrementalId(final long snapshotId, final String network) {
+  public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
     final String insert = """
-        INSERT INTO blockchan_snap_mapping (snapshot_id, network)
-        VALUES (?, ?)
-        ON CONFLICT (snapshot_id, network) DO NOTHING
+        INSERT INTO blockchan_snap_mapping (snapshot_id, network, symbol)
+        VALUES (?, ?, ?)
+        ON CONFLICT (snapshot_id, network, symbol) DO NOTHING
     """;
     final String select = """
         SELECT COUNT(*) + 1 AS next_id
         FROM blockchan_snap_mapping
-        WHERE network = ? AND confirmed = TRUE
+        WHERE network = ? AND symbol = ? AND confirmed = TRUE
     """;
 
     try (Connection conn = DBManager.getConnection()) {
       try (PreparedStatement ps = conn.prepareStatement(insert)) {
         ps.setLong(1, snapshotId);
         ps.setString(2, network);
+        ps.setString(3, symbol);
         ps.executeUpdate();
       }
       try (PreparedStatement ps = conn.prepareStatement(select)) {
         ps.setString(1, network);
+        ps.setString(2, symbol);
         try (ResultSet rs = ps.executeQuery()) {
           if (rs.next()) {
             return rs.getLong("next_id");
@@ -86,12 +88,13 @@ public class BlockchainNotionalCache {
     return -1;
   }
 
-  public static void confirmSnapMapping(final long snapshotId, final String network) {
-    final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ?";
+  public static void confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
+    final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setLong(1, snapshotId);
       ps.setString(2, network);
+      ps.setString(3, symbol);
       ps.executeUpdate();
     } catch (final Exception e) {
       e.printStackTrace();
