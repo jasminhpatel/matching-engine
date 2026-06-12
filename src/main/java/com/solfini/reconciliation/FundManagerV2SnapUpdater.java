@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -252,48 +253,42 @@ public class FundManagerV2SnapUpdater {
           }
         }
         if (!valid) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not contain a valid snapshot");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not contain a valid snapshot");
         }
 
 /*        final File jsonFile = new File(json);
         if (jsonFile.exists() && !jsonFile.isFile()) {
           System.out.println("ERROR: Specified output file " + json + " already exists and is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified output file " + json + " already exists and is not a regular file");
         }*/
 
         List<Message> messages = snapConverter.exportSnapshot(snapshot, json);
         if (cmd.hasOption("validate") && !snapConverter.validate()) {
-          System.exit(1);
+          throw new RuntimeException("Snapshot validation failed: " + snapshot);
         }
         return messages;
       } else if (mode.equals("import")) {
         final File snapshotPath = new File(snapshot);
         if (!snapshotPath.exists() || !snapshotPath.isDirectory()) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not exist");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not exist");
         }
 
         final File jsonFile = new File(json);
         if (!jsonFile.exists() || !jsonFile.isFile()) {
-          System.out.println("ERROR: Specified input file " + json + " does not exist or is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified input file " + json + " does not exist or is not a regular file");
         }
 
         snapConverter.importSnapshot(json, snapshot);
       } else {
         System.out.println("ERROR: Invalid mode specified - " + mode);
       }
+    } catch (final RuntimeException e) {
+      throw e;
     } catch (final Exception e) {
-      System.out.println("ERROR: " + e.getMessage());
-      e.printStackTrace();
-      System.out.println("Run with --help option for usage information");
-      System.exit(1);
+      throw new RuntimeException(e.getMessage(), e);
     }
 
-    System.exit(0);
-
-    return null;
+    return Collections.emptyList();
   }
 
   private static boolean loadConfigurationFile(final Properties overlay) {
@@ -345,6 +340,12 @@ public class FundManagerV2SnapUpdater {
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
     final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId, network.toUpperCase(), symbol.toUpperCase());
+    if (snapshotMappingId <= 0) {
+      LOGGER.error("Fund Manager, failed to get incremental snap ID for " + network + "/" + symbol + ". snapId: " + snapId);
+      sb.append("Snap update failed. Could not get incremental snap ID. network: ").append(network)
+          .append(" symbol: ").append(symbol).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+      return false;
+    }
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
@@ -555,7 +556,21 @@ public class FundManagerV2SnapUpdater {
       for (WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable : diff) {
         BlockchainNotionalCache.upsert(userWithdrawable, updated, snapId);
       }
-      BlockchainNotionalCache.confirmSnapMapping(snapId, network.toUpperCase(), symbol.toUpperCase());
+      final boolean confirmed = BlockchainNotionalCache.confirmSnapMapping(snapId, network.toUpperCase(), symbol.toUpperCase());
+      if (!confirmed) {
+        LOGGER.error("Fund Manager, snap mapping confirmation failed for " + network + "/" + symbol
+            + ". snapId: " + snapId + ". On-chain update succeeded but DB row was not confirmed."
+            + " Manual fix: UPDATE blockchan_snap_mapping SET confirmed = TRUE"
+            + " WHERE snapshot_id = " + snapId
+            + " AND network = '" + network.toUpperCase() + "'"
+            + " AND symbol = '" + symbol.toUpperCase() + "'");
+        sb.append("CRITICAL: On-chain snap update succeeded but DB confirmation failed."
+            + " Manual DB fix required. network: ").append(network)
+            .append(" symbol: ").append(symbol)
+            .append(" snapId: ").append(snapId)
+            .append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return false;
+      }
       sb.append("Snap update successful. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     } else {
       sb.append("Snap update failed. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");

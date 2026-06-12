@@ -88,16 +88,17 @@ public class BlockchainNotionalCache {
     return -1;
   }
 
-  public static void confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
+  public static boolean confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
     final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setLong(1, snapshotId);
       ps.setString(2, network);
       ps.setString(3, symbol);
-      ps.executeUpdate();
+      return ps.executeUpdate() > 0;
     } catch (final Exception e) {
       e.printStackTrace();
+      return false;
     }
   }
 
