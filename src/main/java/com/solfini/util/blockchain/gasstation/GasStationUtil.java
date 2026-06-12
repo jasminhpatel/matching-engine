@@ -30,7 +30,7 @@ public class GasStationUtil {
   }*/
 
   private static IGasStation getGasStation(final String chainType) {
-    if (ETHEREUM.equalsIgnoreCase(chainType) || SEPOLIA.equalsIgnoreCase(chainType)) {
+    if (ETHEREUM.equalsIgnoreCase(chainType) || MAINNET.equalsIgnoreCase(chainType) || SEPOLIA.equalsIgnoreCase(chainType)) {
       return ETHEREUM_TYPE_TWO_GAS_STATION;
     } else {
       return POLYGON_TYPE_TWO_GAS_STATION;
@@ -110,7 +110,7 @@ public class GasStationUtil {
   }
 
   private static BigInteger setMinMax(final BigInteger price, final BigInteger min, final BigInteger max, final String chainType) {
-    if (ETHEREUM.equalsIgnoreCase(chainType) || SEPOLIA.equalsIgnoreCase(chainType)) {
+    if (ETHEREUM.equalsIgnoreCase(chainType) || MAINNET.equalsIgnoreCase(chainType) || SEPOLIA.equalsIgnoreCase(chainType)) {
       if (price.compareTo(Context.getEthereumMaxPriorityGasPrice()) > 0) {
         //return max;
         return Context.getEthereumMaxPriorityGasPrice();

@@ -1012,7 +1012,7 @@ public final class Context implements Constants {
   public static String getWeb3Provider(final String chainType, final boolean useSecondary) {
     if (chainType == null) return useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
     return switch (chainType.toUpperCase()) {
-      case ETHEREUM, SEPOLIA -> useSecondary ? ETHEREUM_WEB3_PROVIDER_2 : ETHEREUM_WEB3_PROVIDER;
+      case ETHEREUM, MAINNET, SEPOLIA -> useSecondary ? ETHEREUM_WEB3_PROVIDER_2 : ETHEREUM_WEB3_PROVIDER;
       case XDC, XDC_APOTHEM -> useSecondary ? XDC_WEB3_PROVIDER_2 : XDC_WEB3_PROVIDER;
       case POLYGON -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
       default -> useSecondary ? POLYGON_WEB3_PROVIDER_2 : POLYGON_WEB3_PROVIDER;
