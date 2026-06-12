@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -118,48 +119,42 @@ public class FundManagerV2Reconciliation {
           }
         }
         if (!valid) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not contain a valid snapshot");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not contain a valid snapshot");
         }
 
 /*        final File jsonFile = new File(json);
         if (jsonFile.exists() && !jsonFile.isFile()) {
           System.out.println("ERROR: Specified output file " + json + " already exists and is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified output file " + json + " already exists and is not a regular file");
         }*/
 
         List<Message> messages = snapConverter.exportSnapshot(snapshot, json);
         if (cmd.hasOption("validate") && !snapConverter.validate()) {
-          System.exit(1);
+          throw new RuntimeException("Snapshot validation failed: " + snapshot);
         }
         return messages;
       } else if (mode.equals("import")) {
         final File snapshotPath = new File(snapshot);
         if (!snapshotPath.exists() || !snapshotPath.isDirectory()) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not exist");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not exist");
         }
 
         final File jsonFile = new File(json);
         if (!jsonFile.exists() || !jsonFile.isFile()) {
-          System.out.println("ERROR: Specified input file " + json + " does not exist or is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified input file " + json + " does not exist or is not a regular file");
         }
 
         snapConverter.importSnapshot(json, snapshot);
       } else {
         System.out.println("ERROR: Invalid mode specified - " + mode);
       }
+    } catch (final RuntimeException e) {
+      throw e;
     } catch (final Exception e) {
-      System.out.println("ERROR: " + e.getMessage());
-      e.printStackTrace();
-      System.out.println("Run with --help option for usage information");
-      System.exit(1);
+      throw new RuntimeException(e.getMessage(), e);
     }
 
-    System.exit(0);
-
-    return null;
+    return Collections.emptyList();
   }
 
   private static boolean loadConfigurationFile(final Properties overlay) {
@@ -197,7 +192,8 @@ public class FundManagerV2Reconciliation {
     final Map<Integer, Long> blockchainPositionsMap = blockchainSnapData.getUserPositionsMap();
     // load positions from SnapFile
     String snapshotMappingId = blockchainSnapData.getSnapshotId();
-    String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdById(StringUtil.toInt(snapshotMappingId)));
+    String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdByMappingId(
+        StringUtil.toInt(snapshotMappingId), network.toUpperCase(), symbol.toUpperCase()));
 
     LOGGER.info("Fund Manager snapshotId: " + snapshotId);
     String snapFile = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "") + "/"  + snapshotId;

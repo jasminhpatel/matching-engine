@@ -1671,3 +1671,10 @@ ALTER TABLE blockchan_snap_mapping ADD COLUMN IF NOT EXISTS network   VARCHAR(20
 ALTER TABLE blockchan_snap_mapping ADD COLUMN IF NOT EXISTS confirmed BOOLEAN     NOT NULL DEFAULT FALSE;
 ALTER TABLE blockchan_snap_mapping DROP CONSTRAINT IF EXISTS blockchan_snap_mapping_snapshot_id_key;
 ALTER TABLE blockchan_snap_mapping ADD CONSTRAINT blockchan_snap_mapping_snapshot_id_network_key UNIQUE (snapshot_id, network);
+
+-- TSYS-70 migrations: per-symbol snap ID sequencing (contract tracks sequence per token)
+ALTER TABLE blockchan_snap_mapping ADD COLUMN IF NOT EXISTS symbol VARCHAR(20) NOT NULL DEFAULT '';
+UPDATE blockchan_snap_mapping SET symbol = 'XUSDC' WHERE network = 'XDC';
+UPDATE blockchan_snap_mapping SET symbol = 'USDC'  WHERE network = 'MAINNET';
+ALTER TABLE blockchan_snap_mapping DROP CONSTRAINT IF EXISTS blockchan_snap_mapping_snapshot_id_network_key;
+ALTER TABLE blockchan_snap_mapping ADD CONSTRAINT blockchan_snap_mapping_snapshot_id_network_symbol_key UNIQUE (snapshot_id, network, symbol);

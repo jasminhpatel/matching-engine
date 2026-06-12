@@ -54,26 +54,28 @@ public class BlockchainNotionalCache {
     }
   }
 
-  public static long getOrCreateIncrementalId(final long snapshotId, final String network) {
+  public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
     final String insert = """
-        INSERT INTO blockchan_snap_mapping (snapshot_id, network)
-        VALUES (?, ?)
-        ON CONFLICT (snapshot_id, network) DO NOTHING
+        INSERT INTO blockchan_snap_mapping (snapshot_id, network, symbol)
+        VALUES (?, ?, ?)
+        ON CONFLICT (snapshot_id, network, symbol) DO NOTHING
     """;
     final String select = """
         SELECT COUNT(*) + 1 AS next_id
         FROM blockchan_snap_mapping
-        WHERE network = ? AND confirmed = TRUE
+        WHERE network = ? AND symbol = ? AND confirmed = TRUE
     """;
 
     try (Connection conn = DBManager.getConnection()) {
       try (PreparedStatement ps = conn.prepareStatement(insert)) {
         ps.setLong(1, snapshotId);
         ps.setString(2, network);
+        ps.setString(3, symbol);
         ps.executeUpdate();
       }
       try (PreparedStatement ps = conn.prepareStatement(select)) {
         ps.setString(1, network);
+        ps.setString(2, symbol);
         try (ResultSet rs = ps.executeQuery()) {
           if (rs.next()) {
             return rs.getLong("next_id");
@@ -86,32 +88,38 @@ public class BlockchainNotionalCache {
     return -1;
   }
 
-  public static void confirmSnapMapping(final long snapshotId, final String network) {
-    final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ?";
+  public static boolean confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
+    final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setLong(1, snapshotId);
       ps.setString(2, network);
-      ps.executeUpdate();
+      ps.setString(3, symbol);
+      return ps.executeUpdate() > 0;
     } catch (final Exception e) {
       e.printStackTrace();
+      return false;
     }
   }
 
-  public static long getSnapshotIdById(final long id) {
-    String sql = "SELECT snapshot_id FROM blockchan_snap_mapping WHERE id = ?";
-
+  public static long getSnapshotIdByMappingId(final long mappingId, final String network, final String symbol) {
+    final String sql = """
+        SELECT snapshot_id FROM blockchan_snap_mapping
+        WHERE network = ? AND symbol = ? AND confirmed = TRUE
+        ORDER BY id ASC
+        LIMIT 1 OFFSET ?
+    """;
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-
-      ps.setLong(1, id);
-
+      ps.setString(1, network);
+      ps.setString(2, symbol);
+      ps.setLong(3, mappingId - 1);
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return rs.getLong("snapshot_id");
         }
       }
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       e.printStackTrace();
     }
     return -1;
