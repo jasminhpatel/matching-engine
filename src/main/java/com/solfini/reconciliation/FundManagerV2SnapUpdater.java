@@ -592,6 +592,10 @@ public class FundManagerV2SnapUpdater {
           final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(userRegistrationTransaction);
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
+            if (status) {
+              BlockchainUser blockchainUser = new BlockchainUser(engineUser.getUserId(), engineUser.getAddress(), System.currentTimeMillis(), network);
+              BlockchainUserCache.addUser(blockchainUser);
+            }
             sb.append("Register user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
           } else {
             sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
