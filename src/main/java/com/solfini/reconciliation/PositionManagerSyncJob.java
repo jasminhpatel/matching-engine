@@ -1,5 +1,8 @@
 package com.solfini.reconciliation;
 
+import static com.solfini.common.Constants.POLYGON;
+import static com.solfini.common.Constants.XDC;
+
 import com.solfini.common.Context;
 import com.solfini.util.MailUtil;
 import com.solfini.util.MailUtil.MailAttachment;
@@ -13,6 +16,10 @@ import java.io.IOException;
 
 public class PositionManagerSyncJob {
   public static void main(String[] args) {
+    sync(args);
+  }
+
+  public static void sync(final String[] args) {
     try {
       final StringBuilder summary = new StringBuilder();
       final StringBuilder userPositions = new StringBuilder();

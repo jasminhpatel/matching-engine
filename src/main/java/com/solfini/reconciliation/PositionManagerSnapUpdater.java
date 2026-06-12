@@ -12,6 +12,7 @@ import com.solfini.util.*;
 import com.solfini.util.blockchain.BlockchainSenderFactory;
 import com.solfini.util.blockchain.BlockchainTransactionSender;
 import com.solfini.util.blockchain.model.PositionUpdateTransaction;
+import com.solfini.util.blockchain.model.PositionUpdateTransaction.BlockchainPosition;
 import com.solfini.util.blockchain.util.BlockChainKeyManager;
 import com.solfini.util.snapshot.SnapConverter;
 import com.solfini.util.snapshot.SnapTransformer;
@@ -68,39 +69,15 @@ public class PositionManagerSnapUpdater {
     int batchId = 1;
     boolean updateSent = false;
     boolean success = true;
+    long snapshotId = Long.parseLong(snapshotIdNew);
     
     List<PositionUpdateTransaction.BlockchainPosition> userPositions = new ArrayList<>();
     for (PositionUpdateTransaction.BlockchainPosition position : diff) {
       recordCount++;
       userPositions.add(position);
       if (recordCount >= positionManagerBatchSize) {
-        LOGGER.info("Processing batch: " + batchId + " noOfBatches: " + noOfBatches);
-        final PositionUpdateTransaction transaction = new PositionUpdateTransaction();
-        transaction.setId(Long.parseLong(snapshotIdNew));
-        transaction.setBatchId(batchId);
-        transaction.setNoOfBatches(noOfBatches);
-        transaction.setChainType(Context.getPositionManagerChain());
-        transaction.setContractAddress(Context.getPositionManagerContractAddress());
-        transaction.setUserPositions(userPositions);
-
-        try {
-          final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
-          if (sender != null) {
-            boolean status = sender.processTransaction(sb);
-            success = success && status;
-            sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-          } else {
-            sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-            LOGGER.info("Sender not found " + transaction.getChainType());
-            System.out.println("Sender not found " + transaction.getChainType());
-          }
-        } catch (Exception e) {
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
-              .append(" ").append(e.getMessage()).append("\n");
-          LOGGER.error("Error in sending blockchain snap update to " + transaction.getChainType());
-          LOGGER.error(ERROR_LOG, e);
-          System.out.println(ERROR_LOG + e.getMessage());
-        }
+        updateBatch(POLYGON, snapshotId, batchId, noOfBatches, userPositions, sb);
+        updateBatch(XDC, snapshotId, batchId, noOfBatches, userPositions, sb);
 
         userPositions = new ArrayList<>();
         batchId++;
@@ -111,60 +88,14 @@ public class PositionManagerSnapUpdater {
     if (recordCount > 0) {
       updateSent = true;
       LOGGER.info("Processing batch: " + batchId + " noOfBatches: " + noOfBatches);
-      final PositionUpdateTransaction transaction = new PositionUpdateTransaction();
-      transaction.setId(Long.parseLong(snapshotIdNew));
-      transaction.setBatchId(batchId);
-      transaction.setNoOfBatches(noOfBatches);
-      transaction.setChainType(Context.getPositionManagerChain());
-      transaction.setContractAddress(Context.getPositionManagerContractAddress());
-      transaction.setUserPositions(userPositions);
-      try {
-        final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
-        if (sender != null) {
-          boolean status = sender.processTransaction(sb);
-          success = success && status;
-          sb.append("Snap updated. batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-        } else {
-          sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-          LOGGER.info("Sender not found " + transaction.getChainType());
-          System.out.println("Sender not found " + transaction.getChainType());
-        }
-      } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
-            .append(" ").append(e.getMessage()).append("\n");
-        LOGGER.error(ERROR_LOG, e);
-        System.out.println(ERROR_LOG + e.getMessage());
-      }
+
+      updateBatch(POLYGON, snapshotId, batchId, noOfBatches, userPositions, sb);
+      updateBatch(XDC, snapshotId, batchId, noOfBatches, userPositions, sb);
     }
     if (!updateSent) {
       System.out.println("Processing batch: " + batchId + " noOfBatches: " + noOfBatches);
-      final PositionUpdateTransaction transaction = new PositionUpdateTransaction();
-      transaction.setId(Long.parseLong(snapshotIdNew));
-      transaction.setBatchId(1);
-      transaction.setNoOfBatches(1);
-      transaction.setChainType(Context.getPositionManagerChain());
-      transaction.setContractAddress(Context.getPositionManagerContractAddress());
-      transaction.setUserPositions(userPositions);
-      try {
-        final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
-        if (sender != null) {
-          boolean status = sender.processTransaction(sb);
-          sb.append("Blockchain sendTransaction status: ").append(status).append("\n");
-          success = success && status;
-          sb.append("Snap updated. batch 1").append(" of ").append(1).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-        } else {
-          LOGGER.info("Sender not found " + transaction.getChainType());
-          System.out.println("Sender not found " + transaction.getChainType());
-          sb.append("Snap update failed. batch ").append(" of ").append(1).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
-              .append("Sender not found: ").append(transaction.getChainType()).append("\n");
-        }
-      } catch (Exception e) {
-        sb.append("Snap update failed. batch 1").append(" of ").append(1).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
-            .append(" ").append(e.getMessage()).append("\n");
-        LOGGER.info("Error in sending blockchain snap update to " + transaction.getChainType());
-        LOGGER.error(ERROR_LOG, e);
-        System.out.println(ERROR_LOG + e.getMessage());
-      }
+      updateBatch(POLYGON, snapshotId, 1, 1, userPositions, sb);
+      updateBatch(XDC, snapshotId, 1, 1, userPositions, sb);
     }
 
     return success;
@@ -435,6 +366,38 @@ public class PositionManagerSnapUpdater {
       }
     }
     return userPositions;
+  }
+
+  private static void updateBatch(final String network, final long snapshotId, final int batchId, final int noOfBatches,
+      final List<BlockchainPosition> userPositions, final StringBuilder sb) {
+    LOGGER.info("Processing batch: " + batchId + " noOfBatches: " + noOfBatches + " network: " + network);
+    final String chain = XDC.equalsIgnoreCase(network) ? Context.getXdcPositionManagerChain() : Context.getPositionManagerChain();
+    final String positionManager = XDC.equalsIgnoreCase(network) ? Context.getXdcPositionManagerContractAddress() : Context.getPositionManagerContractAddress();
+    final PositionUpdateTransaction transaction = new PositionUpdateTransaction();
+    transaction.setId(snapshotId);
+    transaction.setBatchId(batchId);
+    transaction.setNoOfBatches(noOfBatches);
+    transaction.setChainType(chain);
+    transaction.setContractAddress(positionManager);
+    transaction.setUserPositions(userPositions);
+
+    try {
+      final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
+      if (sender != null) {
+        boolean status = sender.processTransaction(sb);
+        sb.append("Snap updated. network: ").append(network).append(" batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+      } else {
+        sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        LOGGER.info("Sender not found " + transaction.getChainType());
+        System.out.println("Sender not found " + transaction.getChainType());
+      }
+    } catch (Exception e) {
+      sb.append("Snap update failed. network: ").append(network).append(" batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+          .append(" ").append(e.getMessage()).append("\n");
+      LOGGER.error("Error in sending blockchain snap update to " + transaction.getChainType());
+      LOGGER.error(ERROR_LOG, e);
+      System.out.println(ERROR_LOG + e.getMessage());
+    }
   }
 
   public static class UserPosition {

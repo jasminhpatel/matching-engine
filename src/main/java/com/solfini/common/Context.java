@@ -252,7 +252,9 @@ public final class Context implements Constants {
   private static final String SIGNER_URL = PropertyReader.getProperty("SIGNER_URL", "");
   private static final BigInteger GAS_LIMIT_FOR_POSITION_UPDATE = new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_POSITION_UPDATE", "500000"));
   private static final String POSITION_MANAGER_CHAIN = PropertyReader.getProperty("POSITION_MANAGER_CHAIN", POLYGON);
-  private static final String POSITION_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("POSITION_MANAGER_CONTRACT_ADDRESS", "");
+  private static final String POSITION_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("POSITION_MANAGER_CONTRACT_ADDRESS", "0xf857aC7bed76B43c5457f56483803C4CebbD7eff");
+  private static final String XDC_POSITION_MANAGER_CHAIN = PropertyReader.getProperty("XDC_POSITION_MANAGER_CHAIN", XDC);
+  private static final String XDC_POSITION_MANAGER_CONTRACT_ADDRESS = PropertyReader.getProperty("XDC_POSITION_MANAGER_CONTRACT_ADDRESS", "0xf857aC7bed76B43c5457f56483803C4CebbD7eff");
   private static final int POSITION_MANAGER_EOD_EMAIL_AT_HOUR = PropertyReader.getProperty("POSITION_MANAGER_EOD_EMAIL_AT_HOUR", 6);
   private static final String BLOCKCHAIN_KEY_FILE =
       PropertyReader.getProperty("BLOCKCHAIN_KEY_FILE", "./blockchain-keys.txt");
@@ -1417,5 +1419,13 @@ public final class Context implements Constants {
 
   public static BigInteger getGasLimitForUserRegistration() {
     return GAS_LIMIT_FOR_USER_REGISTRATION;
+  }
+
+  public static String getXdcPositionManagerChain() {
+    return XDC_POSITION_MANAGER_CHAIN;
+  }
+
+  public static String getXdcPositionManagerContractAddress() {
+    return XDC_POSITION_MANAGER_CONTRACT_ADDRESS;
   }
 }
