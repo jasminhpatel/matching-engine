@@ -1653,7 +1653,7 @@ ALTER TABLE blockchain_notional_state ADD "contractKey" varchar(32) default 'MAI
 ALTER TABLE blockchain_notional_state DROP CONSTRAINT blockchain_notional_state_pkey;
 ALTER TABLE blockchain_notional_state ADD PRIMARY KEY (userid, contractkey);
 
-CREATE TABLE blockchan_snap_mapping (
+CREATE TABLE blockchain_snap_mapping (
     id        BIGSERIAL PRIMARY KEY,
     snapshot_id BIGINT NOT NULL UNIQUE
 );

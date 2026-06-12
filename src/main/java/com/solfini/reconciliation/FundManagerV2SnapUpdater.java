@@ -572,12 +572,14 @@ public class FundManagerV2SnapUpdater {
         try {
           final EngineUser engineUser = BlockchainUserCache.getEngineUser(balanceUpdate.getUserId());
           if (engineUser == null) {
-            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(". User not found ").append("\n");
+            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(". User not found\n");
+            LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " not found in engine users. network: " + network);
             continue;
           }
           if (!engineUser.getAddress().startsWith("0x")) {
             sb.append("User registration failed. user: ").append(balanceUpdate.getUserId())
                 .append(". Invalid address: ").append(engineUser.getAddress()).append("\n");
+            LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " invalid address: " + engineUser.getAddress() + " network: " + network);
             continue;
           }
 
@@ -595,10 +597,15 @@ public class FundManagerV2SnapUpdater {
             if (status) {
               BlockchainUser blockchainUser = new BlockchainUser(engineUser.getUserId(), engineUser.getAddress(), System.currentTimeMillis(), network);
               BlockchainUserCache.addUser(blockchainUser);
+              sb.append("User registered successfully. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+              LOGGER.info("Fund Manager, user registered. userId: " + balanceUpdate.getUserId() + " address: " + userAddress + " network: " + network);
+            } else {
+              sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+              LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " address: " + userAddress + " network: " + network);
             }
-            sb.append("Register user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
           } else {
-            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
+            sb.append("User registration failed. No sender available. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+            LOGGER.error("Fund Manager, no sender for user registration. userId: " + balanceUpdate.getUserId() + " network: " + network);
           }
         } catch (Exception e) {
           sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" reason: ").append(e.getMessage()).append("\n");
