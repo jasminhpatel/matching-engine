@@ -59,9 +59,13 @@ public class BlockChainKeyManager {
    * @param chainType POLYGON, ETHEREUM, ...
    * @param function RETIRE_FROM, MINT, ....
    */
+  private static String normalizeChainType(final String chainType) {
+    return "MAINNET".equalsIgnoreCase(chainType) ? "ETHEREUM" : chainType.toUpperCase();
+  }
+
   public static final String getNextKey(final String chainType, final String function) {
     printKeys();
-    String key = chainType.toUpperCase() + "_" + function.toUpperCase();
+    String key = normalizeChainType(chainType) + "_" + function.toUpperCase();
     //System.out.printf("Key: " + key);
     final ArrayList<String> functionKeys = CHAIN_FUNCTION_TO_PUBLIC_KEY_MAP.get(key);
     if (functionKeys == null) {
@@ -79,7 +83,7 @@ public class BlockChainKeyManager {
    * @param publicKey public key used to submit transaction.
    */
   public static final Object getLockObject(final String chainType, final String publicKey) {
-    final String lockKey = chainType.toUpperCase() + "_" + publicKey.toUpperCase();
+    final String lockKey = normalizeChainType(chainType) + "_" + publicKey.toUpperCase();
     return CHAIN_ADDRESS_TO_LOCK_MAP.get(lockKey);
   }
 
