@@ -197,7 +197,8 @@ public class FundManagerV2Reconciliation {
     final Map<Integer, Long> blockchainPositionsMap = blockchainSnapData.getUserPositionsMap();
     // load positions from SnapFile
     String snapshotMappingId = blockchainSnapData.getSnapshotId();
-    String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdById(StringUtil.toInt(snapshotMappingId)));
+    String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdByMappingId(
+        StringUtil.toInt(snapshotMappingId), network.toUpperCase(), symbol.toUpperCase()));
 
     LOGGER.info("Fund Manager snapshotId: " + snapshotId);
     String snapFile = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "") + "/"  + snapshotId;

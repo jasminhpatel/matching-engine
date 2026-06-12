@@ -101,20 +101,24 @@ public class BlockchainNotionalCache {
     }
   }
 
-  public static long getSnapshotIdById(final long id) {
-    String sql = "SELECT snapshot_id FROM blockchan_snap_mapping WHERE id = ?";
-
+  public static long getSnapshotIdByMappingId(final long mappingId, final String network, final String symbol) {
+    final String sql = """
+        SELECT snapshot_id FROM blockchan_snap_mapping
+        WHERE network = ? AND symbol = ? AND confirmed = TRUE
+        ORDER BY id ASC
+        LIMIT 1 OFFSET ?
+    """;
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-
-      ps.setLong(1, id);
-
+      ps.setString(1, network);
+      ps.setString(2, symbol);
+      ps.setLong(3, mappingId - 1);
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return rs.getLong("snapshot_id");
         }
       }
-    } catch (SQLException e) {
+    } catch (final SQLException e) {
       e.printStackTrace();
     }
     return -1;
