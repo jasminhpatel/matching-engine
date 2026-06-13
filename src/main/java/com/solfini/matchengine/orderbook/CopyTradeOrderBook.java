@@ -1645,7 +1645,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             } else {
               quantity -= openCopyTradeOrder.getCumulativeAmount();
             }
-            LOGGER.info(Constants.LOG_FMT_11,
+            LOGGER.info(Constants.LOG_FMT_17,
                 "MP close combo copy-trade - ",
                 " close ordId: ", clOrdId,
                 " open ordId: ", openCopyTradeOrder.getClOrdId(),
@@ -1663,6 +1663,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setSide(Side.BUY);
           quantity = Math.abs(quantity);
         }
+        LOGGER.info(Constants.LOG_FMT_17,
+            "MP close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty: ", quantity);
 
 
         //closePricePercentage is scaled by 4
@@ -1840,6 +1845,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setSide(Side.BUY);
           xQuantity = Math.abs(xQuantity);
         }
+        LOGGER.info(Constants.LOG_FMT_17,
+            "MP close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty: ", xQuantity);
 
         double price =
             ExternalExchangeHandler.getPrice(closeCopyTradeOrder.getSubscription(), currencyPair,
