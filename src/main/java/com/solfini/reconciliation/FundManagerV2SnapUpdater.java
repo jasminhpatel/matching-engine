@@ -338,7 +338,10 @@ public class FundManagerV2SnapUpdater {
   public static boolean sendHeartbeatBatch(final String[] args, final StringBuilder sb,
       final String network, final String symbol, final long snapId) {
     try {
-      initialize(args);
+      if (!initialize(args)) {
+        sb.append("Heartbeat failed: initialization failed (check args, -j and -m are not valid) snap=").append(snapId).append("\n");
+        return false;
+      }
       loadBlockchainKeyFile();
 
       final String tokenAddress = Context.getTokenAddressBySymbol(symbol);

@@ -4,11 +4,6 @@ import static com.solfini.common.Constants.MAINNET;
 import static com.solfini.common.Constants.USDC;
 import static com.solfini.common.Constants.USDT;
 
-import com.solfini.util.MailUtil;
-import com.solfini.util.PropertyReader;
-import java.io.IOException;
-import javax.mail.MessagingException;
-
 /**
  * One-time ETH catch-up job. Sends heartbeat batches (totalBatches=2, batchIndex=1, 0 users)
  * for each intermediate snapshotId to advance the on-chain counter without triggering the
@@ -44,11 +39,6 @@ public class FundManagerV2ETHCatchupJob {
       if (!ok) {
         summary.append("USDT heartbeat failed at snap=").append(snap).append(", aborting.\n");
         System.out.println(summary);
-        try {
-          sendFailureEmail(summary);
-        } catch (Exception ex) {
-          ex.printStackTrace();
-        }
         System.exit(1);
       }
     }
@@ -60,11 +50,6 @@ public class FundManagerV2ETHCatchupJob {
       if (!ok) {
         summary.append("USDC heartbeat failed at snap=").append(snap).append(", aborting.\n");
         System.out.println(summary);
-        try {
-          sendFailureEmail(summary);
-        } catch (Exception ex) {
-          ex.printStackTrace();
-        }
         System.exit(1);
       }
     }
@@ -79,20 +64,13 @@ public class FundManagerV2ETHCatchupJob {
     final StringBuilder summary = new StringBuilder();
     try {
       final boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol);
-      if (success) {
-        FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
+      if (!success) {
+        summary.append("ETH Catchup sync failed for ").append(network).append(" ").append(symbol).append("\n");
       } else {
-        System.out.println(summary);
-        sendFailureEmail(summary);
+        FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
       }
     } catch (Exception e) {
-      summary.append("ETH Catchup Sync Job Failed:\n");
-      summary.append(e.getMessage());
-      try {
-        sendFailureEmail(summary);
-      } catch (Exception ex) {
-        ex.printStackTrace();
-      }
+      summary.append("ETH Catchup Sync Job Failed: ").append(e.getMessage()).append("\n");
       e.printStackTrace();
     }
     System.out.println(summary);
@@ -108,13 +86,5 @@ public class FundManagerV2ETHCatchupJob {
       }
     }
     return defaultValue;
-  }
-
-  private static void sendFailureEmail(final StringBuilder summary) throws MessagingException, IOException {
-    summary.insert(0, "ETH Catchup Sync Job Failed:\n");
-    String[] to = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS", "alerts.rohanw@gmail.com").split(",");
-    String subject = "ETH Catchup Sync Job Failed.";
-    String body = summary.toString();
-    MailUtil.sendMessage(to, subject, body, null);
   }
 }
