@@ -63,6 +63,7 @@ public class FundManagerV2SnapUpdater {
   private static final Logger LOGGER = LogManager.getLogger(FundManagerV2SnapUpdater.class);
   private static final String MAINNET = "MAINNET";
   private static final String XDC = "XDC";
+  private static volatile boolean blockchainKeysLoaded = false;
 
   private static boolean initialize(String[] args) throws Exception {
     final Options options = new Options();
@@ -316,14 +317,59 @@ public class FundManagerV2SnapUpdater {
   }
 
   private static void loadBlockchainKeyFile() {
-    // load blockchain keys
+    if (blockchainKeysLoaded) return;
     System.out.println("Blockchain key file loading " + Context.isBlockchainPositionManagerEnabled());
     try {
       BlockChainKeyManager.loadKeys(Context.getBlockchainKeyFile());
       System.out.println("Blockchain key file loaded.");
+      blockchainKeysLoaded = true;
     } catch (final Exception e) {
       e.printStackTrace();
       System.err.println("Error: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Sends a heartbeat (dummy) batch for a given snapshotId with totalBatches=2, batchIndex=1, 0 users.
+   * The contract advances ps.snapshotId without triggering the 22h cadence check because
+   * isLastBatch=(batchesReceived+1 == batchesExpected) = (1==2) = false.
+   * This lets us catch up multiple skipped snapshotIds in a single day.
+   */
+  public static boolean sendHeartbeatBatch(final String[] args, final StringBuilder sb,
+      final String network, final String symbol, final long snapId) {
+    try {
+      initialize(args);
+      loadBlockchainKeyFile();
+
+      final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
+      sb.append("Heartbeat snap=").append(snapId).append(" network=").append(network)
+          .append(" symbol=").append(symbol).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+      final WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+      transaction.setTokenAddress(tokenAddress);
+      transaction.setNetwork(network.toUpperCase());
+      transaction.setContractVersion(2);
+      transaction.setId(snapId);
+      transaction.setChainType(network.toUpperCase());
+      transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
+      transaction.setUserWithdrawables(new ArrayList<>());
+      transaction.setBatchId(1);
+      transaction.setNoOfBatches(2);
+
+      final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
+      if (sender != null) {
+        final boolean status = sender.processTransaction(sb);
+        sb.append("Heartbeat snap=").append(snapId).append(" status: ").append(status)
+            .append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return status;
+      } else {
+        sb.append("Heartbeat failed: no sender for ").append(network).append("\n");
+        return false;
+      }
+    } catch (final Exception e) {
+      sb.append("Heartbeat failed snap=").append(snapId).append(": ").append(e.getMessage()).append("\n");
+      LOGGER.error(ERROR_LOG, e);
+      return false;
     }
   }
 
@@ -344,7 +390,10 @@ public class FundManagerV2SnapUpdater {
 
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
-    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId);
+    final String forcedSnapId = PropertyReader.getProperty("FORCE_SNAP_ID", "");
+    final long snapshotMappingId = forcedSnapId.isEmpty()
+        ? BlockchainNotionalCache.getOrCreateIncrementalId(snapId)
+        : Long.parseLong(forcedSnapId);
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
