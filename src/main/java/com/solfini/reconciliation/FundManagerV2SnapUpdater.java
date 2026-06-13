@@ -477,13 +477,13 @@ public class FundManagerV2SnapUpdater {
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
             success = success && status;
-            sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap updated. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           } else {
             success = false;
-            sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           }
         } catch (Exception e) {
-          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+          sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
               .append(" ").append(e.getMessage()).append("\n");
           LOGGER.error(ERROR_LOG, e);
         }
@@ -510,13 +510,13 @@ public class FundManagerV2SnapUpdater {
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+        sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
             .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
