@@ -1645,6 +1645,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             } else {
               quantity -= openCopyTradeOrder.getCumulativeAmount();
             }
+            LOGGER.info(Constants.LOG_FMT_11,
+                "MP close combo copy-trade - ",
+                " close ordId: ", clOrdId,
+                " open ordId: ", openCopyTradeOrder.getClOrdId(),
+                " open order side: ", openCopyTradeOrder.getSide().name(),
+                " subscriptionId: ", openCopyTradeOrder.getSubscriptionId(),
+                " order result: ", openCopyTradeOrder.getResult(),
+                " open order qty: ", openCopyTradeOrder.getCumulativeAmount(),
+                " combo qty: ", quantity,
+                " symbol: ", openCopyTradeOrder.getBaseSymbol());
           }
         }
         if (quantity > 0) {
@@ -1812,6 +1822,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             } else {
               xQuantity -= openCopyTradeOrder.getCumulativeAmount();
             }
+            LOGGER.info(Constants.LOG_FMT_11,
+                "MP close combo copy-trade - ",
+                " close ordId: ", clOrdId,
+                " open ordId: ", openCopyTradeOrder.getClOrdId(),
+                " open order side: ", openCopyTradeOrder.getSide().name(),
+                " subscriptionId: ", openCopyTradeOrder.getSubscriptionId(),
+                " order result: ", openCopyTradeOrder.getResult(),
+                " open order qty: ", openCopyTradeOrder.getCumulativeAmount(),
+                " combo qty: ", xQuantity,
+                " symbol: ", openCopyTradeOrder.getBaseSymbol());
           }
         }
         if (xQuantity > 0) {
