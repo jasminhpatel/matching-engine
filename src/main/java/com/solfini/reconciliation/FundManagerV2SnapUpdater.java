@@ -344,7 +344,7 @@ public class FundManagerV2SnapUpdater {
 
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
-    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId); // incremental id instead of UTC time
+    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId);
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();

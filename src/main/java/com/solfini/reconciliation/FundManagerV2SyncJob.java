@@ -17,9 +17,9 @@ public class FundManagerV2SyncJob {
   }
 
   public static void main(String[] args) {
-    // sync(args, MAINNET, USDC);
-    // sync(args, MAINNET, USDT);
-    sync(args, XDC, XUSDC);
+    sync(args, MAINNET, USDC);
+    sync(args, MAINNET, USDT);
+    // sync(args, XDC, XUSDC); // re-enable once MAINNET reaches snap 5
     System.exit(0); // clean exit
   }
 
