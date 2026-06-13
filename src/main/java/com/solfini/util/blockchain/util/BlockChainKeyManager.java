@@ -40,12 +40,13 @@ public class BlockChainKeyManager {
         if (line.length() > 0 && !line.startsWith("#")) {
           //add <chain>_<function> <address> mapping
           final String[] values = line.split(":");
-          final String key = values[INDEX_OF_CHAIN_TYPE].toUpperCase() + "_" + values[INDEX_OF_FUNCTION].toUpperCase();
+          final String normalizedChainType = normalizeChainType(values[INDEX_OF_CHAIN_TYPE]);
+          final String key = normalizedChainType + "_" + values[INDEX_OF_FUNCTION].toUpperCase();
           final ArrayList<String> chainFunctionAddresses = CHAIN_FUNCTION_TO_PUBLIC_KEY_MAP.computeIfAbsent(key, v -> new ArrayList<>());
           chainFunctionAddresses.add(values[INDEX_OF_PUBLIC_ADDRESS]);
 
           //add lock objects
-          final String lockKey = values[INDEX_OF_CHAIN_TYPE].toUpperCase() + "_" + values[INDEX_OF_PUBLIC_ADDRESS].toUpperCase();
+          final String lockKey = normalizedChainType + "_" + values[INDEX_OF_PUBLIC_ADDRESS].toUpperCase();
           final Object lock = CHAIN_ADDRESS_TO_LOCK_MAP.computeIfAbsent(lockKey, v -> new Object());
         }
       }
@@ -59,9 +60,13 @@ public class BlockChainKeyManager {
    * @param chainType POLYGON, ETHEREUM, ...
    * @param function RETIRE_FROM, MINT, ....
    */
+  private static String normalizeChainType(final String chainType) {
+    return "MAINNET".equalsIgnoreCase(chainType) ? "ETHEREUM" : chainType.toUpperCase();
+  }
+
   public static final String getNextKey(final String chainType, final String function) {
     printKeys();
-    String key = chainType.toUpperCase() + "_" + function.toUpperCase();
+    String key = normalizeChainType(chainType) + "_" + function.toUpperCase();
     //System.out.printf("Key: " + key);
     final ArrayList<String> functionKeys = CHAIN_FUNCTION_TO_PUBLIC_KEY_MAP.get(key);
     if (functionKeys == null) {
@@ -79,7 +84,7 @@ public class BlockChainKeyManager {
    * @param publicKey public key used to submit transaction.
    */
   public static final Object getLockObject(final String chainType, final String publicKey) {
-    final String lockKey = chainType.toUpperCase() + "_" + publicKey.toUpperCase();
+    final String lockKey = normalizeChainType(chainType) + "_" + publicKey.toUpperCase();
     return CHAIN_ADDRESS_TO_LOCK_MAP.get(lockKey);
   }
 

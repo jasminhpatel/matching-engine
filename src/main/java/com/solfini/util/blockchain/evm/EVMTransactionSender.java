@@ -56,7 +56,7 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
   protected EVMTransactionSender(final String transactionId, final String chainType, final String txnType,
       final BlockchainTransaction blockchainTransaction) {
     this.transactionId = transactionId;
-    this.chainType = chainType;
+    this.chainType = "MAINNET".equalsIgnoreCase(chainType) ? "ETHEREUM" : chainType;
     this.txnType = txnType;
     this.blockchainTransaction = blockchainTransaction;
   }

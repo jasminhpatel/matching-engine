@@ -344,7 +344,7 @@ public class FundManagerV2SnapUpdater {
 
     final String latestSnapshotId = snapshotIds.getFirst();
     final long snapId = StringUtil.toLong(latestSnapshotId);
-    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId); // incremental id instead of UTC time
+    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId);
     final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
@@ -477,13 +477,13 @@ public class FundManagerV2SnapUpdater {
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
             success = success && status;
-            sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap updated. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           } else {
             success = false;
-            sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
           }
         } catch (Exception e) {
-          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+          sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
               .append(" ").append(e.getMessage()).append("\n");
           LOGGER.error(ERROR_LOG, e);
         }
@@ -510,13 +510,13 @@ public class FundManagerV2SnapUpdater {
         if (sender != null) {
           boolean status = sender.processTransaction(sb);
           success = success && status;
-          sb.append("Snap updated. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap updated. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         } else {
           success = false;
-          sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+          sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         }
       } catch (Exception e) {
-        sb.append("Snap update failed. batch ").append(batchIndex + 1).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+        sb.append("Snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
             .append(" ").append(e.getMessage()).append("\n");
         LOGGER.error(ERROR_LOG, e);
       }
@@ -572,12 +572,14 @@ public class FundManagerV2SnapUpdater {
         try {
           final EngineUser engineUser = BlockchainUserCache.getEngineUser(balanceUpdate.getUserId());
           if (engineUser == null) {
-            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(". User not found ").append("\n");
+            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(". User not found\n");
+            LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " not found in engine users. network: " + network);
             continue;
           }
           if (!engineUser.getAddress().startsWith("0x")) {
             sb.append("User registration failed. user: ").append(balanceUpdate.getUserId())
                 .append(". Invalid address: ").append(engineUser.getAddress()).append("\n");
+            LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " invalid address: " + engineUser.getAddress() + " network: " + network);
             continue;
           }
 
@@ -592,9 +594,18 @@ public class FundManagerV2SnapUpdater {
           final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(userRegistrationTransaction);
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
-            sb.append("Register user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
+            if (status) {
+              BlockchainUser blockchainUser = new BlockchainUser(engineUser.getUserId(), engineUser.getAddress(), System.currentTimeMillis(), network);
+              BlockchainUserCache.addUser(blockchainUser);
+              sb.append("User registered successfully. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+              LOGGER.info("Fund Manager, user registered. userId: " + balanceUpdate.getUserId() + " address: " + userAddress + " network: " + network);
+            } else {
+              sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+              LOGGER.error("Fund Manager, user registration failed. userId: " + balanceUpdate.getUserId() + " address: " + userAddress + " network: " + network);
+            }
           } else {
-            sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append("\n");
+            sb.append("User registration failed. No sender available. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+            LOGGER.error("Fund Manager, no sender for user registration. userId: " + balanceUpdate.getUserId() + " network: " + network);
           }
         } catch (Exception e) {
           sb.append("User registration failed. user: ").append(balanceUpdate.getUserId()).append(" reason: ").append(e.getMessage()).append("\n");

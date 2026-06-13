@@ -57,13 +57,13 @@ public class BlockchainNotionalCache {
   public static long getOrCreateIncrementalId(final long snapshotId) {
     final String sql = """
         WITH inserted AS (
-            INSERT INTO blockchan_snap_mapping (snapshot_id)
+            INSERT INTO blockchain_snap_mapping (snapshot_id)
             VALUES (?)
             ON CONFLICT (snapshot_id) DO NOTHING
             RETURNING id
         ),
         existing AS (
-            SELECT id FROM blockchan_snap_mapping
+            SELECT id FROM blockchain_snap_mapping
             WHERE snapshot_id = ?
         )
         SELECT id FROM inserted
@@ -91,7 +91,7 @@ public class BlockchainNotionalCache {
   }
 
   public static long getSnapshotIdById(final long id) {
-    String sql = "SELECT snapshot_id FROM blockchan_snap_mapping WHERE id = ?";
+    String sql = "SELECT snapshot_id FROM blockchain_snap_mapping WHERE id = ?";
 
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {

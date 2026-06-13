@@ -1,5 +1,8 @@
 package com.solfini.reconciliation;
 
+import static com.solfini.common.Constants.MAINNET;
+import static com.solfini.common.Constants.USDC;
+import static com.solfini.common.Constants.USDT;
 import static com.solfini.common.Constants.XDC;
 import static com.solfini.common.Constants.XUSDC;
 
@@ -9,10 +12,13 @@ import java.io.IOException;
 import javax.mail.MessagingException;
 
 public class FundManagerV2SyncJob {
+
+  public FundManagerV2SyncJob() {
+  }
+
   public static void main(String[] args) {
-    //todo uncomment after testing and execute in multiple threads
-    //sync(args, MAINNET, USDC);
-    //sync(args, MAINNET, USDT);
+    sync(args, MAINNET, USDC);
+    sync(args, MAINNET, USDT);
     sync(args, XDC, XUSDC);
     System.exit(0); // clean exit
   }
