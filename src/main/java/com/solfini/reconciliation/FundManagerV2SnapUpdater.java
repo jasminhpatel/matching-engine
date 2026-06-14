@@ -189,6 +189,7 @@ public class FundManagerV2SnapUpdater {
     options.addOption(Option.builder("c").longOpt("config").desc("configuration file path").hasArg().argName("file").build());
     options.addOption(Option.builder().longOpt("data-port").desc("data port configuration file path").hasArg().argName("file").build());
     options.addOption(Option.builder("").longOpt("transform").desc("apply transformation").hasArgs().argName("name").build());
+    options.addOption(Option.builder("d").desc("define configuration property").hasArgs().argName("key>=<value").required(false).build());
 
     for (String arg : args) {
       if (arg.equals("-h") || arg.equals("--help")) {
