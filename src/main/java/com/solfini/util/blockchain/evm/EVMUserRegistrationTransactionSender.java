@@ -5,6 +5,7 @@ import static com.solfini.common.Constants.LOG_FMT_10;
 import static com.solfini.common.Constants.LOG_FMT_12;
 import static com.solfini.common.Constants.LOG_FMT_14;
 import static com.solfini.common.Constants.LOG_FMT_4;
+import static com.solfini.common.Constants.MAINNET;
 import static com.solfini.common.Constants.XDC;
 
 import com.solfini.common.Context;
@@ -27,7 +28,7 @@ public class EVMUserRegistrationTransactionSender extends EVMTransactionSender {
 
   public EVMUserRegistrationTransactionSender(final UserRegistrationTransaction userRegistrationTransaction) {
     super(userRegistrationTransaction.getContractAddress() + "-" + userRegistrationTransaction.getId(), userRegistrationTransaction.getChainType(),
-        (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
+        (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || MAINNET.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
             ? FUND_MANAGEMENT : POSITION_MANAGEMENT, userRegistrationTransaction);
     this.userRegistrationTransaction = userRegistrationTransaction;
   }

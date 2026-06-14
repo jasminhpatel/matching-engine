@@ -24,3 +24,5 @@ src/test/resources/queues/*
 snap/*
 chronicle/*
 server/*
+CLAUDE.md
+.claude/
