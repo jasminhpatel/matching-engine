@@ -756,9 +756,10 @@ public class FundManagerV2SnapUpdater {
             }
           }
         }
-        System.out.println(balanceAdminMessage.getUserId() + " - " + withdrawable + " - " + (long) (withdrawable * 1_000_000));
+        final long withdrawableMicros = (long) (Math.max(0.0, withdrawable) * 1_000_000);
+        System.out.println(balanceAdminMessage.getUserId() + " - " + withdrawable + " - " + withdrawableMicros);
         final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable =
-            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), contractKey, (long) (withdrawable * 1_000_000));
+            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), contractKey, withdrawableMicros);
         userWithdrawables.put(balanceAdminMessage.getUserId(), userWithdrawable);
       }
     }
