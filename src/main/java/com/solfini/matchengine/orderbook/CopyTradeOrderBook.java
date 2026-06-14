@@ -1638,7 +1638,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           }
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
             openCopyTradesToCloseOrder.add(openCopyTradeOrder);
-            quantity += openCopyTradeOrder.getCumulativeAmount();
+            //quantity += openCopyTradeOrder.getCumulativeAmount();
 
             if (openCopyTradeOrder.getSide().equals(Side.BUY)) {
               quantity += openCopyTradeOrder.getCumulativeAmount();
@@ -1646,7 +1646,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               quantity -= openCopyTradeOrder.getCumulativeAmount();
             }
             LOGGER.info(Constants.LOG_FMT_17,
-                "MP close combo copy-trade - ",
+                "MP (direct) close combo copy-trade - ",
                 " close ordId: ", clOrdId,
                 " open ordId: ", openCopyTradeOrder.getClOrdId(),
                 " open order side: ", openCopyTradeOrder.getSide().name(),
@@ -1664,7 +1664,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           quantity = Math.abs(quantity);
         }
         LOGGER.info(Constants.LOG_FMT_17,
-            "MP close combo copy-trade - ",
+            "MP (direct) close combo copy-trade - ",
             " close ordId: ", clOrdId,
             " open order side: ", closeCopyTradeOrder.getSide().name(),
             " combo qty: ", quantity);
