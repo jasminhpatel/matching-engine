@@ -178,10 +178,9 @@ public class FundManagerV2SnapUpdater {
   private static List<Message> loadSnap(final String[] args, String snapfile) {
     final Options options = new Options();
     options.addOption(Option.builder("h").longOpt("help").desc("show help").required(false).build());
-    options.addOption(Option.builder("s").longOpt("snapshot").desc("snapshot directory").hasArg().argName("dir").required().build());
-    options.addOption(Option.builder("j").longOpt("json").desc("json file path").hasArg().argName("file").required().build());
-    options.addOption(
-        Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").required().build());
+    options.addOption(Option.builder("s").longOpt("snapshot").desc("snapshot directory").hasArg().argName("dir").build());
+    options.addOption(Option.builder("j").longOpt("json").desc("json file path").hasArg().argName("file").build());
+    options.addOption(Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").build());
     options.addOption(Option.builder().longOpt("debug").desc("enable debug logging").required(false).build());
     options.addOption(Option.builder().longOpt("prune").desc("enable snapshot pruning").required(false).build());
     options.addOption(Option.builder().longOpt("clean").desc("enable snapshot cleaning").required(false).build());
@@ -204,8 +203,9 @@ public class FundManagerV2SnapUpdater {
     try {
       final CommandLine cmd = parser.parse(options, args);
       final String snapshot = snapfile;
-      final String json = cmd.getOptionValue("j");
-      final String mode = cmd.getOptionValue("m").toLowerCase();
+      final String json = cmd.hasOption("j") ? cmd.getOptionValue("j")
+          : System.getProperty("java.io.tmpdir") + "/fund_manager_snap_export.json";
+      final String mode = cmd.hasOption("m") ? cmd.getOptionValue("m").toLowerCase() : "export";
 
       // Load config file
       InputStream stream = null;
