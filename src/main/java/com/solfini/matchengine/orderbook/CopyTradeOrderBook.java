@@ -769,6 +769,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       LOGGER.info(Constants.LOG_FMT_4, "Order processing. clOrdId: ", clOrdId, " maxTradeValue: ", maxTradeValue);
 
+      final double MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD = 10.0d;
       // use direct API first if configured
       if (subscription.getConnectionType() == ExchangeSubscription.CONNECTION_VIA_DIRECT) {
         final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
@@ -861,10 +862,23 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           return; //reject message already sent
         }
         LOGGER.info(Constants.LOG_FMT_4, "Max trade value for order: ", copyTradeOrder.getClOrdId(), " is ", maxRemainingAmount);
-        if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
           LOGGER.info(Constants.LOG_FMT_6, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ",
               maxRemainingAmount, " minCopyTradeAmount: ", Context.getMinCopyTradeAmountInUsd());
           maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
+
+        //LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
+
+        //copyTrade.setResult("REJECTED: Trade value is too low.");
+        //copyTrade.setxExchange(null);
+        //matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        //return;
+        }*/
+        if (maxRemainingAmount < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
+          LOGGER.info(Constants.LOG_FMT_6, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ",
+              maxRemainingAmount, " minCopyTradeAmount: ", MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD);
+          maxRemainingAmount = MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD;
 
 /*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
 
@@ -880,7 +894,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         //percentage of subscription amount assigned by the user
         double userDefinedPercentage = MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         final double signalTradeValue = Math.min(maxRemainingAmount, maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+
+          return;
+        }*/
+        if (signalTradeValue < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
           copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
@@ -1133,12 +1156,27 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         LOGGER.info(Constants.LOG_FMT_2, "Max trade value for order: ", copyTradeOrder.getClOrdId(),
             " is ", maxRemainingAmount);
-        if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
           LOGGER.info(Constants.LOG_FMT_2,
               "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId,
               " maxRemainingAmount: ",
               maxRemainingAmount, " minCopyTradeAmount: ", Context.getMinCopyTradeAmountInUsd());
           maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
+
+        //LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
+
+        //copyTrade.setResult("REJECTED: Trade value is too low.");
+        //copyTrade.setxExchange(null);
+        //matcherToPublisherQueue.addGuaranteed(copyTrade);
+
+        //return;
+        }*/
+        if (maxRemainingAmount < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
+          LOGGER.info(Constants.LOG_FMT_2,
+              "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId,
+              " maxRemainingAmount: ",
+              maxRemainingAmount, " minCopyTradeAmount: ", MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD);
+          maxRemainingAmount = MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD;
 
 /*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
 
@@ -1161,7 +1199,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         double signalTradeValue = Math.min(maxRemainingAmount,
             maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+
+          return;
+        }*/
+        if (signalTradeValue < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
           copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
