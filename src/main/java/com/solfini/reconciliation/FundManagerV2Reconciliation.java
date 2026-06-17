@@ -118,8 +118,7 @@ public class FundManagerV2Reconciliation {
           }
         }
         if (!valid) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not contain a valid snapshot");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not contain a valid snapshot");
         }
 
 /*        final File jsonFile = new File(json);
@@ -130,34 +129,32 @@ public class FundManagerV2Reconciliation {
 
         List<Message> messages = snapConverter.exportSnapshot(snapshot, json);
         if (cmd.hasOption("validate") && !snapConverter.validate()) {
-          System.exit(1);
+          throw new RuntimeException("Snapshot validation failed for " + snapshot);
         }
         return messages;
       } else if (mode.equals("import")) {
         final File snapshotPath = new File(snapshot);
         if (!snapshotPath.exists() || !snapshotPath.isDirectory()) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not exist");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not exist");
         }
 
         final File jsonFile = new File(json);
         if (!jsonFile.exists() || !jsonFile.isFile()) {
-          System.out.println("ERROR: Specified input file " + json + " does not exist or is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified input file " + json + " does not exist or is not a regular file");
         }
 
         snapConverter.importSnapshot(json, snapshot);
       } else {
-        System.out.println("ERROR: Invalid mode specified - " + mode);
+        throw new RuntimeException("Invalid mode specified - " + mode);
       }
     } catch (final Exception e) {
-      System.out.println("ERROR: " + e.getMessage());
       e.printStackTrace();
-      System.out.println("Run with --help option for usage information");
-      System.exit(1);
+      // Do NOT System.exit here: loadSnap runs inside FundManagerV2SyncJob, which
+      // syncs ETH USDC, ETH USDT and XDC sequentially. Calling System.exit would kill
+      // the JVM mid-run and skip the remaining chains. Throw instead so sync()'s catch
+      // block can record the failure and let the next chain run.
+      throw new RuntimeException("Failed to load snapshot for reconciliation: " + e.getMessage(), e);
     }
-
-    System.exit(0);
 
     return null;
   }
