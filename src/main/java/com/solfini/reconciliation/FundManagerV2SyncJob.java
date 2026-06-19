@@ -34,9 +34,21 @@ public class FundManagerV2SyncJob {
       return;
     }
 
-    sync(args, MAINNET, USDC, snapContext);
-    sync(args, MAINNET, USDT, snapContext);
-    sync(args, XDC, XUSDC, snapContext);
+    try {
+      sync(args, MAINNET, USDC, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      sync(args, MAINNET, USDT, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      sync(args, XDC, XUSDC, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
     System.exit(0);
   }
 

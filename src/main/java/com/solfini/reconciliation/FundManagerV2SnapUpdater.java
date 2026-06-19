@@ -82,6 +82,7 @@ public class FundManagerV2SnapUpdater {
     options.addOption(Option.builder().longOpt("debug").desc("enable debug logging").required(false).build());
     options.addOption(Option.builder().longOpt("info").desc("enable info logging").required(false).build());
     options.addOption(Option.builder().longOpt("warn").desc("enable warn logging").required(false).build());
+    options.addOption(Option.builder("j").longOpt("json").desc("json export path (used by reconcile, ignored here)").hasArg().required(false).build());
 
     for (final String arg : args) {
       if (arg.equals("-h") || arg.equals("--help")) {
@@ -254,8 +255,7 @@ public class FundManagerV2SnapUpdater {
           }
         }
         if (!valid) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not contain a valid snapshot");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not contain a valid snapshot");
         }
 
 /*        final File jsonFile = new File(json);
@@ -272,28 +272,23 @@ public class FundManagerV2SnapUpdater {
       } else if (mode.equals("import")) {
         final File snapshotPath = new File(snapshot);
         if (!snapshotPath.exists() || !snapshotPath.isDirectory()) {
-          System.out.println("ERROR: Specified directory " + snapshot + " does not exist");
-          System.exit(1);
+          throw new RuntimeException("Specified directory " + snapshot + " does not exist");
         }
 
         final File jsonFile = new File(json);
         if (!jsonFile.exists() || !jsonFile.isFile()) {
-          System.out.println("ERROR: Specified input file " + json + " does not exist or is not a regular file");
-          System.exit(1);
+          throw new RuntimeException("Specified input file " + json + " does not exist or is not a regular file");
         }
 
         snapConverter.importSnapshot(json, snapshot);
       } else {
-        System.out.println("ERROR: Invalid mode specified - " + mode);
+        throw new RuntimeException("Invalid mode specified - " + mode);
       }
+    } catch (final RuntimeException e) {
+      throw e;
     } catch (final Exception e) {
-      System.out.println("ERROR: " + e.getMessage());
-      e.printStackTrace();
-      System.out.println("Run with --help option for usage information");
-      System.exit(1);
+      throw new RuntimeException("Failed to load snapshot: " + e.getMessage(), e);
     }
-
-    System.exit(0);
 
     return null;
   }
