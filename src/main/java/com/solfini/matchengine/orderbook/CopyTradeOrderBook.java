@@ -1710,7 +1710,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setSide(Side.BUY);
           quantity = Math.abs(quantity);
         }
-        LOGGER.info(Constants.LOG_FMT_17,
+        LOGGER.info(Constants.LOG_FMT_7,
             "MP (direct) close combo copy-trade - ",
             " close ordId: ", clOrdId,
             " open order side: ", closeCopyTradeOrder.getSide().name(),
@@ -1729,6 +1729,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         closeCopyTradeOrder.setxPrice(new BigDecimal(price).setScale(externalSymbol.getPriceScale(), RoundingMode.HALF_UP));
         quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
+        LOGGER.info(Constants.LOG_FMT_7,
+            "MP (direct) close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty(round up): ", quantity);
         closeCopyTradeOrder.setxQuantity(new BigDecimal(quantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
         closeCopyTradeOrder.setCumulativeAmount(quantity);
         closeCopyTradeOrder.setOrderQty(MbxMath.changeScale(quantity, closeCopyTradeOrder.getOrderQtyScale()));
