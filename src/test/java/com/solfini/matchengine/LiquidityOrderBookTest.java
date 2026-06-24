@@ -18,7 +18,11 @@ import com.solfini.matchengine.orderbook.LiquidityOrderBook;
 import com.solfini.matchengine.orderbook.OrderBook;
 import com.solfini.matchengine.orderbook.OrderBookFactory;
 import com.solfini.pool.ExecutionReportObjectPool;
+import com.solfini.pool.LiquidationOrderObjectPool;
+import com.solfini.pool.OrderMatchingThreadObjectPool;
 import com.solfini.pool.OrderObjectPool;
+import com.solfini.pool.PositionMatchThreadObjectPool;
+import com.solfini.pool.UserOpenOrdersByPairMatchThreadObjectPool;
 import com.solfini.preordercheck.MarginPreOrderCheckAndSettle;
 import com.solfini.sbe.encoder.OrdType;
 import com.solfini.sbe.encoder.Side;
@@ -52,23 +56,28 @@ public class LiquidityOrderBookTest {
     try {
       Properties properties = new Properties();
       PoolSize.minimize(properties);
-      properties.setProperty("ORDER_POOL_QUEUE_CAPACITY", "1000000");
-      properties.setProperty("ORDER_POOL_START_CAPACITY", "1000000");
-      properties.setProperty("EXECUTION_REPORT_POOL_QUEUE_CAPACITY", "1000000");
-      properties.setProperty("EXECUTION_REPORT_POOL_START_CAPACITY", "1000000");
+      properties.setProperty("ORDER_POOL_QUEUE_CAPACITY", "4000000");
+      properties.setProperty("ORDER_POOL_START_CAPACITY", "4000000");
+      properties.setProperty("EXECUTION_REPORT_POOL_QUEUE_CAPACITY", "4000000");
+      properties.setProperty("EXECUTION_REPORT_POOL_START_CAPACITY", "4000000");
       properties.setProperty("POSITION_POOL_QUEUE_CAPACITY", "1000");
       properties.setProperty("POSITION_POOL_START_CAPACITY", "1000");
-      properties.setProperty("USER_OPEN_ORDERS_POOL_QUEUE_CAPACITY", "1000");
-      properties.setProperty("USER_OPEN_ORDERS_POOL_START_CAPACITY", "1000");
-      properties.setProperty("LIQUIDATION_ORDER_POOL_QUEUE_CAPACITY", "1000");
-      properties.setProperty("LIQUIDATION_ORDER_POOL_START_CAPACITY", "1000");
+      properties.setProperty("USER_OPEN_ORDERS_POOL_QUEUE_CAPACITY", "4000000");
+      properties.setProperty("USER_OPEN_ORDERS_POOL_START_CAPACITY", "4000000");
+      properties.setProperty("LIQUIDATION_ORDER_POOL_QUEUE_CAPACITY", "4000000");
+      properties.setProperty("LIQUIDATION_ORDER_POOL_START_CAPACITY", "4000000");
       properties.setProperty("MIN_TOP_N_ORDER_VALUE", "2000000000000.00");
       properties.setProperty("INITIAL_USER_CACHE_SIZE", "1000");
       PropertyReader.initialize(null, properties);
 
       System.out.println("Warming up object pools");
       OrderObjectPool.init();
+      OrderMatchingThreadObjectPool.init();
       ExecutionReportObjectPool.init();
+      PositionMatchThreadObjectPool.init();
+      UserOpenOrdersByPairMatchThreadObjectPool.init();
+      LiquidationOrderObjectPool.getSize(); //static initializer
+
     } catch (Exception e) {
       e.printStackTrace();
       Assert.fail(e.getMessage());
@@ -128,6 +137,7 @@ public class LiquidityOrderBookTest {
         instrumentPair, DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
     orderBook.setSettleCoinUsdMarkInstrument(quoted);
     ((LiquidityOrderBook) orderBook).setPublishAcks(false);
+
     System.out.println("Starting");
     long start = System.nanoTime();
     for (final Order order : orderList) {
@@ -209,13 +219,15 @@ public class LiquidityOrderBookTest {
     UserCache.addBalance(message);
   }
 
-  public static void main(String args[]) throws Exception {
-    long orderCount = 1_000_0;
+  public static void main(String[] args) throws Exception {
+    long orderCount = 1_000_000;
     if (args.length == 1) {
       orderCount = Long.parseLong(args[0]);
     }
 
     LiquidityOrderBookTest test = new LiquidityOrderBookTest();
+    LiquidityOrderBookTest.before();
     test.measureOrderBookPerformance(orderCount);
+    System.exit(0);
   }
 }

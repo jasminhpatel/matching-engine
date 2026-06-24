@@ -164,6 +164,7 @@ public class ArrayOrderBookTest {
     }
 
     ArrayOrderBookTest test = new ArrayOrderBookTest();
+    LiquidityOrderBookTest.before();
     test.measureOrderBookPerformance(orderCount);
   }
 }
