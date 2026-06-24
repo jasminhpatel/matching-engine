@@ -848,14 +848,14 @@ public class Order extends Message implements Constants {
   public void markAsReturned() {
     markAsReturned = true;
 
-    try {
+/*    try {
       throw new NullPointerException();
     } catch (Exception e) {
       final StringWriter sw = new StringWriter();
       final PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
       // returnedStack = sw.toString(); // stack trace as a string
-    }
+    }*/
   }
 
   @Override
