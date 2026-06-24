@@ -580,8 +580,8 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       double orderQty = MbxMath.scaleDown(order.getQty(), order.getQtyScale());
       // marketMaker Position - total external exchange positions.
-      final double imbalance = LiquiditySubscriptionCache.processImbalance(instrumentPair);
       if (Context.isLiquidityImbalanceSettleEnabled()) {
+        final double imbalance = LiquiditySubscriptionCache.processImbalance(instrumentPair);
         if (Context.getTestUsers().contains(order.getSubmitterId())) { //only for test users.
           long quantityOrigLong = order.getQuantityOrigLong();
           if (order.getSide() == Side.BUY) {
