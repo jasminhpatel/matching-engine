@@ -136,7 +136,9 @@ public class LiquidityOrderBookTest {
     final OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.LIQUIDITY_ORDER_BOOK, OrderBookFactory.NO_PREORDER_CHECK,
         instrumentPair, DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
     orderBook.setSettleCoinUsdMarkInstrument(quoted);
-    ((LiquidityOrderBook) orderBook).setPublishAcks(false);
+    LiquidityOrderBook liquidityOrderBook = ((LiquidityOrderBook) orderBook);
+    liquidityOrderBook.setPublishAcks(false);
+    liquidityOrderBook.setUsdAutoConvertEnabled(false);
 
     System.out.println("Starting");
     long start = System.nanoTime();

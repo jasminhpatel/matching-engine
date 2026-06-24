@@ -94,6 +94,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
   private boolean rebuildInProgress = false;
   private long circuitBreakerEndTime = 0;
   private boolean publishAcks = true;
+  private boolean usdAutoConvertEnabled = true;
 
   public static synchronized void initialize() {
     if (!initialized) {
@@ -122,6 +123,10 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
 
   public void setPublishAcks(final boolean publishAcks) {
     this.publishAcks = publishAcks;
+  }
+
+  public void setUsdAutoConvertEnabled(boolean usdAutoConvertEnabled) {
+    this.usdAutoConvertEnabled = usdAutoConvertEnabled;
   }
 
   public static DoubleAdder getMarketMakerPositionQty(int instrumentId) {
@@ -462,8 +467,8 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
 
     // convert stable coins to settle USD balance
-    if (targetStrategy != AUTO_CONVERT) {
-      //autoConvertStableCoinsToSettle(user, kafkaRecordOffset);
+    if (usdAutoConvertEnabled && targetStrategy != AUTO_CONVERT) {
+      autoConvertStableCoinsToSettle(user, kafkaRecordOffset);
     }
     // processTriggeredOrders();
     // checkCircuitBreaker();
