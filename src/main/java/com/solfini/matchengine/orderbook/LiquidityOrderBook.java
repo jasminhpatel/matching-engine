@@ -337,11 +337,11 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
     // handle external orders separately
     if (order.getTargetStrategy() == EXTERNAL || order.getTargetStrategy() == LIQUIDATION) {
-      LOGGER.info(LOG_FMT_2, "EXTERNAL Order Received: ", order.toJSON());
+      //LOGGER.info(LOG_FMT_2, "EXTERNAL Order Received: ", order.toJSON());
       addExternalOrder(order);
       return;
     }
-    LOGGER.info(LOG_FMT_2, "Liquidity Order Received: ", order.toJSON());
+    //LOGGER.info(LOG_FMT_2, "Liquidity Order Received: ", order.toJSON());
     // validate
     if ((order.getPriceInt() <= 0 && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket()))) {
       if (LOGGER.isTraceEnabled()) {
@@ -463,7 +463,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
 
     // convert stable coins to settle USD balance
     if (targetStrategy != AUTO_CONVERT) {
-      autoConvertStableCoinsToSettle(user, kafkaRecordOffset);
+      //autoConvertStableCoinsToSettle(user, kafkaRecordOffset);
     }
     // processTriggeredOrders();
     // checkCircuitBreaker();
@@ -482,7 +482,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
     // new external order, validate and execute
     if ((order.getTargetStrategy() == EXTERNAL || order.getTargetStrategy() == LIQUIDATION) && !order.isExecuted()) {
-      LOGGER.info("Liquidity Order Received: " + order.toJSON());
+      //LOGGER.info("Liquidity Order Received: " + order.toJSON());
       // validate
       if ((order.getPriceInt() <= 0 && !(order.getType() == BUY_MARKET || order.getType() == SELL_MARKET || order.isMarket()))) {
         if (LOGGER.isTraceEnabled()) {
@@ -937,7 +937,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
   }
 
   public final int matchOnAsks(final Order takerOrder) {
-    LOGGER.info(Constants.LOG_FMT_2, "Liquidity matchOnAsks started: ", takerOrder.toJSON());
+    //LOGGER.info(Constants.LOG_FMT_2, "Liquidity matchOnAsks started: ", takerOrder.toJSON());
     User counterpartyUser = UserCache.getMarketMakerUser();
     if (STAKING == takerOrder.getTargetStrategy() || VIRTUAL_TOKEN_SWAP == takerOrder.getTargetStrategy()) {
       counterpartyUser = UserCache.getTokenManager();
@@ -950,7 +950,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     tmpPtr.setQuantityLong(tmpPtr.getMatchQuantityLong(takerOrder) - quantityFilled);
     takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(tmpPtr) - quantityFilled);
     filled(quantityFilled, tmpPtr, takerOrder, BUY_LIMIT);
-    LOGGER.info(Constants.LOG_FMT_2, "Liquidity matchOnAsks successful: ", takerOrder.toJSON());
+    //LOGGER.info(Constants.LOG_FMT_2, "Liquidity matchOnAsks successful: ", takerOrder.toJSON());
 
     applyPromoOffer(takerOrder);
 
@@ -1032,7 +1032,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     tmpPtr.setQuantityLong(tmpPtr.getMatchQuantityLong(takerOrder) - quantityFilled);
     takerOrder.setQuantityLong(takerOrder.getMatchQuantityLong(tmpPtr) - quantityFilled);
     filled(quantityFilled, tmpPtr, takerOrder, SELL_LIMIT);
-    LOGGER.info("Liquidity matchOnBids successful: " + takerOrder.toJSON());
+//    LOGGER.info("Liquidity matchOnBids successful: " + takerOrder.toJSON());
     applyPromoOffer(takerOrder);
     OrderObjectPool.returnObject(tmpPtr);
 
