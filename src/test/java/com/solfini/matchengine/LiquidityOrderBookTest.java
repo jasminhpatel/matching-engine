@@ -133,7 +133,7 @@ public class LiquidityOrderBookTest {
     final int DEFAULT_ARR_SIZE = 0;
     final int DEFAULT_CACHE_DEPTH = 0;
 
-    final OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.LIQUIDITY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK,
+    final OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.LIQUIDITY_ORDER_BOOK, OrderBookFactory.NO_PREORDER_CHECK,
         instrumentPair, DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
     orderBook.setSettleCoinUsdMarkInstrument(quoted);
     ((LiquidityOrderBook) orderBook).setPublishAcks(false);
