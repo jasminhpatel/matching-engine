@@ -1,5 +1,9 @@
 package com.solfini.matchengine;
 
+import com.solfini.pool.LiquidationOrderObjectPool;
+import com.solfini.pool.OrderMatchingThreadObjectPool;
+import com.solfini.pool.PositionMatchThreadObjectPool;
+import com.solfini.pool.UserOpenOrdersByPairMatchThreadObjectPool;
 import java.text.NumberFormat;
 import java.util.Properties;
 import java.util.Random;
@@ -53,7 +57,11 @@ public class ArrayOrderBookTest {
 
       System.out.println("Warming up object pools");
       OrderObjectPool.init();
+      OrderMatchingThreadObjectPool.init();
       ExecutionReportObjectPool.init();
+      PositionMatchThreadObjectPool.init();
+      UserOpenOrdersByPairMatchThreadObjectPool.init();
+      LiquidationOrderObjectPool.getSize(); //static initializer
     } catch (Exception e) {
       e.printStackTrace();
       Assert.fail(e.getMessage());
