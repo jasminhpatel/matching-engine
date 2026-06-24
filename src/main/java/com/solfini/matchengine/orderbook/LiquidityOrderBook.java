@@ -120,6 +120,10 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     initialized = true;
   }
 
+  public void setPublishAcks(final boolean publishAcks) {
+    this.publishAcks = publishAcks;
+  }
+
   public static DoubleAdder getMarketMakerPositionQty(int instrumentId) {
     return MARKET_MAKER_POSITION.computeIfAbsent(instrumentId, k -> new DoubleAdder());
   }
