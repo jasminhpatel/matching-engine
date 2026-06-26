@@ -64,6 +64,8 @@ public class FundManagerV2SnapUpdater {
   private static final Logger LOGGER = LogManager.getLogger(FundManagerV2SnapUpdater.class);
   private static final String MAINNET = "MAINNET";
   private static final String XDC = "XDC";
+  private static List<Message> cachedSnapMessages = null;
+  private static String cachedSnapFile = null;
 
   private static boolean initialize(String[] args) throws Exception {
     final Options options = new Options();
@@ -235,7 +237,7 @@ public class FundManagerV2SnapUpdater {
       }
 
       final SnapConverter snapConverter =
-          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer);
+          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer, true);
 
       if (cmd.hasOption("transform")) {
         for (final String name : cmd.getOptionValues("transform")) {
@@ -626,7 +628,11 @@ public class FundManagerV2SnapUpdater {
 
   private static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> loadFromSnap(final String snapFile, final String[] args,
       final Set<Integer> symbolsToIgnoreSet, final Set<Integer> symbolsToAllowSet, final String network) {
-    final List<Message> snapUserPositions = loadSnap(args, snapFile);
+    if (cachedSnapMessages == null || !snapFile.equals(cachedSnapFile)) {
+      cachedSnapMessages = loadSnap(args, snapFile);
+      cachedSnapFile = snapFile;
+    }
+    final List<Message> snapUserPositions = cachedSnapMessages;
     final HashMap<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables = new HashMap<>();
     final String contractKey = (network + "V2").toUpperCase();
 

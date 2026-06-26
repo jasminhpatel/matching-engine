@@ -9,6 +9,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import com.google.gson.JsonObject;
+import com.solfini.common.Context;
 import com.solfini.util.LogLevel;
 import com.solfini.util.PoolSize;
 import com.solfini.util.PropertyReader;
@@ -61,6 +62,34 @@ public class SnapConverterTest {
       }
       Assert.assertNull(expected);
       Assert.assertNull(actual);
+    } catch (Exception e) {
+      e.printStackTrace();
+      Assert.fail(e.getMessage());
+    }
+  }
+
+  @Test
+  public void exportSnapshotWithReconciliationModeSkipsOnMatcher() {
+    try {
+      Properties properties = new Properties();
+      properties.setProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", path.toString());
+      properties.setProperty("PUBLISH_MARKET_DATA", "false");
+      properties.setProperty("NUM_ENCODER_THREADS", "0");
+      properties.setProperty("POSITION_REPORT_PARSER_START_CAPACITY", "64");
+      PoolSize.minimize(properties);
+      PropertyReader.initialize(null, properties);
+
+      SnapConverter importer = new SnapConverter();
+      long snapId = importer.importSnapshot(path.resolve(JSON_PATH).toString(), path.toString());
+
+      final int sizeBeforeExport = Context.getMatcherToPublisherQueue().size();
+
+      SnapConverter reconciliationConverter = new SnapConverter(false, false, false, null, true);
+      reconciliationConverter.exportSnapshot(path.resolve(String.valueOf(snapId)).toString(),
+          path.resolve("SnapConverterReconciliationExport.json").toString());
+
+      Assert.assertEquals("reconciliationMode=true must not enqueue messages onto matcherToPublisherQueue",
+          sizeBeforeExport, Context.getMatcherToPublisherQueue().size());
     } catch (Exception e) {
       e.printStackTrace();
       Assert.fail(e.getMessage());

@@ -91,6 +91,7 @@ public class SnapConverter implements Constants {
   private final boolean debug;
   private final boolean prune;
   private final boolean clean;
+  private final boolean reconciliationMode;
   private final Statistics statistics = new Statistics();
   private final SnapValidator validator = new SnapValidator();
   private final ExecutionReportParser executionReportParser = new ExecutionReportParser();
@@ -109,10 +110,21 @@ public class SnapConverter implements Constants {
   }
 
   public SnapConverter(final boolean debug, final boolean prune, final boolean clean, final SnapTransformer transformer) {
+    this(debug, prune, clean, transformer, false);
+  }
+
+  /**
+   * @param reconciliationMode when true, suppresses {@code message.onMatcher()} during snap replay
+   *        (see TSYS-81) so reconciliation jobs reading balances off a snapshot never write into the
+   *        live engine's {@code matcherToPublisherQueue}, which has no consumer in that context.
+   */
+  public SnapConverter(final boolean debug, final boolean prune, final boolean clean, final SnapTransformer transformer,
+      final boolean reconciliationMode) {
     this.debug = debug;
     this.prune = clean || prune;
     this.clean = clean;
     this.transformer = transformer;
+    this.reconciliationMode = reconciliationMode;
 
     Context.getMessagePublisher().publishToKafka(false);
   }
@@ -470,7 +482,7 @@ public class SnapConverter implements Constants {
       validator.process(message);
     }
 
-    if (!(message instanceof Order || message instanceof AssetGroup)) {
+    if (!reconciliationMode && !(message instanceof Order || message instanceof AssetGroup)) {
       message.onMatcher();
     }
 

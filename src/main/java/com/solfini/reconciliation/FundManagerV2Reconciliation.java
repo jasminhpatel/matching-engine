@@ -40,6 +40,8 @@ import org.web3j.utils.Numeric;
 
 public class FundManagerV2Reconciliation {
   private static final Logger LOGGER = LogManager.getLogger(FundManagerV2Reconciliation.class);
+  private static List<Message> cachedSnapMessages = null;
+  private static String cachedSnapFile = null;
 
   private static List<Message> loadSnap(final String[] args, String snapfile) {
     final Options options = new Options();
@@ -101,7 +103,7 @@ public class FundManagerV2Reconciliation {
       }
 
       final SnapConverter snapConverter =
-          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer);
+          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer, true);
 
       if (cmd.hasOption("transform")) {
         for (final String name : cmd.getOptionValues("transform")) {
@@ -222,7 +224,11 @@ public class FundManagerV2Reconciliation {
       symbolsToAllowSet.add(Context.getXusdcId());
       symbolsToAllowSet.add(Context.getXusdtId());
     }
-    final List<Message> snapUserPositions = loadSnap(args, snapFile);
+    if (cachedSnapMessages == null || !snapFile.equals(cachedSnapFile)) {
+      cachedSnapMessages = loadSnap(args, snapFile);
+      cachedSnapFile = snapFile;
+    }
+    final List<Message> snapUserPositions = cachedSnapMessages;
     double totalUserPositionsValue = 0;
     double totalMarketMakerPositionsValue = 0;
 
