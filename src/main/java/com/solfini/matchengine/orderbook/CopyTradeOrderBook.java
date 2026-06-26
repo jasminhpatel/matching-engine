@@ -769,6 +769,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
       LOGGER.info(Constants.LOG_FMT_4, "Order processing. clOrdId: ", clOrdId, " maxTradeValue: ", maxTradeValue);
 
+      final double MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD = 10.0d;
+
       // use direct API first if configured
       if (subscription.getConnectionType() == ExchangeSubscription.CONNECTION_VIA_DIRECT) {
         final ExternalExchangeClient fastClient = FastClientFactory.createRestOnlyClient(subscription);
@@ -860,19 +862,25 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         if (maxRemainingAmount < 0) {
           return; //reject message already sent
         }
-        LOGGER.info(Constants.LOG_FMT_4, "Max trade value for order: ", copyTradeOrder.getClOrdId(), " is ", maxRemainingAmount);
+        /*LOGGER.info(Constants.LOG_FMT_4, "Max trade value for order: ", copyTradeOrder.getClOrdId(), " is ", maxRemainingAmount);
         if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
           LOGGER.info(Constants.LOG_FMT_6, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ",
               maxRemainingAmount, " minCopyTradeAmount: ", Context.getMinCopyTradeAmountInUsd());
           maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
 
-/*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
+        //LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
 
-        copyTrade.setResult("REJECTED: Trade value is too low.");
-        copyTrade.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(copyTrade);
+        //copyTrade.setResult("REJECTED: Trade value is too low.");
+        //copyTrade.setxExchange(null);
+        //matcherToPublisherQueue.addGuaranteed(copyTrade);
 
-        return;*/
+        //return;
+        }*/
+        LOGGER.info(Constants.LOG_FMT_4, "Max trade value for order: ", copyTradeOrder.getClOrdId(), " is ", maxRemainingAmount);
+        if (maxRemainingAmount < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
+          LOGGER.info(Constants.LOG_FMT_6, "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId, " maxRemainingAmount: ",
+              maxRemainingAmount, " minCopyTradeAmount: ", MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD);
+          maxRemainingAmount = MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD;
         }
 
         //percentage set by the influencer
@@ -880,7 +888,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         //percentage of subscription amount assigned by the user
         double userDefinedPercentage = MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         final double signalTradeValue = Math.min(maxRemainingAmount, maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+
+          return;
+        }*/
+        if (signalTradeValue < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
           copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
@@ -1133,20 +1150,28 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         LOGGER.info(Constants.LOG_FMT_2, "Max trade value for order: ", copyTradeOrder.getClOrdId(),
             " is ", maxRemainingAmount);
-        if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (maxRemainingAmount < Context.getMinCopyTradeAmountInUsd()) {
           LOGGER.info(Constants.LOG_FMT_2,
               "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId,
               " maxRemainingAmount: ",
               maxRemainingAmount, " minCopyTradeAmount: ", Context.getMinCopyTradeAmountInUsd());
           maxRemainingAmount = Context.getMinCopyTradeAmountInUsd();
 
-/*        LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
+        //LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", maxRemainingAmount);
 
-        copyTrade.setResult("REJECTED: Trade value is too low.");
-        copyTrade.setxExchange(null);
-        matcherToPublisherQueue.addGuaranteed(copyTrade);
+        //copyTrade.setResult("REJECTED: Trade value is too low.");
+        //copyTrade.setxExchange(null);
+        //matcherToPublisherQueue.addGuaranteed(copyTrade);
 
-        return;*/
+        //return;
+        }*/
+
+        if (maxRemainingAmount < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
+          LOGGER.info(Constants.LOG_FMT_2,
+              "Override maxRemainingAmount to minCopyTradeAmount. clOrdId: ", clOrdId,
+              " maxRemainingAmount: ",
+              maxRemainingAmount, " minCopyTradeAmount: ", MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD);
+          maxRemainingAmount = MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD;
         }
 
         BigDecimal xPrice = new BigDecimal(price);
@@ -1161,7 +1186,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             MbxMath.scaleDown(Math.min(subscription.getPercentage(), 10000), 2) / 100D;
         double signalTradeValue = Math.min(maxRemainingAmount,
             maxTradeValue * signalTradePercentage * userDefinedPercentage);//0.01
-        if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+        /*if (signalTradeValue < Context.getMinCopyTradeAmountInUsd()) {
+          LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
+
+          copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
+          copyTradeOrder.setxExchange(null);
+          matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+
+          return;
+        }*/
+        if (signalTradeValue < MIN_COPY_TRADE_OPEN_AMOUNT_IN_USD) {
           LOGGER.info(Constants.LOG_FMT_2, "Order rejected. clOrdId: ", clOrdId, " insufficient maxTradeValue: ", signalTradeValue);
 
           copyTradeOrder.setResult("REJECTED: Trade value is too small. (" + signalTradeValue + ")");
@@ -1638,13 +1672,22 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           }
           if (ORDER_STATUS_FILLED.equalsIgnoreCase(openCopyTradeOrder.getStatus())) {
             openCopyTradesToCloseOrder.add(openCopyTradeOrder);
-            quantity += openCopyTradeOrder.getCumulativeAmount();
 
             if (openCopyTradeOrder.getSide().equals(Side.BUY)) {
               quantity += openCopyTradeOrder.getCumulativeAmount();
             } else {
               quantity -= openCopyTradeOrder.getCumulativeAmount();
             }
+            LOGGER.info(Constants.LOG_FMT_17,
+                "MP (direct) close combo copy-trade - ",
+                " close ordId: ", clOrdId,
+                " open ordId: ", openCopyTradeOrder.getClOrdId(),
+                " open order side: ", openCopyTradeOrder.getSide().name(),
+                " subscriptionId: ", openCopyTradeOrder.getSubscriptionId(),
+                " order result: ", openCopyTradeOrder.getResult(),
+                " open order qty: ", openCopyTradeOrder.getCumulativeAmount(),
+                " combo qty: ", quantity,
+                " symbol: ", openCopyTradeOrder.getBaseSymbol());
           }
         }
         if (quantity > 0) {
@@ -1653,7 +1696,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setSide(Side.BUY);
           quantity = Math.abs(quantity);
         }
-
+        LOGGER.info(Constants.LOG_FMT_7,
+            "MP close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty: ", quantity);
 
         //closePricePercentage is scaled by 4
         long closePricePercentage = externalSymbol.getClosePricePercentage();
@@ -1667,6 +1714,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 
         closeCopyTradeOrder.setxPrice(new BigDecimal(price).setScale(externalSymbol.getPriceScale(), RoundingMode.HALF_UP));
         quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
+        LOGGER.info(Constants.LOG_FMT_7,
+            "MP (direct) close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty(round up): ", quantity);
         closeCopyTradeOrder.setxQuantity(new BigDecimal(quantity).setScale(externalSymbol.getQtyScale(), RoundingMode.HALF_UP));
         closeCopyTradeOrder.setCumulativeAmount(quantity);
         closeCopyTradeOrder.setOrderQty(MbxMath.changeScale(quantity, closeCopyTradeOrder.getOrderQtyScale()));
@@ -1812,6 +1864,16 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             } else {
               xQuantity -= openCopyTradeOrder.getCumulativeAmount();
             }
+            LOGGER.info(Constants.LOG_FMT_17,
+                "MP (direct) close combo copy-trade - ",
+                " close ordId: ", clOrdId,
+                " open ordId: ", openCopyTradeOrder.getClOrdId(),
+                " open order side: ", openCopyTradeOrder.getSide().name(),
+                " subscriptionId: ", openCopyTradeOrder.getSubscriptionId(),
+                " order result: ", openCopyTradeOrder.getResult(),
+                " open order qty: ", openCopyTradeOrder.getCumulativeAmount(),
+                " combo qty: ", xQuantity,
+                " symbol: ", openCopyTradeOrder.getBaseSymbol());
           }
         }
         if (xQuantity > 0) {
@@ -1820,6 +1882,11 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setSide(Side.BUY);
           xQuantity = Math.abs(xQuantity);
         }
+        LOGGER.info(Constants.LOG_FMT_7,
+            "MP close combo copy-trade - ",
+            " close ordId: ", clOrdId,
+            " open order side: ", closeCopyTradeOrder.getSide().name(),
+            " combo qty: ", xQuantity);
 
         double price =
             ExternalExchangeHandler.getPrice(closeCopyTradeOrder.getSubscription(), currencyPair,
