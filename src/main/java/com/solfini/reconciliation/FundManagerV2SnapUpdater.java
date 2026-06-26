@@ -84,6 +84,7 @@ public class FundManagerV2SnapUpdater {
     options.addOption(Option.builder().longOpt("debug").desc("enable debug logging").required(false).build());
     options.addOption(Option.builder().longOpt("info").desc("enable info logging").required(false).build());
     options.addOption(Option.builder().longOpt("warn").desc("enable warn logging").required(false).build());
+    options.addOption(Option.builder("j").longOpt("json").desc("json export path (used by reconcile, ignored here)").hasArg().required(false).build());
 
     for (final String arg : args) {
       if (arg.equals("-h") || arg.equals("--help")) {
