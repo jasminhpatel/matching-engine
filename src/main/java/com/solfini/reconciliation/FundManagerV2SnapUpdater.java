@@ -204,7 +204,16 @@ public class FundManagerV2SnapUpdater {
 
     final CommandLineParser parser = new DefaultParser();
     try {
-      final CommandLine cmd = parser.parse(options, args);
+      // Strip -d KEY=VALUE pairs injected by CatchupJob before Commons CLI sees them
+      final List<String> filteredArgList = new ArrayList<>();
+      for (int i = 0; i < args.length; i++) {
+        if ("-d".equals(args[i]) && i + 1 < args.length) {
+          i++;
+        } else {
+          filteredArgList.add(args[i]);
+        }
+      }
+      final CommandLine cmd = parser.parse(options, filteredArgList.toArray(new String[0]));
       final String snapshot = snapfile;
       final String json = cmd.getOptionValue("j");
       final String mode = cmd.getOptionValue("m").toLowerCase();
