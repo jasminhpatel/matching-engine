@@ -326,6 +326,52 @@ public class FundManagerV2SnapUpdater {
   }
 
   /**
+   * Sends a single non-final heartbeat batch (totalBatches=2, batchIndex=1, 0 users) for the
+   * given snapId. Used by catchup jobs to advance the on-chain snapshotId counter one step at a
+   * time without triggering the 22-hour cadence check (isLastBatch=false when batchIndex < totalBatches).
+   */
+  public static boolean sendHeartbeatBatch(final String[] args, final StringBuilder sb,
+      final String network, final String symbol, final long snapId) {
+    try {
+      if (!initialize(args)) {
+        sb.append("Heartbeat failed: initialization failed snap=").append(snapId).append("\n");
+        return false;
+      }
+      loadBlockchainKeyFile();
+
+      final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
+      sb.append("Heartbeat snap=").append(snapId).append(" network=").append(network)
+          .append(" symbol=").append(symbol).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+      final WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+      transaction.setTokenAddress(tokenAddress);
+      transaction.setNetwork(network.toUpperCase());
+      transaction.setContractVersion(2);
+      transaction.setId(snapId);
+      transaction.setChainType(network.toUpperCase());
+      transaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
+      transaction.setUserWithdrawables(new ArrayList<>());
+      transaction.setBatchId(1);
+      transaction.setNoOfBatches(2);
+
+      final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
+      if (sender != null) {
+        final boolean status = sender.processTransaction(sb);
+        sb.append("Heartbeat snap=").append(snapId).append(" status: ").append(status)
+            .append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return status;
+      } else {
+        sb.append("Heartbeat failed: no sender for ").append(network).append("\n");
+        return false;
+      }
+    } catch (final Exception e) {
+      sb.append("Heartbeat failed snap=").append(snapId).append(": ").append(e.getMessage()).append("\n");
+      LOGGER.error(ERROR_LOG, e);
+      return false;
+    }
+  }
+
+  /**
    * Resolves the snap folder and mapping id once before any chain sync starts. All 3 chains
    * in a FundManagerV2SyncJob run receive the same SnapContext so they share one snapshot
    * folder and one on-chain snapId. Also honours FORCE_SNAP_ID.
