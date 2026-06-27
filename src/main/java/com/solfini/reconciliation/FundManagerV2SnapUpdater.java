@@ -325,31 +325,66 @@ public class FundManagerV2SnapUpdater {
     }
   }
 
-  public static boolean update(final String[] args, final StringBuilder sb,
-      final List<Integer> selectedUsers,
-      final String network, final String symbol) throws Exception {
-    sb.append("Fund manager V2 (").append(network).append(" snap update started. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+  /**
+   * Resolves the snap folder and mapping id once before any chain sync starts. All 3 chains
+   * in a FundManagerV2SyncJob run receive the same SnapContext so they share one snapshot
+   * folder and one on-chain snapId. Also honours FORCE_SNAP_ID.
+   */
+  public static SnapContext resolveSnapContext(final String[] args) throws Exception {
     initialize(args);
     final Properties overlay = new Properties();
     loadConfigurationFile(overlay);
 
     final String snapDirectory = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "");
+    final List<String> snapshotIds = FolderUtils.getLastNTimestampFolders(snapDirectory, 1);
+    if (snapshotIds.isEmpty()) {
+      throw new IllegalStateException("No completed snapshot folder found under: " + snapDirectory);
+    }
+    final String resolvedSnapshotId = snapshotIds.getFirst();
+    final long snapId = StringUtil.toLong(resolvedSnapshotId);
+
+    final String forcedSnapId = PropertyReader.getProperty("FORCE_SNAP_ID", "");
+    final long mappingId = forcedSnapId.isEmpty()
+        ? BlockchainNotionalCache.getOrCreateIncrementalId(snapId, "", "")
+        : Long.parseLong(forcedSnapId);
+
+    if (mappingId < 0) {
+      throw new IllegalStateException("Failed to get or create incremental id for snapshotId: " + snapId);
+    }
+
+    final String snapFolder = snapDirectory + File.separator + resolvedSnapshotId;
+    LOGGER.info("Resolved shared snap context — folder: " + snapFolder + "  snapId: " + snapId + "  mappingId: " + mappingId);
+    return new SnapContext(snapFolder, snapId, mappingId);
+  }
+
+  /** Backward-compatible entry point for catchup jobs and manual single-chain runs. */
+  public static boolean update(final String[] args, final StringBuilder sb,
+      final List<Integer> selectedUsers,
+      final String network, final String symbol) throws Exception {
+    return update(args, sb, selectedUsers, network, symbol, resolveSnapContext(args));
+  }
+
+  /**
+   * Context-aware entry point used by FundManagerV2SyncJob. All 3 chains pass the SAME
+   * SnapContext so they share the same completed snapshot folder and the same mapping id.
+   */
+  public static boolean update(final String[] args, final StringBuilder sb,
+      final List<Integer> selectedUsers,
+      final String network, final String symbol,
+      final SnapContext snapContext) throws Exception {
+    sb.append("Fund manager V2 (").append(network).append(" snap update started. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    initialize(args);
+    final Properties overlay = new Properties();
+    loadConfigurationFile(overlay);
+
     final String symbolsToIgnore = PropertyReader.getProperty("IGNORE_SYMBOL_LIST", "");
     final int fundManagerBatchSize = PropertyReader.getProperty("FUND_MANAGER_BATCH_SIZE", 500);
     final double diffPercentage = PropertyReader.getProperty("ETHEREUM_NOTIONAL_DIFF_PERCENTAGE", 0.05);
     loadBlockchainKeyFile();
-    final List<String> snapshotIds = FolderUtils.getLastNTimestampFolders(snapDirectory, 1);
 
-    final String latestSnapshotId = snapshotIds.getFirst();
-    final long snapId = StringUtil.toLong(latestSnapshotId);
-    final long snapshotMappingId = BlockchainNotionalCache.getOrCreateIncrementalId(snapId, network.toUpperCase(), symbol.toUpperCase());
-    if (snapshotMappingId <= 0) {
-      LOGGER.error("Fund Manager, failed to get incremental snap ID for " + network + "/" + symbol + ". snapId: " + snapId);
-      sb.append("Snap update failed. Could not get incremental snap ID. network: ").append(network)
-          .append(" symbol: ").append(symbol).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
-      return false;
-    }
-    final String latestSnapFile = snapDirectory + File.separator + latestSnapshotId;
+    final long snapId = snapContext.snapId();
+    final long snapshotMappingId = snapContext.mappingId();
+    final String latestSnapFile = snapContext.snapFolder();
     LOGGER.info("Fund Manager latestSnapFile: " + latestSnapFile);
     final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
     final Set<Integer> symbolsToAllowSet = new HashSet<>();

@@ -17,16 +17,46 @@ public class FundManagerV2SyncJob {
   }
 
   public static void main(String[] args) {
-    sync(args, MAINNET, USDC);
-    sync(args, MAINNET, USDT);
-    sync(args, XDC, XUSDC);
-    System.exit(0); // clean exit
+    final SnapContext snapContext;
+    try {
+      snapContext = FundManagerV2SnapUpdater.resolveSnapContext(args);
+    } catch (Exception e) {
+      final StringBuilder summary = new StringBuilder();
+      summary.append("Failed to resolve snapshot context:\n").append(e.getMessage());
+      try {
+        sendFailureEmail(summary);
+      } catch (Exception ex) {
+        ex.printStackTrace();
+      }
+      e.printStackTrace();
+      System.out.println(summary);
+      System.exit(1);
+      return;
+    }
+
+    try {
+      sync(args, MAINNET, USDC, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      sync(args, MAINNET, USDT, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    try {
+      sync(args, XDC, XUSDC, snapContext);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    System.exit(0);
   }
 
-  private static void sync(String[] args, final String network, final String symbol) {
+  private static void sync(String[] args, final String network, final String symbol,
+      final SnapContext snapContext) {
     final StringBuilder summary = new StringBuilder();
     try {
-      boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol);
+      boolean success = FundManagerV2SnapUpdater.update(args, summary, null, network, symbol, snapContext);
       if (success) {
         FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
       } else {

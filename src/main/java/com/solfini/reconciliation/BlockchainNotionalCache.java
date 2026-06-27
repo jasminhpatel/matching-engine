@@ -57,7 +57,9 @@ public class BlockchainNotionalCache {
   public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
     // Table schema: blockchain_snap_mapping (id BIGSERIAL PK, snapshot_id BIGINT UNIQUE)
     // All 3 chains share the same id for a given snapshot folder via the conflict path.
-    final String insert = "INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (?) ON CONFLICT (snapshot_id) DO NOTHING";
+    // ON CONFLICT DO NOTHING (no target) suppresses both the snapshot_id unique violation and any
+    // PK conflict if the sequence drifts behind existing rows after a manual setval reset.
+    final String insert = "INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (?) ON CONFLICT DO NOTHING";
     final String select = "SELECT id FROM blockchain_snap_mapping WHERE snapshot_id = ?";
     try (Connection conn = DBManager.getConnection()) {
       try (PreparedStatement ps = conn.prepareStatement(insert)) {
