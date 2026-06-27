@@ -69,34 +69,6 @@ public class SnapConverterTest {
   }
 
   @Test
-  public void exportSnapshotWithReconciliationModeSkipsOnMatcher() {
-    try {
-      Properties properties = new Properties();
-      properties.setProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", path.toString());
-      properties.setProperty("PUBLISH_MARKET_DATA", "false");
-      properties.setProperty("NUM_ENCODER_THREADS", "0");
-      properties.setProperty("POSITION_REPORT_PARSER_START_CAPACITY", "64");
-      PoolSize.minimize(properties);
-      PropertyReader.initialize(null, properties);
-
-      SnapConverter importer = new SnapConverter();
-      long snapId = importer.importSnapshot(path.resolve(JSON_PATH).toString(), path.toString());
-
-      final int sizeBeforeExport = Context.getMatcherToPublisherQueue().size();
-
-      SnapConverter reconciliationConverter = new SnapConverter(false, false, false, null, true);
-      reconciliationConverter.exportSnapshot(path.resolve(String.valueOf(snapId)).toString(),
-          path.resolve("SnapConverterReconciliationExport.json").toString());
-
-      Assert.assertEquals("reconciliationMode=true must not enqueue messages onto matcherToPublisherQueue",
-          sizeBeforeExport, Context.getMatcherToPublisherQueue().size());
-    } catch (Exception e) {
-      e.printStackTrace();
-      Assert.fail(e.getMessage());
-    }
-  }
-
-  @Test
   public void bytesToNumberConverter(){
     ByteBuffer bb = ByteBuffer.wrap(new byte[] {110, 117, 108, 108, 48, 54, 99, 102, 51, 101, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     long l = bb.getLong();

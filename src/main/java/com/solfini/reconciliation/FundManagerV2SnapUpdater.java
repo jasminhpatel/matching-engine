@@ -238,7 +238,7 @@ public class FundManagerV2SnapUpdater {
       }
 
       final SnapConverter snapConverter =
-          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer, true);
+          new SnapConverter(cmd.hasOption("debug"), cmd.hasOption("prune"), cmd.hasOption("clean"), transformer);
 
       if (cmd.hasOption("transform")) {
         for (final String name : cmd.getOptionValues("transform")) {
