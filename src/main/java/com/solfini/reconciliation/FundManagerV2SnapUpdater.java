@@ -563,10 +563,8 @@ public class FundManagerV2SnapUpdater {
       if (!confirmed) {
         LOGGER.error("Fund Manager, snap mapping confirmation failed for " + network + "/" + symbol
             + ". snapId: " + snapId + ". On-chain update succeeded but DB row was not confirmed."
-            + " Manual fix: UPDATE blockchain_snap_mapping SET confirmed = TRUE"
-            + " WHERE snapshot_id = " + snapId
-            + " AND network = '" + network.toUpperCase() + "'"
-            + " AND symbol = '" + symbol.toUpperCase() + "'");
+            + " Manual fix: INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (" + snapId + ")"
+            + " ON CONFLICT (snapshot_id) DO NOTHING;");
         sb.append("CRITICAL: On-chain snap update succeeded but DB confirmation failed."
             + " Manual DB fix required. network: ").append(network)
             .append(" symbol: ").append(symbol)

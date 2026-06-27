@@ -55,31 +55,22 @@ public class BlockchainNotionalCache {
   }
 
   public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
-    final String insert = """
-        INSERT INTO blockchain_snap_mapping (snapshot_id, network, symbol)
-        VALUES (?, ?, ?)
-        ON CONFLICT (snapshot_id, network, symbol) DO NOTHING
+    // Table schema: blockchain_snap_mapping (id BIGSERIAL PK, snapshot_id BIGINT UNIQUE)
+    // All 3 chains share the same id for a given snapshot folder via the conflict path.
+    final String sql = """
+        INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (?)
+        ON CONFLICT (snapshot_id) DO NOTHING RETURNING id
+        UNION ALL
+        SELECT id FROM blockchain_snap_mapping WHERE snapshot_id = ?
+        LIMIT 1
     """;
-    final String select = """
-        SELECT COUNT(*) + 1 AS next_id
-        FROM blockchain_snap_mapping
-        WHERE network = ? AND symbol = ? AND confirmed = TRUE
-    """;
-
-    try (Connection conn = DBManager.getConnection()) {
-      try (PreparedStatement ps = conn.prepareStatement(insert)) {
-        ps.setLong(1, snapshotId);
-        ps.setString(2, network);
-        ps.setString(3, symbol);
-        ps.executeUpdate();
-      }
-      try (PreparedStatement ps = conn.prepareStatement(select)) {
-        ps.setString(1, network);
-        ps.setString(2, symbol);
-        try (ResultSet rs = ps.executeQuery()) {
-          if (rs.next()) {
-            return rs.getLong("next_id");
-          }
+    try (Connection conn = DBManager.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)) {
+      ps.setLong(1, snapshotId);
+      ps.setLong(2, snapshotId);
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next()) {
+          return rs.getLong("id");
         }
       }
     } catch (final Exception e) {
@@ -89,13 +80,14 @@ public class BlockchainNotionalCache {
   }
 
   public static boolean confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
-    final String sql = "UPDATE blockchain_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
+    // No confirmed column in the table; verify the row exists (inserted by getOrCreateIncrementalId).
+    final String sql = "SELECT id FROM blockchain_snap_mapping WHERE snapshot_id = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setLong(1, snapshotId);
-      ps.setString(2, network);
-      ps.setString(3, symbol);
-      return ps.executeUpdate() > 0;
+      try (ResultSet rs = ps.executeQuery()) {
+        return rs.next();
+      }
     } catch (final Exception e) {
       e.printStackTrace();
       return false;
@@ -103,17 +95,11 @@ public class BlockchainNotionalCache {
   }
 
   public static long getSnapshotIdByMappingId(final long mappingId, final String network, final String symbol) {
-    final String sql = """
-        SELECT snapshot_id FROM blockchain_snap_mapping
-        WHERE network = ? AND symbol = ? AND confirmed = TRUE
-        ORDER BY id ASC
-        LIMIT 1 OFFSET ?
-    """;
+    // id IS the mapping ID (BIGSERIAL PK), so a direct lookup by primary key is sufficient.
+    final String sql = "SELECT snapshot_id FROM blockchain_snap_mapping WHERE id = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, network);
-      ps.setString(2, symbol);
-      ps.setLong(3, mappingId - 1);
+      ps.setLong(1, mappingId);
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
           return rs.getLong("snapshot_id");
