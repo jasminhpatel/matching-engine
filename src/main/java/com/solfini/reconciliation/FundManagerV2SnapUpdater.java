@@ -192,6 +192,7 @@ public class FundManagerV2SnapUpdater {
     options.addOption(Option.builder("c").longOpt("config").desc("configuration file path").hasArg().argName("file").build());
     options.addOption(Option.builder().longOpt("data-port").desc("data port configuration file path").hasArg().argName("file").build());
     options.addOption(Option.builder("").longOpt("transform").desc("apply transformation").hasArgs().argName("name").build());
+    options.addOption(Option.builder("d").desc("define configuration property").hasArgs().argName("key>=<value").required(false).build());
 
     for (String arg : args) {
       if (arg.equals("-h") || arg.equals("--help")) {
@@ -204,18 +205,10 @@ public class FundManagerV2SnapUpdater {
 
     final CommandLineParser parser = new DefaultParser();
     try {
-      // Strip -d KEY=VALUE pairs injected by CatchupJob before Commons CLI sees them
-      final List<String> filteredArgList = new ArrayList<>();
-      for (int i = 0; i < args.length; i++) {
-        if ("-d".equals(args[i]) && i + 1 < args.length) {
-          i++;
-        } else {
-          filteredArgList.add(args[i]);
-        }
-      }
-      final CommandLine cmd = parser.parse(options, filteredArgList.toArray(new String[0]));
+      final CommandLine cmd = parser.parse(options, args);
       final String snapshot = snapfile;
-      final String json = cmd.getOptionValue("j");
+      final String json = cmd.hasOption("j") ? cmd.getOptionValue("j")
+          : System.getProperty("java.io.tmpdir") + "/fund_manager_snap_export.json";
       final String mode = cmd.hasOption("m") ? cmd.getOptionValue("m").toLowerCase() : "export";
 
       // Load config file

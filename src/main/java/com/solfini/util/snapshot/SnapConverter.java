@@ -165,7 +165,7 @@ public class SnapConverter implements Constants {
   public ArrayList<Message> exportSnapshot(final String snapshot, final String json) throws IOException {
     System.out.println("EXPORT: " + snapshot + " -> " + json);
 
-    final BufferedWriter writer = new BufferedWriter(new FileWriter(json, false));
+    final BufferedWriter writer = json != null ? new BufferedWriter(new FileWriter(json, false)) : null;
     final ChronicleQueue queue = SingleChronicleQueueBuilder.single(snapshot).blockSize(1048576).rollCycle(RollCycles.DAILY).build();
     final ExcerptTailer tailer = queue.createTailer();
     final Bytes<ByteBuffer> bytes = Bytes.elasticHeapByteBuffer(32768);
@@ -234,13 +234,13 @@ public class SnapConverter implements Constants {
     }
 
     // Write JSON
-    for (final Message message : snapshotMessages) {
-
-      writer.write(message.toJSON());
-      writer.newLine();
+    if (writer != null) {
+      for (final Message message : snapshotMessages) {
+        writer.write(message.toJSON());
+        writer.newLine();
+      }
+      writer.close();
     }
-
-    writer.close();
     return snapshotMessages;
   }
 
