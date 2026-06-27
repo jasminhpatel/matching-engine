@@ -56,13 +56,13 @@ public class BlockchainNotionalCache {
 
   public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
     final String insert = """
-        INSERT INTO blockchan_snap_mapping (snapshot_id, network, symbol)
+        INSERT INTO blockchain_snap_mapping (snapshot_id, network, symbol)
         VALUES (?, ?, ?)
         ON CONFLICT (snapshot_id, network, symbol) DO NOTHING
     """;
     final String select = """
         SELECT COUNT(*) + 1 AS next_id
-        FROM blockchan_snap_mapping
+        FROM blockchain_snap_mapping
         WHERE network = ? AND symbol = ? AND confirmed = TRUE
     """;
 
@@ -89,7 +89,7 @@ public class BlockchainNotionalCache {
   }
 
   public static boolean confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
-    final String sql = "UPDATE blockchan_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
+    final String sql = "UPDATE blockchain_snap_mapping SET confirmed = TRUE WHERE snapshot_id = ? AND network = ? AND symbol = ?";
     try (Connection conn = DBManager.getConnection();
         PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setLong(1, snapshotId);
@@ -104,7 +104,7 @@ public class BlockchainNotionalCache {
 
   public static long getSnapshotIdByMappingId(final long mappingId, final String network, final String symbol) {
     final String sql = """
-        SELECT snapshot_id FROM blockchan_snap_mapping
+        SELECT snapshot_id FROM blockchain_snap_mapping
         WHERE network = ? AND symbol = ? AND confirmed = TRUE
         ORDER BY id ASC
         LIMIT 1 OFFSET ?
