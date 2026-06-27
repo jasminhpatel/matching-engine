@@ -57,20 +57,19 @@ public class BlockchainNotionalCache {
   public static long getOrCreateIncrementalId(final long snapshotId, final String network, final String symbol) {
     // Table schema: blockchain_snap_mapping (id BIGSERIAL PK, snapshot_id BIGINT UNIQUE)
     // All 3 chains share the same id for a given snapshot folder via the conflict path.
-    final String sql = """
-        INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (?)
-        ON CONFLICT (snapshot_id) DO NOTHING RETURNING id
-        UNION ALL
-        SELECT id FROM blockchain_snap_mapping WHERE snapshot_id = ?
-        LIMIT 1
-    """;
-    try (Connection conn = DBManager.getConnection();
-        PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setLong(1, snapshotId);
-      ps.setLong(2, snapshotId);
-      try (ResultSet rs = ps.executeQuery()) {
-        if (rs.next()) {
-          return rs.getLong("id");
+    final String insert = "INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (?) ON CONFLICT (snapshot_id) DO NOTHING";
+    final String select = "SELECT id FROM blockchain_snap_mapping WHERE snapshot_id = ?";
+    try (Connection conn = DBManager.getConnection()) {
+      try (PreparedStatement ps = conn.prepareStatement(insert)) {
+        ps.setLong(1, snapshotId);
+        ps.executeUpdate();
+      }
+      try (PreparedStatement ps = conn.prepareStatement(select)) {
+        ps.setLong(1, snapshotId);
+        try (ResultSet rs = ps.executeQuery()) {
+          if (rs.next()) {
+            return rs.getLong("id");
+          }
         }
       }
     } catch (final Exception e) {
