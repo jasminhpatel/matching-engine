@@ -1,6 +1,6 @@
 bash#!/bin/bash
 
-ORDER_COUNT=${1:-10000}
+ORDER_COUNT=${1:-1000000}
 
 java \
   -server -Xms128g -Xmx128g -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+AlwaysPreTouch -XX:+DisableExplicitGC -XX:ReservedCodeCacheSize=512m \
