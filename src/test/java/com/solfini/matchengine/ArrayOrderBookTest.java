@@ -205,7 +205,7 @@ public class ArrayOrderBookTest {
 
   public static void main(String args[]) throws Exception {
     LogLevel.setLevel(Level.ERROR);
-    int orderCount = 2_000_000;
+    int orderCount = 1_000_000;
     if (args.length == 1) {
       orderCount = Integer.parseInt(args[0]);
     }
