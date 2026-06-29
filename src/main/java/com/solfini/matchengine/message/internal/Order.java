@@ -379,12 +379,12 @@ public class Order extends Message implements Constants {
   }
 
   public final int getPriceInt() {
-    visit();
+    //visit();
     return priceInt;
   }
 
   public final void setPriceInt(final int priceInt) {
-    visit();
+    //visit();
     this.priceInt = priceInt;
   }
 
@@ -509,7 +509,7 @@ public class Order extends Message implements Constants {
   }
 
   public final long getQuantityLong() {
-    visit();
+    //visit();
 
     // for reduce only, we only allow the max orderQty = position qty
     if (isReduceOnly()) {
@@ -560,7 +560,7 @@ public class Order extends Message implements Constants {
   }
 
   public final void setQuantityLong(final long quantityLong) {
-    visit();
+    //visit();
     this.quantityLong = quantityLong;
   }
 
@@ -836,13 +836,13 @@ public class Order extends Message implements Constants {
     this.rejected = rejected;
   }
 
-  // TODO: remove this check used for debugging
+/*  // TODO: remove this check used for debugging
   public void visit() {
-    /*
+    *//*
      * if (markAsReturned) { try { throw new NullPointerException(); } catch (Exception e) { LOGGER.error("visit marked AsReturned" +
      * toString() + ", returnedStack=" + returnedStack, e); } }
-     */
-  }
+     *//*
+  }*/
 
   @Override
   public void markAsReturned() {
