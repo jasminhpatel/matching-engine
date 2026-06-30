@@ -103,9 +103,9 @@ public class KafkaOrderProducer {
 
       final long price;
       if (orderType == 0) { // BUY_LIMIT
-        price = 50_000_00 + random.nextInt(50_000_00); // between 50,000 to 100,000
-      } else {              // SELL_LIMIT
-        price = 90_000_00 + random.nextInt(50_000_00); // between 90,000 to 140,000
+        price = 25_000_00 + random.nextInt(25_000_00); // between 25,000 to 50,000
+      } else {              // SELL_LIMIT                     // match between 45,000 to 50,000
+        price = 45_000_00 + random.nextInt(25_000_00); // between 45,000 to 70,000
       }
 
       final String clOrdId = "ClOrdId" + (++clOrdIdCounter);
