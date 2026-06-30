@@ -27,7 +27,8 @@ public class PublisherEncoderThread implements Runnable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(PublisherEncoderThread.class);
 
   private static final LatencyDistributionBenchmark[] benchmarks = buildLatencyDistributionBenchmarks();
-  private static final RateBenchmark rateBenchmark = new RateBenchmark("Publisher Benchmark Rate:");
+  private static final RateBenchmark rateBenchmark = new RateBenchmark("Publisher BM Rate:");
+  private static final LatencyDistributionBenchmark latencyBenchmark = new LatencyDistributionBenchmark("Publisher BM Latency:");
   private final OneToOneConcurrentArrayQueueCustom<Message> encoderQueue;
 
   private final IdleStrategy idleStrategy;
@@ -39,7 +40,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
   private static final LatencyDistributionBenchmark[] buildLatencyDistributionBenchmarks() {
     final LatencyDistributionBenchmark[] benchmarks = new LatencyDistributionBenchmark[4];
-    benchmarks[0] = new LatencyDistributionBenchmark("Publisher Benchmark Latency");
+    benchmarks[0] = new LatencyDistributionBenchmark("Latency");
     benchmarks[1] = new LatencyDistributionBenchmark("Latency (decode)");
     benchmarks[2] = new LatencyDistributionBenchmark("Latency (matching)");
     benchmarks[3] = new LatencyDistributionBenchmark("Latency (publish)");
@@ -117,6 +118,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
             if (isExecution) {
               rateBenchmark.sample();
+              latencyBenchmark.sample(publishTime - inputTime);
             }
           } catch (Exception e) {
             try {
