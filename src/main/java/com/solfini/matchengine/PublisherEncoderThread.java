@@ -1,8 +1,10 @@
 package com.solfini.matchengine;
 
+import com.solfini.common.MessageType;
 import com.solfini.matchengine.controller.Mode;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.pool.ExecutionReportObjectPool;
+import com.solfini.util.benchmark.RateBenchmark;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.agrona.concurrent.IdleStrategy;
 
@@ -25,6 +27,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(PublisherEncoderThread.class);
 
   private static final LatencyDistributionBenchmark[] benchmarks = buildLatencyDistributionBenchmarks();
+  private static final RateBenchmark rateBenchmark = new RateBenchmark("Publisher Benchmark Rate:");
   private final OneToOneConcurrentArrayQueueCustom<Message> encoderQueue;
 
   private final IdleStrategy idleStrategy;
@@ -36,7 +39,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
   private static final LatencyDistributionBenchmark[] buildLatencyDistributionBenchmarks() {
     final LatencyDistributionBenchmark[] benchmarks = new LatencyDistributionBenchmark[4];
-    benchmarks[0] = new LatencyDistributionBenchmark("Latency");
+    benchmarks[0] = new LatencyDistributionBenchmark("Publisher Benchmark Latency");
     benchmarks[1] = new LatencyDistributionBenchmark("Latency (decode)");
     benchmarks[2] = new LatencyDistributionBenchmark("Latency (matching)");
     benchmarks[3] = new LatencyDistributionBenchmark("Latency (publish)");
@@ -104,6 +107,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
           }
 
           try {
+            boolean isExecution = message.getMessageType() == MessageType.EXECUTION_REPORT;
             final long inputTime = message.getInputTime();
             final long decodedTime = message.getDecodedTime();
             final long matchTime = message.getMatchTime();
@@ -111,6 +115,9 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
             final long publishTime = TimeUtil.getTime();
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
+            if (isExecution) {
+              rateBenchmark.sample();
+            }
           } catch (Exception e) {
             try {
               LOGGER.error(message.toJSON());
