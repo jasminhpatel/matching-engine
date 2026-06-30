@@ -31,7 +31,7 @@ public class KafkaOrderProducer {
 
   // Security ID 3 = BTC/USD pair (matches ArrayOrderBookTest)
   private static final int SECURITY_ID = 52;
-  private static final int USER_ID = 3;
+  private static int USER_ID = 3;
 
   private static final AtomicInteger msgSeqNum = new AtomicInteger(0);
   private static long seqNum = 0;
@@ -43,6 +43,9 @@ public class KafkaOrderProducer {
     int orderCount = 1;
     if (args.length >= 1) {
       orderCount = Integer.parseInt(args[0]);
+    }
+    if (args.length >= 2) {
+      USER_ID = Integer.parseInt(args[1]);
     }
 
     // ---------- Hardcoded Kafka producer configuration ----------
