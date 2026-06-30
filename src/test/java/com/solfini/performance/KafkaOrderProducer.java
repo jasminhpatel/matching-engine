@@ -47,7 +47,8 @@ public class KafkaOrderProducer {
 
     // ---------- Hardcoded Kafka producer configuration ----------
     Properties kafkaProps = new Properties();
-    kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+    //kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+    kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "10.20.0.50:9092");
     kafkaProps.put(ProducerConfig.CLIENT_ID_CONFIG, "perf-order-producer");
     kafkaProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     kafkaProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
@@ -61,7 +62,7 @@ public class KafkaOrderProducer {
     kafkaProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");
     // -----------------------------------------------
 
-    final String inputTopic = "api1"; // matches API_KAFKA_TOPIC_IN default
+    final String inputTopic = "api01"; // matches API_KAFKA_TOPIC_IN default
 
     System.out.println("Kafka order producer starting");
     System.out.printf("  bootstrap : %s%n", kafkaProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
