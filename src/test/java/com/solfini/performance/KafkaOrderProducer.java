@@ -31,7 +31,8 @@ public class KafkaOrderProducer {
 
   // Security ID 3 = BTC/USD pair (matches ArrayOrderBookTest)
   private static final int SECURITY_ID = 52;
-  private static int USER_ID = 3;
+  private static int[] USER_IDS = null;
+  private static int NO_OF_USERS = 0;
 
   private static final AtomicInteger msgSeqNum = new AtomicInteger(0);
   private static long seqNum = 0;
@@ -45,7 +46,15 @@ public class KafkaOrderProducer {
       orderCount = Integer.parseInt(args[0]);
     }
     if (args.length >= 2) {
-      USER_ID = Integer.parseInt(args[1]);
+      String[] userIds = args[1].split(",");
+      USER_IDS = new int[userIds.length];
+      NO_OF_USERS = userIds.length;
+      for (int i = 0; i < NO_OF_USERS; i++) {
+        USER_IDS[i] = Integer.parseInt(userIds[i]);
+      }
+    } else {
+      NO_OF_USERS = 1;
+      USER_IDS = new int[]{2};
     }
 
     // ---------- Hardcoded Kafka producer configuration ----------
@@ -94,14 +103,14 @@ public class KafkaOrderProducer {
 
       final long price;
       if (orderType == 0) { // BUY_LIMIT
-        price = 1 + random.nextInt(1_050_000);
+        price = 50_000_00 + random.nextInt(50_000_00); // between 50,000 to 100,000
       } else {              // SELL_LIMIT
-        price = 1_000_000 + random.nextInt(2_000_000);
+        price = 90_000_00 + random.nextInt(50_000_00); // between 90,000 to 140,000
       }
 
       final String clOrdId = "ClOrdId" + (++clOrdIdCounter);
 
-      final byte[] bytes = encodeOrder(USER_ID, clOrdId, SECURITY_ID, side, price, quantity);
+      final byte[] bytes = encodeOrder(USER_IDS[i % NO_OF_USERS], clOrdId, SECURITY_ID, side, price, quantity);
       setKafkaHeader(bytes, NORMAL_API);
       producer.send(new ProducerRecord<>(inputTopic, bytes));
 
