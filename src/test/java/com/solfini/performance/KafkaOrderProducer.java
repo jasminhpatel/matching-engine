@@ -147,11 +147,11 @@ public class KafkaOrderProducer {
     orderEncoder.side(side);
     orderEncoder.ordType(OrdType.LIMIT);
     orderEncoder.price(price);
-    orderEncoder.priceScale((short) 2);
+    orderEncoder.priceScale((short) 1);
     orderEncoder.price2(0);
     orderEncoder.price2Scale((short) 2);
     orderEncoder.qty(qty);
-    orderEncoder.qtyScale((short) 2);
+    orderEncoder.qtyScale((short) 6);
     orderEncoder.stopPx(0);
     orderEncoder.stopPxScale((short) 0);
     orderEncoder.targetStrategy(0);
