@@ -27,6 +27,8 @@ public class KafkaListener implements Runnable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(KafkaListener.class);
 
   private static final Duration TIMEOUT = Duration.ofMillis(200);
+  public static long FIRST_MESSAGE_RECEIVED_AT = 0;
+  public static long FIRST_MESSAGE_OFFSET = 0;
 
   private final KafkaConsumer<String, byte[]> consumer;
   private final String topic;
@@ -170,6 +172,9 @@ public class KafkaListener implements Runnable, Constants {
 
           // check kafka offset
           if (!firstMessageReceived) {
+            FIRST_MESSAGE_RECEIVED_AT = TimeUtil.getTime();
+            FIRST_MESSAGE_OFFSET = kafkaOffset;
+            LOGGER.info("Publisher BM Start: " + FIRST_MESSAGE_RECEIVED_AT + " offset: " + FIRST_MESSAGE_OFFSET);
             firstMessageReceived = true;
             final String content = StringUtil.fixToString(readData);
             LOGGER.info(LOG_FMT_6, "Start Processing new messages. kafkaOffset: ", kafkaOffset ,

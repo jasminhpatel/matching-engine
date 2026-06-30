@@ -2,6 +2,7 @@ package com.solfini.matchengine;
 
 import com.solfini.common.MessageType;
 import com.solfini.matchengine.controller.Mode;
+import com.solfini.matchengine.kafka.KafkaListener;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.pool.ExecutionReportObjectPool;
 import com.solfini.util.benchmark.RateBenchmark;
@@ -116,7 +117,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
             final long publishTime = TimeUtil.getTime();
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
-            if (isExecution && inputTime > 0) {
+            if (isExecution && inputTime > 0 && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
               rateBenchmark.sample();
               latencyBenchmark.sample(publishTime - inputTime);
             }
