@@ -31,7 +31,7 @@ public class KafkaOrderProducer {
 
   // Security ID 3 = BTC/USD pair (matches ArrayOrderBookTest)
   private static final int SECURITY_ID = 52;
-  private static final int USER_ID = 2;
+  private static final int USER_ID = 3;
 
   private static final AtomicInteger msgSeqNum = new AtomicInteger(0);
   private static long seqNum = 0;
