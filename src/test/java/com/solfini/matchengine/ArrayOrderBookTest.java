@@ -46,7 +46,7 @@ public class ArrayOrderBookTest {
 
   @BeforeClass
   public static void before() {
-    LogLevel.setLevel(Level.ERROR);
+
     NumberFormat.getInstance().setGroupingUsed(true);
 
     try {

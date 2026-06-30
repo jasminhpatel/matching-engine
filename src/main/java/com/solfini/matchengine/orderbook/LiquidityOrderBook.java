@@ -95,6 +95,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
   private long circuitBreakerEndTime = 0;
   private boolean publishAcks = true;
   private boolean usdAutoConvertEnabled = true;
+  private boolean publishPositions = true;
 
   public static synchronized void initialize() {
     if (!initialized) {
@@ -125,8 +126,12 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     this.publishAcks = publishAcks;
   }
 
-  public void setUsdAutoConvertEnabled(boolean usdAutoConvertEnabled) {
+  public void setUsdAutoConvertEnabled(final boolean usdAutoConvertEnabled) {
     this.usdAutoConvertEnabled = usdAutoConvertEnabled;
+  }
+
+  public void setPublishPositions(final boolean publishPositions) {
+    this.publishPositions = publishPositions;
   }
 
   public static DoubleAdder getMarketMakerPositionQty(int instrumentId) {
@@ -648,7 +653,9 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
       executionReportMessage.setFeePositionId((int) order.getAssetId());
       executionReportMessage.setFeePositionQuantity(order.getFeeAccumulatedQuantity());
       executionReportMessage.setSelectId(order.getSelectId());
-      marketMaker.copySetPositionArr(executionReportMessage);
+      if (publishPositions) {
+        marketMaker.copySetPositionArr(executionReportMessage);
+      }
 
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
       //reset reused values of the order object
@@ -679,7 +686,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
 
       // convert stable coins to settle USD balance
-      if (order.getTargetStrategy() != AUTO_CONVERT) {
+      if (usdAutoConvertEnabled && order.getTargetStrategy() != AUTO_CONVERT) {
         autoConvertStableCoinsToSettle(order.getUser(), order.getKafkaRecordOffset());
       }
       OrderObjectPool.returnObject(order);
@@ -3326,7 +3333,9 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
             NewOrderSingleHandler.getNextOrderId(), user, instrumentPair.getId(), instrument.getSymbol(), 1L, (short) 0, change,
             (short) instrument.getQuantityScale(), incrementAndGetFilledCountGlobal(), 0, marketMakerUser.getId(), Constants.INTEREST);
         executionReportMessage.setKafkaRecordOffset(order.getKafkaRecordOffset());
-        user.copySetPositionArr(executionReportMessage);
+        if (publishPositions) {
+          user.copySetPositionArr(executionReportMessage);
+        }
 
         matcherToPublisherQueue.addGuaranteed(executionReportMessage);
 
@@ -3334,14 +3343,18 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
             NewOrderSingleHandler.getNextOrderId(), marketMakerUser, instrumentPair.getId(), instrument.getSymbol(), 1L, (short) 0, -change,
             (short) instrument.getQuantityScale(), incrementAndGetFilledCountGlobal(), 0, user.getId(), Constants.INTEREST);
         counterExecutionReportMessage.setKafkaRecordOffset(order.getKafkaRecordOffset());
-        user.copySetPositionArr(counterExecutionReportMessage);
+        if (publishPositions) {
+          user.copySetPositionArr(counterExecutionReportMessage);
+        }
 
         matcherToPublisherQueue.addGuaranteed(counterExecutionReportMessage);
 
         // UserCache.setRewardClaimed(user.getId());
         // user.setRewardClaimed(true);
         UserAdminMessage message1 = user.buildUserAdminMessage();
-        user.copySetPositionArr(message1);
+        if (publishPositions) {
+          user.copySetPositionArr(message1);
+        }
         message1.setRewardClaimed(true);
         UserCache.addToCache(message1);
 

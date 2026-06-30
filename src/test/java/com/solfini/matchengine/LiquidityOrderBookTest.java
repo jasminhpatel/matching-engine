@@ -46,28 +46,32 @@ import org.slf4j.event.Level;
  *
  */
 public class LiquidityOrderBookTest {
+  private static int ORDER_COUNT = 0;
   private int clOrdIdCounter = 0;
 
   @BeforeClass
   public static void before() {
-    LogLevel.setLevel(Level.TRACE);
+    LogLevel.setLevel(Level.ERROR);
     NumberFormat.getInstance().setGroupingUsed(true);
 
     try {
+      int poolSize = ORDER_COUNT;
+
       Properties properties = new Properties();
       PoolSize.minimize(properties);
-      properties.setProperty("ORDER_POOL_QUEUE_CAPACITY", "4000000");
-      properties.setProperty("ORDER_POOL_START_CAPACITY", "4000000");
-      properties.setProperty("EXECUTION_REPORT_POOL_QUEUE_CAPACITY", "4000000");
-      properties.setProperty("EXECUTION_REPORT_POOL_START_CAPACITY", "4000000");
-      properties.setProperty("POSITION_POOL_QUEUE_CAPACITY", "1000");
-      properties.setProperty("POSITION_POOL_START_CAPACITY", "1000");
-      properties.setProperty("USER_OPEN_ORDERS_POOL_QUEUE_CAPACITY", "4000000");
-      properties.setProperty("USER_OPEN_ORDERS_POOL_START_CAPACITY", "4000000");
-      properties.setProperty("LIQUIDATION_ORDER_POOL_QUEUE_CAPACITY", "4000000");
-      properties.setProperty("LIQUIDATION_ORDER_POOL_START_CAPACITY", "4000000");
+      properties.setProperty("ORDER_POOL_QUEUE_CAPACITY", String.valueOf(poolSize));
+      properties.setProperty("ORDER_POOL_START_CAPACITY", String.valueOf(poolSize));
+      properties.setProperty("EXECUTION_REPORT_POOL_QUEUE_CAPACITY", String.valueOf(2 * poolSize));
+      properties.setProperty("EXECUTION_REPORT_POOL_START_CAPACITY", String.valueOf(2 * poolSize));
+      properties.setProperty("POSITION_POOL_QUEUE_CAPACITY", String.valueOf(poolSize));
+      properties.setProperty("POSITION_POOL_START_CAPACITY", String.valueOf(poolSize));
+      properties.setProperty("USER_OPEN_ORDERS_POOL_QUEUE_CAPACITY", "4");
+      properties.setProperty("USER_OPEN_ORDERS_POOL_START_CAPACITY", "4");
+      properties.setProperty("LIQUIDATION_ORDER_POOL_QUEUE_CAPACITY", String.valueOf(poolSize));
+      properties.setProperty("LIQUIDATION_ORDER_POOL_START_CAPACITY", String.valueOf(poolSize));
       properties.setProperty("MIN_TOP_N_ORDER_VALUE", "2000000000000.00");
-      properties.setProperty("INITIAL_USER_CACHE_SIZE", "1000");
+      properties.setProperty("INITIAL_USER_CACHE_SIZE", "64");
+      properties.setProperty("ACK_REJECT_MESSAGES", "FALSE");
       PropertyReader.initialize(null, properties);
 
       System.out.println("Warming up object pools");
@@ -102,7 +106,7 @@ public class LiquidityOrderBookTest {
     return NumberFormat.getInstance().format(value);
   }
 
-  public void measureOrderBookPerformance(final long orderCount) {
+  public void measureOrderBookPerformance(final int orderCount) {
     System.out.println("Loading...");
     final FastArrayList<Order> orderList = makeOrders(orderCount);
     System.out.println("Loaded " + format(orderList.size()) + " orders");
@@ -137,26 +141,44 @@ public class LiquidityOrderBookTest {
         instrumentPair, DEFAULT_ARR_SIZE, DEFAULT_CACHE_DEPTH);
     orderBook.setSettleCoinUsdMarkInstrument(quoted);
     LiquidityOrderBook liquidityOrderBook = ((LiquidityOrderBook) orderBook);
+    LiquidityOrderBook.initialize();
     liquidityOrderBook.setPublishAcks(false);
     liquidityOrderBook.setUsdAutoConvertEnabled(false);
+    liquidityOrderBook.setPublishPositions(false);
 
     System.out.println("Starting");
+    try {
+      Thread.sleep(20000);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     long start = System.nanoTime();
-    for (final Order order : orderList) {
-      orderBook.addOrder(order);
+    try {
+      for (final Order order : orderList) {
+        orderBook.addOrder(order);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
 
     long elapsed = (System.nanoTime() - start) / 1_000_000;
     System.out.println("Orders=" + format(orderBook.getOrderCount()) + ", Filled=" + format(orderBook.getFilledCount()));
     System.out.println("Done in " + format(elapsed) + " ms (" + format((1_000 * orderCount) / elapsed) + " orders/s)");
+
+    System.out.println("Starting");
+    try {
+      Thread.sleep(20000);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
-  private FastArrayList<Order> makeOrders(final long limit) {
+  private FastArrayList<Order> makeOrders(final int limit) {
     final Random random = new Random();
     final int account = 18;
     final String clientOrderId = "clOrdId";
     final User user = new User(18);
-    final FastArrayList<Order> list = new FastArrayList<Order>();
+    final FastArrayList<Order> list = new FastArrayList<Order>(limit);
 
     long orderId = 0;
     try {
@@ -222,10 +244,12 @@ public class LiquidityOrderBookTest {
   }
 
   public static void main(String[] args) throws Exception {
-    long orderCount = 1_000_000;
+    LogLevel.setLevel(Level.ERROR);
+    int orderCount = 500_000;
     if (args.length == 1) {
-      orderCount = Long.parseLong(args[0]);
+      orderCount = Integer.parseInt(args[0]);
     }
+    ORDER_COUNT = orderCount;
 
     LiquidityOrderBookTest test = new LiquidityOrderBookTest();
     LiquidityOrderBookTest.before();
