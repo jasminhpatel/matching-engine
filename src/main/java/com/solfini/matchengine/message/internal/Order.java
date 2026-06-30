@@ -868,9 +868,9 @@ public class Order extends Message implements Constants {
       }
     }
 
-    if (account != Context.getMarketMakerUserid()) {
+/*    if (account != Context.getMarketMakerUserid()) {
       LOGGER.info("Order received: " + this.toJSON());
-    }
+    }*/
 
     final InstrumentPair instrument = InstrumentCache.getPair(securityId);
     if (null != instrument) {
