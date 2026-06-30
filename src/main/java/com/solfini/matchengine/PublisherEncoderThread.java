@@ -116,7 +116,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
             final long publishTime = TimeUtil.getTime();
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
-            if (isExecution) {
+            if (isExecution && inputTime > 0) {
               rateBenchmark.sample();
               latencyBenchmark.sample(publishTime - inputTime);
             }
