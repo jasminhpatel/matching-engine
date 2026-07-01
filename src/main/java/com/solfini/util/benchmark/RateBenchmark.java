@@ -29,8 +29,10 @@ public class RateBenchmark extends Benchmark {
 
     if (count % batch == 0) {
       long now = System.currentTimeMillis();
-      log(format(count) + " records, " + format(now - start) + " ms, " + format((1_000 * count) / (now - start)) + " rec/s "
-        + "split " + format(now - split) + " ms, " + format((1_000 * batch) / (now - split)) + " rec/s ");
+      log(format(count) + " records, " + format(now - start) +
+          //+ " ms, " + format((1_000 * count) / (now - start)) + " rec/s "
+        //+ "split " + format(now - split) + " ms, "
+          " " + format((1_000 * batch) / (now - split)) + " rec/s ");
 
       split = now;
     }

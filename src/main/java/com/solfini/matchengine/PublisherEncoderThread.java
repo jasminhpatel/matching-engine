@@ -119,7 +119,7 @@ public class PublisherEncoderThread implements Runnable, Constants {
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
             if (isExecution && inputTime > 0 && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
               rateBenchmark.sample();
-              latencyBenchmark.sample(publishTime - inputTime);
+              //latencyBenchmark.sample(publishTime - inputTime);
             }
           } catch (Exception e) {
             try {
