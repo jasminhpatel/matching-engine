@@ -1,5 +1,9 @@
 package com.solfini.matchengine.publisher;
 
+import com.solfini.matchengine.kafka.KafkaListener;
+import com.solfini.util.TimeUtil;
+import com.solfini.util.benchmark.LatencyDistributionBenchmark;
+import com.solfini.util.benchmark.RateBenchmark;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -86,9 +90,8 @@ public class MessagePublisher implements Constants {
   public static final short RISK_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("RISK_PUBLISH_SCALE", "2"));
   public static final long COST_BASIS_PUBLISH_MULT = MbxMath.multiplier(COST_BASIS_PUBLISH_SCALE);
   public static final long RISK_PUBLISH_MULT = MbxMath.multiplier(RISK_PUBLISH_SCALE);
-
-  // private static final ManyToOneConcurrentArrayQueueCustom<Message> publisherToBlockchainPositionQueue =
-  // Context.getPublisherToBlockchainPositionQueue();
+  private static final RateBenchmark rateBenchmark = new RateBenchmark("Engine Order BM Rate:");
+  private static final LatencyDistributionBenchmark latencyBenchmark = new LatencyDistributionBenchmark("Engine Order BM Latency:");
 
   private String topic;
 
@@ -1599,6 +1602,12 @@ public class MessagePublisher implements Constants {
     // publish Kafka
     if (useKafka) {
       Context.getKafkaPublisher().enqueueToSend(topic, bytesWithKafkaOffset, messageType);
+    }
+    if (message.getMessageType() == MessageType.EXECUTION_REPORT && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
+      final long inputTime = message.getInputTime();
+      final long outputTime = TimeUtil.getTime();
+      rateBenchmark.sample();
+      latencyBenchmark.sample(outputTime - inputTime);
     }
   }
 

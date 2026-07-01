@@ -2,13 +2,14 @@ package com.solfini.util.benchmark;
 
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import java.util.Arrays;
 
 public class LatencyDistributionBenchmark extends Benchmark {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(LatencyDistributionBenchmark.class);
 
   private static final long DEFAULT_BATCH = 100_000;
   private static final int BUCKET_COUNT = 11;
-  private static final int BUCKET_SIZE = 10_000_000;
+  private static final int BUCKET_SIZE = 10_000_000; // 10 ms per bucket, in nanoseconds
 
   private final long batch;
   private final long[] buckets = new long[BUCKET_COUNT];
@@ -42,12 +43,17 @@ public class LatencyDistributionBenchmark extends Benchmark {
       ++count;
       ++totalSampleCount;
 
-      int bucket = (int) (latency / BUCKET_SIZE);
-      if (bucket >= buckets.length) {
+      // Clamp on the long quotient BEFORE narrowing to int, so a huge latency
+      // can never wrap during the cast and land inside a valid bucket index.
+      final long bucketIndex = latency / BUCKET_SIZE;
+      final int bucket;
+      if (bucketIndex >= buckets.length) {
         bucket = buckets.length - 1;
-      }
-      if (bucket < 0)
+      } else if (bucketIndex < 0) {
         bucket = 0;
+      } else {
+        bucket = (int) bucketIndex;
+      }
 
       ++buckets[bucket];
 
@@ -74,42 +80,47 @@ public class LatencyDistributionBenchmark extends Benchmark {
 
   public void report() {
     try {
-      long safecount = count;
-      if (safecount > 0) {
+      final long safeCount = count;
+      if (safeCount > 0) {
         final StringBuilder builder = new StringBuilder();
 
-        lastAverage = 0.000001 * total / safecount;
+        lastAverage = 0.000001 * total / safeCount;
 
         builder.append("average: ").append(format(lastAverage)).append(" ms ");
         builder.append("min: ").append(format(0.000001 * min)).append(" ");
         builder.append("max: ").append(format(0.000001 * max)).append(" ");
-        //builder.append("distribution ");
-        int sum = 0;
-        boolean start = false;
-/*        for (int i = 0; i < buckets.length; ++i) {
+        builder.append("distribution ");
+
+        // Cumulative distribution as plain text.
+        // "up to Nms:X%"  -> percentage of samples with latency below N ms
+        // "over Nms:X%"    -> percentage of samples in the final overflow bucket
+        long cumulative = 0;
+        boolean started = false;
+        for (int i = 0; i < buckets.length; ++i) {
+          cumulative += buckets[i];
+
           if (buckets[i] > 0) {
-            start = true;
+            started = true;
           }
 
-          sum += buckets[i];
           if (i < buckets.length - 1) {
-            if (start) {
-              builder.append("<").append((BUCKET_SIZE * (i + 1)) / 1_000_000).append("ms:").append(format((100 * sum) / safecount))
-                  .append("% ");
+            if (started) {
+              final long upperMs = ((long) BUCKET_SIZE * (i + 1)) / 1_000_000;
+              final double pct = 100.0 * cumulative / safeCount;
+              builder.append("up to ").append(upperMs).append("ms:").append(format(pct)).append("% ");
             }
           } else {
-            builder.append(">").append((BUCKET_SIZE * i) / 1_000_000).append("ms:").append(format((100 * buckets[i]) / safecount))
-                .append("% ");
+            final long lowerMs = ((long) BUCKET_SIZE * i) / 1_000_000;
+            final double pct = 100.0 * buckets[i] / safeCount;
+            builder.append("over ").append(lowerMs).append("ms:").append(format(pct)).append("% ");
           }
 
-          if (sum == safecount) {
+          if (cumulative == safeCount) {
             break;
           }
-        }*/
-
-        for (int i = 0; i < buckets.length; ++i) {
-          buckets[i] = 0;
         }
+
+        Arrays.fill(buckets, 0);
 
         min = Long.MAX_VALUE;
         max = Long.MIN_VALUE;
