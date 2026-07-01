@@ -1609,7 +1609,7 @@ public class MessagePublisher implements Constants {
       ExecutionReportMessage executionReportMessage = (ExecutionReportMessage) message;
       if (!processedOrderIds.contains(executionReportMessage.getOrderId())) {
         final long inputTime = message.getInputTime();
-        final long outputTime = TimeUtil.getTime();
+        final long outputTime = System.nanoTime();
         rateBenchmark.sample();
         latencyBenchmark.sample(outputTime - inputTime);
         processedOrderIds.add(executionReportMessage.getOrderId());
