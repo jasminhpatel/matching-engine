@@ -15,6 +15,7 @@ import com.solfini.internal.admin.schema.*;
 import com.solfini.matchengine.message.internal.*;
 import com.solfini.pool.*;
 import com.solfini.sbe.encoder.QuoteType;
+import org.agrona.collections.LongHashSet;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
@@ -92,6 +93,7 @@ public class MessagePublisher implements Constants {
   public static final long RISK_PUBLISH_MULT = MbxMath.multiplier(RISK_PUBLISH_SCALE);
   private static final RateBenchmark rateBenchmark = new RateBenchmark("Engine Order BM Rate:");
   private static final LatencyDistributionBenchmark latencyBenchmark = new LatencyDistributionBenchmark("Engine Order BM Latency:");
+  private static final LongHashSet processedOrderIds = new LongHashSet(2000000);
 
   private String topic;
 
@@ -1604,10 +1606,14 @@ public class MessagePublisher implements Constants {
       Context.getKafkaPublisher().enqueueToSend(topic, bytesWithKafkaOffset, messageType);
     }
     if (message.getMessageType() == MessageType.EXECUTION_REPORT && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
-      final long inputTime = message.getInputTime();
-      final long outputTime = TimeUtil.getTime();
-      rateBenchmark.sample();
-      latencyBenchmark.sample(outputTime - inputTime);
+      ExecutionReportMessage executionReportMessage = (ExecutionReportMessage) message;
+      if (!processedOrderIds.contains(executionReportMessage.getOrderId())) {
+        final long inputTime = message.getInputTime();
+        final long outputTime = TimeUtil.getTime();
+        rateBenchmark.sample();
+        latencyBenchmark.sample(outputTime - inputTime);
+        processedOrderIds.add(executionReportMessage.getOrderId());
+      }
     }
   }
 
