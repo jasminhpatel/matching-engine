@@ -1,11 +1,8 @@
 package com.solfini.matchengine;
 
-import com.solfini.common.MessageType;
 import com.solfini.matchengine.controller.Mode;
-import com.solfini.matchengine.kafka.KafkaListener;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.pool.ExecutionReportObjectPool;
-import com.solfini.util.benchmark.RateBenchmark;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.agrona.concurrent.IdleStrategy;
 
