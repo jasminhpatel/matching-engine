@@ -196,6 +196,9 @@ public class MailUtil implements Constants {
       }
     }
     message.setSubject(subject);
+    message.setHeader("Importance", "High");
+    message.setHeader("X-Priority", "1");
+    message.setHeader("X-MSMail-Priority", "High");
 
     MimeMultipart alternative = new MimeMultipart("alternative");
     MimeBodyPart textPart = new MimeBodyPart();
