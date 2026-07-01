@@ -178,6 +178,59 @@ public class MailUtil implements Constants {
   }
 
 
+  public static void sendMessage(final String[] to, final String subject, final String text, final String html,
+      final List<MailAttachment> attachments) throws MessagingException, IOException {
+    Session session = Session.getDefaultInstance(props, new javax.mail.Authenticator() {
+      @Override
+      protected PasswordAuthentication getPasswordAuthentication() {
+        return new PasswordAuthentication(user, password);
+      }
+    });
+    session.setDebug(true);
+
+    MimeMessage message = new MimeMessage(session);
+    message.setFrom(new InternetAddress(from));
+    if (to != null && to.length > 0) {
+      for (int i = 0; i < to.length; i++) {
+        message.addRecipient(Message.RecipientType.TO, new InternetAddress(to[i]));
+      }
+    }
+    message.setSubject(subject);
+
+    MimeMultipart alternative = new MimeMultipart("alternative");
+    MimeBodyPart textPart = new MimeBodyPart();
+    textPart.setText(text, "UTF-8");
+    alternative.addBodyPart(textPart);
+
+    MimeBodyPart htmlPart = new MimeBodyPart();
+    htmlPart.setContent(html, "text/html; charset=UTF-8");
+    alternative.addBodyPart(htmlPart);
+
+    MimeBodyPart alternativeWrapper = new MimeBodyPart();
+    alternativeWrapper.setContent(alternative);
+
+    MimeMultipart mixed = new MimeMultipart("mixed");
+    mixed.addBodyPart(alternativeWrapper);
+
+    if (attachments != null) {
+      for (MailAttachment attachment : attachments) {
+        MimeBodyPart attachmentPart = new MimeBodyPart();
+        if ("text/csv".equalsIgnoreCase(attachment.getContentType())) {
+          DataSource source = new ByteArrayDataSource((String) attachment.getContent(), attachment.getContentType());
+          attachmentPart.setDataHandler(new DataHandler(source));
+        } else if ("application/pdf".equalsIgnoreCase(attachment.getContentType())) {
+          DataSource source = new ByteArrayDataSource((byte[]) attachment.getContent(), attachment.getContentType());
+          attachmentPart.setDataHandler(new DataHandler(source));
+        }
+        attachmentPart.setFileName(attachment.getFilename());
+        mixed.addBodyPart(attachmentPart);
+      }
+    }
+
+    message.setContent(mixed);
+    Transport.send(message);
+  }
+
   public static void sendMessage(final String from, final String[] to, final String[] cc, final String[] bcc, final String subject,
       final String text, final String html, final byte[] excelBytes, final String filename) throws MessagingException {
 

@@ -229,8 +229,8 @@ public class FundManagerV2Reconciliation {
       cachedSnapFile = snapFile;
     }
     final List<Message> snapUserPositions = cachedSnapMessages;
-    double totalUserPositionsValue = 0;
-    double totalMarketMakerPositionsValue = 0;
+    final AssetNotionalAccumulator notionalAccumulator =
+        new AssetNotionalAccumulator(Context.getUsdcId(), Context.getUsdtId(), Context.getXusdcId());
 
     // Reconcile
     for (Message message : snapUserPositions) {
@@ -243,22 +243,14 @@ public class FundManagerV2Reconciliation {
               if (MAINNET.equalsIgnoreCase(network)) {
                 if (!symbolsToIgnoreSet.contains(p.getInstrumentId())) {
                   if (p.getQuantity() != 0) {
-                    if (userId == 8) { // market maker
-                      totalMarketMakerPositionsValue += p.getUsdValue();
-                    } else {
-                      totalUserPositionsValue += p.getUsdValue();
-                    }
+                    notionalAccumulator.addPosition(userId == 8, p.getInstrumentId(), p.getUsdValue());
                     snapWithdrawable = snapWithdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
                   }
                 }
               } else if (XDC.equalsIgnoreCase(network)) {
                 if (symbolsToAllowSet.contains(p.getInstrumentId())) {
                   if (p.getQuantity() != 0) {
-                    if (userId == 8) { // market maker
-                      totalMarketMakerPositionsValue += p.getUsdValue();
-                    } else {
-                      totalUserPositionsValue += p.getUsdValue();
-                    }
+                    notionalAccumulator.addPosition(userId == 8, p.getInstrumentId(), p.getUsdValue());
                     snapWithdrawable = snapWithdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
                   }
                 }
@@ -302,16 +294,33 @@ public class FundManagerV2Reconciliation {
     }
 
     // todo reverse check (users and assets not in snap but exists in blockchain)
-    summary.append("Ethereum–User Withdrawable Reconciliation Summary: \n");
+    final String networkLabel = networkLabel(network);
+    summary.append(networkLabel).append("–User Withdrawable Reconciliation Summary: \n");
     summary.append("\t Snapshot Id: ").append(blockchainSnapData.getSnapshotId()).append("\n");
     summary.append("\t No of missing users in the contract: ").append(missingUsers).append("\n");
     summary.append("\t No of missing Positions: ").append(missingPositions).append("\n");
     summary.append("\t No of mismatched Positions: ").append(mismatchedPositions).append("\n");
     summary.append("\t No of matched Positions: ").append(matchedPositions).append("\n\n");
 
+    final StringBuilder html = new StringBuilder();
+    html.append("<div style=\"font-family:Arial,Helvetica,sans-serif;color:#222222;\">");
+    html.append("<h2 style=\"margin:0 0 12px;color:#2c3e50;\">").append(networkLabel)
+        .append("–User Withdrawable Reconciliation Summary</h2>");
+    html.append("<table style=\"border-collapse:collapse;font-size:13px;margin-bottom:16px;\">");
+    appendHtmlInfoRow(html, "Snapshot Id", blockchainSnapData.getSnapshotId());
+    appendHtmlInfoRow(html, "Missing users in the contract", missingUsers);
+    appendHtmlInfoRow(html, "Missing Positions", missingPositions);
+    appendHtmlInfoRow(html, "Mismatched Positions", mismatchedPositions);
+    appendHtmlInfoRow(html, "Matched Positions", matchedPositions);
+
+    final double totalUserPositionsValue = notionalAccumulator.getTotalUserValue();
+    final double totalMarketMakerPositionsValue = notionalAccumulator.getTotalMarketMakerValue();
     summary.append("\t Total of user position in USD: ").append(totalUserPositionsValue).append("\n");
     summary.append("\t Total of market maker positions in USD: ").append(totalMarketMakerPositionsValue).append("\n");
+    appendHtmlInfoRow(html, "Total user position (USD)", String.format("%,.2f", totalUserPositionsValue));
+    appendHtmlInfoRow(html, "Total market maker positions (USD)", String.format("%,.2f", totalMarketMakerPositionsValue));
 
+    boolean contractBalanceMismatchFound = false;
     if (MAINNET.equalsIgnoreCase(network)) {
       double contractUSDCValue = FundManagerLoader.getBalance(network, Context.getUsdcContract());
       double contractUSDTValue = FundManagerLoader.getBalance(network, Context.getUsdtContract());
@@ -319,6 +328,36 @@ public class FundManagerV2Reconciliation {
           .append("\n");
       summary.append("\t Total USDT balance of the contract: ").append(contractUSDTValue)
           .append("\n");
+      appendHtmlInfoRow(html, "Total USDC balance of the contract", String.format("%,.2f", contractUSDCValue));
+      appendHtmlInfoRow(html, "Total USDT balance of the contract", String.format("%,.2f", contractUSDTValue));
+      html.append("</table>");
+
+      AssetBalanceCheckResult usdcCheck = ContractBalanceChecker.check(
+          "USDC", notionalAccumulator.getUsdcRequiredBacking(), contractUSDCValue, tolerancePercentage);
+      AssetBalanceCheckResult usdtCheck = ContractBalanceChecker.check(
+          "USDT", notionalAccumulator.getUsdtRequiredBacking(), contractUSDTValue, tolerancePercentage);
+
+      summary.append(ContractBalanceChecker.formatTableHeader());
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getUsdcUserValue(), notionalAccumulator.getUsdcMmValue(), usdcCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableOpen());
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getUsdcUserValue(), notionalAccumulator.getUsdcMmValue(), usdcCheck));
+      if (!usdcCheck.skipped() && !usdcCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for USDC on {}: required={} actual={} diff={}%",
+            network, usdcCheck.requiredBacking(), usdcCheck.actualBalance(), usdcCheck.changePercentage() * 100);
+      }
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getUsdtUserValue(), notionalAccumulator.getUsdtMmValue(), usdtCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getUsdtUserValue(), notionalAccumulator.getUsdtMmValue(), usdtCheck));
+      if (!usdtCheck.skipped() && !usdtCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for USDT on {}: required={} actual={} diff={}%",
+            network, usdtCheck.requiredBacking(), usdtCheck.actualBalance(), usdtCheck.changePercentage() * 100);
+      }
+      html.append(ContractBalanceChecker.formatHtmlTableClose());
     } else if (XDC.equalsIgnoreCase(network)) {
       double contractXUSDCValue = FundManagerLoader.getBalance(network, Context.getXusdcContract());
       //double xdcNativeValue = FundManagerLoader.getBalance(network, Numeric.toHexStringWithPrefixZeroPadded(BigInteger.ZERO, 40));
@@ -326,7 +365,25 @@ public class FundManagerV2Reconciliation {
           .append("\n");
 /*      summary.append("\t Total XDC balance of the contract: ").append(xdcNativeValue)
           .append("\n");*/
+      appendHtmlInfoRow(html, "Total XUSDC balance of the contract", String.format("%,.2f", contractXUSDCValue));
+      html.append("</table>");
+
+      AssetBalanceCheckResult xusdcCheck = ContractBalanceChecker.check(
+          "XUSDC", notionalAccumulator.getXusdcRequiredBacking(), contractXUSDCValue, tolerancePercentage);
+      summary.append(ContractBalanceChecker.formatTableHeader());
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getXusdcUserValue(), notionalAccumulator.getXusdcMmValue(), xusdcCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableOpen());
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getXusdcUserValue(), notionalAccumulator.getXusdcMmValue(), xusdcCheck));
+      if (!xusdcCheck.skipped() && !xusdcCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for XUSDC on {}: required={} actual={} diff={}%",
+            network, xusdcCheck.requiredBacking(), xusdcCheck.actualBalance(), xusdcCheck.changePercentage() * 100);
+      }
+      html.append(ContractBalanceChecker.formatHtmlTableClose());
     }
+    html.append("</div>");
 
     System.out.println(summary);
     System.out.println();
@@ -335,15 +392,27 @@ public class FundManagerV2Reconciliation {
     if (eod) {
       String[] to = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS",
           "alerts.rohanw@gmail.com").split(",");
-      String subject = "Ethereum–User Withdrawable Reconciliation";
+      String subject = (contractBalanceMismatchFound ? "[CONTRACT BALANCE MISMATCH] " : "")
+          + networkLabel + "–User Withdrawable Reconciliation";
       String body = summary.toString();
       String csvFile = csv.toString();
       List<MailAttachment> mailAttachments = new ArrayList<>(2);
       mailAttachments.add(
           new MailAttachment("reconciliation_report.csv", "text/csv", csvFile.toString()));
 
-      MailUtil.sendMessage(to, subject, body, mailAttachments);
+      MailUtil.sendMessage(to, subject, body, html.toString(), mailAttachments);
     }
+  }
+
+  static String networkLabel(final String network) {
+    return XDC.equalsIgnoreCase(network) ? "XDC" : "Ethereum";
+  }
+
+  private static void appendHtmlInfoRow(final StringBuilder html, final String label, final Object value) {
+    html.append("<tr>")
+        .append("<td style=\"padding:3px 12px 3px 0;color:#555555;\">").append(label).append("</td>")
+        .append("<td style=\"padding:3px 0;font-weight:bold;\">").append(value).append("</td>")
+        .append("</tr>");
   }
 }
 
