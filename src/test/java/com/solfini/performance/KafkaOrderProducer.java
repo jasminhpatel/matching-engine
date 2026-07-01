@@ -16,9 +16,15 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.nio.ByteBuffer;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 
 public class KafkaOrderProducer {
@@ -29,18 +35,19 @@ public class KafkaOrderProducer {
   private static final int OFFSET = KAFKA_OFFSET + HEADER_LENGTH; // 19
   private static final byte NORMAL_API = (byte) 2;
 
-  // Security ID 3 = BTC/USD pair (matches ArrayOrderBookTest)
   private static final int SECURITY_ID = 52;
   private static int[] USER_IDS = null;
   private static int NO_OF_USERS = 0;
 
   private static final AtomicInteger msgSeqNum = new AtomicInteger(0);
-  private static long seqNum = 0;
+  private static final AtomicLong seqNum = new AtomicLong(0);
 
-  // Per-call buffers keep encoding simple and avoid stale variable-length field state
   private static final int ENCODE_BUFFER_SIZE = 4096;
 
-  public static void main(String[] args) {
+  private static final int ENCODE_THREADS = Runtime.getRuntime().availableProcessors();
+  private static final int PRODUCER_COUNT = 4;
+
+  public static void main(String[] args) throws Exception {
     int orderCount = 1;
     if (args.length >= 1) {
       orderCount = Integer.parseInt(args[0]);
@@ -57,82 +64,110 @@ public class KafkaOrderProducer {
       USER_IDS = new int[]{2};
     }
 
-    // ---------- Hardcoded Kafka producer configuration ----------
     Properties kafkaProps = new Properties();
-    //kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
     kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "10.20.0.50:9092");
     kafkaProps.put(ProducerConfig.CLIENT_ID_CONFIG, "perf-order-producer");
     kafkaProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     kafkaProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-    // Tune for throughput: large batch, short linger, snappy compression
-    kafkaProps.put(ProducerConfig.BATCH_SIZE_CONFIG, "262144");         // 256 KB
-    kafkaProps.put(ProducerConfig.LINGER_MS_CONFIG, "5");               // wait up to 5 ms to fill batch
-    kafkaProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, "134217728");   // 128 MB send buffer
+    kafkaProps.put(ProducerConfig.BATCH_SIZE_CONFIG, "262144");          // 256 KB
+    kafkaProps.put(ProducerConfig.LINGER_MS_CONFIG, "0");                // no waiting — send immediately
+    kafkaProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, "134217728");    // 128 MB send buffer
     kafkaProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
-    kafkaProps.put(ProducerConfig.ACKS_CONFIG, "1");                    // leader ack only — maximise throughput
+    kafkaProps.put(ProducerConfig.ACKS_CONFIG, "0");                     // fire-and-forget — maximum throughput
     kafkaProps.put(ProducerConfig.RETRIES_CONFIG, "0");
     kafkaProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");
-    // -----------------------------------------------
 
-    final String inputTopic = "api01"; // matches API_KAFKA_TOPIC_IN default
+    final String inputTopic = "api01";
 
     System.out.println("Kafka order producer starting");
-    System.out.printf("  bootstrap : %s%n", kafkaProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
-    System.out.printf("  topic     : %s%n", inputTopic);
-    System.out.printf("  orders    : %s%n", format(orderCount));
+    System.out.printf("  bootstrap    : %s%n", kafkaProps.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
+    System.out.printf("  topic        : %s%n", inputTopic);
+    System.out.printf("  orders       : %s%n", format(orderCount));
+    System.out.printf("  encode threads: %d%n", ENCODE_THREADS);
+    System.out.printf("  producers    : %d%n", PRODUCER_COUNT);
     System.out.println();
 
-    final KafkaProducer<String, byte[]> producer = new KafkaProducer<>(kafkaProps);
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      System.out.println("Flushing and closing producer ...");
-      producer.flush();
-      producer.close();
-    }));
+    // Phase 1: pre-generate all orders in parallel so sending is pure I/O
+    System.out.printf("Pre-generating %s orders across %d threads...%n", format(orderCount), ENCODE_THREADS);
+    final byte[][] allOrders = new byte[orderCount][];
 
-    final Random random = new Random();
-    int clOrdIdCounter = 0;
+    final long genStart = System.nanoTime();
+    final ExecutorService genPool = Executors.newFixedThreadPool(ENCODE_THREADS);
+    final CountDownLatch genLatch = new CountDownLatch(ENCODE_THREADS);
+    final int genChunk = (orderCount + ENCODE_THREADS - 1) / ENCODE_THREADS;
 
-    System.out.println("Sending orders ...");
-    final long start = System.nanoTime();
-
-    for (int i = 0; i < orderCount; i++) {
-      // Mirror ArrayOrderBookTest.makeOrders() exactly
-      final int orderType = random.nextInt(2); // 0 = BUY_LIMIT, 1 = SELL_LIMIT
-      final Side side = orderType == 0 ? Side.BUY : Side.SELL;
-      final long quantity = 1 + random.nextInt(100_000);
-
-      final long price;
-      if (orderType == 0) { // BUY_LIMIT
-        price = 25_000_00 + random.nextInt(25_000_00); // between 25,000 to 50,000
-      } else {              // SELL_LIMIT                     // match between 45,000 to 50,000
-        price = 45_000_00 + random.nextInt(25_000_00); // between 45,000 to 70,000
-      }
-
-      final String clOrdId = "ClOrdId" + (++clOrdIdCounter);
-
-      final byte[] bytes = encodeOrder(USER_IDS[i % NO_OF_USERS], clOrdId, SECURITY_ID, side, price, quantity);
-      setKafkaHeader(bytes, NORMAL_API);
-      producer.send(new ProducerRecord<>(inputTopic, bytes));
-
-      if ((i + 1) % 100_000 == 0) {
-        System.out.println("  ... sent " + format(i + 1));
-      }
+    for (int t = 0; t < ENCODE_THREADS; t++) {
+      final int from = t * genChunk;
+      final int to = Math.min(from + genChunk, orderCount);
+      genPool.submit(() -> {
+        final Random random = new Random();
+        for (int i = from; i < to; i++) {
+          final int orderType = random.nextInt(2);
+          final Side side = orderType == 0 ? Side.BUY : Side.SELL;
+          final long quantity = 1 + random.nextInt(100_000);
+          final long price = orderType == 0
+              ? 25_000_00 + random.nextInt(25_000_00)
+              : 45_000_00 + random.nextInt(25_000_00);
+          final String clOrdId = "C" + (i + 1);
+          final byte[] bytes = encodeOrder(USER_IDS[i % NO_OF_USERS], clOrdId, SECURITY_ID, side, price, quantity);
+          setKafkaHeader(bytes, NORMAL_API);
+          allOrders[i] = bytes;
+        }
+        genLatch.countDown();
+      });
     }
 
-    producer.flush();
-    final long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+    genLatch.await();
+    genPool.shutdown();
+    final long genMs = (System.nanoTime() - genStart) / 1_000_000;
+    System.out.printf("Pre-generation done in %s ms%n%n", format(genMs));
+
+    // Phase 2: send with multiple producers in parallel — each owns a disjoint slice
+    final List<KafkaProducer<String, byte[]>> producers = new ArrayList<>(PRODUCER_COUNT);
+    for (int p = 0; p < PRODUCER_COUNT; p++) {
+      producers.add(new KafkaProducer<>(kafkaProps));
+    }
+
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      System.out.println("Flushing and closing producers ...");
+      producers.forEach(prod -> { prod.flush(); prod.close(); });
+    }));
+
+    System.out.printf("Sending %s orders with %d producers...%n", format(orderCount), PRODUCER_COUNT);
+    final long sendStart = System.nanoTime();
+
+    final ExecutorService sendPool = Executors.newFixedThreadPool(PRODUCER_COUNT);
+    final CountDownLatch sendLatch = new CountDownLatch(PRODUCER_COUNT);
+    final int sendChunk = (orderCount + PRODUCER_COUNT - 1) / PRODUCER_COUNT;
+
+    for (int p = 0; p < PRODUCER_COUNT; p++) {
+      final int from = p * sendChunk;
+      final int to = Math.min(from + sendChunk, orderCount);
+      final KafkaProducer<String, byte[]> prod = producers.get(p);
+      sendPool.submit(() -> {
+        for (int i = from; i < to; i++) {
+          prod.send(new ProducerRecord<>(inputTopic, allOrders[i]));
+        }
+        prod.flush();
+        sendLatch.countDown();
+      });
+    }
+
+    sendLatch.await();
+    sendPool.shutdown();
+
+    final long elapsedMs = (System.nanoTime() - sendStart) / 1_000_000;
 
     System.out.println();
     System.out.println("Done.");
-    System.out.printf("  Orders sent : %s%n", format(orderCount));
-    System.out.printf("  Elapsed     : %s ms%n", format(elapsedMs));
-    System.out.printf("  Throughput  : %s orders/s%n", format((1_000L * orderCount) / elapsedMs));
+    System.out.printf("  Orders sent  : %s%n", format(orderCount));
+    System.out.printf("  Send elapsed : %s ms%n", format(elapsedMs));
+    System.out.printf("  Throughput   : %s orders/s%n",
+        elapsedMs > 0 ? format((1_000L * orderCount) / elapsedMs) : "N/A");
+    System.out.printf("  Total elapsed: %s ms (incl. pre-gen)%n",
+        format(genMs + elapsedMs));
   }
 
-  /**
-   * Encodes a single limit order using SBE into a byte array ready for Kafka
-   * (17-byte prefix left blank for {@link #setKafkaHeader}).
-   */
   private static byte[] encodeOrder(final int userId, final String clOrdId, final int securityId,
       final Side side, final long price, final long qty) {
 
@@ -178,7 +213,6 @@ public class KafkaOrderProducer {
     orderEncoder.selectId(0);
     orderEncoder.quoteType(QuoteType.NULL_VAL);
     orderEncoder.quoteTargetUserId(0);
-    // variable-length fields last, in schema order
     orderEncoder.clOrdID(clOrdId);
     orderEncoder.symbol("BTC/USD");
     orderEncoder.platform("perf");
@@ -188,23 +222,17 @@ public class KafkaOrderProducer {
     buffer.limit(encodedLength);
     unsafeBuffer.putShort(0, encodedLength);
 
-    // Copy into byte array with KAFKA_OFFSET prefix (filled by setKafkaHeader)
     final byte[] bytes = new byte[encodedLength + KAFKA_OFFSET];
     buffer.position(0);
     buffer.get(bytes, KAFKA_OFFSET, encodedLength);
     return bytes;
   }
 
-  /**
-   * Writes seqNum (bytes 0–7), send timestamp (bytes 8–15), and message type (byte 16)
-   * into the 17-byte Kafka header prefix. Mirrors KafkaPublisher.sendDirect().
-   */
   private static void setKafkaHeader(final byte[] bytes, final byte messageType) {
-    seqNum++;
-    long tempSeqNum = seqNum;
+    long s = seqNum.incrementAndGet();
     for (int i = 7; i >= 0; i--) {
-      bytes[i] = (byte) (tempSeqNum & 0xFF);
-      tempSeqNum >>= 8;
+      bytes[i] = (byte) (s & 0xFF);
+      s >>= 8;
     }
 
     long now = getTime();
