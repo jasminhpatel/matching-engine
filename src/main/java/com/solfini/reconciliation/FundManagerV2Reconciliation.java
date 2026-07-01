@@ -46,10 +46,10 @@ public class FundManagerV2Reconciliation {
   private static List<Message> loadSnap(final String[] args, String snapfile) {
     final Options options = new Options();
     options.addOption(Option.builder("h").longOpt("help").desc("show help").required(false).build());
-    options.addOption(Option.builder("s").longOpt("snapshot").desc("snapshot directory").hasArg().argName("dir").required().build());
-    options.addOption(Option.builder("j").longOpt("json").desc("json file path").hasArg().argName("file").required().build());
+    options.addOption(Option.builder("s").longOpt("snapshot").desc("snapshot directory").hasArg().argName("dir").required(false).build());
+    options.addOption(Option.builder("j").longOpt("json").desc("json file path").hasArg().argName("file").required(false).build());
     options.addOption(
-        Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").required().build());
+        Option.builder("m").longOpt("mode").desc("mode of operation (export|import)").hasArg().argName("mode").required(false).build());
     options.addOption(Option.builder().longOpt("debug").desc("enable debug logging").required(false).build());
     options.addOption(Option.builder().longOpt("prune").desc("enable snapshot pruning").required(false).build());
     options.addOption(Option.builder().longOpt("clean").desc("enable snapshot cleaning").required(false).build());
@@ -69,10 +69,19 @@ public class FundManagerV2Reconciliation {
 
     final CommandLineParser parser = new DefaultParser();
     try {
-      final CommandLine cmd = parser.parse(options, args);
+      // Strip -d KEY=VALUE pairs injected by CatchupJob/CheckJob before Commons CLI sees them
+      final List<String> filteredArgList = new ArrayList<>();
+      for (int i = 0; i < args.length; i++) {
+        if ("-d".equals(args[i]) && i + 1 < args.length) {
+          i++;
+        } else {
+          filteredArgList.add(args[i]);
+        }
+      }
+      final CommandLine cmd = parser.parse(options, filteredArgList.toArray(new String[0]));
       final String snapshot = snapfile;
       final String json = cmd.getOptionValue("j");
-      final String mode = cmd.getOptionValue("m").toLowerCase();
+      final String mode = cmd.hasOption("m") ? cmd.getOptionValue("m").toLowerCase() : "export";
 
       // Load config file
       InputStream stream = null;
