@@ -60,9 +60,9 @@ public class RateBenchmark extends Benchmark {
           : 0;
 
       log(format(count) + " records, totalTime: " + format(totalElapsedMs) + " ms, "
-          + "avgRate: " + format(avgRate) + " rec/s, "
-          + "timeForLastBatch: " + format(batchElapsedMs) + " ms, "
-          + "rateForLastBatch: " + format(batchRate) + " rec/s");
+          //+ "avgRate: " + format(avgRate) + " rec/s, "
+          + "timeForLast100K: " + format(batchElapsedMs) + " ms, "
+          + "rateForLast100K: " + format(batchRate) + " rec/s");
       split = now;
     }
 
