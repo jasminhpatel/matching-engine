@@ -887,6 +887,17 @@ public class MessagePublisher implements Constants {
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, executionReport);
 
+    if (/*message.getMessageType() == MessageType.EXECUTION_REPORT && */
+        executionReport.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET && executionReport.getOrdStatus() == OrdStatus.NEW) {
+      final long inputTime = executionReport.getInputTime();
+      final long outputTime = System.nanoTime();
+      //LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
+      if (!processedOrderIds.contains(executionReport.getOrderId())) {
+        rateBenchmark.sample();
+        latencyBenchmark.sample(outputTime - inputTime);
+        processedOrderIds.add(executionReport.getOrderId());
+      }
+    }
     // LOGGER.info(executionReport.toJSON());
     // return to pool
     ExecutionReportObjectPool.returnObject(executionReport);
@@ -1604,17 +1615,6 @@ public class MessagePublisher implements Constants {
     // publish Kafka
     if (useKafka) {
       Context.getKafkaPublisher().enqueueToSend(topic, bytesWithKafkaOffset, messageType);
-    }
-    if (message.getMessageType() == MessageType.EXECUTION_REPORT && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
-      ExecutionReportMessage executionReportMessage = (ExecutionReportMessage) message;
-      final long inputTime = message.getInputTime();
-      final long outputTime = System.nanoTime();
-      LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
-      if (!processedOrderIds.contains(executionReportMessage.getOrderId())) {
-        rateBenchmark.sample();
-        latencyBenchmark.sample(outputTime - inputTime);
-        processedOrderIds.add(executionReportMessage.getOrderId());
-      }
     }
   }
 
