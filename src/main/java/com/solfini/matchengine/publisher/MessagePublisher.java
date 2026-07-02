@@ -1607,11 +1607,11 @@ public class MessagePublisher implements Constants {
     }
     if (message.getMessageType() == MessageType.EXECUTION_REPORT && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
       ExecutionReportMessage executionReportMessage = (ExecutionReportMessage) message;
+      final long inputTime = message.getInputTime();
+      final long outputTime = System.nanoTime();
+      LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
       if (!processedOrderIds.contains(executionReportMessage.getOrderId())) {
-        final long inputTime = message.getInputTime();
-        final long outputTime = System.nanoTime();
         rateBenchmark.sample();
-        LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
         latencyBenchmark.sample(outputTime - inputTime);
         processedOrderIds.add(executionReportMessage.getOrderId());
       }
