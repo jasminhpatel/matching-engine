@@ -20,7 +20,7 @@ import com.solfini.sbe.encoder.Side;
  */
 public class UserOpenOrdersByPair implements Appendable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(UserOpenOrdersByPair.class);
-  public static final short UPGRADE_THRESHOLD = Short.MAX_VALUE;
+  public static final short UPGRADE_THRESHOLD = 64;
 
   protected User user;
   protected InstrumentPair pair;
