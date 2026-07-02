@@ -91,9 +91,6 @@ public class MessagePublisher implements Constants {
   public static final short RISK_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("RISK_PUBLISH_SCALE", "2"));
   public static final long COST_BASIS_PUBLISH_MULT = MbxMath.multiplier(COST_BASIS_PUBLISH_SCALE);
   public static final long RISK_PUBLISH_MULT = MbxMath.multiplier(RISK_PUBLISH_SCALE);
-  private static final RateBenchmark rateBenchmark = new RateBenchmark("Engine Order BM Rate:");
-  private static final LatencyDistributionBenchmark latencyBenchmark = new LatencyDistributionBenchmark("Engine Order BM Latency:");
-  private static final LongHashSet processedOrderIds = new LongHashSet(2000000);
 
   private String topic;
 
@@ -887,17 +884,6 @@ public class MessagePublisher implements Constants {
     final byte[] bytesWithKafkaOffset = StringUtil.bufferToArrayBulk(unsafeBuffer.byteBuffer(), encodedLength, KAFKA_OFFSET);
     publishAndCache(bytesWithKafkaOffset, KafkaPublisher.NORMAL_API, executionReport);
 
-    if (/*message.getMessageType() == MessageType.EXECUTION_REPORT && */
-        executionReport.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET && executionReport.getOrdStatus() == OrdStatus.NEW) {
-      final long inputTime = executionReport.getInputTime();
-      final long outputTime = TimeUtil.getTime();
-      //LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
-      if (!processedOrderIds.contains(executionReport.getOrderId())) {
-        rateBenchmark.sample();
-        latencyBenchmark.sample(outputTime - inputTime);
-        processedOrderIds.add(executionReport.getOrderId());
-      }
-    }
     // LOGGER.info(executionReport.toJSON());
     // return to pool
     ExecutionReportObjectPool.returnObject(executionReport);
