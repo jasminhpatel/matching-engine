@@ -183,7 +183,6 @@ public class KafkaInputFixListener extends KafkaListener {
   public void onMessage(final long seqNum, final long sendTime, final long recordOffset, final byte messageType, final byte[] data) {
     final int length = data.length - KAFKA_OFFSET;
     final long inputTime = TimeUtil.getTime();
-    final long inputTime1 = System.nanoTime();
     final long latency = (inputTime - sendTime) / 1000; // in microseconds
 
     if (LOGGER.isTraceEnabled()) {
@@ -250,8 +249,7 @@ public class KafkaInputFixListener extends KafkaListener {
         message.setSourceSeqNum(seqNum);
         message.setSourceSendTime(sendTime);
         message.setKafkaRecordOffset(recordOffset);
-        //message.setInputTime(inputTime);
-        message.setInputTime(inputTime1);
+        message.setInputTime(inputTime);
         message.setDecodedTime(TimeUtil.getTime());
 
         // regular mode

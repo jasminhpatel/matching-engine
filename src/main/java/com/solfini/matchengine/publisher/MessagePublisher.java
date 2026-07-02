@@ -890,7 +890,7 @@ public class MessagePublisher implements Constants {
     if (/*message.getMessageType() == MessageType.EXECUTION_REPORT && */
         executionReport.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET && executionReport.getOrdStatus() == OrdStatus.NEW) {
       final long inputTime = executionReport.getInputTime();
-      final long outputTime = System.nanoTime();
+      final long outputTime = TimeUtil.getTime();
       //LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
       if (!processedOrderIds.contains(executionReport.getOrderId())) {
         rateBenchmark.sample();
