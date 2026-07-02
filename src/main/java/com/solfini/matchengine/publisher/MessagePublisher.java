@@ -1611,6 +1611,7 @@ public class MessagePublisher implements Constants {
         final long inputTime = message.getInputTime();
         final long outputTime = System.nanoTime();
         rateBenchmark.sample();
+        LOGGER.info("Engine Order BM outputTime: " +  outputTime + " inputTime: " + inputTime + " diff: " + (outputTime - inputTime)/1_000_000d);
         latencyBenchmark.sample(outputTime - inputTime);
         processedOrderIds.add(executionReportMessage.getOrderId());
       }
