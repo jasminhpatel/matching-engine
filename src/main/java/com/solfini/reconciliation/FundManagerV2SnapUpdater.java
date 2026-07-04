@@ -9,6 +9,8 @@ import static com.solfini.common.Constants.ONE_HOUR;
 import static com.solfini.common.Constants.PRIMARY;
 import static com.solfini.common.Constants.SECONDARY;
 import static com.solfini.common.Constants.SNAPSHOT_ID;
+import static com.solfini.common.Constants.USDC;
+import static com.solfini.common.Constants.USDT;
 import static com.solfini.common.Constants.WARM_START;
 
 import com.solfini.common.Constants;
@@ -446,24 +448,28 @@ public class FundManagerV2SnapUpdater {
     if (MAINNET.equalsIgnoreCase(network)) { // allows to withdraw stable coins + profit except XUSDC, XUSDT
       symbolsToIgnoreSet.add(Context.getXusdcId());
       symbolsToIgnoreSet.add(Context.getXusdtId());
-      // uncomment if per asset restriction is required.
-      /* if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
+      // per-asset restriction: each stablecoin's withdrawable must reflect ONLY its own positions,
+      // otherwise USDC and USDT syncs compute the same combined total and, since the notional cache
+      // key was not asset-specific, whichever ran second always saw a zero diff against what the
+      // first one just persisted.
+      if (USDC.equalsIgnoreCase(symbol)) { // when processing USDC ignore USDT from withdrawable
         symbolsToIgnoreSet.add(Context.getUsdtId());
       } else if (USDT.equalsIgnoreCase(symbol)) { // when processing USDT ignore USDC from withdrawable
         symbolsToIgnoreSet.add(Context.getUsdcId());
-      }*/
+      }
     } else if (XDC.equalsIgnoreCase(network)) { // allows to withdraw only XUSDC, XUSDT
       symbolsToAllowSet.add(Context.getXusdcId());
       symbolsToAllowSet.add(Context.getXusdtId());
     }
+    final String contractKey = (network + symbol + "V2").toUpperCase();
     // load from snap
     final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> latestUserWithdrawables =
-        loadFromSnap(latestSnapFile, args, symbolsToIgnoreSet, symbolsToAllowSet, network);
+        loadFromSnap(latestSnapFile, args, symbolsToIgnoreSet, symbolsToAllowSet, network, contractKey);
     sb.append("Latest snap file loaded to memory. file: ").append(latestSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
     // load previous from DB
     BlockchainNotionalCache.loadFromDB();
-    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap((network + "V2").toUpperCase());
+    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap(contractKey);
     sb.append("Previous snap status loaded from DB. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
     final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> diff =
@@ -720,14 +726,13 @@ public class FundManagerV2SnapUpdater {
   }
 
   private static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> loadFromSnap(final String snapFile, final String[] args,
-      final Set<Integer> symbolsToIgnoreSet, final Set<Integer> symbolsToAllowSet, final String network) {
+      final Set<Integer> symbolsToIgnoreSet, final Set<Integer> symbolsToAllowSet, final String network, final String contractKey) {
     if (cachedSnapMessages == null || !snapFile.equals(cachedSnapFile)) {
       cachedSnapMessages = loadSnap(args, snapFile);
       cachedSnapFile = snapFile;
     }
     final List<Message> snapUserPositions = cachedSnapMessages;
     final HashMap<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables = new HashMap<>();
-    final String contractKey = (network + "V2").toUpperCase();
 
     for (Message message : snapUserPositions) {
       if (message instanceof BalanceAdminMessage balanceAdminMessage) {
@@ -757,6 +762,12 @@ public class FundManagerV2SnapUpdater {
             }
           }
         }
+        // A user's isolated per-asset total can go negative (e.g. unrealized losses on other
+        // instruments exceeding this asset's balance) now that USDC/USDT are computed separately.
+        // The on-chain balance field is unsigned, so a negative value would encode as a huge
+        // uint64 and trip the contract's BalanceTooLarge check, reverting the whole batch.
+        // Nothing withdrawable in that asset is correctly represented as 0.
+        withdrawable = Math.max(0, withdrawable);
         System.out.println(balanceAdminMessage.getUserId() + " - " + withdrawable + " - " + (long) (withdrawable * 1_000_000));
         final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable =
             new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), contractKey, (long) (withdrawable * 1_000_000));
