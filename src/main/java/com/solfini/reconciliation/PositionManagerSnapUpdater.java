@@ -128,8 +128,14 @@ public class PositionManagerSnapUpdater {
   private static boolean quantityChanged(final int userId, final String network, final int instrumentId, final long quantity) {
     final WithdrawableAmountUpdateTransaction.UserWithdrawable prev =
         BlockchainNotionalCache.getUserWithdrawableMap(notionalContractKey(network, instrumentId)).get(userId);
-    final long prevQuantity = prev != null ? prev.getQuantity() : 0;
-    return prevQuantity != quantity;
+    if (prev == null) {
+      // Never confirmed on this network before - always push at least once, even if the current
+      // quantity happens to be 0. Defaulting an unconfirmed row to "assumed 0" would silently skip a
+      // real correction whenever current truth is also 0 (e.g. a position that closed out or was
+      // liquidated before this network ever got a chance to push its real value).
+      return true;
+    }
+    return prev.getQuantity() != quantity;
   }
 
   // Pushes one batch to one network, then - only if that specific network confirmed it on-chain -
