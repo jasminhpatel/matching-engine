@@ -673,7 +673,7 @@ public class FundManagerV2SnapUpdater {
       final String network, final StringBuilder sb) {
     BlockchainUserCache.loadFromDb();
     for(final WithdrawableAmountUpdateTransaction.UserWithdrawable balanceUpdate : balanceChangedUser) {
-      final BlockchainUser user = BlockchainUserCache.getBlockchainUser(balanceUpdate.getUserId(), network);
+      final BlockchainUser user = BlockchainUserCache.getBlockchainUser(balanceUpdate.getUserId(), network, BlockchainTransactionSender.FUND_MANAGEMENT);
       if (user == null) {
         try {
           final EngineUser engineUser = BlockchainUserCache.getEngineUser(balanceUpdate.getUserId());
@@ -697,11 +697,12 @@ public class FundManagerV2SnapUpdater {
           userRegistrationTransaction.setNewUserAddress(userAddress);
           userRegistrationTransaction.setChainType(network);
           userRegistrationTransaction.setContractAddress(Context.getFundManagerContractByNetworkAndVersion(network, 2));
+          userRegistrationTransaction.setManagerType(BlockchainTransactionSender.FUND_MANAGEMENT);
           final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(userRegistrationTransaction);
           if (sender != null) {
             boolean status = sender.processTransaction(sb);
             if (status) {
-              BlockchainUser blockchainUser = new BlockchainUser(engineUser.getUserId(), engineUser.getAddress(), System.currentTimeMillis(), network);
+              BlockchainUser blockchainUser = new BlockchainUser(engineUser.getUserId(), engineUser.getAddress(), System.currentTimeMillis(), network, BlockchainTransactionSender.FUND_MANAGEMENT);
               BlockchainUserCache.addUser(blockchainUser);
               sb.append("User registered successfully. user: ").append(balanceUpdate.getUserId()).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
               LOGGER.info("Fund Manager, user registered. userId: " + balanceUpdate.getUserId() + " address: " + userAddress + " network: " + network);

@@ -67,11 +67,20 @@ public class WithdrawableAmountUpdateTransaction extends BlockchainTransaction i
     private final int userId;
     private final String contractKey;
     private final long quantity;
+    private final long snapshotId;
 
     public UserWithdrawable(int userId, String contractKey, long quantity) {
+      this(userId, contractKey, quantity, 0);
+    }
+
+    // snapshotId is only populated when loading cached rows back out of blockchain_notional_state
+    // (see BlockchainNotionalCache.parse) - it's not needed by callers that are only constructing a
+    // value to push/upsert, since upsert() takes the snapshotId to store as its own parameter.
+    public UserWithdrawable(int userId, String contractKey, long quantity, long snapshotId) {
       this.userId = userId;
       this.contractKey = contractKey;
       this.quantity = quantity;
+      this.snapshotId = snapshotId;
     }
 
     public String getContractKey() {
@@ -84,6 +93,10 @@ public class WithdrawableAmountUpdateTransaction extends BlockchainTransaction i
 
     public long getQuantity() {
       return quantity;
+    }
+
+    public long getSnapshotId() {
+      return snapshotId;
     }
   }
 }

@@ -23,7 +23,11 @@ public class PositionManagerSyncJob {
     try {
       final StringBuilder summary = new StringBuilder();
       final StringBuilder userPositions = new StringBuilder();
-      boolean success = PositionManagerSnapUpdater.update(args, summary);
+      final StringBuilder selfHealedSummary = new StringBuilder();
+      boolean success = PositionManagerSnapUpdater.update(args, summary, selfHealedSummary);
+      if (selfHealedSummary.length() > 0) {
+        sendSelfHealedEmail(selfHealedSummary);
+      }
       if (success) {
         final StringBuilder marketMakerPositions = new StringBuilder();
         success = PositionManagerReconciliation.reconcile(args, summary, userPositions, marketMakerPositions);
@@ -43,6 +47,25 @@ public class PositionManagerSyncJob {
       System.exit(1); // exit with error code
     }
     System.exit(0); // clean exit
+  }
+
+  // A position whose cached snapshotId (per network) wasn't the immediately preceding snapshot got
+  // re-synced this run - i.e. it had missed at least one cycle (e.g. a Polygon RPC outage) and just
+  // caught up. Configure recipients via POSITION_MANAGER_SELF_HEAL_ALERT_EMAILS; separate from
+  // RECONCILIATION_ALERT_EMAILS so this can be routed to a different list if desired. No default
+  // recipient - if unset, this is skipped rather than falling back to any address.
+  private static void sendSelfHealedEmail(final StringBuilder selfHealedSummary) throws MessagingException, IOException {
+    final String configured = PropertyReader.getProperty("POSITION_MANAGER_SELF_HEAL_ALERT_EMAILS", "");
+    if (configured.isBlank()) {
+      System.out.println("POSITION_MANAGER_SELF_HEAL_ALERT_EMAILS not configured; skipping self-heal email. summary: " + selfHealedSummary);
+      return;
+    }
+
+    String[] to = configured.split(",");
+    String subject = "Position Manager: stale position(s) self-healed.";
+    String body = selfHealedSummary.toString();
+
+    MailUtil.sendMessage(to, subject, body, null);
   }
 
   private static void sendUpdateFailureEmail(final StringBuilder summary) throws MessagingException, IOException {

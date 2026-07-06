@@ -11,8 +11,12 @@ import com.solfini.user.UserCache;
 import com.solfini.util.*;
 import com.solfini.util.blockchain.BlockchainSenderFactory;
 import com.solfini.util.blockchain.BlockchainTransactionSender;
+import com.solfini.util.blockchain.model.BlockchainUser;
+import com.solfini.util.blockchain.model.EngineUser;
 import com.solfini.util.blockchain.model.PositionUpdateTransaction;
 import com.solfini.util.blockchain.model.PositionUpdateTransaction.BlockchainPosition;
+import com.solfini.util.blockchain.model.UserRegistrationTransaction;
+import com.solfini.util.blockchain.model.WithdrawableAmountUpdateTransaction;
 import com.solfini.util.blockchain.util.BlockChainKeyManager;
 import com.solfini.util.snapshot.SnapConverter;
 import com.solfini.util.snapshot.SnapTransformer;
@@ -29,7 +33,7 @@ import static com.solfini.common.Constants.*;
 public class PositionManagerSnapUpdater {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(PositionManagerSnapUpdater.class);
 
-  public static boolean update(String[] args, final StringBuilder sb) throws Exception {
+  public static boolean update(String[] args, final StringBuilder sb, final StringBuilder selfHealedSummary) throws Exception {
     sb.append("Position manager (Polygon) snap update started. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     initialize(args);
     final Properties overlay = new Properties();
@@ -37,47 +41,52 @@ public class PositionManagerSnapUpdater {
     loadBlockchainKeyFile();
 
     final String snapDirectory = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "");
+    // Only the newest folder is ever loaded/parsed. The second-newest folder's id is used purely as a
+    // cheap, cadence-agnostic "what should the last synced snapshot have been" reference for the
+    // staleness check below - it's a directory listing, not a second snap load.
     final List<String> snapshotIds = FolderUtils.getLastNTimestampFolders(snapDirectory, 2);
-    final String symbolsToIgnore = PropertyReader.getProperty("IGNORE_SYMBOL_LIST", "");
     final int positionManagerBatchSize = PropertyReader.getProperty("POSITION_MANAGER_BATCH_SIZE", 200);
 
     final String snapshotIdNew = snapshotIds.get(0);
-    final String snapshotIdPrev = snapshotIds.get(1);
+    final long expectedPrevSnapshotId = snapshotIds.size() > 1 ? Long.parseLong(snapshotIds.get(1)) : 0;
     final String newSnapFile = snapDirectory + File.separator + snapshotIdNew;
-    final String prevSnapFile = snapDirectory + File.separator + snapshotIdPrev;
 
-    final Set<Integer> symbolsToIgnoreSet = new HashSet<>();
-    if (symbolsToIgnore != null && !symbolsToIgnore.isEmpty()) {
-      String[] symbolsToIgnoreArr = symbolsToIgnore.split(",");
-      for (String s : symbolsToIgnoreArr) {
-        symbolsToIgnoreSet.add(StringUtil.toInt(s));
-      }
-    }
-
-    LOGGER.info("Loading snap diff between previous: " + snapshotIdPrev + " new: " + snapshotIdNew);
+    LOGGER.info("Loading latest snap: " + snapshotIdNew);
     final List<Message> newUserPositions = loadSnap(args, newSnapFile);
     sb.append("Latest snap file loaded to memory. file: ").append(newSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
     UserCache.clearUserCache();
-    final List<Message> prevUserPositions = loadSnap(args, prevSnapFile);
-    sb.append("Previous snap file loaded to memory. file: ").append(prevSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
 
-    final List<PositionUpdateTransaction.BlockchainPosition> diff = getDifference(prevUserPositions, newUserPositions, snapshotIdPrev, snapshotIdNew);
+    // Diff against the last on-chain-confirmed value per network (blockchain_notional_state, shared
+    // with FundManagerV2) instead of yesterday's snap file. A position is included if it differs from
+    // EITHER network's last-confirmed value, and the same diff is still pushed to both networks in
+    // lockstep per batch, exactly as before. A failed push simply leaves that network's cached value
+    // unadvanced, so the affected user/asset reappears in the diff on the next run instead of being
+    // silently dropped forever. To force a re-push, delete the row(s) for the affected userId/contractKey
+    // from blockchain_notional_state (see caution below on notionalContractKey).
+    final Map<Integer, UserPosition> latestPositions = extract(newUserPositions);
+    final long snapshotId = Long.parseLong(snapshotIdNew);
+
+    BlockchainNotionalCache.loadFromDB();
+    final List<PositionUpdateTransaction.BlockchainPosition> diff = getChangedPositions(latestPositions);
     sb.append("Difference calculated. #OfUpdates: ").append(diff.size()).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+    // register missing users
+    registerMissingUsers(diff, POLYGON, sb);
+    registerMissingUsers(diff, XDC, sb);
 
     final int noOfBatches = (int) Math.ceil(diff.size() / (double) positionManagerBatchSize);
     int recordCount = 0;
     int batchId = 1;
     boolean updateSent = false;
     boolean success = true;
-    long snapshotId = Long.parseLong(snapshotIdNew);
-    
+
     List<PositionUpdateTransaction.BlockchainPosition> userPositions = new ArrayList<>();
     for (PositionUpdateTransaction.BlockchainPosition position : diff) {
       recordCount++;
       userPositions.add(position);
       if (recordCount >= positionManagerBatchSize) {
-        updateBatch(POLYGON, snapshotId, batchId, noOfBatches, userPositions, sb);
-        updateBatch(XDC, snapshotId, batchId, noOfBatches, userPositions, sb);
+        success = pushBatchAndAdvanceCache(POLYGON, snapshotId, expectedPrevSnapshotId, batchId, noOfBatches, userPositions, sb, selfHealedSummary) && success;
+        success = pushBatchAndAdvanceCache(XDC, snapshotId, expectedPrevSnapshotId, batchId, noOfBatches, userPositions, sb, selfHealedSummary) && success;
 
         userPositions = new ArrayList<>();
         batchId++;
@@ -89,16 +98,97 @@ public class PositionManagerSnapUpdater {
       updateSent = true;
       LOGGER.info("Processing batch: " + batchId + " noOfBatches: " + noOfBatches);
 
-      updateBatch(POLYGON, snapshotId, batchId, noOfBatches, userPositions, sb);
-      updateBatch(XDC, snapshotId, batchId, noOfBatches, userPositions, sb);
+      success = pushBatchAndAdvanceCache(POLYGON, snapshotId, expectedPrevSnapshotId, batchId, noOfBatches, userPositions, sb, selfHealedSummary) && success;
+      success = pushBatchAndAdvanceCache(XDC, snapshotId, expectedPrevSnapshotId, batchId, noOfBatches, userPositions, sb, selfHealedSummary) && success;
     }
     if (!updateSent) {
       System.out.println("Processing batch: " + batchId + " noOfBatches: " + noOfBatches);
-      updateBatch(POLYGON, snapshotId, 1, 1, userPositions, sb);
-      updateBatch(XDC, snapshotId, 1, 1, userPositions, sb);
+      success = pushBatchAndAdvanceCache(POLYGON, snapshotId, expectedPrevSnapshotId, 1, 1, userPositions, sb, selfHealedSummary) && success;
+      success = pushBatchAndAdvanceCache(XDC, snapshotId, expectedPrevSnapshotId, 1, 1, userPositions, sb, selfHealedSummary) && success;
     }
 
     return success;
+  }
+
+  private static List<PositionUpdateTransaction.BlockchainPosition> getChangedPositions(final Map<Integer, UserPosition> latestPositions) {
+    final List<PositionUpdateTransaction.BlockchainPosition> diff = new ArrayList<>();
+    for (final Map.Entry<Integer, UserPosition> userEntry : latestPositions.entrySet()) {
+      final int userId = userEntry.getKey();
+      for (final Map.Entry<Integer, Long> positionEntry : userEntry.getValue().getUserPositions().entrySet()) {
+        final int instrumentId = positionEntry.getKey();
+        final long quantity = positionEntry.getValue();
+        if (quantityChanged(userId, POLYGON, instrumentId, quantity) || quantityChanged(userId, XDC, instrumentId, quantity)) {
+          diff.add(new PositionUpdateTransaction.BlockchainPosition(userId, instrumentId, quantity));
+        }
+      }
+    }
+    return diff;
+  }
+
+  private static boolean quantityChanged(final int userId, final String network, final int instrumentId, final long quantity) {
+    final WithdrawableAmountUpdateTransaction.UserWithdrawable prev =
+        BlockchainNotionalCache.getUserWithdrawableMap(notionalContractKey(network, instrumentId)).get(userId);
+    final long prevQuantity = prev != null ? prev.getQuantity() : 0;
+    return prevQuantity != quantity;
+  }
+
+  // Pushes one batch to one network, then - only if that specific network confirmed it on-chain -
+  // advances blockchain_notional_state for that network so a future run won't re-diff it. If this
+  // network's push fails while the other network's succeeds, this network's cache simply stays at its
+  // old value and the position naturally reappears in tomorrow's diff (pushed again to both networks,
+  // harmlessly re-confirming the one that already had it right).
+  private static boolean pushBatchAndAdvanceCache(final String network, final long snapshotId, final long expectedPrevSnapshotId,
+      final int batchId, final int noOfBatches, final List<PositionUpdateTransaction.BlockchainPosition> batch, final StringBuilder sb,
+      final StringBuilder selfHealedSummary) {
+    final boolean status = updateBatch(network, snapshotId, batchId, noOfBatches, batch, sb);
+    if (status) {
+      final long updated = System.currentTimeMillis();
+      for (final PositionUpdateTransaction.BlockchainPosition position : batch) {
+        final String contractKey = notionalContractKey(network, position.getInstrumentId());
+        // A cached row that's neither brand new (snapshotId 0) nor as-of the immediately preceding
+        // snapshot means this network missed at least one full cycle for this position - it just
+        // caught up now. Comparing against the actual previous folder id (not a fixed duration) keeps
+        // this correct regardless of how often the cron/snapshot cadence changes in the future.
+        final WithdrawableAmountUpdateTransaction.UserWithdrawable prev =
+            BlockchainNotionalCache.getUserWithdrawableMap(contractKey).get(position.getUserId());
+        if (prev != null && missedSyncCycle(prev.getSnapshotId(), expectedPrevSnapshotId)) {
+          selfHealedSummary.append("Recovered stale position. network: ").append(network)
+              .append(" user: ").append(position.getUserId())
+              .append(" instrument: ").append(position.getInstrumentId())
+              .append(" lastSyncedSnapshot: ").append(prev.getSnapshotId())
+              .append(" nowSyncedSnapshot: ").append(snapshotId)
+              .append("\n");
+        }
+        BlockchainNotionalCache.upsert(
+            new WithdrawableAmountUpdateTransaction.UserWithdrawable(position.getUserId(), contractKey, position.getQuantity()),
+            updated, snapshotId);
+      }
+    }
+    return status;
+  }
+
+  // Package-private (not private) so PositionManagerSnapUpdaterTest can exercise it directly without
+  // needing a database or blockchain connection - this is the only pure decision logic in the
+  // self-heal detection, everything else here is I/O.
+  static boolean missedSyncCycle(final long prevSnapshotId, final long expectedPrevSnapshotId) {
+    // snapshotId 0 means either the row has never been synced under this tracking (brand new) or we
+    // couldn't determine a previous folder (e.g. the very first run) - neither is a "missed cycle".
+    return prevSnapshotId != 0 && expectedPrevSnapshotId != 0 && prevSnapshotId != expectedPrevSnapshotId;
+  }
+
+  // Reuses blockchain_notional_state (same table FundManagerV2 uses) keyed by network+instrument
+  // instead of network+symbol, since Position Manager tracks every instrument, not just withdrawable
+  // stablecoin notional. To force a re-push (e.g. after confirming a stale on-chain value), delete the
+  // row(s) for the affected userId/contractKey from blockchain_notional_state.
+  // CAUTION: only do this right before a genuinely NEW snapshot folder is picked up (i.e. let the next
+  // scheduled run pick it up naturally). PositionManager.sol only resets processedBatches when it sees
+  // a snapId it hasn't seen before (batchUpdatePositions: `if (snapId != snapshotId) { ... processedBatches
+  // = 0; }`). Manually re-running against the SAME snapshot folder increments processedBatches past
+  // totalBatches instead of resetting it, and processedBatches == totalBatches gates withdrawals
+  // ("Snapshot update in progress") — so a same-folder forced re-run will block withdrawals until the
+  // next new snapshot arrives and resets the counters.
+  private static String notionalContractKey(final String network, final int instrumentId) {
+    return (network + "_PM_" + instrumentId).toUpperCase();
   }
 
   private static boolean initialize(String[] args) throws Exception {
@@ -321,33 +411,6 @@ public class PositionManagerSnapUpdater {
 
   }
 
-  private static List<PositionUpdateTransaction.BlockchainPosition> getDifference(final List<Message> prevMessages, final List<Message> newMessages,
-      final String previousSnapId, final String currentSnapId) {
-    Map<Integer, UserPosition> prevUserPositions = extract(prevMessages);
-    Map<Integer, UserPosition> newUserPositions = extract(newMessages);
-
-    final List<PositionUpdateTransaction.BlockchainPosition> userPositionDiff = new FastArrayList<>();
-    final StringBuilder sb = new StringBuilder();
-    sb.append("\n Changed positions previousSnapId: ").append(previousSnapId).append(" currentSnapId: ").append(currentSnapId);
-    for (int userId : newUserPositions.keySet()) {
-      final UserPosition oldPositions = prevUserPositions.get(userId);
-      final UserPosition newPositions = newUserPositions.get(userId);
-
-      for (int instrumentId : newPositions.getUserPositions().keySet()) {
-        long oldPosition = oldPositions != null ? oldPositions.getUserPositions().getOrDefault(instrumentId, 0L) : 0L;
-        long newPosition = newPositions.getUserPositions().get(instrumentId);
-        if (oldPosition != newPosition) {
-          userPositionDiff.add(new PositionUpdateTransaction.BlockchainPosition(userId, (int) instrumentId, newPosition));
-          sb.append("\n userId: \t\t").append(userId).append(" instrumentId: \t\t").append(instrumentId).append(" new:\t\t").append(newPosition)
-              .append(" old: \t\t").append(oldPosition).append(" diff: \t\t").append((newPosition - oldPosition));
-        }
-      }
-    }
-    System.out.println(sb.toString());
-
-    return userPositionDiff;
-  }
-
   private static Map<Integer, UserPosition> extract(final List<Message> allMessages) {
     final Map<Integer, UserPosition> userPositions = new HashMap<>();
     for (Message message : allMessages) {
@@ -368,7 +431,7 @@ public class PositionManagerSnapUpdater {
     return userPositions;
   }
 
-  private static void updateBatch(final String network, final long snapshotId, final int batchId, final int noOfBatches,
+  private static boolean updateBatch(final String network, final long snapshotId, final int batchId, final int noOfBatches,
       final List<BlockchainPosition> userPositions, final StringBuilder sb) {
     LOGGER.info("Processing batch: " + batchId + " noOfBatches: " + noOfBatches + " network: " + network);
     final String chain = XDC.equalsIgnoreCase(network) ? Context.getXdcPositionManagerChain() : Context.getPositionManagerChain();
@@ -386,10 +449,12 @@ public class PositionManagerSnapUpdater {
       if (sender != null) {
         boolean status = sender.processTransaction(sb);
         sb.append("Snap updated. network: ").append(network).append(" batch ").append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return status;
       } else {
         sb.append("Snap update failed. batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
         LOGGER.info("Sender not found " + transaction.getChainType());
         System.out.println("Sender not found " + transaction.getChainType());
+        return false;
       }
     } catch (Exception e) {
       sb.append("Snap update failed. network: ").append(network).append(" batch ").append(" of ").append(noOfBatches).append(" status: ").append(false).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
@@ -397,6 +462,79 @@ public class PositionManagerSnapUpdater {
       LOGGER.error("Error in sending blockchain snap update to " + transaction.getChainType());
       LOGGER.error(ERROR_LOG, e);
       System.out.println(ERROR_LOG + e.getMessage());
+      return false;
+    }
+  }
+
+  private static void registerMissingUsers(final List<PositionUpdateTransaction.BlockchainPosition> balanceChangedUsers, final String network,
+      final StringBuilder sb) {
+    BlockchainUserCache.loadFromDb();
+    final String chain = XDC.equalsIgnoreCase(network) ? Context.getXdcPositionManagerChain() : Context.getPositionManagerChain();
+    final String positionManager = XDC.equalsIgnoreCase(network) ? Context.getXdcPositionManagerContractAddress() : Context.getPositionManagerContractAddress();
+
+    final Set<Integer> processedUserIds = new HashSet<>();
+    for (final PositionUpdateTransaction.BlockchainPosition position : balanceChangedUsers) {
+      final int userId = position.getUserId();
+      if (!processedUserIds.add(userId)) {
+        continue;
+      }
+
+      // blockchain_user_state is keyed by (id, network, contractType): XDC hosts both the Fund
+      // Manager V2 contract and the Position Manager contract, so contractType disambiguates which
+      // one this row is tracking. Without it, a user already registered on FM V2 XDC would look
+      // already-registered here and never actually get registered on the PM XDC contract.
+      final BlockchainUser user = BlockchainUserCache.getBlockchainUser(userId, network, BlockchainTransactionSender.POSITION_MANAGEMENT);
+      if (user != null) {
+        continue;
+      }
+
+      try {
+        final EngineUser engineUser = BlockchainUserCache.getEngineUser(userId);
+        if (engineUser == null) {
+          sb.append("User registration failed. user: ").append(userId).append(". User not found ").append("\n");
+          LOGGER.error("Position Manager, user registration failed. userId: " + userId + " not found in engine users. network: " + network);
+          continue;
+        }
+        if (!engineUser.getAddress().startsWith("0x")) {
+          sb.append("User registration failed. user: ").append(userId)
+              .append(". Invalid address: ").append(engineUser.getAddress()).append("\n");
+          LOGGER.error("Position Manager, user registration failed. userId: " + userId + " invalid address: " + engineUser.getAddress() + " network: " + network);
+          continue;
+        }
+
+        final String userAddress = engineUser.getAddress();
+
+        final UserRegistrationTransaction userRegistrationTransaction = new UserRegistrationTransaction();
+        userRegistrationTransaction.setId(System.currentTimeMillis());
+        userRegistrationTransaction.setNewUserId(userId);
+        userRegistrationTransaction.setNewUserAddress(userAddress);
+        userRegistrationTransaction.setChainType(chain);
+        userRegistrationTransaction.setContractAddress(positionManager);
+        userRegistrationTransaction.setManagerType(BlockchainTransactionSender.POSITION_MANAGEMENT);
+        final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(userRegistrationTransaction);
+        if (sender != null) {
+          boolean status = sender.processTransaction(sb);
+          if (status) {
+            final BlockchainUser blockchainUser = new BlockchainUser(userId, userAddress, System.currentTimeMillis(), network, BlockchainTransactionSender.POSITION_MANAGEMENT);
+            BlockchainUserCache.addUser(blockchainUser);
+            sb.append("User registered successfully. user: ").append(userId).append(" address ").append(userAddress).append(" network: ").append(network).append("\n");
+            LOGGER.info("Position Manager, user registered. userId: " + userId + " address: " + userAddress + " network: " + network);
+          } else {
+            sb.append("User registration failed. user: ").append(userId).append(" address ").append(userAddress)
+                .append(" network: ").append(network).append(" reason: ").append(userRegistrationTransaction.getError()).append("\n");
+            LOGGER.error("Position Manager, user registration failed. userId: " + userId + " address: " + userAddress
+                + " network: " + network + " reason: " + userRegistrationTransaction.getError());
+          }
+        } else {
+          sb.append("User registration failed. No sender available. user: ").append(userId).append(" address ").append(userAddress)
+              .append(" network: ").append(network).append("\n");
+          LOGGER.error("Position Manager, user registration failed. No sender available. userId: " + userId
+              + " address: " + userAddress + " network: " + network);
+        }
+      } catch (Exception e) {
+        sb.append("User registration failed. user: ").append(userId).append(" reason: ").append(e.getMessage()).append("\n");
+        LOGGER.error(ERROR_LOG, e);
+      }
     }
   }
 

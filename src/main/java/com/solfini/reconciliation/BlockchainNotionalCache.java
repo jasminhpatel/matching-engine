@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BlockchainNotionalCache {
-  private static final String SELECT = "SELECT userid,contractkey,notional,updated FROM blockchain_notional_state ORDER BY userId ASC;";
+  private static final String SELECT = "SELECT userid,contractkey,notional,updated,snapshotid FROM blockchain_notional_state ORDER BY userId ASC;";
   private static final String UPSERT = """
       INSERT INTO blockchain_notional_state (userId, contractKey, notional, updated, snapshotId) 
       VALUES (?, ?, ?, ?, ?) 
@@ -116,7 +116,7 @@ public class BlockchainNotionalCache {
     while (rs.next()) {
       WithdrawableAmountUpdateTransaction.UserWithdrawable withdrawable =
           new WithdrawableAmountUpdateTransaction.UserWithdrawable(
-              rs.getInt(1), rs.getString(2), rs.getLong(3));
+              rs.getInt(1), rs.getString(2), rs.getLong(3), rs.getLong(5));
 
       Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> contractBalances =
           USER_WITHDRAWABLE_MAP.computeIfAbsent(rs.getString(2), v -> new ConcurrentHashMap<>());

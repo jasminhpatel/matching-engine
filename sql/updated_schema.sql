@@ -1666,3 +1666,9 @@ CREATE TABLE blockchain_user_state (
     PRIMARY KEY (id, network)
 );
 
+-- XDC hosts both the Fund Manager V2 contract and the Position Manager contract; existing rows
+-- were all written by FundManagerV2SnapUpdater, so backfill them as FUND_MANAGEMENT.
+ALTER TABLE blockchain_user_state ADD contractType varchar(32) NOT NULL DEFAULT 'FUND_MANAGEMENT';
+ALTER TABLE blockchain_user_state DROP CONSTRAINT blockchain_user_state_pkey;
+ALTER TABLE blockchain_user_state ADD PRIMARY KEY (id, network, contractType);
+

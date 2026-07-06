@@ -29,10 +29,21 @@ public class EVMUserRegistrationTransactionSender extends EVMTransactionSender {
 
   public EVMUserRegistrationTransactionSender(final UserRegistrationTransaction userRegistrationTransaction) {
     super(userRegistrationTransaction.getContractAddress() + "-" + userRegistrationTransaction.getId(), userRegistrationTransaction.getChainType(),
-        (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || MAINNET.equalsIgnoreCase(userRegistrationTransaction.getChainType())
-            || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
-            ? FUND_MANAGEMENT : POSITION_MANAGEMENT, userRegistrationTransaction);
+        resolveManagerType(userRegistrationTransaction), userRegistrationTransaction);
     this.userRegistrationTransaction = userRegistrationTransaction;
+  }
+
+  // XDC is shared between the Fund Manager and Position Manager contracts, so chainType alone can't
+  // tell them apart. Callers that know which contract they're registering against (e.g.
+  // PositionManagerSnapUpdater) set managerType explicitly; callers that don't (legacy Fund Manager V2
+  // callsites) fall back to the old chainType-based guess, where XDC/MAINNET/ETHEREUM always meant Fund Manager.
+  private static String resolveManagerType(final UserRegistrationTransaction userRegistrationTransaction) {
+    if (userRegistrationTransaction.getManagerType() != null) {
+      return userRegistrationTransaction.getManagerType();
+    }
+    return (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || MAINNET.equalsIgnoreCase(userRegistrationTransaction.getChainType())
+        || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
+        ? FUND_MANAGEMENT : POSITION_MANAGEMENT;
   }
 
   @Override
