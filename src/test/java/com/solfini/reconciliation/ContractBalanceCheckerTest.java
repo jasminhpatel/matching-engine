@@ -33,10 +33,19 @@ public class ContractBalanceCheckerTest {
   }
 
   @Test
-  public void check_overCollateralized_beyondTolerance_isNotMatched() {
+  public void check_overCollateralized_beyondTolerance_isMatchedAndFlaggedOver() {
     AssetBalanceCheckResult result = ContractBalanceChecker.check("USDC", 1000.0, 2000.0, TOLERANCE);
 
-    assertFalse(result.matched());
+    assertTrue(result.matched());
+    assertTrue(result.over());
+  }
+
+  @Test
+  public void check_overCollateralized_withinTolerance_isMatchedAndNotFlaggedOver() {
+    AssetBalanceCheckResult result = ContractBalanceChecker.check("USDC", 1000.0, 1010.0, TOLERANCE);
+
+    assertTrue(result.matched());
+    assertFalse(result.over());
   }
 
   @Test
@@ -86,6 +95,16 @@ public class ContractBalanceCheckerTest {
     String row = ContractBalanceChecker.formatTableRow(1450.0, 50.0, result);
 
     assertTrue(row.contains("[ALERT] FAILED"));
+  }
+
+  @Test
+  public void formatTableRow_overfunded_showsOkOverStatusNotAlert() {
+    AssetBalanceCheckResult result = ContractBalanceChecker.check("USDC", 1000.0, 2000.0, TOLERANCE);
+
+    String row = ContractBalanceChecker.formatTableRow(950.0, 50.0, result);
+
+    assertTrue(row.contains("OK (OVER)"));
+    assertFalse(row.contains("[ALERT]"));
   }
 
   @Test

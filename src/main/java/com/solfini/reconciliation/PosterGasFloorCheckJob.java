@@ -81,7 +81,7 @@ public class PosterGasFloorCheckJob {
     System.out.println(report);
 
     if (!dryRun) {
-      sendDailyEmail(rows, report);
+      sendDailyEmail(rows, report, buildHtmlReport(rows));
     }
     System.exit(anyFailed ? 1 : 0);
   }
@@ -130,7 +130,53 @@ public class PosterGasFloorCheckJob {
     return summary.toString();
   }
 
-  private static void sendDailyEmail(final List<Row> rows, final String report) {
+  private static String buildHtmlReport(final List<Row> rows) {
+    final StringBuilder html = new StringBuilder();
+    html.append("<div style=\"font-family:Arial,Helvetica,sans-serif;color:#222222;\">");
+    html.append("<h2 style=\"margin:0 0 12px;color:#2c3e50;\">Poster Gas Floor Check</h2>");
+    html.append("<table style=\"border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;font-size:13px;margin:8px 0;min-width:640px;\">");
+    html.append("<tr style=\"background-color:#2c3e50;color:#ffffff;\">")
+        .append(htmlHeaderCell("Chain", "left")).append(htmlHeaderCell("Poster", "left"))
+        .append(htmlHeaderCell("Balance", "right")).append(htmlHeaderCell("Floor", "right"))
+        .append(htmlHeaderCell("Status", "center"))
+        .append("</tr>");
+    for (final Row row : rows) {
+      final String status = row.checkFailed() ? "CHECK FAILED" : row.belowFloor() ? "BELOW FLOOR" : "OK";
+      final boolean urgent = row.checkFailed() || row.belowFloor();
+      final String statusColor = urgent ? "#c0392b" : "#1e8449";
+      final String statusBg = urgent ? "#fdecea" : "#eafaf1";
+      html.append("<tr>")
+          .append(htmlCell(row.chain(), "left", null, null, true))
+          .append(htmlCell(row.address(), "left", null, null, false))
+          .append(htmlCell(String.format("%,.6f", row.balanceNative()), "right", null, null, false))
+          .append(htmlCell(String.format("%,.6f", row.floorNative()), "right", null, null, false))
+          .append(htmlCell(status, "center", statusColor, statusBg, true))
+          .append("</tr>");
+    }
+    html.append("</table></div>");
+    return html.toString();
+  }
+
+  private static String htmlHeaderCell(final String text, final String align) {
+    return String.format("<th style=\"padding:8px 12px;border:1px solid #ddd;text-align:%s;\">%s</th>", align, text);
+  }
+
+  private static String htmlCell(final String text, final String align, final String color, final String background,
+      final boolean bold) {
+    final StringBuilder style = new StringBuilder("padding:6px 12px;border:1px solid #ddd;text-align:").append(align).append(';');
+    if (color != null) {
+      style.append("color:").append(color).append(';');
+    }
+    if (background != null) {
+      style.append("background-color:").append(background).append(';');
+    }
+    if (bold) {
+      style.append("font-weight:bold;");
+    }
+    return String.format("<td style=\"%s\">%s</td>", style, text);
+  }
+
+  private static void sendDailyEmail(final List<Row> rows, final String report, final String html) {
     boolean anyBelow = false;
     boolean anyFailed = false;
     for (final Row row : rows) {
@@ -141,7 +187,7 @@ public class PosterGasFloorCheckJob {
         : anyBelow ? "[POSTER GAS FLOOR: BELOW FLOOR] Poster gas floor check"
         : "[POSTER GAS FLOOR: OK] Poster gas floor check";
     try {
-      MailUtil.sendMessage(alertRecipients(), subject, report, null);
+      MailUtil.sendMessage(alertRecipients(), subject, report, html, null);
     } catch (final Exception e) {
       e.printStackTrace();
     }

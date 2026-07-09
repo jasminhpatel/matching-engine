@@ -8,11 +8,17 @@ final class ContractBalanceChecker {
   static AssetBalanceCheckResult check(final String assetName, final double requiredBacking,
       final double actualBalance, final double tolerancePercentage) {
     if (requiredBacking == 0) {
-      return new AssetBalanceCheckResult(assetName, requiredBacking, actualBalance, 0, true, true);
+      return new AssetBalanceCheckResult(assetName, requiredBacking, actualBalance, 0, true, true, false);
     }
     final double changePercentage = Math.abs(requiredBacking - actualBalance) / Math.abs(requiredBacking);
-    final boolean matched = changePercentage <= tolerancePercentage;
-    return new AssetBalanceCheckResult(assetName, requiredBacking, actualBalance, changePercentage, matched, false);
+    final boolean beyondTolerance = changePercentage > tolerancePercentage;
+    // A contract holding at least what it owes is never a liability risk, so an excess balance is
+    // not a mismatch - only a shortfall (or a negative required backing, which is a data problem
+    // regardless of direction) should ever fail the check.
+    final boolean overfunded = requiredBacking > 0 && actualBalance >= requiredBacking;
+    final boolean matched = overfunded || !beyondTolerance;
+    final boolean over = overfunded && beyondTolerance;
+    return new AssetBalanceCheckResult(assetName, requiredBacking, actualBalance, changePercentage, matched, false, over);
   }
 
   static String formatTableHeader() {
@@ -21,7 +27,9 @@ final class ContractBalanceChecker {
   }
 
   static String formatTableRow(final double userNotional, final double mmNotional, final AssetBalanceCheckResult result) {
-    final String status = result.skipped() ? "SKIPPED (no notional owed)" : (result.matched() ? "OK" : "[ALERT] FAILED");
+    final String status = result.skipped() ? "SKIPPED (no notional owed)"
+        : result.over() ? "OK (OVER)"
+        : result.matched() ? "OK" : "[ALERT] FAILED";
     final String diff = result.skipped() ? "-" : String.format("%.2f%%", result.changePercentage() * 100);
     return String.format("\t %-6s | %13.2f | %11.2f | %10.2f | %12.2f | %7s | %s\n",
         result.assetName(), userNotional, mmNotional, result.requiredBacking(), result.actualBalance(), diff, status);
@@ -37,9 +45,9 @@ final class ContractBalanceChecker {
   }
 
   static String formatHtmlTableRow(final double userNotional, final double mmNotional, final AssetBalanceCheckResult result) {
-    final String status = result.skipped() ? "SKIPPED" : (result.matched() ? "OK" : "FAILED");
-    final String statusColor = result.skipped() ? "#7f8c8d" : (result.matched() ? "#1e8449" : "#c0392b");
-    final String statusBg = result.skipped() ? "#ecf0f1" : (result.matched() ? "#eafaf1" : "#fdecea");
+    final String status = result.skipped() ? "SKIPPED" : result.over() ? "OK (OVER)" : (result.matched() ? "OK" : "FAILED");
+    final String statusColor = result.skipped() ? "#7f8c8d" : result.over() ? "#2980b9" : (result.matched() ? "#1e8449" : "#c0392b");
+    final String statusBg = result.skipped() ? "#ecf0f1" : result.over() ? "#eaf2fb" : (result.matched() ? "#eafaf1" : "#fdecea");
     final String diff = result.skipped() ? "-" : String.format("%.2f%%", result.changePercentage() * 100);
     return "<tr>"
         + htmlCell(result.assetName(), "left", null, null, true)
