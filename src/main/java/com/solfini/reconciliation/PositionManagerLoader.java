@@ -2,11 +2,12 @@ package com.solfini.reconciliation;
 
 import com.solfini.util.PropertyReader;
 import com.solfini.util.StringUtil;
+import com.solfini.util.blockchain.util.RpcUtil;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
-import org.web3j.protocol.http.HttpService;
+import org.web3j.protocol.exceptions.ClientConnectionException;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.generated.Uint32;
@@ -17,10 +18,42 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import static com.solfini.common.Constants.POLYGON;
+
 public class PositionManagerLoader {
-  private static final String RPC_URL = PropertyReader.getProperty("POSITION_MANAGER_RPC_READ_URL", "");
+  private static final int MAX_ATTEMPTS = 5;
   private static final String CONTRACT_ADDRESS = PropertyReader.getProperty("POSITION_MANAGER_CONTRACT_ADDRESS", "");
   private static final String CALLER_ADDRESS = PropertyReader.getProperty("POSITION_MANAGER_CALLER_ADDRESS", "");
+
+  // Reads go through the same primary/secondary RPC pair as the Position Manager writes
+  // (POLYGON_WEB3_PROVIDER / POLYGON_WEB3_PROVIDER_2) instead of a single hardcoded URL, so a
+  // node returning an error (transport-level or a plain JSON-RPC error like "Internal error")
+  // doesn't kill the whole reconciliation run - it retries against the fallback RPC instead.
+  private static EthCall callWithFallback(final Transaction transaction) throws IOException {
+    boolean useSecondary = false, hasProxyError = false;
+    for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        final Web3j web3j = RpcUtil.createWeb3jConnection(POLYGON, null, useSecondary, hasProxyError);
+        final EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
+        if (!response.hasError()) {
+          return response;
+        }
+        System.out.println("PositionManagerLoader RPC error. attempt: " + attempt + " reason: "
+            + response.getError().getMessage() + " useSecondary: " + useSecondary + " hasProxyError: " + hasProxyError);
+        useSecondary = true;
+        hasProxyError = true;
+      } catch (ClientConnectionException | IOException e) {
+        System.out.println("PositionManagerLoader connection error. attempt: " + attempt + " reason: "
+            + e.getMessage() + " useSecondary: " + useSecondary + " hasProxyError: " + hasProxyError);
+        useSecondary = true;
+        hasProxyError = true;
+        if (attempt == MAX_ATTEMPTS) {
+          throw e;
+        }
+      }
+    }
+    throw new RuntimeException("Position Manager RPC call failed after " + MAX_ATTEMPTS + " attempts");
+  }
 
   public static PositionManagerSnapData getUserPositions() throws IOException {
     final PositionManagerSnapData blockchainSnapData = new PositionManagerSnapData();
@@ -50,8 +83,6 @@ public class PositionManagerLoader {
   }
 
   private static int getMaxUserId() throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
-
     final Function function = new Function(
         "maxUserId",
         Collections.emptyList(),
@@ -59,19 +90,13 @@ public class PositionManagerLoader {
     );
     String encodedFunction = FunctionEncoder.encode(function);
     Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS, CONTRACT_ADDRESS, encodedFunction);
-    EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
-
-    if (response.hasError()) {
-      throw new RuntimeException(response.getError().getMessage());
-    }
+    EthCall response = callWithFallback(transaction);
 
     String rawResult = response.getValue();
     return Numeric.toBigInt(rawResult).intValue();
   }
 
   private static int getMaxAssetId() throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
-
     final Function function = new Function(
         "maxAssetId",
         Collections.emptyList(),
@@ -79,11 +104,7 @@ public class PositionManagerLoader {
     );
     String encodedFunction = FunctionEncoder.encode(function);
     Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS, CONTRACT_ADDRESS, encodedFunction);
-    EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
-
-    if (response.hasError()) {
-      throw new RuntimeException(response.getError().getMessage());
-    }
+    EthCall response = callWithFallback(transaction);
 
     String rawResult = response.getValue();
     return Numeric.toBigInt(rawResult).intValue();
@@ -91,7 +112,6 @@ public class PositionManagerLoader {
 
   private static String getUserPositions(final Map<Integer, PositionManagerSnapData.UserPositions> userPositionsMap, final int fromUser,
       final int toUser, final int fromAsset, final int toAsset) throws IOException {
-    final Web3j web3j = Web3j.build(new HttpService(RPC_URL));
     final Uint32 fromUserId = new Uint32(fromUser);
     final Uint32 toUserId = new Uint32(toUser);
     final Uint32 fromAssetId = new Uint32(fromAsset);
@@ -104,11 +124,7 @@ public class PositionManagerLoader {
     );
     String encodedFunction = FunctionEncoder.encode(function);
     Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS, CONTRACT_ADDRESS, encodedFunction);
-    EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
-
-    if (response.hasError()) {
-      throw new RuntimeException(response.getError().getMessage());
-    }
+    EthCall response = callWithFallback(transaction);
 
     //String rawResult = response.getValue();
     //String decodedCsv = hexToAscii(rawResult);
