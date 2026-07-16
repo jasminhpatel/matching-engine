@@ -329,7 +329,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
 //              continue;
 //            }
 
-            if (openCopyTradeOrder.isSuccessful() && validSymbolToClose && !openCopyTradeOrder.isClosed() && !openCopyTradeOrder.isToClose()) {
+            if (openCopyTradeOrder.isSuccessful() && validSymbolToClose && !openCopyTradeOrder.isClosed() && !openCopyTradeOrder.isToClose()
+              && !openCopyTradeOrder.isPendingCloseOrder()) {
               ExchangeSubscription sub = openCopyTradeOrder.getSubscription();
               if (sub == null) {
                 sub = InfluencerSubscriptionCache.get(openCopyTradeOrder.getSubscriptionId());
@@ -358,6 +359,8 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
                   " price: ", openCopyTradeOrder.getxPrice(),
                   " result: ", openCopyTradeOrder.getResult(),
                   " symbol: ", openCopyTradeOrder.getBaseSymbol());
+
+              openCopyTradeOrder.setPendingCloseOrder(true);
               if (closeCopyTradeForSymbol == null) {
                 count++;
                 final String clOrdId = order.getClOrdId() + openCopyTradeOrder.getSubscriptionId() + count;
@@ -1610,6 +1613,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         closeCopyTradeOrder.setxExchange(null);
         // prevent duplicate publishes
         //matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+        setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
 
         return;
       }
@@ -1624,6 +1628,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             "REJECTED: Invalid instrument. " + exchange + " : " + instrumentType + " : " + baseSymbol + " : " + quotedSymbol);
         closeCopyTradeOrder.setxExchange(null);
         matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+        setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
 
         return;
       }
@@ -1647,6 +1652,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setResult("REJECTED: Failed to fetch price.");
           closeCopyTradeOrder.setxExchange(null);
           matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+          setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
 
           return;
         }
@@ -1760,6 +1766,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               closeCopyTradeOrder.setClosed(true);
               //update corresponding open order
               for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
+                openCopyTradeOrder.setPendingCloseOrder(false);
                 openCopyTradeOrder.setClosed(true);
                 openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
                 CopyTradeCache.remove(openCopyTradeOrder);
@@ -1812,6 +1819,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setResult("REJECTED: Invalid exchange.");
           closeCopyTradeOrder.setxExchange(null);
           matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+          setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
 
           return;
         }
@@ -1898,6 +1906,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
           closeCopyTradeOrder.setResult("REJECTED: Failed to fetch price.");
           closeCopyTradeOrder.setxExchange(null);
           matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
+          setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
 
           return;
         }
@@ -1927,6 +1936,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             //update corresponding open order
             for (final CopyTradeOrder openCopyTradeOrder : openCopyTradesToCloseOrder) {
               openCopyTradeOrder.setClosed(true);
+              openCopyTradeOrder.setPendingCloseOrder(false);
               openCopyTradeOrder.setCloseClOrdId(closeCopyTradeOrder.getClOrdId());
               CopyTradeCache.remove(openCopyTradeOrder);
               matcherToPublisherQueue.addGuaranteed(openCopyTradeOrder);
@@ -1949,6 +1959,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
               closeCopyTradeOrder.getResult());
         } catch (Exception e) {
           closeCopyTradeOrder.setResult("FAILED: " + e.getMessage());
+          setCopyTradeOrderIsPendingCloseFalse(openCopyTradeOrders);
           LOGGER.error("Error, Copy trade failed. clOrdId: " + clOrdId, e);
         }
 
@@ -1963,6 +1974,12 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         closeCopyTradeOrder.setxExchange(null);
         matcherToPublisherQueue.addGuaranteed(closeCopyTradeOrder);
 
+      }
+    }
+
+    private void setCopyTradeOrderIsPendingCloseFalse(List<CopyTradeOrder> openCopyTradeOrders) {
+      for (CopyTradeOrder copyTradeOrder : openCopyTradeOrders) {
+        copyTradeOrder.setPendingCloseOrder(false);
       }
     }
 

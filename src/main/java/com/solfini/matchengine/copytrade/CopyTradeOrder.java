@@ -73,7 +73,11 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
   private XExchange xExchange;
   private Order order;
 
-  public CopyTradeOrder() {}
+  private boolean pendingCloseOrder;
+
+  public CopyTradeOrder() {
+    this.pendingCloseOrder = false;
+  }
 
   public CopyTradeOrder(final String clOrdId, final String baseSymbol, final String quotedSymbol, final InstrumentPair pair, final Order order,
       final ExchangeSubscription subscription, final String accountId) {
@@ -102,6 +106,7 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     this.subscription = subscription;
 
     this.order = order;
+    this.pendingCloseOrder = false;
   }
 
   public CopyTradeOrder(final CopyTradeOrder source) {
@@ -146,6 +151,7 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     this.futuresEnabled = source.futuresEnabled;
 
     this.order = source.order;
+    this.pendingCloseOrder = source.pendingCloseOrder;
   }
 
   public final int getUserId() {
@@ -501,6 +507,14 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     this.order = order;
   }
 
+  public boolean isPendingCloseOrder() {
+    return pendingCloseOrder;
+  }
+
+  public void setPendingCloseOrder(boolean pendingCloseOrder) {
+    this.pendingCloseOrder = pendingCloseOrder;
+  }
+
   @Override
   public final double getAveragePrice() {
     return averagePrice;
@@ -597,6 +611,7 @@ public class CopyTradeOrder extends Message implements ExternalOrder {
     sb.append(",\"xPrice\":\"").append(xPrice);
     sb.append(",\"isToClose\":\"").append(isToClose);
     sb.append(",\"closed\":\"").append(closed);
+    sb.append(",\"pendingCloseOrder\":\"").append(pendingCloseOrder);
     //sb.append(",\"currencyPair=").append(currencyPair);
     sb.append(",\"subscription\":").append(subscription.toJSON());
     sb.append('}');
