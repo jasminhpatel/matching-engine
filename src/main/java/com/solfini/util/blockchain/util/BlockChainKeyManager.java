@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -74,6 +75,19 @@ public class BlockChainKeyManager {
 
     final AtomicInteger counter = CHAIN_TO_COUNTER.computeIfAbsent(key, v -> new AtomicInteger(RandomUtil.generateInt(functionKeys.size())));
     return functionKeys.get(counter.incrementAndGet() % functionKeys.size());
+  }
+
+  /**
+   * Returns every known public address for a chain/function pair (read-only), e.g. for jobs that
+   * need to check all posters rather than pick one to sign with.
+   *
+   * @param chainType POLYGON, ETHEREUM, ...
+   * @param function RETIRE_FROM, MINT, ....
+   */
+  public static final List<String> getKeys(final String chainType, final String function) {
+    final String key = normalizeChainType(chainType) + "_" + function.toUpperCase();
+    final ArrayList<String> functionKeys = CHAIN_FUNCTION_TO_PUBLIC_KEY_MAP.get(key);
+    return functionKeys == null ? List.of() : List.copyOf(functionKeys);
   }
 
   /**

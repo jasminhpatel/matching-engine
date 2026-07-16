@@ -225,7 +225,7 @@ public class PositionManagerReconciliation {
                 continue;
               } else {
                 userPositions.append(balanceAdminMessage.getUserId()).append(",").append(balance.getAssetId()).append(",").append(symbol).append(",")
-                    .append(balance.getBalance().toDouble()).append(",").append("0").append(",User doesn't exist on blockchain\n");
+                    .append(balance.getBalance().toDouble()).append(",").append("0").append(",User has never had a position pushed on-chain\n");
                 continue;
               }
             }
@@ -239,7 +239,7 @@ public class PositionManagerReconciliation {
                 continue;
               } else {
                 userPositions.append(balanceAdminMessage.getUserId()).append(",").append(balance.getAssetId()).append(",").append(symbol).append(",")
-                    .append(balance.getBalance().toDouble()).append(",").append("0").append(",Position doesn't exist on blockchain\n");
+                    .append(balance.getBalance().toDouble()).append(",").append("0").append(",This asset has never had a position pushed on-chain for this user\n");
                 missingPositions++;
                 continue;
               }
@@ -297,8 +297,8 @@ public class PositionManagerReconciliation {
     // todo reverse check (users and assets not in snap but exists in blockchain)
     summary.append("PositionManager Reconciliation Summary: \n");
     summary.append("\t Snapshot Id: ").append(blockchainSnapData.getSnapshotId()).append("\n");
-    summary.append("\t missingUsers: ").append(missingUsers).append("\n");
-    summary.append("\t missingPositions: ").append(missingPositions).append("\n");
+    summary.append("\t usersNeverPushedOnChain: ").append(missingUsers).append("\n");
+    summary.append("\t assetsNeverPushedOnChain: ").append(missingPositions).append("\n");
     summary.append("\t mismatchedPositions: ").append(mismatchedPositions).append("\n");
     summary.append("\t matchedPositions: ").append(matchedPositions).append("\n");
 

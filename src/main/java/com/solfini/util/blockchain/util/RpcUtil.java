@@ -32,8 +32,10 @@ public class RpcUtil {
     } else {
       httpService = new HttpService(rpcUrl);
     }
-    LOGGER.info("Web3 Provider: " + rpcUrl + " proxy: " + proxyHost + " useSecondary: "
-        + useSecondary + " hasProxyError: " + hasProxyError);
+    final String connectionInfo = "Web3 Provider: " + rpcUrl + " proxy: " + proxyHost + " useSecondary: "
+        + useSecondary + " hasProxyError: " + hasProxyError;
+    LOGGER.info(connectionInfo);
+    System.out.println(connectionInfo);
     return Web3j.build(httpService);
   }
 }

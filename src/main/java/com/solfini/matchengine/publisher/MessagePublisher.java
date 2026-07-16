@@ -1,5 +1,9 @@
 package com.solfini.matchengine.publisher;
 
+import com.solfini.matchengine.kafka.KafkaListener;
+import com.solfini.util.TimeUtil;
+import com.solfini.util.benchmark.LatencyDistributionBenchmark;
+import com.solfini.util.benchmark.RateBenchmark;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -11,6 +15,7 @@ import com.solfini.internal.admin.schema.*;
 import com.solfini.matchengine.message.internal.*;
 import com.solfini.pool.*;
 import com.solfini.sbe.encoder.QuoteType;
+import org.agrona.collections.LongHashSet;
 import org.agrona.concurrent.UnsafeBuffer;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
@@ -86,9 +91,6 @@ public class MessagePublisher implements Constants {
   public static final short RISK_PUBLISH_SCALE = StringUtil.toShort(PropertyReader.getProperty("RISK_PUBLISH_SCALE", "2"));
   public static final long COST_BASIS_PUBLISH_MULT = MbxMath.multiplier(COST_BASIS_PUBLISH_SCALE);
   public static final long RISK_PUBLISH_MULT = MbxMath.multiplier(RISK_PUBLISH_SCALE);
-
-  // private static final ManyToOneConcurrentArrayQueueCustom<Message> publisherToBlockchainPositionQueue =
-  // Context.getPublisherToBlockchainPositionQueue();
 
   private String topic;
 

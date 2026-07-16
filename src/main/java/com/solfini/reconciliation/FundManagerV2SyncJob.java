@@ -22,9 +22,10 @@ public class FundManagerV2SyncJob {
       snapContext = FundManagerV2SnapUpdater.resolveSnapContext(args);
     } catch (Exception e) {
       final StringBuilder summary = new StringBuilder();
-      summary.append("Failed to resolve snapshot context:\n").append(e.getMessage());
+      summary.append("Failed to resolve snapshot context (affects all chains):\n").append(e.getMessage());
       try {
-        sendFailureEmail(summary);
+        String[] to = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS", "alerts.rohanw@gmail.com").split(",");
+        MailUtil.sendMessage(to, "Blockchain–User Withdrawable Reconciliation Failed.", summary.toString(), null);
       } catch (Exception ex) {
         ex.printStackTrace();
       }
@@ -61,13 +62,13 @@ public class FundManagerV2SyncJob {
         FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
       } else {
         System.out.println(summary);
-        sendFailureEmail(summary);
+        sendFailureEmail(summary, network);
       }
     } catch (Exception e) {
-      summary.append("Ethereum–User Withdrawable Sync Job Failed:\n");
+      summary.append(FundManagerV2Reconciliation.networkLabel(network)).append("–User Withdrawable Sync Job Failed:\n");
       summary.append(e.getMessage());
       try {
-        sendFailureEmail(summary);
+        sendFailureEmail(summary, network);
       } catch (Exception ex) {
         ex.printStackTrace();
       }
@@ -76,10 +77,11 @@ public class FundManagerV2SyncJob {
     System.out.println(summary);
   }
 
-  private static void sendFailureEmail(final StringBuilder summary) throws MessagingException, IOException {
-    summary.insert(0, "Ethereum–User Withdrawable Sync Job Failed:\n");
+  private static void sendFailureEmail(final StringBuilder summary, final String network) throws MessagingException, IOException {
+    final String networkLabel = FundManagerV2Reconciliation.networkLabel(network);
+    summary.insert(0, networkLabel + "–User Withdrawable Sync Job Failed:\n");
     String[] to = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS", "alerts.rohanw@gmail.com").split(",");
-    String subject = "Ethereum–User Withdrawable Reconciliation Failed.";
+    String subject = networkLabel + "–User Withdrawable Reconciliation Failed.";
     String body = summary.toString();
 
     MailUtil.sendMessage(to, subject, body, null);

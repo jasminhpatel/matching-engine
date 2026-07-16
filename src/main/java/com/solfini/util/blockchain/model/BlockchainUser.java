@@ -5,12 +5,14 @@ public class BlockchainUser {
   private final String address;
   private final long createdAt;
   private final String network;
+  private final String contractType;
 
-  public BlockchainUser(final int userId, final String address, final long createdAt, final String network) {
+  public BlockchainUser(final int userId, final String address, final long createdAt, final String network, final String contractType) {
     this.userId = userId;
     this.address = address;
     this.createdAt = createdAt;
     this.network = network;
+    this.contractType = contractType;
   }
 
   public int getUserId() {
@@ -27,5 +29,9 @@ public class BlockchainUser {
 
   public String getNetwork() {
     return network;
+  }
+
+  public String getContractType() {
+    return contractType;
   }
 }

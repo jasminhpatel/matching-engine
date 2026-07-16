@@ -100,7 +100,7 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
 
                 return processSuccess();
               }
-              if (error.contains("insufficient funds for gas") || error.contains("nonce too low")
+              else if (error.contains("insufficient funds for gas") || error.contains("nonce too low")
                   || error.contains("transaction underpriced") || error.contains("transaction gas price below minimum")) {//retry on this specific error
                 try {
                   Thread.sleep(60000);
@@ -115,6 +115,19 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
                     transactionId + " system account: " + this.senderAddress);
 
                 retryFailed();
+              } else {
+                // RPC-level error returned in the response body (e.g. node "Internal error") rather than
+                // thrown as a connection exception - the ClientConnectionException/IOException catches below
+                // never see it, so without this it would give up on attempt 1 without ever trying the
+                // fallback RPC URL.
+                sb.append("Failed Reason ").append("RPC error.").append(" Attempt : ").append(this.attempt);
+                LOGGER.error(ERROR_LOG, "RPC error sending transaction: ", error, " order: ",
+                    transactionId, " attempt: ", this.attempt);
+                System.out.println("RPC error sending transaction: " + error + " order: " +
+                    transactionId + " attempt: " + this.attempt);
+                useSecondary = true;
+                hasProxyError = true;
+                continue;
               }
             }
             if (this.transaction == null || this.transaction.hasError()) {
@@ -154,10 +167,14 @@ public abstract class EVMTransactionSender implements BlockchainTransactionSende
               hasProxyError = true;
               useSecondary = true;
             }
+            System.out.println(ERROR_LOG + "Attempt: " + this.attempt + " failed for order: " + transactionId
+                + " reason: " + message + " useSecondary: " + useSecondary + " hasProxyError: " + hasProxyError);
           } catch (IOException e) {
             System.out.println(e.getMessage());
             hasProxyError = true;
             useSecondary = true;
+            System.out.println(ERROR_LOG + "Attempt: " + this.attempt + " failed for order: " + transactionId
+                + " reason: " + e.getMessage() + " useSecondary: " + useSecondary + " hasProxyError: " + hasProxyError);
           }
         }
       }

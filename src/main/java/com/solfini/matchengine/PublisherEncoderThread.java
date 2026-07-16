@@ -28,8 +28,6 @@ public class PublisherEncoderThread implements Runnable, Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(PublisherEncoderThread.class);
 
   private static final LatencyDistributionBenchmark[] benchmarks = buildLatencyDistributionBenchmarks();
-  private static final RateBenchmark rateBenchmark = new RateBenchmark("Publisher BM Rate:");
-  private static final LatencyDistributionBenchmark latencyBenchmark = new LatencyDistributionBenchmark("Publisher BM Latency:");
   private final OneToOneConcurrentArrayQueueCustom<Message> encoderQueue;
 
   private final IdleStrategy idleStrategy;
@@ -109,7 +107,6 @@ public class PublisherEncoderThread implements Runnable, Constants {
           }
 
           try {
-            boolean isExecution = message.getMessageType() == MessageType.EXECUTION_REPORT;
             final long inputTime = message.getInputTime();
             final long decodedTime = message.getDecodedTime();
             final long matchTime = message.getMatchTime();
@@ -117,10 +114,6 @@ public class PublisherEncoderThread implements Runnable, Constants {
 
             final long publishTime = TimeUtil.getTime();
             updateBenchmark(inputTime, decodedTime, matchTime, publishTime);
-            if (isExecution && inputTime > 0 && message.getKafkaRecordOffset() > KafkaListener.FIRST_MESSAGE_OFFSET) {
-              rateBenchmark.sample();
-              latencyBenchmark.sample(publishTime - inputTime);
-            }
           } catch (Exception e) {
             try {
               LOGGER.error(message.toJSON());

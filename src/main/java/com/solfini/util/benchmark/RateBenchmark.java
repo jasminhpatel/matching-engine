@@ -18,7 +18,7 @@ public class RateBenchmark extends Benchmark {
     this.batch = batch;
   }
 
-  public void sample() {
+/*  public void sample() {
     if (count == 0) {
       start = System.currentTimeMillis();
       split = start;
@@ -29,10 +29,42 @@ public class RateBenchmark extends Benchmark {
 
     if (count % batch == 0) {
       long now = System.currentTimeMillis();
-      log(format(count) + " records, " + format(now - start) + " ms, " + format((1_000 * count) / (now - start)) + " rec/s "
-        + "split " + format(now - split) + " ms, " + format((1_000 * batch) / (now - split)) + " rec/s ");
+      log(format(count) + " records, totalTime: " + format(now - start) + " ms, "
+          + format((1_000 * count) / (now - start)) + " rec/s "
+        + " timeForLast100000 " + format(now - split) + " ms, rateForLast100000"
+          + format((1_000 * batch) / (now - split)) + " rec/s ");
 
       split = now;
     }
+  }*/
+
+  public void sample() {
+    if (count == 0) {
+      start = System.nanoTime();
+      split = start;
+    }
+
+    ++count;
+
+    if (count % batch == 0) {
+      long now = System.nanoTime();
+      long totalElapsedNs = now - start;
+      long batchElapsedNs = now - split;
+      long totalElapsedMs = totalElapsedNs / 1_000_000;
+      long batchElapsedMs = batchElapsedNs / 1_000_000;
+      long avgRate = totalElapsedNs > 0
+          ? (1_000_000_000L * count) / totalElapsedNs
+          : 0;
+      long batchRate = batchElapsedNs > 0
+          ? (1_000_000_000L * batch) / batchElapsedNs
+          : 0;
+
+      log(format(count) + " records, totalTime: " + format(totalElapsedMs) + " ms, "
+          //+ "avgRate: " + format(avgRate) + " rec/s, "
+          + "timeForLast100K: " + format(batchElapsedMs) + " ms, "
+          + "rateForLast100K: " + format(batchRate) + " rec/s");
+      split = now;
+    }
+
   }
 }

@@ -5,6 +5,7 @@ import static com.solfini.common.Constants.LOG_FMT_10;
 import static com.solfini.common.Constants.LOG_FMT_12;
 import static com.solfini.common.Constants.LOG_FMT_14;
 import static com.solfini.common.Constants.LOG_FMT_4;
+import static com.solfini.common.Constants.MAINNET;
 import static com.solfini.common.Constants.XDC;
 
 import com.solfini.common.Context;
@@ -22,14 +23,27 @@ public class EVMUserRegistrationTransactionSender extends EVMTransactionSender {
   public static final BigInteger GAS_LIMIT_FOR_USER_REGISTRATION = Context.getGasLimitForUserRegistration();
 
   private static final CustomLogger LOGGER = CustomLogger.getLogger(EVMUserRegistrationTransactionSender.class);
-  private static final String SIGNER_URL = Context.getSignerUrl() + "/signApi/signUserRegistrationRequest";
+  private static final String FUND_MANAGEMENT_SIGNER_URL = Context.getSignerUrl() + "/signApi/signFundUserRegistrationRequest";
+  private static final String POSITION_MANAGEMENT_SIGNER_URL = Context.getSignerUrl() + "/signApi/signPositionUserRegistrationRequest";
   protected UserRegistrationTransaction userRegistrationTransaction;
 
   public EVMUserRegistrationTransactionSender(final UserRegistrationTransaction userRegistrationTransaction) {
     super(userRegistrationTransaction.getContractAddress() + "-" + userRegistrationTransaction.getId(), userRegistrationTransaction.getChainType(),
-        (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
-            ? FUND_MANAGEMENT : POSITION_MANAGEMENT, userRegistrationTransaction);
+        resolveManagerType(userRegistrationTransaction), userRegistrationTransaction);
     this.userRegistrationTransaction = userRegistrationTransaction;
+  }
+
+  // XDC is shared between the Fund Manager and Position Manager contracts, so chainType alone can't
+  // tell them apart. Callers that know which contract they're registering against (e.g.
+  // PositionManagerSnapUpdater) set managerType explicitly; callers that don't (legacy Fund Manager V2
+  // callsites) fall back to the old chainType-based guess, where XDC/MAINNET/ETHEREUM always meant Fund Manager.
+  private static String resolveManagerType(final UserRegistrationTransaction userRegistrationTransaction) {
+    if (userRegistrationTransaction.getManagerType() != null) {
+      return userRegistrationTransaction.getManagerType();
+    }
+    return (ETHEREUM.equalsIgnoreCase(userRegistrationTransaction.getChainType()) || MAINNET.equalsIgnoreCase(userRegistrationTransaction.getChainType())
+        || XDC.equalsIgnoreCase(userRegistrationTransaction.getChainType()))
+        ? FUND_MANAGEMENT : POSITION_MANAGEMENT;
   }
 
   @Override
@@ -49,7 +63,7 @@ public class EVMUserRegistrationTransactionSender extends EVMTransactionSender {
 
   @Override
   protected void createSignRequest() {
-    this.signerUrl = SIGNER_URL;
+    this.signerUrl = FUND_MANAGEMENT.equals(this.txnType) ? FUND_MANAGEMENT_SIGNER_URL : POSITION_MANAGEMENT_SIGNER_URL;
 
     final StringBuilder sb = new StringBuilder();
     sb.append("{").append("\"chainType\":\"").append(this.chainType).append("\",").append("\"contractAddress\":\"")
