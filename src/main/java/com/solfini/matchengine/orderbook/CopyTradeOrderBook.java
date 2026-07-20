@@ -1719,7 +1719,7 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
 
         closeCopyTradeOrder.setxPrice(new BigDecimal(price).setScale(externalSymbol.getPriceScale(), RoundingMode.HALF_UP));
-        quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
+        //quantity = MbxMath.roundUp(quantity, externalSymbol.getQtyScale());
         LOGGER.info(Constants.LOG_FMT_7,
             "MP (direct) close combo copy-trade - ",
             " close ordId: ", clOrdId,
