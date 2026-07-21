@@ -28,7 +28,7 @@ public final class KafkaOrderPerformanceTest {
 
   private static final String BOOTSTRAP = "10.20.0.50:9092";
   private static final String INPUT_TOPIC = "api01";
-  private static final String OUTPUT_TOPIC = "me1";
+  private static final String OUTPUT_TOPIC = "me01";
   private static final int OUTPUT_PARTITION = 0;
 
   private static final int KAFKA_OFFSET = 17;
