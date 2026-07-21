@@ -163,6 +163,7 @@ public final class KafkaOrderPerformanceTest {
 
       while (running && responseLatch.getCount() > 0) {
         ConsumerRecords<String, byte[]> records = consumer.poll(POLL_TIMEOUT);
+        System.out.println(records.count());
 
         for (ConsumerRecord<String, byte[]> record : records) {
           totalKafkaMessages.increment();
