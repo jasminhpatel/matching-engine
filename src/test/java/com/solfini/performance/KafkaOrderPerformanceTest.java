@@ -114,7 +114,8 @@ public final class KafkaOrderPerformanceTest {
     Random random = new Random();
 
     for (int i = 0; i < orderCount; i++) {
-      Side side = random.nextBoolean() ? Side.BUY : Side.SELL;
+      //Side side = random.nextBoolean() ? Side.BUY : Side.SELL;
+      Side side = i%2 == 0 ? Side.BUY : Side.SELL;
       long quantity = 1L + random.nextInt(100_000);
       long price = side == Side.BUY
           ? 2_500_000L + random.nextInt(2_500_000)
