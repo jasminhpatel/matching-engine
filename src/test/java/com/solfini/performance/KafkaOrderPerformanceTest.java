@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.*;
  */
 public final class KafkaOrderPerformanceTest {
 
-  private static final String BOOTSTRAP = "10.20.0.50:9092";
+  //private static final String BOOTSTRAP = "10.20.0.50:9092";
+  private static final String BOOTSTRAP = "10.20.0.14:9092";
   private static final String INPUT_TOPIC = "api01";
   private static final String OUTPUT_TOPIC = "me01";
   private static final int OUTPUT_PARTITION = 0;
@@ -164,7 +165,6 @@ public final class KafkaOrderPerformanceTest {
 
       while (running && responseLatch.getCount() > 0) {
         ConsumerRecords<String, byte[]> records = consumer.poll(POLL_TIMEOUT);
-        System.out.println(records.count());
 
         for (ConsumerRecord<String, byte[]> record : records) {
           totalKafkaMessages.increment();
