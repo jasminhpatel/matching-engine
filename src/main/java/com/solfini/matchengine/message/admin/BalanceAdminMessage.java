@@ -57,7 +57,8 @@ public class BalanceAdminMessage extends AdminMessage {
   private Balance[] balanceCacheArr = buildBalanceCacheArr();
 
   private final Balance[] buildBalanceCacheArr() {
-    final Balance[] balanceCacheArrTemp = new Balance[Math.max(InstrumentCache.getPairCapacity(), 64)];
+    //final Balance[] balanceCacheArrTemp = new Balance[Math.max(InstrumentCache.getPairCapacity(), 64)];
+    final Balance[] balanceCacheArrTemp = new Balance[64];
     for (int i = 0; i < balanceCacheArrTemp.length; i++) {
       balanceCacheArrTemp[i] = new Balance();
     }

@@ -1,6 +1,9 @@
 package com.solfini.performance;
 
 import com.solfini.sbe.encoder.*;
+import com.solfini.util.StringUtil;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.*;
@@ -43,8 +46,8 @@ public final class KafkaOrderPerformanceTest {
   private static final AtomicInteger MSG_SEQ = new AtomicInteger();
   private static final AtomicLong KAFKA_SEQ = new AtomicLong();
 
-  private final ConcurrentMap<String, Long> sendTimesNs = new ConcurrentHashMap<>();
-  private final Set<String> receivedClOrdIds = ConcurrentHashMap.newKeySet();
+  private final ConcurrentMap<Integer, Long> sendTimesNs = new ConcurrentHashMap<>();
+  private final Set<Integer> receivedClOrdIds = ConcurrentHashMap.newKeySet();
   private final LatencyStats latency = new LatencyStats();
 
   private final LongAdder totalKafkaMessages = new LongAdder();
@@ -93,6 +96,9 @@ public final class KafkaOrderPerformanceTest {
 
     byte[][] orders = generateOrders(orderCount, userIds);
 
+    System.gc();
+    System.out.println("  GC count before : " + getGcCount());
+    long gcTimeBefore = getGcCollectionTime();
     firstSendNs.set(System.nanoTime());
     long sendStart = firstSendNs.get();
     sendOrders(orders);
@@ -107,6 +113,10 @@ public final class KafkaOrderPerformanceTest {
 
     stopConsumer();
     consumerThread.join(10_000);
+    long gcTimeAfter = getGcCollectionTime();
+    System.out.println("  GC count after : " + getGcCount());
+    System.out.println("  GC collection time: "
+        + (gcTimeAfter - gcTimeBefore) + " ms");
     printSummary(orderCount, sendElapsed, allResponses);
   }
 
@@ -124,7 +134,7 @@ public final class KafkaOrderPerformanceTest {
 
       orders[i] = encodeOrder(
           userIds[i % userIds.length],
-          "C" + (i + 1),
+          String.valueOf(i + 1),
           SECURITY_ID,
           side,
           price,
@@ -136,11 +146,10 @@ public final class KafkaOrderPerformanceTest {
   private void sendOrders(byte[][] orders) {
     try (KafkaProducer<String, byte[]> producer = new KafkaProducer<>(producerProperties())) {
       for (int i = 0; i < orders.length; i++) {
-        String clOrdId = "C" + (i + 1);
         byte[] data = orders[i];
 
         // Store local monotonic time immediately before send for accurate latency.
-        sendTimesNs.put(clOrdId, System.nanoTime());
+        sendTimesNs.put((i + 1), System.nanoTime());
         setKafkaHeader(data, NORMAL_API);
 
         producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
@@ -187,7 +196,7 @@ public final class KafkaOrderPerformanceTest {
               header.blockLength(), header.version());
           executionReports.increment();
 
-          String clOrdId = String.valueOf(er.clOrdID());
+          int clOrdId = StringUtil.toInt(er.clOrdID());
           Long sentNs = sendTimesNs.get(clOrdId);
           if (sentNs == null) {
             unmatchedReports.increment();
@@ -392,5 +401,37 @@ public final class KafkaOrderPerformanceTest {
     long min() { return count.sum() == 0 ? 0 : min.get(); }
     long max() { return count.sum() == 0 ? 0 : max.get(); }
     long avg() { return count.sum() == 0 ? 0 : total.sum() / count.sum(); }
+  }
+
+  public static long getGcCount() {
+    long count = 0;
+
+    for (GarbageCollectorMXBean gc :
+        ManagementFactory.getGarbageCollectorMXBeans()) {
+
+      long c = gc.getCollectionCount();
+
+      if (c >= 0) {
+        count += c;
+      }
+    }
+
+    return count;
+  }
+
+  public static long getGcCollectionTime() {
+    long time = 0;
+
+    for (GarbageCollectorMXBean gc :
+        ManagementFactory.getGarbageCollectorMXBeans()) {
+
+      long t = gc.getCollectionTime();
+
+      if (t >= 0) {
+        time += t;
+      }
+    }
+
+    return time;
   }
 }
