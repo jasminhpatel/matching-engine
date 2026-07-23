@@ -39,7 +39,7 @@ public final class KafkaOrderPerformanceTest {
   private static final short LENGTH_FIELD_SIZE = 2;
   private static final int SBE_OFFSET = 19;
   private static final byte NORMAL_API = 2;
-  private static final int SECURITY_ID = 52;
+  private static final int SECURITY_ID = 3;
   private static final int BUFFER_SIZE = 4096;
   private static final Duration POLL_TIMEOUT = Duration.ofMillis(200);
 
@@ -366,10 +366,11 @@ public final class KafkaOrderPerformanceTest {
   }
 
   private static int[] parseUserIds(String input) {
-    String[] values = input.split(",");
-    int[] result = new int[values.length];
-    for (int i = 0; i < values.length; i++) {
-      result[i] = Integer.parseInt(values[i].trim());
+    int noOfUsers = Integer.parseInt(input);
+    int[] result = new int[noOfUsers];
+    for (int i = 0; i < noOfUsers; i++) {
+      // leave first 25 admin users
+      result[i] = i + 25;
     }
     return result;
   }
