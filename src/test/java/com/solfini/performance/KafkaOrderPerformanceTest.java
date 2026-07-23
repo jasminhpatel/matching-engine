@@ -24,16 +24,30 @@ import java.util.concurrent.locks.LockSupport;
  * and prints latency and throughput statistics.
  *
  * Usage:
- *   java com.solfini.performance.KafkaOrderPerformanceTest [orderCount] [userIds] [waitSeconds] [warmupCount] [intervalMicros]
- * Example:
- *   java com.solfini.performance.KafkaOrderPerformanceTest 100000 2,3,4 120 100 0
+ *   java com.solfini.performance.KafkaOrderPerformanceTest [mode] [orderCount] [userIds] [waitSeconds] [warmupCount] [intervalMicros]
  *
+ * mode          : "latency" or "throughput" (case-insensitive, required).
+ *                 latency    - paced sends (intervalMicros defaults to 1000, i.e. 1 order/ms),
+ *                              producer tuned for latency (linger.ms=0); per-order latency
+ *                              stats including percentiles are meaningful.
+ *                 throughput - blast mode (intervalMicros forced to 0), producer tuned for
+ *                              throughput (linger.ms=5); latency numbers include queueing delay.
  * warmupCount   : orders sent (and awaited) before the measured run to warm the producer,
  *                 broker path, engine and JIT; excluded from latency stats (default 100).
- * intervalMicros: pacing between measured sends in microseconds; 0 = send as fast as
- *                 possible (default 0).
+ * intervalMicros: pacing between measured sends in microseconds (latency mode only).
+ *
+ * Examples:
+ *   latency:    java com.solfini.performance.KafkaOrderPerformanceTest latency 10000 1 120 200 1000
+ *   throughput: java com.solfini.performance.KafkaOrderPerformanceTest throughput 100000 1 120 200
  */
+
+//java -server -cp ".:config.properties:target/classes:target/test-classes:lib/*" com.solfini.performance.KafkaOrderPerformanceTest [mode] [orderCount] [userIds] [waitSeconds] [warmupCount] [intervalMicros]
+//java -server -cp ".:config.properties:target/classes:target/test-classes:lib/*" com.solfini.performance.KafkaOrderPerformanceTest latency 10000 100 120 200 1000
+//java -server -cp ".:config.properties:target/classes:target/test-classes:lib/*" com.solfini.performance.KafkaOrderPerformanceTest throughput 100000 100 120 200
+
 public final class KafkaOrderPerformanceTest {
+
+  private enum Mode { LATENCY, THROUGHPUT }
 
   //private static final String BOOTSTRAP = "10.20.0.50:9092";
   private static final String BOOTSTRAP = "10.20.0.14:9092";
@@ -73,11 +87,12 @@ public final class KafkaOrderPerformanceTest {
   private KafkaConsumer<String, byte[]> consumer;
 
   public static void main(String[] args) throws Exception {
-    int orderCount = args.length > 0 ? Integer.parseInt(args[0]) : 1;
-    int[] userIds = args.length > 1 ? parseUserIds(args[1]) : new int[]{2};
-    long waitSeconds = args.length > 2 ? Long.parseLong(args[2]) : 60;
-    int warmupCount = args.length > 3 ? Integer.parseInt(args[3]) : 100;
-    long intervalMicros = args.length > 4 ? Long.parseLong(args[4]) : 0;
+    Mode mode = parseMode(args.length > 0 ? args[0] : null);
+    int orderCount = args.length > 1 ? Integer.parseInt(args[1]) : 1;
+    int[] userIds = args.length > 2 ? parseUserIds(args[2]) : new int[]{2};
+    long waitSeconds = args.length > 3 ? Long.parseLong(args[3]) : 60;
+    int warmupCount = args.length > 4 ? Integer.parseInt(args[4]) : 100;
+    long intervalMicros = args.length > 5 ? Long.parseLong(args[5]) : -1;
 
     if (orderCount <= 0) {
       throw new IllegalArgumentException("orderCount must be greater than zero");
@@ -85,15 +100,52 @@ public final class KafkaOrderPerformanceTest {
     if (warmupCount < 0) {
       throw new IllegalArgumentException("warmupCount must not be negative");
     }
-    if (intervalMicros < 0) {
-      throw new IllegalArgumentException("intervalMicros must not be negative");
+
+    if (mode == Mode.LATENCY) {
+      if (intervalMicros < 0) {
+        intervalMicros = 1_000; // default: 1 order/ms
+      }
+    } else {
+      if (intervalMicros > 0) {
+        System.out.println(
+            "WARNING: intervalMicros=" + intervalMicros + " ignored in throughput mode (blast).");
+      }
+      intervalMicros = 0;
     }
 
     new KafkaOrderPerformanceTest().run(
-        orderCount, userIds, waitSeconds, warmupCount, intervalMicros);
+        mode, orderCount, userIds, waitSeconds, warmupCount, intervalMicros);
   }
 
-  private void run(int orderCount, int[] userIds, long waitSeconds,
+  private static Mode parseMode(String arg) {
+    if (arg != null) {
+      if (arg.equalsIgnoreCase("latency")) return Mode.LATENCY;
+      if (arg.equalsIgnoreCase("throughput")) return Mode.THROUGHPUT;
+    }
+    System.err.println("Invalid or missing mode: " + arg);
+    System.err.println();
+    System.err.println("Usage:");
+    System.err.println("  java com.solfini.performance.KafkaOrderPerformanceTest"
+        + " <mode> [orderCount] [userIds] [waitSeconds] [warmupCount] [intervalMicros]");
+    System.err.println();
+    System.err.println("  mode           latency | throughput (case-insensitive, required)");
+    System.err.println("  orderCount     measured orders to send (default 1)");
+    System.err.println("  userIds        number of users to spread orders across (default 1 user, id 2)");
+    System.err.println("  waitSeconds    max seconds to wait for responses (default 60)");
+    System.err.println("  warmupCount    warm-up orders excluded from stats (default 100)");
+    System.err.println("  intervalMicros pacing between sends in microseconds;");
+    System.err.println("                 latency mode default 1000, forced to 0 in throughput mode");
+    System.err.println();
+    System.err.println("Examples:");
+    System.err.println("  latency:    java com.solfini.performance.KafkaOrderPerformanceTest"
+        + " latency 10000 1 120 200 1000");
+    System.err.println("  throughput: java com.solfini.performance.KafkaOrderPerformanceTest"
+        + " throughput 100000 1 120 200");
+    System.exit(1);
+    throw new AssertionError("unreachable");
+  }
+
+  private void run(Mode mode, int orderCount, int[] userIds, long waitSeconds,
       int warmupCount, long intervalMicros) throws Exception {
     measuredOrderCount = orderCount;
     // clOrdIds 0..orderCount-1 are measured, orderCount..orderCount+warmupCount-1 are warm-up.
@@ -101,6 +153,7 @@ public final class KafkaOrderPerformanceTest {
     receivedClOrdIds = new HashSet<>(orderCount + warmupCount);
     measuredLatenciesNs = new long[orderCount];
     System.out.println("Kafka order performance test");
+    System.out.println("  mode      : " + mode.name().toLowerCase());
     System.out.println("  bootstrap : " + BOOTSTRAP);
     System.out.println("  input     : " + INPUT_TOPIC);
     System.out.println("  output    : " + OUTPUT_TOPIC);
@@ -123,7 +176,7 @@ public final class KafkaOrderPerformanceTest {
       throw new IllegalStateException("Consumer did not start within 30 seconds");
     }
 
-    producer = new KafkaProducer<>(producerProperties());
+    producer = new KafkaProducer<>(producerProperties(mode));
     try {
       // Force metadata fetch and broker connection before any timed send.
       producer.partitionsFor(INPUT_TOPIC);
@@ -159,7 +212,7 @@ public final class KafkaOrderPerformanceTest {
       System.out.println("  GC count after : " + getGcCount());
       System.out.println("  GC collection time: "
           + (gcTimeAfter - gcTimeBefore) + " ms");
-      printSummary(orderCount, sendElapsed, allResponses);
+      printSummary(mode, orderCount, sendElapsed, allResponses);
     } finally {
       producer.close();
     }
@@ -311,7 +364,7 @@ public final class KafkaOrderPerformanceTest {
     if (current != null) current.wakeup();
   }
 
-  private void printSummary(int orderCount, long sendElapsed, boolean allResponses) {
+  private void printSummary(Mode mode, int orderCount, long sendElapsed, boolean allResponses) {
     long responses = Math.min(latencyWriteIndex.get(), orderCount);
     long responseElapsed = lastResponseNs.get() > firstSendNs.get()
         ? lastResponseNs.get() - firstSendNs.get() : 0;
@@ -343,6 +396,11 @@ public final class KafkaOrderPerformanceTest {
       System.out.printf("Latency p99             : %.3f us%n", micros(percentile(sorted, 99.0)));
       System.out.printf("Latency p99.9           : %.3f us%n", micros(percentile(sorted, 99.9)));
     }
+
+    if (mode == Mode.THROUGHPUT) {
+      System.out.println(
+          "NOTE: throughput mode - latency includes queueing delay; use latency mode for per-order latency");
+    }
   }
 
   /** Nearest-rank percentile over a sorted array; safe for any non-empty sample size. */
@@ -353,14 +411,15 @@ public final class KafkaOrderPerformanceTest {
     return sorted[index];
   }
 
-  private static Properties producerProperties() {
+  private static Properties producerProperties(Mode mode) {
     Properties p = new Properties();
     p.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
     p.put(ProducerConfig.CLIENT_ID_CONFIG, "perf-order-producer");
     p.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     p.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
     p.put(ProducerConfig.BATCH_SIZE_CONFIG, "262144");
-    p.put(ProducerConfig.LINGER_MS_CONFIG, "0");
+    // latency mode: send immediately; throughput mode: small linger to fill batches.
+    p.put(ProducerConfig.LINGER_MS_CONFIG, mode == Mode.THROUGHPUT ? "5" : "0");
     p.put(ProducerConfig.BUFFER_MEMORY_CONFIG, "134217728");
     // No compression: per-message compression adds latency with no batching benefit at linger.ms=0.
     p.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none");
