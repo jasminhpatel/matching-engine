@@ -316,7 +316,7 @@ public final class KafkaOrderPerformanceTest {
     order.side(side);
     order.ordType(OrdType.LIMIT);
     order.price(price);
-    order.priceScale((short) 1);
+    order.priceScale((short) 2);
     order.price2(0);
     order.price2Scale((short) 2);
     order.qty(quantity);
