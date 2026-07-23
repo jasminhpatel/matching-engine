@@ -46,8 +46,8 @@ public final class KafkaOrderPerformanceTest {
   private static final AtomicInteger MSG_SEQ = new AtomicInteger();
   private static final AtomicLong KAFKA_SEQ = new AtomicLong();
 
-  private final ConcurrentMap<Integer, Long> sendTimesNs = new ConcurrentHashMap<>();
-  private final Set<Integer> receivedClOrdIds = ConcurrentHashMap.newKeySet();
+  private long[] sendTimesNs;
+  private Set<Integer> receivedClOrdIds;
   private final LatencyStats latency = new LatencyStats();
 
   private final LongAdder totalKafkaMessages = new LongAdder();
@@ -74,6 +74,8 @@ public final class KafkaOrderPerformanceTest {
   }
 
   private void run(int orderCount, int[] userIds, long waitSeconds) throws Exception {
+    sendTimesNs = new long[orderCount];
+    receivedClOrdIds = new HashSet<>(orderCount);
     System.out.println("Kafka order performance test");
     System.out.println("  bootstrap : " + BOOTSTRAP);
     System.out.println("  input     : " + INPUT_TOPIC);
@@ -134,7 +136,7 @@ public final class KafkaOrderPerformanceTest {
 
       orders[i] = encodeOrder(
           userIds[i % userIds.length],
-          String.valueOf(i + 1),
+          String.valueOf(i),
           SECURITY_ID,
           side,
           price,
@@ -149,7 +151,7 @@ public final class KafkaOrderPerformanceTest {
         byte[] data = orders[i];
 
         // Store local monotonic time immediately before send for accurate latency.
-        sendTimesNs.put((i + 1), System.nanoTime());
+        sendTimesNs[i] = System.nanoTime();
         setKafkaHeader(data, NORMAL_API);
 
         producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
@@ -197,8 +199,8 @@ public final class KafkaOrderPerformanceTest {
           executionReports.increment();
 
           int clOrdId = StringUtil.toInt(er.clOrdID());
-          Long sentNs = sendTimesNs.get(clOrdId);
-          if (sentNs == null) {
+          long sentNs = sendTimesNs[clOrdId];
+          if (sentNs == 0) {
             unmatchedReports.increment();
             continue;
           }
@@ -241,7 +243,7 @@ public final class KafkaOrderPerformanceTest {
 
     System.out.println("\n=== Summary ===");
     System.out.printf("Orders requested        : %s%n", format(orderCount));
-    System.out.printf("Orders sent             : %s%n", format(sendTimesNs.size()));
+    System.out.printf("Orders sent             : %s%n", format(orderCount));
     System.out.printf("Unique responses        : %s%n", format(responses));
     System.out.printf("Missing responses       : %s%n", format(orderCount - responses));
     System.out.printf("All responses received  : %s%n", allResponses ? "yes" : "no");
