@@ -17,15 +17,21 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Starts the response consumer first, sends N orders, correlates responses by clOrdId,
  * and prints latency and throughput statistics.
  *
  * Usage:
- *   java com.solfini.performance.KafkaOrderPerformanceTest [orderCount] [userIds] [waitSeconds]
+ *   java com.solfini.performance.KafkaOrderPerformanceTest [orderCount] [userIds] [waitSeconds] [warmupCount] [intervalMicros]
  * Example:
- *   java com.solfini.performance.KafkaOrderPerformanceTest 100000 2,3,4 120
+ *   java com.solfini.performance.KafkaOrderPerformanceTest 100000 2,3,4 120 100 0
+ *
+ * warmupCount   : orders sent (and awaited) before the measured run to warm the producer,
+ *                 broker path, engine and JIT; excluded from latency stats (default 100).
+ * intervalMicros: pacing between measured sends in microseconds; 0 = send as fast as
+ *                 possible (default 0).
  */
 public final class KafkaOrderPerformanceTest {
 
@@ -46,9 +52,14 @@ public final class KafkaOrderPerformanceTest {
   private static final AtomicInteger MSG_SEQ = new AtomicInteger();
   private static final AtomicLong KAFKA_SEQ = new AtomicLong();
 
-  private long[] sendTimesNs;
+  private AtomicLongArray sendTimesNs;
   private Set<Integer> receivedClOrdIds;
+  private int measuredOrderCount;
+  private long[] measuredLatenciesNs;
+  private final AtomicInteger latencyWriteIndex = new AtomicInteger();
   private final LatencyStats latency = new LatencyStats();
+
+  private KafkaProducer<String, byte[]> producer;
 
   private final LongAdder totalKafkaMessages = new LongAdder();
   private final LongAdder executionReports = new LongAdder();
@@ -65,29 +76,45 @@ public final class KafkaOrderPerformanceTest {
     int orderCount = args.length > 0 ? Integer.parseInt(args[0]) : 1;
     int[] userIds = args.length > 1 ? parseUserIds(args[1]) : new int[]{2};
     long waitSeconds = args.length > 2 ? Long.parseLong(args[2]) : 60;
+    int warmupCount = args.length > 3 ? Integer.parseInt(args[3]) : 100;
+    long intervalMicros = args.length > 4 ? Long.parseLong(args[4]) : 0;
 
     if (orderCount <= 0) {
       throw new IllegalArgumentException("orderCount must be greater than zero");
     }
+    if (warmupCount < 0) {
+      throw new IllegalArgumentException("warmupCount must not be negative");
+    }
+    if (intervalMicros < 0) {
+      throw new IllegalArgumentException("intervalMicros must not be negative");
+    }
 
-    new KafkaOrderPerformanceTest().run(orderCount, userIds, waitSeconds);
+    new KafkaOrderPerformanceTest().run(
+        orderCount, userIds, waitSeconds, warmupCount, intervalMicros);
   }
 
-  private void run(int orderCount, int[] userIds, long waitSeconds) throws Exception {
-    sendTimesNs = new long[orderCount];
-    receivedClOrdIds = new HashSet<>(orderCount);
+  private void run(int orderCount, int[] userIds, long waitSeconds,
+      int warmupCount, long intervalMicros) throws Exception {
+    measuredOrderCount = orderCount;
+    // clOrdIds 0..orderCount-1 are measured, orderCount..orderCount+warmupCount-1 are warm-up.
+    sendTimesNs = new AtomicLongArray(orderCount + warmupCount);
+    receivedClOrdIds = new HashSet<>(orderCount + warmupCount);
+    measuredLatenciesNs = new long[orderCount];
     System.out.println("Kafka order performance test");
     System.out.println("  bootstrap : " + BOOTSTRAP);
     System.out.println("  input     : " + INPUT_TOPIC);
     System.out.println("  output    : " + OUTPUT_TOPIC);
     System.out.println("  orders    : " + format(orderCount));
+    System.out.println("  warmup    : " + format(warmupCount));
+    System.out.println("  interval  : " + format(intervalMicros) + " us");
     System.out.println();
 
     CountDownLatch consumerReady = new CountDownLatch(1);
     CountDownLatch responseLatch = new CountDownLatch(orderCount);
+    CountDownLatch warmupLatch = new CountDownLatch(warmupCount);
 
     Thread consumerThread = new Thread(
-        () -> consume(consumerReady, responseLatch),
+        () -> consume(consumerReady, responseLatch, warmupLatch),
         "perf-response-consumer");
     consumerThread.start();
 
@@ -96,33 +123,49 @@ public final class KafkaOrderPerformanceTest {
       throw new IllegalStateException("Consumer did not start within 30 seconds");
     }
 
-    byte[][] orders = generateOrders(orderCount, userIds);
+    producer = new KafkaProducer<>(producerProperties());
+    try {
+      // Force metadata fetch and broker connection before any timed send.
+      producer.partitionsFor(INPUT_TOPIC);
 
-    System.gc();
-    System.out.println("  GC count before : " + getGcCount());
-    long gcTimeBefore = getGcCollectionTime();
-    firstSendNs.set(System.nanoTime());
-    long sendStart = firstSendNs.get();
-    sendOrders(orders);
-    long sendElapsed = System.nanoTime() - sendStart;
+      if (warmupCount > 0) {
+        byte[][] warmupOrders = generateOrders(warmupCount, userIds, orderCount);
+        sendOrders(warmupOrders, orderCount, 0);
+        warmupLatch.await(10, TimeUnit.SECONDS);
+        System.out.println("Warm-up complete: "
+            + format(warmupCount - warmupLatch.getCount()) + " orders");
+      }
 
-    System.out.printf(
-        "Sent %s orders in %.3f ms (%s orders/sec)%n",
-        format(orderCount), millis(sendElapsed),
-        format(rate(orderCount, sendElapsed)));
+      byte[][] orders = generateOrders(orderCount, userIds, 0);
 
-    boolean allResponses = responseLatch.await(waitSeconds, TimeUnit.SECONDS);
+      System.gc();
+      System.out.println("  GC count before : " + getGcCount());
+      long gcTimeBefore = getGcCollectionTime();
+      firstSendNs.set(System.nanoTime());
+      long sendStart = firstSendNs.get();
+      sendOrders(orders, 0, intervalMicros * 1_000L);
+      long sendElapsed = System.nanoTime() - sendStart;
 
-    stopConsumer();
-    consumerThread.join(10_000);
-    long gcTimeAfter = getGcCollectionTime();
-    System.out.println("  GC count after : " + getGcCount());
-    System.out.println("  GC collection time: "
-        + (gcTimeAfter - gcTimeBefore) + " ms");
-    printSummary(orderCount, sendElapsed, allResponses);
+      System.out.printf(
+          "Sent %s orders in %.3f ms (%s orders/sec)%n",
+          format(orderCount), millis(sendElapsed),
+          format(rate(orderCount, sendElapsed)));
+
+      boolean allResponses = responseLatch.await(waitSeconds, TimeUnit.SECONDS);
+
+      stopConsumer();
+      consumerThread.join(10_000);
+      long gcTimeAfter = getGcCollectionTime();
+      System.out.println("  GC count after : " + getGcCount());
+      System.out.println("  GC collection time: "
+          + (gcTimeAfter - gcTimeBefore) + " ms");
+      printSummary(orderCount, sendElapsed, allResponses);
+    } finally {
+      producer.close();
+    }
   }
 
-  private byte[][] generateOrders(int orderCount, int[] userIds) {
+  private byte[][] generateOrders(int orderCount, int[] userIds, int clOrdIdOffset) {
     byte[][] orders = new byte[orderCount][];
     Random random = new Random();
 
@@ -136,7 +179,7 @@ public final class KafkaOrderPerformanceTest {
 
       orders[i] = encodeOrder(
           userIds[i % userIds.length],
-          String.valueOf(i),
+          String.valueOf(clOrdIdOffset + i),
           SECURITY_ID,
           side,
           price,
@@ -145,22 +188,40 @@ public final class KafkaOrderPerformanceTest {
     return orders;
   }
 
-  private void sendOrders(byte[][] orders) {
-    try (KafkaProducer<String, byte[]> producer = new KafkaProducer<>(producerProperties())) {
-      for (int i = 0; i < orders.length; i++) {
-        byte[] data = orders[i];
+  private void sendOrders(byte[][] orders, int clOrdIdOffset, long intervalNanos) {
+    long nextSendNs = System.nanoTime();
 
-        // Store local monotonic time immediately before send for accurate latency.
-        sendTimesNs[i] = System.nanoTime();
-        setKafkaHeader(data, NORMAL_API);
+    for (int i = 0; i < orders.length; i++) {
+      byte[] data = orders[i];
 
-        producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
+      if (intervalNanos > 0) {
+        pace(nextSendNs);
+        nextSendNs += intervalNanos;
       }
-      producer.flush();
+
+      // Store local monotonic time immediately before send for accurate latency.
+      sendTimesNs.set(clOrdIdOffset + i, System.nanoTime());
+      setKafkaHeader(data, NORMAL_API);
+
+      producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
+    }
+    producer.flush();
+  }
+
+  /** Waits until the given nanoTime deadline, parking for the bulk and spinning at the end. */
+  private static void pace(long deadlineNs) {
+    long remaining;
+    while ((remaining = deadlineNs - System.nanoTime()) > 0) {
+      if (remaining > 100_000L) {
+        LockSupport.parkNanos(remaining - 50_000L);
+      } else {
+        Thread.onSpinWait();
+      }
     }
   }
 
-  private void consume(CountDownLatch ready, CountDownLatch responseLatch) {
+  private void consume(CountDownLatch ready, CountDownLatch responseLatch,
+      CountDownLatch warmupLatch) {
     UnsafeBuffer buffer = new UnsafeBuffer();
     MessageHeaderDecoder header = new MessageHeaderDecoder();
     ExecutionReportDecoder er = new ExecutionReportDecoder();
@@ -199,7 +260,11 @@ public final class KafkaOrderPerformanceTest {
           executionReports.increment();
 
           int clOrdId = StringUtil.toInt(er.clOrdID());
-          long sentNs = sendTimesNs[clOrdId];
+          if (clOrdId < 0 || clOrdId >= sendTimesNs.length()) {
+            unmatchedReports.increment();
+            continue;
+          }
+          long sentNs = sendTimesNs.get(clOrdId);
           if (sentNs == 0) {
             unmatchedReports.increment();
             continue;
@@ -207,13 +272,23 @@ public final class KafkaOrderPerformanceTest {
 
           // NEW and TRADE can both arrive. Measure only the first ER per order.
           if (receivedClOrdIds.add(clOrdId)) {
+            if (clOrdId >= measuredOrderCount) {
+              // Warm-up order: counts toward warm-up completion only, not latency stats.
+              warmupLatch.countDown();
+              continue;
+            }
+
             long responseNs = System.nanoTime();
             long latencyNs = responseNs - sentNs;
             latency.record(latencyNs);
+            int idx = latencyWriteIndex.getAndIncrement();
+            if (idx < measuredLatenciesNs.length) {
+              measuredLatenciesNs[idx] = latencyNs;
+            }
             lastResponseNs.accumulateAndGet(responseNs, Math::max);
             responseLatch.countDown();
 
-            long count = receivedClOrdIds.size();
+            long count = latencyWriteIndex.get();
             if (count <= 10 || count % 100_000 == 0) {
               System.out.printf(
                   "[response=%d offset=%d] clOrdId=%s execType=%s status=%s latency=%.3f us%n",
@@ -237,7 +312,7 @@ public final class KafkaOrderPerformanceTest {
   }
 
   private void printSummary(int orderCount, long sendElapsed, boolean allResponses) {
-    long responses = receivedClOrdIds.size();
+    long responses = Math.min(latencyWriteIndex.get(), orderCount);
     long responseElapsed = lastResponseNs.get() > firstSendNs.get()
         ? lastResponseNs.get() - firstSendNs.get() : 0;
 
@@ -258,6 +333,24 @@ public final class KafkaOrderPerformanceTest {
     System.out.printf("Latency min             : %.3f us%n", micros(latency.min()));
     System.out.printf("Latency avg             : %.3f us%n", micros(latency.avg()));
     System.out.printf("Latency max             : %.3f us%n", micros(latency.max()));
+
+    int recorded = (int) Math.min(latencyWriteIndex.get(), measuredLatenciesNs.length);
+    if (recorded > 0) {
+      long[] sorted = Arrays.copyOf(measuredLatenciesNs, recorded);
+      Arrays.sort(sorted);
+      System.out.printf("Latency p50             : %.3f us%n", micros(percentile(sorted, 50.0)));
+      System.out.printf("Latency p90             : %.3f us%n", micros(percentile(sorted, 90.0)));
+      System.out.printf("Latency p99             : %.3f us%n", micros(percentile(sorted, 99.0)));
+      System.out.printf("Latency p99.9           : %.3f us%n", micros(percentile(sorted, 99.9)));
+    }
+  }
+
+  /** Nearest-rank percentile over a sorted array; safe for any non-empty sample size. */
+  private static long percentile(long[] sorted, double percent) {
+    int index = (int) Math.ceil(percent / 100.0 * sorted.length) - 1;
+    if (index < 0) index = 0;
+    if (index >= sorted.length) index = sorted.length - 1;
+    return sorted[index];
   }
 
   private static Properties producerProperties() {
@@ -269,7 +362,8 @@ public final class KafkaOrderPerformanceTest {
     p.put(ProducerConfig.BATCH_SIZE_CONFIG, "262144");
     p.put(ProducerConfig.LINGER_MS_CONFIG, "0");
     p.put(ProducerConfig.BUFFER_MEMORY_CONFIG, "134217728");
-    p.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+    // No compression: per-message compression adds latency with no batching benefit at linger.ms=0.
+    p.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "none");
     p.put(ProducerConfig.ACKS_CONFIG, "0");
     p.put(ProducerConfig.RETRIES_CONFIG, "0");
     p.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");
