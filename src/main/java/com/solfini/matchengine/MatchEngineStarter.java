@@ -159,7 +159,7 @@ public class MatchEngineStarter implements Constants {
     }
 
     // setup log level
-    LogLevel.setLevel(Level.valueOf(PropertyReader.getProperty(Constants.LOGLEVEL, "INFO").trim().toUpperCase()));
+    LogLevel.setLevel(Level.valueOf(PropertyReader.getProperty(Constants.LOGLEVEL, "WARN").trim().toUpperCase()));
 
     return true;
   }
