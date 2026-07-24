@@ -19,26 +19,23 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 /**
- * Sustained-rate performance test: produces orders at a fixed target rate and measures
- * both latency and throughput while the pipeline is under that steady load.
- *
- * Sends are paced with absolute scheduling: order i is due at startNs + i * interval,
- * and the sender spins (never sleeps) until each deadline. If the sender falls behind,
- * it sends immediately to catch up without skipping orders. Latency is measured from
- * the SCHEDULED send time (coordinated-omission aware), so producer backpressure shows
- * up in the latency numbers instead of being hidden.
+ * Batch blast performance test: pre-generates all orders in memory (SBE encoding and
+ * Kafka header included), then sends them in batches of batchSize back-to-back as fast
+ * as possible - each batch is sent with producer.send() and flushed before the next
+ * batch starts. There is no rate pacing. Latency is measured from each order's actual
+ * send time, so it includes broker/engine queueing delay under the blast load.
  *
  * Usage:
- *   java com.solfini.performance.KafkaOrderPerformanceTest2 [orderCount] [userIds] [waitSeconds] [warmupCount] [targetRatePerSec]
+ *   java com.solfini.performance.KafkaOrderPerformanceTest2 [orderCount] [userIds] [waitSeconds] [warmupCount] [batchSize]
  * Example:
  *   java com.solfini.performance.KafkaOrderPerformanceTest2 500000 1000 120 200 100000
  *
- * orderCount      : measured orders to send (default 500000).
- * userIds         : comma-separated user ids to spread orders across (default 1).
- * waitSeconds     : max seconds to wait for responses (default 120).
- * warmupCount     : orders sent (and awaited) before the measured run to warm the producer,
- *                   broker path, engine and JIT; excluded from latency stats (default 200).
- * targetRatePerSec: target send rate in orders/sec (default 100000).
+ * orderCount : measured orders to send (default 500000).
+ * userIds    : comma-separated user ids to spread orders across (default 1).
+ * waitSeconds: max seconds to wait for responses (default 120).
+ * warmupCount: orders sent (and awaited) before the measured run to warm the producer,
+ *              broker path, engine and JIT; excluded from latency stats (default 200).
+ * batchSize  : orders sent back-to-back per producer.flush() (default 100000).
  */
 public final class KafkaOrderPerformanceTest2 {
 
@@ -60,7 +57,7 @@ public final class KafkaOrderPerformanceTest2 {
 
   // clOrdIds are 1-based: 1..orderCount are measured, orderCount+1..orderCount+warmupCount
   // are warm-up. Index 0 is unused so a garbage clOrdId (StringUtil.toInt -> 0) never matches.
-  private AtomicLongArray scheduledSendNs;
+  private AtomicLongArray sendTimesNs;
   private Set<Integer> receivedClOrdIds;
   private int measuredOrderCount;
   private long[] measuredLatenciesNs;
@@ -85,7 +82,7 @@ public final class KafkaOrderPerformanceTest2 {
     int[] userIds = args.length > 1 ? parseUserIds(args[1]) : new int[]{1};
     long waitSeconds = args.length > 2 ? Long.parseLong(args[2]) : 120;
     int warmupCount = args.length > 3 ? Integer.parseInt(args[3]) : 200;
-    long targetRatePerSec = args.length > 4 ? Long.parseLong(args[4]) : 100_000;
+    int batchSize = args.length > 4 ? Integer.parseInt(args[4]) : 100_000;
 
     if (orderCount <= 0) {
       throw new IllegalArgumentException("orderCount must be greater than zero");
@@ -93,31 +90,28 @@ public final class KafkaOrderPerformanceTest2 {
     if (warmupCount < 0) {
       throw new IllegalArgumentException("warmupCount must not be negative");
     }
-    if (targetRatePerSec <= 0 || targetRatePerSec > 1_000_000_000L) {
-      throw new IllegalArgumentException(
-          "targetRatePerSec must be between 1 and 1000000000");
+    if (batchSize <= 0) {
+      throw new IllegalArgumentException("batchSize must be greater than zero");
     }
 
     new KafkaOrderPerformanceTest2().run(
-        orderCount, userIds, waitSeconds, warmupCount, targetRatePerSec);
+        orderCount, userIds, waitSeconds, warmupCount, batchSize);
   }
 
   private void run(int orderCount, int[] userIds, long waitSeconds,
-      int warmupCount, long targetRatePerSec) throws Exception {
+      int warmupCount, int batchSize) throws Exception {
     measuredOrderCount = orderCount;
-    scheduledSendNs = new AtomicLongArray(orderCount + warmupCount + 1);
+    sendTimesNs = new AtomicLongArray(orderCount + warmupCount + 1);
     receivedClOrdIds = new HashSet<>(orderCount + warmupCount);
     measuredLatenciesNs = new long[orderCount];
-    long intervalNs = 1_000_000_000L / targetRatePerSec;
 
-    System.out.println("Kafka sustained-rate order performance test");
+    System.out.println("Kafka batch blast order performance test");
     System.out.println("  bootstrap : " + BOOTSTRAP);
     System.out.println("  input     : " + INPUT_TOPIC);
     System.out.println("  output    : " + OUTPUT_TOPIC);
     System.out.println("  orders    : " + format(orderCount));
     System.out.println("  warmup    : " + format(warmupCount));
-    System.out.println("  rate      : " + format(targetRatePerSec)
-        + " orders/sec (interval " + format(intervalNs) + " ns)");
+    System.out.println("  batch     : " + format(batchSize) + " orders per flush");
     System.out.println();
 
     CountDownLatch consumerReady = new CountDownLatch(1);
@@ -152,12 +146,12 @@ public final class KafkaOrderPerformanceTest2 {
       System.gc();
       System.out.println("  GC count before : " + getGcCount());
       long gcTimeBefore = getGcCollectionTime();
-      long sendElapsed = sendOrdersAtRate(orders, intervalNs);
+      long sendElapsed = sendOrdersInBatches(orders, batchSize);
 
       System.out.printf(
-          "Sent %s orders in %.3f ms (target %s, achieved %s orders/sec)%n",
+          "Sent %s orders in %.3f ms (%s orders/sec)%n",
           format(orderCount), millis(sendElapsed),
-          format(targetRatePerSec), format(rate(orderCount, sendElapsed)));
+          format(rate(orderCount, sendElapsed)));
 
       boolean allResponses = responseLatch.await(waitSeconds, TimeUnit.SECONDS);
 
@@ -167,7 +161,7 @@ public final class KafkaOrderPerformanceTest2 {
       System.out.println("  GC count after : " + getGcCount());
       System.out.println("  GC collection time: "
           + (gcTimeAfter - gcTimeBefore) + " ms");
-      printSummary(orderCount, targetRatePerSec, sendElapsed, allResponses);
+      printSummary(orderCount, batchSize, sendElapsed, allResponses);
     } finally {
       producer.close();
     }
@@ -193,48 +187,42 @@ public final class KafkaOrderPerformanceTest2 {
           side,
           price,
           quantity);
+      // Stamp the Kafka header now so nothing but timestamp+send happens in the send loop.
+      setKafkaHeader(orders[i], NORMAL_API);
     }
     return orders;
   }
 
-  /** Warm-up sends are unpaced; their (actual) send times only feed the warm-up latch. */
+  /** Warm-up sends only feed the warm-up latch; their send times never reach latency stats. */
   private void sendWarmupOrders(byte[][] orders, int clOrdIdOffset) {
     for (int i = 0; i < orders.length; i++) {
-      byte[] data = orders[i];
-      scheduledSendNs.set(clOrdIdOffset + i + 1, System.nanoTime());
-      setKafkaHeader(data, NORMAL_API);
-      producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
+      sendTimesNs.set(clOrdIdOffset + i + 1, System.nanoTime());
+      producer.send(new ProducerRecord<>(INPUT_TOPIC, orders[i]));
     }
     producer.flush();
   }
 
   /**
-   * Sends orders paced to the target rate using absolute scheduling: order i is due at
-   * startNs + i * intervalNs. Spins until each deadline (no sleeping - at 100k/sec the
-   * interval is 10 us, far below timer granularity). If behind schedule, sends
-   * immediately to catch up; deadlines never drift because they are computed from the
-   * fixed start time, not from "now". Returns the send phase elapsed nanos.
+   * Blasts fully pre-generated orders in batches of batchSize: each batch's orders are
+   * sent back-to-back with producer.send(), flushed, and the next batch starts
+   * immediately - no rate pacing. The final batch may be partial when orderCount is not
+   * a multiple of batchSize. Returns the send phase elapsed nanos.
    */
-  private long sendOrdersAtRate(byte[][] orders, long intervalNs) {
+  private long sendOrdersInBatches(byte[][] orders, int batchSize) {
     long startNs = System.nanoTime();
     firstSendNs.set(startNs);
 
-    for (int i = 0; i < orders.length; i++) {
-      byte[] data = orders[i];
-      long scheduledNs = startNs + i * intervalNs;
-
-      while (System.nanoTime() < scheduledNs) {
-        Thread.onSpinWait();
+    for (int from = 0; from < orders.length; from += batchSize) {
+      int to = Math.min(from + batchSize, orders.length);
+      for (int i = from; i < to; i++) {
+        // Latency is measured from the actual send time; under blast load it includes
+        // broker/engine queueing delay. Index is clOrdId (1-based; index 0 reserved
+        // for garbage clOrdIds).
+        sendTimesNs.set(i + 1, System.nanoTime());
+        producer.send(new ProducerRecord<>(INPUT_TOPIC, orders[i]));
       }
-
-      // Latency is measured from the scheduled time (coordinated-omission aware):
-      // if the sender falls behind, the delay counts against the order's latency.
-      scheduledSendNs.set(i + 1, System.nanoTime());
-
-      setKafkaHeader(data, NORMAL_API);
-      producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
+      producer.flush();
     }
-    producer.flush();
     return System.nanoTime() - startNs;
   }
 
@@ -278,12 +266,12 @@ public final class KafkaOrderPerformanceTest2 {
           executionReports.increment();
 
           int clOrdId = StringUtil.toInt(er.clOrdID());
-          if (clOrdId <= 0 || clOrdId >= scheduledSendNs.length()) {
+          if (clOrdId <= 0 || clOrdId >= sendTimesNs.length()) {
             unmatchedReports.increment();
             continue;
           }
-          long scheduledNs = scheduledSendNs.get(clOrdId);
-          if (scheduledNs == 0) {
+          long sentNs = sendTimesNs.get(clOrdId);
+          if (sentNs == 0) {
             unmatchedReports.increment();
             continue;
           }
@@ -297,7 +285,7 @@ public final class KafkaOrderPerformanceTest2 {
             }
 
             long responseNs = System.nanoTime();
-            long latencyNs = responseNs - scheduledNs;
+            long latencyNs = responseNs - sentNs;
             latency.record(latencyNs);
             int idx = latencyWriteIndex.getAndIncrement();
             if (idx < measuredLatenciesNs.length) {
@@ -329,8 +317,8 @@ public final class KafkaOrderPerformanceTest2 {
     if (current != null) current.wakeup();
   }
 
-  private void printSummary(int orderCount, long targetRatePerSec, long sendElapsed,
-      boolean allResponses) {
+  private void printSummary(int orderCount, int batchSize,
+      long sendElapsed, boolean allResponses) {
     long responses = Math.min(latencyWriteIndex.get(), orderCount);
     long responseElapsed = lastResponseNs.get() > firstSendNs.get()
         ? lastResponseNs.get() - firstSendNs.get() : 0;
@@ -347,15 +335,10 @@ public final class KafkaOrderPerformanceTest2 {
     System.out.printf("Skipped messages        : %s%n", format(skippedMessages.sum()));
     System.out.printf("Unmatched reports       : %s%n", format(unmatchedReports.sum()));
     System.out.printf("Send elapsed            : %.3f ms%n", millis(sendElapsed));
-    System.out.printf("Target send rate        : %s orders/sec%n", format(targetRatePerSec));
+    System.out.printf("Batch size              : %s orders%n", format(batchSize));
+    System.out.printf("Batches sent            : %s%n",
+        format((orderCount + batchSize - 1L) / batchSize));
     System.out.printf("Achieved send rate      : %s orders/sec%n", format(achievedRate));
-    if (achievedRate < targetRatePerSec * 0.98) {
-      System.out.printf(
-          "WARNING: achieved send rate is more than 2%% below target"
-              + " (%s vs %s orders/sec) - the producer/host cannot sustain this rate;"
-              + " latency numbers include the resulting backlog%n",
-          format(achievedRate), format(targetRatePerSec));
-    }
     System.out.printf("Response elapsed        : %.3f ms%n", millis(responseElapsed));
     System.out.printf("Response throughput     : %s orders/sec%n", format(rate(responses, responseElapsed)));
     System.out.printf("Latency min             : %.3f us%n", micros(latency.min()));
@@ -372,8 +355,8 @@ public final class KafkaOrderPerformanceTest2 {
       System.out.printf("Latency p99.9           : %.3f us%n", micros(percentile(sorted, 99.9)));
     }
     System.out.println(
-        "NOTE: latency is measured from each order's SCHEDULED send time"
-            + " (coordinated-omission aware)");
+        "NOTE: blast mode - latency measured from actual send time"
+            + " and includes broker/engine queueing delay");
   }
 
   /** Nearest-rank percentile over a sorted array; safe for any non-empty sample size. */
