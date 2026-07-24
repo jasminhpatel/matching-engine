@@ -39,7 +39,8 @@ import java.util.concurrent.atomic.*;
  */
 public final class KafkaOrderPerformanceTest2 {
 
-  private static final String BOOTSTRAP = "10.20.0.14:9092";
+  //private static final String BOOTSTRAP = "10.20.0.14:9092";
+  private static final String BOOTSTRAP = "localhost:9092";
   private static final String INPUT_TOPIC = "api01";
   private static final String OUTPUT_TOPIC = "me01";
   private static final int OUTPUT_PARTITION = 0;
@@ -78,11 +79,11 @@ public final class KafkaOrderPerformanceTest2 {
   private KafkaConsumer<String, byte[]> consumer;
 
   public static void main(String[] args) throws Exception {
-    int orderCount = args.length > 0 ? Integer.parseInt(args[0]) : 500_000;
+    int orderCount = args.length > 0 ? Integer.parseInt(args[0]) : 1_000_000;
     int[] userIds = args.length > 1 ? parseUserIds(args[1]) : new int[]{1};
     long waitSeconds = args.length > 2 ? Long.parseLong(args[2]) : 120;
     int warmupCount = args.length > 3 ? Integer.parseInt(args[3]) : 200;
-    int batchSize = args.length > 4 ? Integer.parseInt(args[4]) : 100_000;
+    int batchSize = args.length > 4 ? Integer.parseInt(args[4]) : 130_000;
 
     if (orderCount <= 0) {
       throw new IllegalArgumentException("orderCount must be greater than zero");
@@ -213,6 +214,7 @@ public final class KafkaOrderPerformanceTest2 {
     firstSendNs.set(startNs);
 
     for (int from = 0; from < orders.length; from += batchSize) {
+      long start = System.currentTimeMillis();
       int to = Math.min(from + batchSize, orders.length);
       for (int i = from; i < to; i++) {
         // Latency is measured from the actual send time; under blast load it includes
@@ -221,7 +223,16 @@ public final class KafkaOrderPerformanceTest2 {
         sendTimesNs.set(i + 1, System.nanoTime());
         producer.send(new ProducerRecord<>(INPUT_TOPIC, orders[i]));
       }
-      producer.flush();
+      long end = System.currentTimeMillis();
+      long timeMs = end - start;
+      if (timeMs < 1000) {
+        System.out.println("Producer waiting..." + timeMs);
+        try {
+          Thread.sleep((1000 - timeMs));
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
     return System.nanoTime() - startNs;
   }
