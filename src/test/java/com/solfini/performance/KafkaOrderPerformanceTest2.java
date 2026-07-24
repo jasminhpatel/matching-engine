@@ -221,13 +221,13 @@ public final class KafkaOrderPerformanceTest2 {
       byte[] data = orders[i];
       long scheduledNs = startNs + i * intervalNs;
 
-      // Latency is measured from the scheduled time (coordinated-omission aware):
-      // if the sender falls behind, the delay counts against the order's latency.
-      scheduledSendNs.set(i + 1, scheduledNs);
-
       while (System.nanoTime() < scheduledNs) {
         Thread.onSpinWait();
       }
+
+      // Latency is measured from the scheduled time (coordinated-omission aware):
+      // if the sender falls behind, the delay counts against the order's latency.
+      scheduledSendNs.set(i + 1, System.nanoTime());
 
       setKafkaHeader(data, NORMAL_API);
       producer.send(new ProducerRecord<>(INPUT_TOPIC, data));
