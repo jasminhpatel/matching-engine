@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.*;
  */
 public final class KafkaOrderPerformanceTest2 {
 
-  //private static final String BOOTSTRAP = "10.20.0.14:9092";
-  private static final String BOOTSTRAP = "localhost:9092";
+  private static final String BOOTSTRAP = "10.20.0.14:9092";
+  //private static final String BOOTSTRAP = "localhost:9092";
   private static final String INPUT_TOPIC = "api01";
   private static final String OUTPUT_TOPIC = "me01";
   private static final int OUTPUT_PARTITION = 0;
