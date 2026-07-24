@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.*;
  */
 public final class KafkaOrderPerformanceTest2 {
 
-  private static final String BOOTSTRAP = "10.20.0.50:9092";
+  private static final String BOOTSTRAP = "10.20.0.14:9092";
   private static final String INPUT_TOPIC = "api01";
   private static final String OUTPUT_TOPIC = "me01";
   private static final int OUTPUT_PARTITION = 0;
@@ -51,7 +51,7 @@ public final class KafkaOrderPerformanceTest2 {
   private static final short LENGTH_FIELD_SIZE = 2;
   private static final int SBE_OFFSET = 19;
   private static final byte NORMAL_API = 2;
-  private static final int SECURITY_ID = 52;
+  private static final int SECURITY_ID = 3;
   private static final int BUFFER_SIZE = 4096;
   private static final Duration POLL_TIMEOUT = Duration.ofMillis(200);
 
@@ -178,11 +178,13 @@ public final class KafkaOrderPerformanceTest2 {
     Random random = new Random();
 
     for (int i = 0; i < orderCount; i++) {
-      Side side = i % 2 == 0 ? Side.BUY : Side.SELL;
+      Side side = random.nextBoolean() ? Side.BUY : Side.SELL;
+      //Side side = i%2 == 0 ? Side.BUY : Side.SELL;
       long quantity = 1L + random.nextInt(100_000);
       long price = side == Side.BUY
-          ? 2_500_000L + random.nextInt(2_500_000)
-          : 4_500_000L + random.nextInt(2_500_000);
+          ? 1_000_00L + random.nextInt(1_500_00)  // buy between 1000 to 1500
+          : 1_400_00L + random.nextInt(1_900_00); // sell between 1400 to 1900, match between 1400 to 1500
+
 
       orders[i] = encodeOrder(
           userIds[i % userIds.length],
@@ -438,7 +440,7 @@ public final class KafkaOrderPerformanceTest2 {
     order.side(side);
     order.ordType(OrdType.LIMIT);
     order.price(price);
-    order.priceScale((short) 1);
+    order.priceScale((short) 2);
     order.price2(0);
     order.price2Scale((short) 2);
     order.qty(quantity);
@@ -458,7 +460,7 @@ public final class KafkaOrderPerformanceTest2 {
     order.quoteType(QuoteType.NULL_VAL);
     order.quoteTargetUserId(0);
     order.clOrdID(clOrdId);
-    order.symbol("BTC/USD");
+    order.symbol("ETH/USD");
     order.platform("perf");
     order.accountId(String.valueOf(userId));
 
