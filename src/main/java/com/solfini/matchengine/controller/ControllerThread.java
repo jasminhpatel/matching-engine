@@ -248,7 +248,8 @@ public class ControllerThread implements Runnable, Constants {
     lastOutputSequence = 0;
     if (null != getSnapshotId()) {
       long snapId = StringUtil.toLong(getSnapshotId());
-      boolean replay = (ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY);
+      boolean replay = (ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY)
+          || (ReplayMode.SELECTED_INPUT == LOAD_FROM_SNAP_AND_REPLAY);
 
       LOGGER.info(LOG_FMT_4, "WarmStart: Restoring state from snapshot: snapId=", snapId, ", replay=", replay);
       SnapLoader snapLoader = new SnapLoader(snapId);
@@ -447,7 +448,8 @@ public class ControllerThread implements Runnable, Constants {
           } else {
             // If we did restore the state from a snapshot (+ replay), then we need to tell the DR listener
             // to continue to read the PRIMARY output queue from where we left off.
-            if ((ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY)) {
+            if ((ReplayMode.OUTPUT == LOAD_FROM_SNAP_AND_REPLAY) || (ReplayMode.BOTH == LOAD_FROM_SNAP_AND_REPLAY)
+                || (ReplayMode.SELECTED_INPUT == LOAD_FROM_SNAP_AND_REPLAY)) {
               startListener(new KafkaDRFixListener(KafkaDRFixListener.LOAD_STRATEGY_REPLAY_FROM_OFFSET, lastOffset), KAFKA_DR_FIX_LISTENER);
             } else {
               startListener(new KafkaDRFixListener(KafkaDRFixListener.LOAD_STRATEGY_NONE), KAFKA_DR_FIX_LISTENER);
