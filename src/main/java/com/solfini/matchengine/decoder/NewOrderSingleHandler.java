@@ -38,8 +38,8 @@ public class NewOrderSingleHandler implements Constants {
   }
 
   private static AtomicLong[] buildSecondaryOrderIdArr() {
-    final AtomicLong[] secondaryOrderIdArr = new AtomicLong[8192];
-    for (int i = 0; i < 8192; i++)
+    final AtomicLong[] secondaryOrderIdArr = new AtomicLong[16384];
+    for (int i = 0; i < 16384; i++)
       secondaryOrderIdArr[i] = new AtomicLong();
 
     return secondaryOrderIdArr;
