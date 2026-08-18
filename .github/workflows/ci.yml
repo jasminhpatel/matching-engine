@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  # Every pull request, on open / reopen / new pushes to the branch.
+  pull_request:
+  # Merges (and any direct push) landing on main.
+  push:
+    branches: [main]
+  # Manual re-runs, useful because a red run here is often caused by one of the
+  # dependency repositories rather than by anything in this repo.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Supersede in-flight runs for a branch that gets new commits, but never cancel
+# a run for main — those results are the record for the merge.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # persist-credentials: false because nothing here uses git after the
+      # checkout, and the credentials it would otherwise leave in .git/config are
+      # actively harmful: they land as an http.https://github.com/.extraheader
+      # Authorization header that takes precedence over the credentials in the
+      # clone URLs used by scripts/install-dependencies.sh, so the dependency
+      # clones authenticate as this repo's GITHUB_TOKEN — which cannot see the
+      # other repositories — and fail with "Repository not found".
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # scripts/install-dependencies.sh clones four private org repositories. The
+      # automatic GITHUB_TOKEN is scoped to this repo alone and cannot read them,
+      # so a separate token is required. Failing here with an explicit message
+      # beats a confusing authentication error from git deeper in the run.
+      - name: Check dependency-repo token is configured
+        env:
+          DEPS_READ_TOKEN: ${{ secrets.DEPS_READ_TOKEN }}
+        run: |
+          if [ -z "$DEPS_READ_TOKEN" ]; then
+            echo "::error::secrets.DEPS_READ_TOKEN is not set. Create a token with read access to solfini-org/solfini-infrastructure-messaging, solfini-sbe-messaging, solfini-admin-messaging and XChange (fine-grained: Contents=Read; classic: repo), then add it as the repository secret DEPS_READ_TOKEN."
+            exit 1
+          fi
+
+      # Two JDKs, because the XChange fork pins Lombok 1.18.26, which predates JDK
+      # 21 and dies on it with "NoSuchFieldError: JCTree$JCImport.qualid". 17 is
+      # installed first so that 21 ends up as the default for this project, whose
+      # maven-compiler-plugin is configured with source/target 21.
+      - name: Set up JDK 17 (XChange fork and rescu)
+        id: jdk17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up JDK 21 (this project)
+        id: jdk21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The script owns the dependency list, so it also derives the cache key:
+      # --print-fingerprint resolves every dependency ref to a commit with
+      # `git ls-remote` (no clones, no builds) and hashes the result. Deriving the
+      # key from the same manifest that gets built means the cache cannot key on a
+      # different set of dependencies than the one actually installed.
+      - name: Compute dependency fingerprint
+        id: deps
+        env:
+          DEPS_READ_TOKEN: ${{ secrets.DEPS_READ_TOKEN }}
+        run: |
+          # Assign first, then echo. `echo "x=$(cmd)"` would report the exit status
+          # of echo, so a failure to reach the dependency repositories would be
+          # swallowed here, the cache would be keyed on an empty fingerprint, and the
+          # run would fail later and less clearly.
+          fingerprint="$(./scripts/install-dependencies.sh --print-fingerprint)"
+          if [ -z "$fingerprint" ]; then
+            echo "::error::Could not resolve the dependency commits. DEPS_READ_TOKEN most likely cannot read the solfini-org repositories: check that it was created with Resource owner = solfini-org, that all four repositories are selected, that Contents = Read-only is granted, and that the org has approved it if approval is required."
+            exit 1
+          fi
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Maven repository
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: m2-${{ runner.os }}-${{ steps.deps.outputs.fingerprint }}-${{ hashFiles('pom.xml') }}
+          restore-keys: |
+            m2-${{ runner.os }}-${{ steps.deps.outputs.fingerprint }}-
+            m2-${{ runner.os }}-
+
+      # No `if: cache-hit` guard on purpose. The script stamps the fingerprint into
+      # the cached repository and returns immediately when nothing has moved, which
+      # is also correct after a restore-keys partial hit — there the restored jars
+      # were built from *different* commits and do need rebuilding, and a cache-hit
+      # guard would wrongly skip that.
+      #
+      # The checkouts go under RUNNER_TEMP so they are neither cached nor left in
+      # the workspace.
+      - name: Install private and forked dependencies
+        env:
+          DEPS_READ_TOKEN: ${{ secrets.DEPS_READ_TOKEN }}
+          JDK17_HOME: ${{ steps.jdk17.outputs.path }}
+          JDK21_HOME: ${{ steps.jdk21.outputs.path }}
+          SOLFINI_DEPS_DIR: ${{ runner.temp }}/solfini-deps
+        run: ./scripts/install-dependencies.sh
+
+      # Compiling here means a compile error is reported as a build failure rather
+      # than as four simultaneous test failures. This also exercises the jar
+      # assembly and the prepare-package copy-dependencies into lib/, which is
+      # what ships.
+      #
+      # `package`, not `verify`: the jacoco default-check execution binds to verify
+      # and enforces a 60% complexity ratio over the whole bundle, which this
+      # project does not currently meet. Gating merges on that is a separate
+      # decision from turning CI on, so CI builds and tests without silently
+      # weakening the rule that is configured in the pom.
+      #
+      # -Dskip-tests, not -DskipTests: surefire here is configured with
+      # <skipTests>${skip-tests}</skipTests> and the pom defaults that property to
+      # true. A plugin <configuration> value wins over surefire's own -DskipTests
+      # user property, so -DskipTests would be silently ignored.
+      - name: Build
+        run: mvn -B -ntp -Dskip-tests=true package
+
+      # Each test class gets its own JVM (reuseForks=false). That is not tuning:
+      # OrderBookTest.createInstruments populates the *static* InstrumentCache
+      # from @Before, ~60 classes extend that fixture, and nothing ever clears
+      # it. With surefire's default single reused JVM the cache grows until the
+      # heap is gone and whichever class is running dies of "Java heap space",
+      # taking the rest of the run with it — one such run produced 224
+      # OutOfMemoryError results, and excluding the casualties never converged
+      # because the victim moves with the class set. Several classes also kill
+      # their own JVM outright. A fresh JVM per class contains both failure modes
+      # and keeps peak heap flat, at the cost of one JVM start per class.
+      #
+      # surefire.timeout bounds a single class's *test run* (maven startup and
+      # compilation are not on its clock), so a hanging test fails its class
+      # instead of burning the job timeout. 120s here against the 10s budget used
+      # to pick the class list, because a runner is slower than a laptop and this
+      # is a hang guard, not the gate.
+      #
+      # Which classes run is decided by subtraction: everything surefire finds,
+      # minus .github/perf-test-excludes.txt and .github/quarantined-tests.txt.
+      # A newly added test therefore runs by default and has to be named to be
+      # skipped.
+      - name: Test
+        run: |
+          cat .github/perf-test-excludes.txt .github/quarantined-tests.txt \
+            > "${RUNNER_TEMP}/surefire-excludes.txt"
+          mvn -B -ntp -Dskip-tests=false test \
+            -Dsurefire.excludesFile="${RUNNER_TEMP}/surefire-excludes.txt" \
+            -DreuseForks=false \
+            -Dsurefire.timeout=120
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: warn

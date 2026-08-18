@@ -1,0 +1,76 @@
+# Performance harnesses that the CI test run skips. Permanent exclusions.
+#
+# Combined with .github/quarantined-tests.txt by the Test step in
+# .github/workflows/ci.yml and passed to surefire as -Dsurefire.excludesFile.
+# The pom's own <excludes> (**/integration/*.java) still applies; these patterns
+# are added to it, not substituted for it. Nothing here is skipped for a local
+# `mvn -Dskip-tests=false test`, so the benchmarks stay one command away.
+#
+# Only whole-line comments are safe in this file: surefire skips lines starting
+# with '#' but would read anything trailing a pattern as part of the pattern.
+#
+# ---------------------------------------------------------------------------
+# 1. Declared benchmarks
+# ---------------------------------------------------------------------------
+# Driven by a main() and by the run*.sh launchers in the repository root, sized
+# in millions of orders.
+
+# KafkaOrderPerformanceTest, KafkaOrderProducer, KafkaOrderResponseConsumer, ...
+**/performance/*.java
+
+# RiskPerformanceTest, LogPerformanceTest, CustomLogPerformanceTest,
+# ReusableLogPerformanceTest — main()-driven loops of 1M to 10M iterations.
+**/*PerformanceTest.java
+
+# Order book throughput harnesses; both load 1,000,000 orders per run and have
+# dedicated launchers (runArrayOrderBookTest.sh, runLiquidityOrderBookTest.sh).
+**/ArrayOrderBookTest.java
+**/LiquidityOrderBookTest.java
+
+# ---------------------------------------------------------------------------
+# 2. Benchmarks wearing a unit test's name
+# ---------------------------------------------------------------------------
+# These are named like unit tests and run under surefire, but each one is a
+# timing loop that prints elapsed milliseconds and asserts little or nothing.
+# They are perf tests and belong here with the rest. Largest loop per class:
+#
+#   DoubleMathTest              100,000,000
+#   OrderFilterEncoderTest       10,000,000
+#   MessageEncoderTest            1,000,000
+#   MessagePositionEncoderTest    1,000,000
+#   MemoryMappedUtilTest          1,000,000
+#   TickerTrieTest                1,000,000
+#   OrderEncoderTest              1,000,000
+#   ByteBufferTest                1,000,000
+#   PositionReportTest            1,000,000
+#   OrderTest                     1,000,000
+#   TestKafkaPublisher            1,000,000
+#   TestMessagePublisher            500,000
+#   TestMessagePublisher2           500,000
+#   StringPoolTest                  100,000
+#   DecoderTest                     100,000
+#
+# Excluding them is also what makes the suite survive a CI runner. Surefire
+# reuses one JVM for every class, so the garbage these loops produce accumulates
+# until some later, innocent class dies of "Java heap space" — and once that
+# happens com.solfini.user.UserCache is left permanently un-initialisable and
+# every remaining class fails with "Could not initialize class
+# com.solfini.user.UserCache". Two separate runs of this suite died exactly that
+# way, in MarketDataTest and in ChartStatsTest, neither of which allocates
+# anything unusual itself.
+
+**/DoubleMathTest.java
+**/OrderFilterEncoderTest.java
+**/MessageEncoderTest.java
+**/MessagePositionEncoderTest.java
+**/MemoryMappedUtilTest.java
+**/TickerTrieTest.java
+**/OrderEncoderTest.java
+**/ByteBufferTest.java
+**/PositionReportTest.java
+**/OrderTest.java
+**/TestKafkaPublisher.java
+**/TestMessagePublisher.java
+**/TestMessagePublisher2.java
+**/StringPoolTest.java
+**/DecoderTest.java

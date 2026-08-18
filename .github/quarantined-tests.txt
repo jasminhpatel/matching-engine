@@ -1,0 +1,175 @@
+# Tests CI knows about but does not run. TEMPORARY — this list should shrink.
+#
+# How this list was produced, rather than guessed: every test class in the repo
+# was run on its own, in its own JVM, with a 1500m heap and a 10 second budget
+# for the test run itself (surefire's forkedProcessTimeoutInSeconds, so maven
+# startup and compilation are not on the clock). 194 classes were measured; the
+# 96 that passed are what CI runs, and the 98 below are what it does not. Each is
+# grouped by how it actually failed.
+#
+# Nothing here is a regression from enabling CI. All of it was already broken,
+# already dependent on infrastructure nobody provides, or already too heavy.
+#
+# This is not the same thing as .github/perf-test-excludes.txt. Perf harnesses
+# are excluded permanently and on purpose. Everything here is meant to come back:
+# fix a class, delete its line, and CI picks it up on the next run.
+#
+# Nothing here is skipped for a local `mvn -Dskip-tests=false test`, so all of it
+# stays runnable while it is being fixed.
+#
+# Only whole-line comments are safe in this file: surefire skips lines starting
+# with '#' but would read anything trailing a pattern as part of the pattern.
+#
+# Not listed, and not runnable either way: **/integration/*.java, which the pom
+# excludes outright.
+#
+# One caveat for whoever revives these: many of the crashes and OOMs likely share
+# a root cause. OrderBookTest.createInstruments populates the *static*
+# InstrumentCache from @Before and nothing clears it, so classes extending that
+# fixture leak into each other. CI now runs one JVM per class, which contains the
+# damage but does not fix it. Fixing the fixture may clear a large block of this
+# list at once.
+
+# ---------------------------------------------------------------------------
+# Kill the JVM they run in (51)
+# ---------------------------------------------------------------------------
+# The forked test JVM dies without producing a report — surefire reports "The
+# forked VM terminated without properly saying goodbye". Mostly classes that reach
+# for infrastructure that is not there (Kafka, Zookeeper, exchange endpoints, raw
+# sockets) or that call System.exit. A class that can kill its JVM is the reason
+# CI runs one JVM per class: without that, one of these takes every class
+# scheduled after it down with it.
+
+BinanceTest.java
+ByBitTest.java
+MexcTest.java
+OKXTest.java
+com/solfini/binance/orderbook/BinanceModelTest.java
+com/solfini/binance/orderbook/BinanceOrderBookTest.java
+com/solfini/binance/risk/BinanceRiskTest.java
+com/solfini/matchengine/CopyTradeOrderBookTest.java
+com/solfini/matchengine/controller/ZookeeperFailoverConsistencyTest.java
+com/solfini/matchengine/copytrade/ExternalInstrumentCacheTest.java
+com/solfini/matchengine/copytrade/ExternalPriceTest.java
+com/solfini/matchengine/copytrade/MarketDepthCacheTest.java
+com/solfini/matchengine/copytrade/MexcOrderTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/BinanceFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/BitgetFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/BitmartFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/BybitFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/CoinbaseFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/CoinbaseMockTradeTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/DeribitFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/KrakenFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/KrakenMockTradeTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/KucoinFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/KucoinMockTradeTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/MexcFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/MockTradeTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/BinanceFastClientProdTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/BitgetFastClientProdTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/BitgetFastClientRestOnlyTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/BitmartFastClientProdTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/BybitFastClientProdTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/DeribitFastClientProdTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/HtxFastClientTest.java
+com/solfini/matchengine/liquidity/direct/aiGenerated/prodtest/MexcFastClientProdTest.java
+com/solfini/matchengine/model/ModelTest.java
+com/solfini/matchengine/model/orderbook/OrderBookTest.java
+com/solfini/matchengine/model/orderbook/TestMarginCalc.java
+com/solfini/matchengine/model/orderbook/TestPriceLevel.java
+com/solfini/matchengine/model/risk/RiskTest.java
+com/solfini/matchengine/orderbook/OrderBookFilterCacheTest.java
+com/solfini/matchengine/util/order/TestMessageWrapper.java
+com/solfini/sbe/AssetGroupEncoderTest.java
+com/solfini/sbe/BalanceAdminEncoderTest.java
+com/solfini/sbe/ExecutionReportEncoderTest.java
+com/solfini/util/ByteArrDisruptorTest.java
+com/solfini/util/DisruptorTest.java
+com/solfini/util/FileAppenderUtilTest.java
+com/solfini/util/IpcTest.java
+com/solfini/util/PoolTest.java
+com/solfini/util/ProcessMonitorTest.java
+com/solfini/util/ResizingDisruptorTest.java
+
+# ---------------------------------------------------------------------------
+# Fail their assertions (36)
+# ---------------------------------------------------------------------------
+# Ordinary red tests: the class runs to completion and reports failures or
+# errors. Pre-existing on main, nothing to do with CI.
+
+com/solfini/binance/orderbook/BinanceCancelReplaceOrderTest.java
+com/solfini/binance/orderbook/BinanceLimitOrderTest.java
+com/solfini/binance/snapshot/BinanceSnapshotExportTest.java
+com/solfini/instrument/AssetFundingRateTest.java
+com/solfini/kafka/KafkaFixInputListenerTest.java
+com/solfini/matchengine/AdminMessageDecoderTest.java
+com/solfini/matchengine/DecimalFloatCacheTest.java
+com/solfini/matchengine/OrderBookTest.java
+com/solfini/matchengine/drmode/SnapLoaderTest.java
+com/solfini/matchengine/message/BalanceAdminDecodeTest.java
+com/solfini/matchengine/message/MessagePublisherTest.java
+com/solfini/matchengine/model/orderbook/ArrayOrderBookDataTest.java
+com/solfini/matchengine/model/orderbook/ExpireContractMessageScale8Test.java
+com/solfini/matchengine/model/orderbook/MassCancelTest.java
+com/solfini/matchengine/model/orderbook/OrderBookAvgPxTest.java
+com/solfini/matchengine/model/orderbook/OrderBookCancelReplaceTest.java
+com/solfini/matchengine/model/orderbook/OrderBookCashPreOrderCheckTest.java
+com/solfini/matchengine/model/orderbook/OrderBookChangeQueueTest.java
+com/solfini/matchengine/model/orderbook/OrderBookCopyReplaceTest.java
+com/solfini/matchengine/model/orderbook/OrderBookLimitOrderTest.java
+com/solfini/matchengine/model/orderbook/OrderBookRebuildTest.java
+com/solfini/matchengine/model/orderbook/SelectArrayOrderBookDataTest.java
+com/solfini/matchengine/model/orderbook/SelectArrayOrderBookTest.java
+com/solfini/matchengine/model/risk/AutoLiquidationTest.java
+com/solfini/matchengine/model/risk/BalanceWithdrawalTest.java
+com/solfini/matchengine/model/risk/CashPreOrderCheckTest.java
+com/solfini/matchengine/model/risk/OpenOrderCalcTest.java
+com/solfini/matchengine/model/risk/RiskCalculationTest.java
+com/solfini/matchengine/model/session/LogonTest.java
+com/solfini/matchengine/model/transaction/TransactionQueueTest.java
+com/solfini/matchengine/model/user/BalanceUpdateScaleTest.java
+com/solfini/matchengine/model/user/BalanceUpdateTest.java
+com/solfini/matchengine/model/user/UserCacheTest.java
+com/solfini/matchengine/user/UserBalanceChangeTest.java
+com/solfini/util/MailUtilTest.java
+com/solfini/util/snapshot/SnapConverterTest.java
+
+# ---------------------------------------------------------------------------
+# Exhaust the heap (6)
+# ---------------------------------------------------------------------------
+# Die with "Java heap space" in a JVM of their own with -Xmx1500m, so this is
+# not the shared-fixture accumulation that per-class forking already solves. These
+# genuinely need more memory than a runner should be asked for, or they leak.
+
+com/solfini/binance/risk/BinanceAutoLiquidationTest.java
+com/solfini/matchengine/ArrayOrderBookSweepTest.java
+com/solfini/matchengine/ChangeLoggerTest.java
+com/solfini/matchengine/controller/KafkaControllerTest.java
+com/solfini/matchengine/model/orderbook/BankruptcyPriceTest.java
+com/solfini/matchengine/model/risk/MarginTest.java
+
+# ---------------------------------------------------------------------------
+# Never finish (2)
+# ---------------------------------------------------------------------------
+# Still running when the forked JVM was killed at 10 seconds.
+
+com/solfini/matchengine/controller/UnifiedControllerTest.java
+com/solfini/matchengine/controller/ZooKeeperControllerTest.java
+
+# ---------------------------------------------------------------------------
+# Hang the build (2)
+# ---------------------------------------------------------------------------
+# Not even the maven invocation returned; the whole process group had to be
+# killed. Worse than a timeout, because nothing reports at all.
+
+com/solfini/matchengine/controller/MatchEngineStarterTest.java
+com/solfini/matchengine/model/orderbook/OptionThreadTimerTest.java
+
+# ---------------------------------------------------------------------------
+# Too slow for the gate (1)
+# ---------------------------------------------------------------------------
+# Completes, but takes longer than the 10 second per-class budget. Not a
+# benchmark by name, so it is parked here rather than in the perf list.
+
+com/solfini/matchengine/message/SleepTest.java
