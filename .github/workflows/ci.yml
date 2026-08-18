@@ -115,51 +115,53 @@ jobs:
           SOLFINI_DEPS_DIR: ${{ runner.temp }}/solfini-deps
         run: ./scripts/install-dependencies.sh
 
-      # Packaging in its own step means a compile error is reported as a build
-      # failure rather than a test failure. This also exercises the jar assembly
-      # and the prepare-package copy-dependencies into lib/, which is what ships.
+      # Compiling here means a compile error is reported as a build failure rather
+      # than as four simultaneous test failures. This also exercises the jar
+      # assembly and the prepare-package copy-dependencies into lib/, which is
+      # what ships.
       #
       # `package`, not `verify`: the jacoco default-check execution binds to verify
       # and enforces a 60% complexity ratio over the whole bundle, which this
       # project does not currently meet. Gating merges on that is a separate
       # decision from turning CI on, so CI builds and tests without silently
       # weakening the rule that is configured in the pom.
+      #
+      # -Dskip-tests, not -DskipTests: surefire here is configured with
+      # <skipTests>${skip-tests}</skipTests> and the pom defaults that property to
+      # true. A plugin <configuration> value wins over surefire's own -DskipTests
+      # user property, so -DskipTests would be silently ignored.
       - name: Build
         run: mvn -B -ntp -Dskip-tests=true package
 
-      # -Dskip-tests, not -DskipTests: maven-surefire-plugin here is configured
-      # with <skipTests>${skip-tests}</skipTests> and the pom defaults that
-      # property to true, so packaging stays test-free for jenkins-package.sh.
-      # A plugin <configuration> value wins over surefire's own -DskipTests user
-      # property, so -DskipTests=false would be silently ignored and the suite
-      # would never run.
+      # Each test class gets its own JVM (reuseForks=false). That is not tuning:
+      # OrderBookTest.createInstruments populates the *static* InstrumentCache
+      # from @Before, ~60 classes extend that fixture, and nothing ever clears
+      # it. With surefire's default single reused JVM the cache grows until the
+      # heap is gone and whichever class is running dies of "Java heap space",
+      # taking the rest of the run with it — one such run produced 224
+      # OutOfMemoryError results, and excluding the casualties never converged
+      # because the victim moves with the class set. Several classes also kill
+      # their own JVM outright. A fresh JVM per class contains both failure modes
+      # and keeps peak heap flat, at the cost of one JVM start per class.
       #
-      # Two exclude lists are kept apart because they mean different things:
-      # .github/perf-test-excludes.txt is permanent (benchmarks do not belong in
-      # CI), while .github/quarantined-tests.txt is a temporary list of tests
-      # that already fail on main and is meant to shrink to nothing. surefire's
-      # excludesFile takes a single path, so they are concatenated here.
-      # The patterns add to the pom's own <excludes>, so **/integration/*.java
-      # stays excluded as well.
+      # surefire.timeout bounds a single class's *test run* (maven startup and
+      # compilation are not on its clock), so a hanging test fails its class
+      # instead of burning the job timeout. 120s here against the 10s budget used
+      # to pick the class list, because a runner is slower than a laptop and this
+      # is a hang guard, not the gate.
       #
-      # Every test class is currently quarantined, so this step runs the suite
-      # and executes nothing. It is here so the gate is wired up and exercised —
-      # the excludes are assembled, surefire runs, and this is already the place
-      # a re-enabled test will report — and tests come back by deleting lines
-      # from .github/quarantined-tests.txt. That file records why each class is
-      # parked, including the static InstrumentCache leak that made the suite
-      # exhaust the heap (224 OutOfMemoryError results in a single run).
-      #
-      # Surefire's default forking (one reused JVM for the whole suite) is left
-      # as is. That is the model the static InstrumentCache leak eventually
-      # breaks, so a batch re-enabled from the quarantine may need
-      # -DreuseForks=false added here to get a clean JVM per class.
+      # Which classes run is decided by subtraction: everything surefire finds,
+      # minus .github/perf-test-excludes.txt and .github/quarantined-tests.txt.
+      # A newly added test therefore runs by default and has to be named to be
+      # skipped.
       - name: Test
         run: |
           cat .github/perf-test-excludes.txt .github/quarantined-tests.txt \
             > "${RUNNER_TEMP}/surefire-excludes.txt"
           mvn -B -ntp -Dskip-tests=false test \
-            -Dsurefire.excludesFile="${RUNNER_TEMP}/surefire-excludes.txt"
+            -Dsurefire.excludesFile="${RUNNER_TEMP}/surefire-excludes.txt" \
+            -DreuseForks=false \
+            -Dsurefire.timeout=120
 
       - name: Upload surefire reports
         if: always()
