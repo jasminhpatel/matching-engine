@@ -7,6 +7,7 @@ import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.DynamicBytes;
 import org.web3j.abi.datatypes.Function;
+import org.web3j.abi.datatypes.generated.Bytes32;
 import org.web3j.crypto.Hash;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.EthCall;
@@ -84,7 +85,21 @@ public class EVMWithdrawableAmountUpdateSender extends EVMTransactionSender {
 
   @Override
   protected void encodeFunction() {
-    if (withdrawableAmountUpdateTransaction.getContractVersion() == 2) {
+    if (withdrawableAmountUpdateTransaction.getContractVersion() == 3) {
+      // FundingContractV6 batchSetCompositeBalances(bytes32 compositeId, bytes data) — same
+      // header+record wire format as V2's batchSetAvailableAssetBalances (preprocessBatchUpdates2
+      // is unchanged), only the leading ABI param changes from a 20-byte token Address to a
+      // 32-byte compositeId.
+      final Function function =
+          new Function("batchSetCompositeBalances",
+              List.of(
+                  // compositeId is always a 0x-prefixed 32-byte hex string as read from chain
+                  // (see FundingContractV6Loader) — no re-encoding/padding needed here.
+                  new Bytes32(Numeric.hexStringToByteArray(withdrawableAmountUpdateTransaction.getCompositeId())),
+                  new DynamicBytes(Numeric.hexStringToByteArray(preprocessBatchUpdates2()))),
+              Collections.emptyList());
+      this.encodedFunction = FunctionEncoder.encode(function);
+    } else if (withdrawableAmountUpdateTransaction.getContractVersion() == 2) {
       final Function function =
           new Function("batchSetAvailableAssetBalances",
               List.of(

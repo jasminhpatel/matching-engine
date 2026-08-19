@@ -1,10 +1,12 @@
 package com.solfini.util.blockchain;
 
 import com.solfini.common.CustomLogger;
+import com.solfini.util.blockchain.evm.EVMMembershipExecuteSender;
 import com.solfini.util.blockchain.evm.EVMUserRegistrationTransactionSender;
 import com.solfini.util.blockchain.evm.EVMWithdrawSender;
 import com.solfini.util.blockchain.evm.EVMWithdrawableAmountUpdateSender;
 import com.solfini.util.blockchain.evm.EVMPositionUpdateSender;
+import com.solfini.util.blockchain.model.MembershipExecuteTransaction;
 import com.solfini.util.blockchain.model.UserRegistrationTransaction;
 import com.solfini.util.blockchain.model.WithdrawTransaction;
 import com.solfini.util.blockchain.model.WithdrawableAmountUpdateTransaction;
@@ -37,6 +39,15 @@ public class BlockchainSenderFactory {
     if (evmCompatible(withdrawTransaction.getChainType())) {
       LOGGER.info("Sender loading " + withdrawTransaction.getChainType());
       return new EVMWithdrawSender(withdrawTransaction);
+    }
+
+    return null;
+  }
+
+  public static BlockchainTransactionSender getSender(final MembershipExecuteTransaction membershipExecuteTransaction) {
+    if (evmCompatible(membershipExecuteTransaction.getChainType())) {
+      LOGGER.info("Sender loading " + membershipExecuteTransaction.getChainType());
+      return new EVMMembershipExecuteSender(membershipExecuteTransaction);
     }
 
     return null;

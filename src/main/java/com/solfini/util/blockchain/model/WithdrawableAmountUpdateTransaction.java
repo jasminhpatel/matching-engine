@@ -8,6 +8,11 @@ import java.util.List;
 public class WithdrawableAmountUpdateTransaction extends BlockchainTransaction implements Constants {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(WithdrawableAmountUpdateTransaction.class);
   private String tokenAddress;
+  // Set (instead of tokenAddress) when contractVersion == 3 — the FundingContractV6
+  // batchSetCompositeBalances(bytes32,bytes) ABI shape. tokenAddress stays unused/null for
+  // version 3; compositeId stays unused/null for versions 1/2, which are still what the live V5
+  // pipeline uses and must not be disturbed.
+  private String compositeId;
   private String network;
   private int contractVersion;
   private int batchId;
@@ -19,6 +24,14 @@ public class WithdrawableAmountUpdateTransaction extends BlockchainTransaction i
 
   public void setTokenAddress(String tokenAddress) {
     this.tokenAddress = tokenAddress;
+  }
+
+  public String getCompositeId() {
+    return compositeId;
+  }
+
+  public void setCompositeId(String compositeId) {
+    this.compositeId = compositeId;
   }
 
   public String getNetwork() {
