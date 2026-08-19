@@ -61,7 +61,13 @@ public class BlockChainKeyManager {
    * @param function RETIRE_FROM, MINT, ....
    */
   private static String normalizeChainType(final String chainType) {
-    return "MAINNET".equalsIgnoreCase(chainType) ? "ETHEREUM" : chainType.toUpperCase();
+    if ("MAINNET".equalsIgnoreCase(chainType) || "SEPOLIA".equalsIgnoreCase(chainType)) {
+      return "ETHEREUM";
+    }
+    if ("XDC_APOTHEM".equalsIgnoreCase(chainType)) {
+      return "XDC";
+    }
+    return chainType.toUpperCase();
   }
 
   public static final String getNextKey(final String chainType, final String function) {

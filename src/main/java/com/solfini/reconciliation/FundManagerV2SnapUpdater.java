@@ -66,6 +66,16 @@ public class FundManagerV2SnapUpdater {
   private static final Logger LOGGER = LogManager.getLogger(FundManagerV2SnapUpdater.class);
   private static final String MAINNET = "MAINNET";
   private static final String XDC = "XDC";
+
+  // Gas-price gate only makes sense against real Ethereum mainnet economics. Gated on a positive
+  // "TEST"-prefixed ENVIRONMENT rather than "not PRODUCTION" so a misconfigured/blank ENVIRONMENT
+  // fails safe into keeping the wait, not skipping it.
+  private static boolean shouldWaitForLowGas(final String network) {
+    final boolean isMainnet = ETHEREUM.equalsIgnoreCase(network) || MAINNET.equalsIgnoreCase(network);
+    final String environment = Context.getEnvironment();
+    final boolean isTestEnvironment = environment != null && environment.toUpperCase().startsWith("TEST");
+    return isMainnet && !isTestEnvironment;
+  }
   private static List<Message> cachedSnapMessages = null;
   private static String cachedSnapFile = null;
 
@@ -481,7 +491,7 @@ public class FundManagerV2SnapUpdater {
     boolean useSecondary = false, hasProxyError = false;
     Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
     final long windowEnd = System.currentTimeMillis() + ONE_HOUR * 8; // 8 hours
-    if (ETHEREUM.equalsIgnoreCase(network) || MAINNET.equalsIgnoreCase(network)) {
+    if (shouldWaitForLowGas(network)) {
       while (true) {
         try {
           if (web3j == null) {
@@ -667,6 +677,268 @@ public class FundManagerV2SnapUpdater {
     }
 
     return success;
+  }
+
+  /**
+   * FundingContractV6 composite-aware entry point, called from FundManagerV2SyncJob.main() in
+   * place of the old hardcoded-(network,symbol) sync() loop. Mirrors update()'s shape (gas-price
+   * wait, missing-user registration, batching, DB confirmation — all reused unchanged via the
+   * private helpers below) but is keyed by compositeId + its live member-token list instead of
+   * (network, symbol), and sends contractVersion 3 (batchSetCompositeBalances) instead of 2
+   * (batchSetAvailableAssetBalances). update() itself is left as-is, not deleted — this is a full
+   * cutover operationally (V5 stops being scheduled at all), but update()/the V2 ABI path is the
+   * natural toolkit for the one-off V5 fund-sweep script planned for later, so it stays as library
+   * code even though nothing calls it on a schedule anymore.
+   */
+  public static boolean updateComposite(final String[] args, final StringBuilder sb,
+      final List<Integer> selectedUsers,
+      final String network, final String coreAddress, final String compositeId, final List<String> memberTokenAddresses,
+      final SnapContext snapContext) throws Exception {
+    sb.append("Fund manager V6 composite update started. network: ").append(network).append(" compositeId: ").append(compositeId)
+        .append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    initialize(args);
+    final Properties overlay = new Properties();
+    loadConfigurationFile(overlay);
+
+    final String symbolsToIgnore = PropertyReader.getProperty("IGNORE_SYMBOL_LIST", "");
+    final int fundManagerBatchSize = PropertyReader.getProperty("FUND_MANAGER_BATCH_SIZE", 500);
+    final double diffPercentage = PropertyReader.getProperty("ETHEREUM_NOTIONAL_DIFF_PERCENTAGE", 0.05);
+    loadBlockchainKeyFile();
+
+    final long snapId = snapContext.snapId();
+    final long snapshotMappingId = snapContext.mappingId();
+    final String latestSnapFile = snapContext.snapFolder();
+    LOGGER.info("Fund Manager V6 latestSnapFile: " + latestSnapFile);
+
+    final Set<Integer> memberInstrumentIds = new HashSet<>();
+    for (final String tokenAddress : memberTokenAddresses) {
+      memberInstrumentIds.add(FundingContractV6Loader.resolveInstrumentId(tokenAddress));
+    }
+
+    // DB/cache-only key (network-prefixed) - NOT the same as the raw `compositeId` used for the
+    // actual on-chain batchSetCompositeBalances call below. compositeId = keccak256("COMPOSITE",
+    // nonce) carries no chain/address salt, so two independently deployed contracts' first
+    // composite land on the identical bytes32 value (confirmed empirically against the fresh
+    // 2026-07-28 Sepolia/Apothem certification deploys) - without this network prefix, their
+    // blockchain_notional_state rows would collide on (userId, contractKey). Same convention
+    // PositionManagerSnapUpdater already uses for its own contractKey (see notionalContractKey).
+    final String contractKey = network.toUpperCase() + ":" + compositeId;
+
+    // Profit-inclusion is a per-COMPOSITE property, read directly off-chain (Composite.profitInclusive)
+    // — no longer a network-string proxy. Two different inclusion shapes, not one:
+    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> latestUserWithdrawables;
+    if (!FundingContractV6Loader.getCompositeProfitInclusive(network, coreAddress, compositeId)) {
+      // ALLOW-set = exactly this composite's own member instrument id(s) — nothing else counts,
+      // ever, regardless of IGNORE_SYMBOL_LIST. Generalizes the original XDC branch's hardcoded
+      // {XUSDC, XUSDT} allow-set correctly for a Segregated (single-token) composite: only ITS
+      // own token, not every XDC stablecoin. Any trading/profit-bearing instrument, VToken,
+      // staking, or market-maker position is excluded by construction (it's simply not in this
+      // set), independent of IGNORE_SYMBOL_LIST.
+      latestUserWithdrawables = loadFromSnapComposite(latestSnapFile, args, memberInstrumentIds, true, contractKey);
+    } else {
+      // IGNORE-set (V1 one-pass shape, docs §9): ignore every known stablecoin instrument that is
+      // NOT a member of this composite, plus whatever IGNORE_SYMBOL_LIST configures (that's where
+      // VToken/staking/market-maker instrument ids need to live for this branch — same mechanism
+      // the original loadFromSnap always relied on, unchanged here). Everything else — this
+      // composite's own members, plus any non-stablecoin trading instrument, i.e. profit/loss —
+      // is summed in, netting P&L exactly once.
+      final Set<Integer> ignoreInstrumentIds = new HashSet<>();
+      if (symbolsToIgnore != null && !symbolsToIgnore.isEmpty()) {
+        for (final String s : symbolsToIgnore.split(",")) {
+          ignoreInstrumentIds.add(StringUtil.toInt(s));
+        }
+      }
+      final Set<Integer> allKnownStableInstrumentIds = Set.of(
+          Context.getUsdcId(), Context.getUsdtId(), Context.getXusdcId(), Context.getXusdtId());
+      for (final int stableInstrumentId : allKnownStableInstrumentIds) {
+        if (!memberInstrumentIds.contains(stableInstrumentId)) {
+          ignoreInstrumentIds.add(stableInstrumentId);
+        }
+      }
+      latestUserWithdrawables = loadFromSnapComposite(latestSnapFile, args, ignoreInstrumentIds, false, contractKey);
+    }
+    sb.append("Latest snap file loaded to memory. file: ").append(latestSnapFile).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+    // load previous from DB — contractKey is network-prefixed (see comment above); the DB column
+    // was widened (varchar(32) -> varchar(80)) since this is wider than the old short V1/V2 labels.
+    BlockchainNotionalCache.loadFromDB();
+    final Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> prevUserWithdrawables = BlockchainNotionalCache.getUserWithdrawableMap(contractKey);
+    sb.append("Previous snap status loaded from DB. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+
+    final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> diff =
+        getChangedNotional(prevUserWithdrawables, latestUserWithdrawables, diffPercentage, selectedUsers);
+
+    sb.append("Difference calculated. #OfUpdates: ").append(diff.size()).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    LOGGER.info("Fund Manager V6 #OfNotionalUpdates: " + diff.size());
+
+    // wait until gas price goes down — identical policy to update(), reused verbatim.
+    boolean useSecondary = false, hasProxyError = false;
+    Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+    final long windowEnd = System.currentTimeMillis() + ONE_HOUR * 8;
+    if (shouldWaitForLowGas(network)) {
+      while (true) {
+        try {
+          if (web3j == null) {
+            web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+          }
+          BigInteger maxFeePerGas = fetchCurrentMaxFeePerGas(web3j);
+          if (maxFeePerGas.compareTo(Context.getEthereumMaxFeePerGas()) < 0) {
+            break;
+          }
+          if (System.currentTimeMillis() > windowEnd) {
+            LOGGER.info("Fund Manager V6, Unable to update the notional within specified time.");
+            sb.append("Unable to update the notional within specified time. Gas price is too high. time: ")
+                .append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+            return false;
+          }
+          TimeUnit.MINUTES.sleep(1);
+        } catch (ClientConnectionException e) {
+          String message = e.getMessage().toLowerCase();
+          if (message.contains("429") || message.contains("too many requests")) {
+            useSecondary = true;
+          } else if (message.contains("502") || message.contains("bad gateway")) {
+            hasProxyError = true;
+          } else if (message.contains("503") || message.contains("service unavailable")) {
+            useSecondary = true;
+          } else if (message.contains("504") || message.contains("gateway timeout")) {
+            hasProxyError = true;
+            useSecondary = true;
+          } else if (message.contains("407") || message.contains("proxy authentication")) {
+            hasProxyError = true;
+          } else {
+            hasProxyError = true;
+            useSecondary = true;
+          }
+          web3j = null;
+        } catch (IOException e) {
+          hasProxyError = true;
+          useSecondary = true;
+          web3j = null;
+        }
+      }
+    }
+
+    registerMissingUsers(diff, network, sb);
+
+    final int noOfBatches = Math.max(1, (int) Math.ceil(diff.size() / (double) fundManagerBatchSize));
+    final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables = new ArrayList<>();
+    int batchIndex = 1;
+    int recordCount = 0;
+    boolean updateSent = false;
+    boolean success = true;
+
+    for (final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable : diff) {
+      batchUserWithdrawables.add(userWithdrawable);
+      recordCount++;
+      if (recordCount >= fundManagerBatchSize) {
+        updateSent = true;
+        success = sendCompositeBatch(network, coreAddress, compositeId, snapshotMappingId, batchIndex, noOfBatches, batchUserWithdrawables, sb) && success;
+        batchIndex++;
+        recordCount = 0;
+        batchUserWithdrawables.clear();
+      }
+    }
+
+    if (recordCount > 0) {
+      updateSent = true;
+      success = sendCompositeBatch(network, coreAddress, compositeId, snapshotMappingId, batchIndex, noOfBatches, batchUserWithdrawables, sb) && success;
+    }
+
+    if (!updateSent) {
+      success = sendCompositeBatch(network, coreAddress, compositeId, snapshotMappingId, 1, 1, batchUserWithdrawables, sb) && success;
+    }
+
+    if (success) {
+      long updated = System.currentTimeMillis();
+      for (final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable : diff) {
+        BlockchainNotionalCache.upsert(userWithdrawable, updated, snapId);
+      }
+      final boolean confirmed = BlockchainNotionalCache.confirmSnapMapping(snapId, network.toUpperCase(), compositeId);
+      if (!confirmed) {
+        LOGGER.error("Fund Manager V6, snap mapping confirmation failed for compositeId " + compositeId
+            + ". snapId: " + snapId + ". On-chain update succeeded but DB row was not confirmed."
+            + " Manual fix: INSERT INTO blockchain_snap_mapping (snapshot_id) VALUES (" + snapId + ")"
+            + " ON CONFLICT (snapshot_id) DO NOTHING;");
+        sb.append("CRITICAL: On-chain snap update succeeded but DB confirmation failed."
+            + " Manual DB fix required. compositeId: ").append(compositeId)
+            .append(" snapId: ").append(snapId)
+            .append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return false;
+      }
+      sb.append("Snap update successful. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    } else {
+      sb.append("Snap update failed. time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+    }
+
+    return success;
+  }
+
+  private static boolean sendCompositeBatch(final String network, final String coreAddress, final String compositeId, final long snapshotMappingId,
+      final int batchIndex, final int noOfBatches,
+      final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> batchUserWithdrawables, final StringBuilder sb) {
+    try {
+      final WithdrawableAmountUpdateTransaction transaction = new WithdrawableAmountUpdateTransaction();
+      transaction.setCompositeId(compositeId);
+      transaction.setNetwork(network.toUpperCase());
+      transaction.setContractVersion(3);
+      transaction.setId(snapshotMappingId);
+      transaction.setChainType(network.toUpperCase());
+      transaction.setContractAddress(coreAddress);
+      transaction.setUserWithdrawables(batchUserWithdrawables);
+      transaction.setBatchId(batchIndex);
+      transaction.setNoOfBatches(noOfBatches);
+      final BlockchainTransactionSender sender = BlockchainSenderFactory.getSender(transaction);
+      if (sender != null) {
+        boolean status = sender.processTransaction(sb);
+        sb.append("Composite snap updated. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" status: ").append(status).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+        return status;
+      }
+      sb.append("Composite snap update failed (no sender). batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss()).append("\n");
+      return false;
+    } catch (Exception e) {
+      sb.append("Composite snap update failed. batch ").append(batchIndex).append(" of ").append(noOfBatches).append(" time: ").append(StringUtil.getCurrentDateYYYYMMDDHHMMSSsss())
+          .append(" ").append(e.getMessage()).append("\n");
+      LOGGER.error(ERROR_LOG, e);
+      return false;
+    }
+  }
+
+  /**
+   * Composite-aware analog of loadFromSnap. instrumentIdSet is either an ALLOW-set (isAllowList
+   * true — only these instrument ids count, everything else is excluded no matter what) or an
+   * IGNORE-set (isAllowList false — everything counts except these, i.e. the V1 one-pass shape,
+   * docs §9). See updateComposite for which composite gets which mode and why. contractKey here is
+   * the network-prefixed DB/cache key ("<NETWORK>:<compositeId>"), not the raw compositeId used
+   * for the actual on-chain call - see updateComposite's comment for why the prefix is needed.
+   */
+  private static Map<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> loadFromSnapComposite(
+      final String snapFile, final String[] args, final Set<Integer> instrumentIdSet, final boolean isAllowList, final String contractKey) {
+    if (cachedSnapMessages == null || !snapFile.equals(cachedSnapFile)) {
+      cachedSnapMessages = loadSnap(args, snapFile);
+      cachedSnapFile = snapFile;
+    }
+    final List<Message> snapUserPositions = cachedSnapMessages;
+    final HashMap<Integer, WithdrawableAmountUpdateTransaction.UserWithdrawable> userWithdrawables = new HashMap<>();
+
+    for (final Message message : snapUserPositions) {
+      if (message instanceof BalanceAdminMessage balanceAdminMessage) {
+        double withdrawable = 0;
+        for (final Position p : balanceAdminMessage.getPositionArr()) {
+          final boolean included = isAllowList
+              ? p != null && instrumentIdSet.contains(p.getInstrumentId())
+              : p != null && !instrumentIdSet.contains(p.getInstrumentId());
+          if (included && p.getQuantity() != 0) {
+            withdrawable = withdrawable + p.getUsdValue() /*+ p.getUsdUnrealized()*/;
+          }
+        }
+        // Same unsigned-floor guard as loadFromSnap — see that method's comment.
+        withdrawable = Math.max(0, withdrawable);
+        final WithdrawableAmountUpdateTransaction.UserWithdrawable userWithdrawable =
+            new WithdrawableAmountUpdateTransaction.UserWithdrawable(balanceAdminMessage.getUserId(), contractKey, (long) (withdrawable * 1_000_000));
+        userWithdrawables.put(balanceAdminMessage.getUserId(), userWithdrawable);
+      }
+    }
+    return userWithdrawables;
   }
 
   private static void registerMissingUsers(final List<WithdrawableAmountUpdateTransaction.UserWithdrawable> balanceChangedUser,

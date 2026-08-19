@@ -1672,3 +1672,18 @@ ALTER TABLE blockchain_user_state ADD contractType varchar(32) NOT NULL DEFAULT 
 ALTER TABLE blockchain_user_state DROP CONSTRAINT blockchain_user_state_pkey;
 ALTER TABLE blockchain_user_state ADD PRIMARY KEY (id, network, contractType);
 
+-- FundingContractV6 composites: contractKey for a V6 composite is "<NETWORK>:<compositeId>" (a
+-- bytes32 hex string, "0x" + 64 hex = 66 chars, plus a short network prefix - same convention
+-- PositionManagerSnapUpdater already uses for its own contractKey, e.g. "XDC_PM_123") - the
+-- original varchar(32) was sized only for the short V1/V2 labels (e.g. "MAINNETUSDCV2") and is far
+-- too narrow. The network prefix matters because compositeId = keccak256("COMPOSITE", nonce)
+-- carries no chain/address salt, so two independently deployed contracts' first composite land on
+-- the identical bytes32 value (confirmed empirically: the fresh 2026-07-28 Sepolia and Apothem
+-- certification deploys' primary composites are already the same id) - without the network
+-- prefix baked into the string itself, that would collide on (userId, contractKey). This is a
+-- pure column-width change, scoped to the V6/V2 composite path only (see
+-- FundManagerV2SnapUpdater.updateComposite) - no schema key/column-shape change, so V1, Position
+-- Manager, and pending-withdraws are untouched. Column is unquoted/lowercase (contractkey), not
+-- "contractKey" - already executed against the test DB with this exact statement.
+ALTER TABLE blockchain_notional_state ALTER COLUMN contractkey TYPE varchar(80);
+
