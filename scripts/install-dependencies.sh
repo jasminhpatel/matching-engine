@@ -195,7 +195,12 @@ build_at() {
   (
     cd "$dir"
     # shellcheck disable=SC2086 # extra holds several arguments and must word-split
-    JAVA_HOME="$java_home" mvn -B -ntp -DskipTests "${repo_arg[@]}" $extra install
+    #
+    # repo_arg is expanded through the `+` form because macOS's /bin/bash is
+    # 3.2, where "${repo_arg[@]}" on an empty array counts as an unset variable
+    # and aborts under the `set -u` above. Bash 4.4+ expands it to nothing. The
+    # inner quotes keep a repository path containing spaces a single argument.
+    JAVA_HOME="$java_home" mvn -B -ntp -DskipTests "${repo_arg[@]+"${repo_arg[@]}"}" $extra install
   )
 }
 
