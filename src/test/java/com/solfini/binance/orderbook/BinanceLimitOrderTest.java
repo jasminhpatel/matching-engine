@@ -131,13 +131,13 @@ public class BinanceLimitOrderTest extends BinanceOrderBookTest {
         "orderId=1, ordType=LIMIT, side=BUY, price=1011, orderQty=500, leavesQty=0, execType=TRADE, avgPx=1011, ordStatus=FILLED");
     assertMessages();
 
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("Order", "orderId=1, ordType=LIMIT, side=BUY, price=1011, qty=500, qty_scale=2");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("Order", "orderId=2, ordType=LIMIT, side=SELL, price=1011,  qty=500, qty_scale=2");
     expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=-5.000, balance_change=0");
     expectOutput("DRExecutionReport", "side=SELL");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("DRExecutionReport", "side=BUY");
 
     List<byte[]> output = assertOutputMessages();
@@ -161,13 +161,13 @@ public class BinanceLimitOrderTest extends BinanceOrderBookTest {
         "orderId=1, ordType=LIMIT, side=SELL, price=1011, orderQty=500, leavesQty=0, avgPx=1011, execType=TRADE, ordStatus=FILLED");
     assertMessages();
 
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("Order", "orderId=1, ordType=LIMIT, side=SELL, price=1011, qty=500, qty_scale=2");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("Order", "orderId=2, ordType=LIMIT, side=BUY, price=1011,  qty=500, qty_scale=2");
     expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=5.000, balance_change=0");
     expectOutput("DRExecutionReport", "side=BUY");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0");
     expectOutput("DRExecutionReport", "side=SELL");
 
     List<byte[]> output = assertOutputMessages();
@@ -903,15 +903,15 @@ public class BinanceLimitOrderTest extends BinanceOrderBookTest {
     expectMessage("orderId=2, ordType=LIMIT, side=SELL, cxlRejReason=UNKNOWN_ORDER");
     assertMessages();
 
-    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=.00");
+    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=0.00");
     expectOutput("Order",
         "securityId=" + BTC_USDT_F + ", orderId=1, price=1011, price_scale=2, price2=0, price2_scale=0, qty=500, qty_scale=2, side=BUY");
-    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=.00");
+    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=0.00");
     expectOutput("Order",
         "securityId=" + BTC_USDT_F + ", orderId=2, price=1011, price_scale=2, price2=0, price2_scale=0, qty=300, qty_scale=2, side=SELL");
     expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=-3.00");
     expectOutput("DRExecutionReport", "side=SELL, ordType=LIMIT");
-    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=.00");
+    expectOutput("BalanceAdminMessage", "Balance [assetId=1, balance=10000.00", "Balance [assetId=" + BTC_USDT_F + ", balance=0.00");
     expectOutput("DRExecutionReport", "side=BUY, ordType=LIMIT");
 
     assertOutputMessages();

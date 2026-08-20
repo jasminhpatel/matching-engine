@@ -84,9 +84,9 @@ public class BalanceUpdateScaleTest extends ModelTest {
 
     assertBalance(user, 0, 0, 0);
 
-    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=.000, balance_change=.000",
-        "Balance [assetId=" + USDT + ", balance=.000, balance_change=.000",
-        "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=.000");
+    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=0.000, balance_change=0.000",
+        "Balance [assetId=" + USDT + ", balance=0.000, balance_change=0.000",
+        "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=0.000");
     assertMessages();
   }
 
@@ -98,9 +98,9 @@ public class BalanceUpdateScaleTest extends ModelTest {
 
     assertBalance(user, 1000, 2000, 3000);
 
-    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=10.000, balance_change=.000",
-        "Balance [assetId=" + USDT + ", balance=20.000, balance_change=.000",
-        "Balance [assetId=" + BTC_USDT_F + ", balance=30.000, balance_change=.000");
+    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=10.000, balance_change=0.000",
+        "Balance [assetId=" + USDT + ", balance=20.000, balance_change=0.000",
+        "Balance [assetId=" + BTC_USDT_F + ", balance=30.000, balance_change=0.000");
     assertMessages();
   }
 
@@ -112,9 +112,9 @@ public class BalanceUpdateScaleTest extends ModelTest {
 
     assertBalance(user, -1000, -2000, -3000);
 
-    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=-10.000, balance_change=.000",
-        "Balance [assetId=" + USDT + ", balance=-20.000, balance_change=.000",
-        "Balance [assetId=" + BTC_USDT_F + ", balance=-30.000, balance_change=.000");
+    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=-10.000, balance_change=0.000",
+        "Balance [assetId=" + USDT + ", balance=-20.000, balance_change=0.000",
+        "Balance [assetId=" + BTC_USDT_F + ", balance=-30.000, balance_change=0.000");
     assertMessages();
   }
 
@@ -126,9 +126,9 @@ public class BalanceUpdateScaleTest extends ModelTest {
 
     assertBalance(user, 0, 0, 0);
 
-    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=.000, balance_change=10.000",
-        "Balance [assetId=" + USDT + ", balance=.000, balance_change=20.000",
-        "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=30.000");
+    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=0.000, balance_change=10.000",
+        "Balance [assetId=" + USDT + ", balance=0.000, balance_change=20.000",
+        "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=30.000");
     assertMessages();
   }
 
@@ -140,9 +140,9 @@ public class BalanceUpdateScaleTest extends ModelTest {
 
     assertBalance(user, 0, 0, 0);
 
-    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=.000, balance_change=-10.000",
-        "Balance [assetId=" + USDT + ", balance=.000, balance_change=-20.000",
-        "Balance [assetId=" + BTC_USDT_F + ", balance=.000, balance_change=-30.000");
+    expectMessage("UserAdminMessage", "Balance [assetId=" + BTC + ", balance=0.000, balance_change=-10.000",
+        "Balance [assetId=" + USDT + ", balance=0.000, balance_change=-20.000",
+        "Balance [assetId=" + BTC_USDT_F + ", balance=0.000, balance_change=-30.000");
     assertMessages();
   }
 
@@ -152,7 +152,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user100, UpdateType.PUT, new Balance(BTC, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user100, 5000, 0, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -162,7 +162,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user100, UpdateType.PUT, new Balance(BTC, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user100, -5000, 0, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -172,7 +172,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 5000, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -182,7 +182,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC, 5000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 500, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=5.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=5.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -192,7 +192,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC, 0, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 0, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=0.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -202,7 +202,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, -5000, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -212,7 +212,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(USDT, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -5000, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -222,7 +222,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(USDT, -5000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -500, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=-5.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=-5.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -232,7 +232,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(USDT, 0, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, 0, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=0.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -242,7 +242,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(USDT, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, 5000, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -292,7 +292,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC, 0, 3, 10000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 0, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=.00, balance_change=10.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC + ", balance=0.00, balance_change=10.00");
     assertMessages();
   }
 
@@ -332,7 +332,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(USDT, 0, 3, 10000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, 0, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=.00, balance_change=10.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + USDT + ", balance=0.00, balance_change=10.00");
     assertMessages();
   }
 
@@ -352,7 +352,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user100, UpdateType.PUT, new Balance(BTC_USDT_F, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user100, 0, 0, 5000);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -362,7 +362,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user100, UpdateType.PUT, new Balance(BTC_USDT_F, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user100, 0, 0, -5000);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -372,7 +372,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC_USDT_F, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 5000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -382,7 +382,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC_USDT_F, 5000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 500);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=5.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=5.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -392,7 +392,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC_USDT_F, 0, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -402,7 +402,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC_USDT_F, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, -5000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -412,7 +412,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(BTC_USDT_F, -50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, -5000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -422,7 +422,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(BTC_USDT_F, -5000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, -500);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-5.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=-5.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -432,7 +432,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(BTC_USDT_F, 0, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -442,7 +442,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(BTC_USDT_F, 50000, 3, 0, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, 5000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=50.00, balance_change=0.00");
     assertMessages();
   }
 
@@ -492,7 +492,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PUT, new Balance(BTC_USDT_F, 0, 3, 10000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=10.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=10.00");
     assertMessages();
   }
 
@@ -532,7 +532,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PUT, new Balance(BTC_USDT_F, 0, 3, 10000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=10.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PUT, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=10.00");
     assertMessages();
   }
 
@@ -592,7 +592,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PATCH, new Balance(BTC, 0, 3, -10000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 0, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-10.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-10.00");
     assertMessages();
   }
 
@@ -632,7 +632,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PATCH, new Balance(USDT, 0, 3, 20000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, 0, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + USDT + ", balance=.00, balance_change=20.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=20.00");
     assertMessages();
   }
 
@@ -692,7 +692,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PATCH, new Balance(BTC, 25000, 3, -10000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 0, 2000, 3000);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-10.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-10.00");
     assertMessages();
   }
 
@@ -732,7 +732,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PATCH, new Balance(USDT, 25000, 3, 20000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, 0, -3000);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + USDT + ", balance=.00, balance_change=20.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=20.00");
     assertMessages();
   }
 
@@ -792,7 +792,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 3, -30000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=-30.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=-30.00");
     assertMessages();
   }
 
@@ -832,7 +832,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 3, 30000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=30.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=30.00");
     assertMessages();
   }
 
@@ -892,7 +892,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user101, UpdateType.PATCH, new Balance(BTC_USDT_F, 10000, 3, -30000, 3, null,0, TokenType.ERC20));
     assertBalance(user101, 1000, 2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=-30.00");
+    expectMessage("BalanceAdminMessage", "userId=101, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=-30.00");
     assertMessages();
   }
 
@@ -932,7 +932,7 @@ public class BalanceUpdateScaleTest extends ModelTest {
     updateBalance(user102, UpdateType.PATCH, new Balance(BTC_USDT_F, 10000, 3, 30000, 3, null,0, TokenType.ERC20));
     assertBalance(user102, -1000, -2000, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=.00, balance_change=30.00");
+    expectMessage("BalanceAdminMessage", "userId=102, updateType=PATCH, assetId=" + BTC_USDT_F + ", balance=0.00, balance_change=30.00");
     assertMessages();
   }
 

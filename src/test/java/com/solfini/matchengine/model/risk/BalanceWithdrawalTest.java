@@ -99,7 +99,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -50, 2, null,0, TokenType.ERC20));
     assertBalance(user, 50, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.50, balance_change=-.50");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.50, balance_change=-0.50");
     assertMessages();
   }
 
@@ -109,7 +109,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -100, 2, null,0, TokenType.ERC20));
     assertBalance(user, 0, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-1.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
     assertMessages();
   }
 
@@ -119,7 +119,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -150, 2, null,0, TokenType.ERC20));
     assertBalance(user, 0, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-1.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
     assertMessages();
   }
 
@@ -132,7 +132,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -50, 2, null,0, TokenType.ERC20));
     assertBalance(user, 50, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.50, balance_change=-.50");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.50, balance_change=-0.50");
     assertMessages();
   }
 
@@ -145,7 +145,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -100, 2, null,0, TokenType.ERC20));
     assertBalance(user, 0, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-1.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
     assertMessages();
   }
 
@@ -158,7 +158,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -150, 2, null,0, TokenType.ERC20));
     assertBalance(user, 0, 10000_00, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=.00, balance_change=-1.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
     assertMessages();
   }
 
@@ -178,7 +178,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 2, -10000_00, 2, null,0, TokenType.ERC20));
     assertBalance(user, 1_00, 0, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=.00, balance_change=-10000.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=-10000.00");
     assertMessages();
   }
 
@@ -188,7 +188,7 @@ public class BalanceWithdrawalTest extends ModelTest {
     updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 2, -15000_00, 2, null,0, TokenType.ERC20));
     assertBalance(user, 1_00, 0, 0);
 
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=.00, balance_change=-10000.00");
+    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=-10000.00");
     assertMessages();
   }
 
