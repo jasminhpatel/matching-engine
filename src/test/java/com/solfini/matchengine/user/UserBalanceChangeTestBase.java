@@ -1,24 +1,18 @@
 package com.solfini.matchengine.user;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Properties;
 
 import com.solfini.internal.admin.schema.Sector;
-import com.solfini.internal.admin.schema.TokenType;
 import org.junit.Before;
-import org.junit.Test;
 import org.slf4j.event.Level;
 import com.solfini.common.Constants;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.instrument.InstrumentPair;
-import com.solfini.instrument.Position;
 import com.solfini.internal.admin.schema.AssetType;
 import com.solfini.internal.admin.schema.UpdateType;
-import com.solfini.matchengine.message.admin.BalanceAdminMessage;
 import com.solfini.matchengine.message.admin.UserAdminMessage;
 import com.solfini.user.User;
 import com.solfini.user.UserCache;
@@ -27,11 +21,28 @@ import com.solfini.util.PoolSize;
 import com.solfini.util.PropertyReader;
 
 /**
+ * Shared fixture for the balance-change withdrawal tests.
  *
- * @author Chris Mack
+ * Split into a base plus two subclasses because the outcome of an over-withdrawal is decided by
+ * Context.ENABLE_BALANCE_WITHDRAW_SPOT_LIMITS, which is a static final read once when Context initialises. Its value is
+ * therefore fixed for the life of a JVM, and surefire forks one JVM per test *class* (reuseForks=false in
+ * .github/workflows/ci.yml). A nested class shares the enclosing class's fork and cannot pick its own value, so the two
+ * outcomes need two top level classes.
  *
+ * Subclasses override configureProperties to set the flag they need. Note that PropertyReader.initialize replaces its
+ * property map wholesale, so every property has to be present in the single call made below - a subclass must not call
+ * PropertyReader.initialize itself.
+ *
+ * Deliberately abstract and deliberately not named *Test, so surefire neither collects nor forks it.
  */
-public class UserBalanceChangeTest implements Constants {
+public abstract class UserBalanceChangeTestBase implements Constants {
+
+  /**
+   * Hook for subclasses to add or override properties before PropertyReader is initialised.
+   */
+  protected void configureProperties(final Properties properties) {
+    // no extra properties by default
+  }
 
   @Before
   public void before() {
@@ -56,6 +67,7 @@ public class UserBalanceChangeTest implements Constants {
     properties.setProperty("DEFAULT_SETTLE_INSTRUMENT_PRICE_SCALE_MULT", "1000000");
     properties.setProperty("ENABLE_BALANCE_WITHDRAW_EXACT_LIMITS", "FALSE");
     properties.setProperty("ENABLE_BALANCE_WITHDRAW_LIMITS", "TRUE");
+    configureProperties(properties);
 
     try {
       PropertyReader.initialize(null, properties);
@@ -90,53 +102,5 @@ public class UserBalanceChangeTest implements Constants {
     // OrderBook orderBook = OrderBookFactory.create(OrderBookFactory.ARRAY_ORDER_BOOK, OrderBookFactory.MARGIN_PREORDER_CHECK, pair);
     // pair.setOrderBook(orderBook);
     InstrumentCache.addPair(pair);
-  }
-
-
-  @Test
-  public void balanceAdminTestWithdrawLimit() {
-    createInstruments();
-
-    final User user = createUser(18);
-    Position position1 = user.addPosition(1, 10_000_000, null, 0, TokenType.ERC20);
-    Position position14 = user.addPosition(14, 1_000_000, null, 0, TokenType.ERC20);
-    user.setActive(true);
-    user.setUsdValue(1000);
-
-    BalanceAdminMessage balanceAdminMessage = new BalanceAdminMessage();
-    balanceAdminMessage.setUserId(user.getId());
-    balanceAdminMessage.setUser(user);
-    balanceAdminMessage.setUpdateType(UpdateType.PUT);
-    balanceAdminMessage.setTxType(TX_DEPOSIT);
-
-    Balance balance = new Balance();
-    balance.setAssetId(1);
-    balanceAdminMessage.getBalanceList().add(balance);
-
-    balance.setBalanceChange(2000_00, 2);
-    user.updateIncrement(balanceAdminMessage);
-
-
-    assertEquals(2010_000000, position1.getQuantity());
-
-    balance.setBalanceChange(-3000_00, 2);
-    user.updateIncrement(balanceAdminMessage);
-
-    assertEquals(0, position1.getQuantity()); // only allow to withdraw to 0
-
-    balance.setBalanceChange(2000_00, 2);
-    user.updateIncrement(balanceAdminMessage);
-    user.setUsdMarginRequiredValue(100);
-    assertEquals(2000_000000, position1.getQuantity()); // deposit again
-
-    balance.setBalanceChange(-2900_00, 2);
-    user.updateIncrement(balanceAdminMessage);
-
-    // only allow to withdraw 900, the difference between usdvalue of 1000 minus UsdMarginRequiredValue of 100
-    assertEquals(1100_000000, position1.getQuantity());
-
-    assertTrue(balanceAdminMessage != null);
-
-
   }
 }
