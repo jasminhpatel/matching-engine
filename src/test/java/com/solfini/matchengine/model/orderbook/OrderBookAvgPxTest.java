@@ -25,13 +25,13 @@ public class OrderBookAvgPxTest extends OrderBookTest {
         "orderId=1, ordType=LIMIT, side=BUY, price=1011, orderQty=500, leavesQty=0, execType=TRADE, avgPx=1011, ordStatus=FILLED");
     assertMessages();
 
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("Order", "orderId=1, ordType=LIMIT, side=BUY, price=1011, qty=5, qty_scale=2");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("Order", "orderId=2, ordType=LIMIT, side=SELL, price=1011,  qty=5, qty_scale=2");
     expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=-5.00, balance_change=0");
     expectOutput("DRExecutionReport", "side=SELL");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("DRExecutionReport", "side=BUY");
 
     List<Message> baseMessages = assertOutputMessages();
@@ -55,13 +55,13 @@ public class OrderBookAvgPxTest extends OrderBookTest {
         "orderId=1, ordType=LIMIT, side=SELL, price=1011, orderQty=500, leavesQty=0, avgPx=1011, execType=TRADE, ordStatus=FILLED");
     assertMessages();
 
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("Order", "orderId=1, ordType=LIMIT, side=SELL, price=1011, qty=5, qty_scale=2");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("Order", "orderId=2, ordType=LIMIT, side=BUY, price=1011,  qty=5, qty_scale=2");
     expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=5.00, balance_change=0");
     expectOutput("DRExecutionReport", "side=BUY");
-    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=.00, balance_change=0");
+    expectOutput("BalanceAdminMessage", "userId=18", "Balance [assetId=12, balance=0.00, balance_change=0");
     expectOutput("DRExecutionReport", "side=SELL");
 
     List<Message> baseMessages = assertOutputMessages();
