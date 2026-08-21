@@ -163,7 +163,7 @@ public class MassCancelTest extends OrderBookTest {
 
     updateBalance(user.getId(), UpdateType.PATCH, new Balance(BTC_USDT_F, 0, 0, 30, 2, null, 0, TokenType.ERC20));
     expectMessage("userId=" + user.getId()
-        + ", updateType=PATCH, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=200.30, balance_change=.30, "
+        + ", updateType=PATCH, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=200.30, balance_change=0.30, "
         + "eventType=0, orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0,"
         + " settleCoinUsdMark=0.0, settleCoinUnrealized=0.0, settleCoinRealized=0.0]], sourceSeqNum=0, sourceSendTime=0, "
         + "sourceSeqNum=0, sourceSendTime=0, balanceTransferToUserId=0]"); // baseUsdMark=0.0,
@@ -203,7 +203,7 @@ public class MassCancelTest extends OrderBookTest {
 
     updateBalance(user.getId(), UpdateType.PUT, new Balance(BTC_USDT_F, 30, 2, 0, 0, null, 0, TokenType.ERC20));
     expectMessage("userId=" + user.getId()
-        + ", updateType=PUT, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=.30, balance_change=0, eventType=0,"
+        + ", updateType=PUT, requestStatus=SUCCESS, balanceList=[Balance [assetId=12, balance=0.30, balance_change=0, eventType=0,"
         + " orderId=0, execId=0, usdCostBasis=0.0, usdAvgCostBasis=0.0, usdValue=0.0, usdUnrealized=0.0, usdRealized=0.0, "
         + "settleCoinUsdMark=0.0, settleCoinUnrealized=0.0, settleCoinRealized=0.0]]"); // baseUsdMark=0.0
     assertMessages();

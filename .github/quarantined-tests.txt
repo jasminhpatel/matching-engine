@@ -4,8 +4,11 @@
 # was run on its own, in its own JVM, with a 1500m heap and a 10 second budget
 # for the test run itself (surefire's forkedProcessTimeoutInSeconds, so maven
 # startup and compilation are not on the clock). 194 classes were measured; the
-# 96 that passed are what CI runs, and the 98 below are what it does not. Each is
-# grouped by how it actually failed.
+# 96 that passed became the initial CI set and the 98 below what it skipped.
+# Classes fixed since have been deleted from this list, which is now 95 entries.
+# The number CI runs is deliberately not recorded here: it also grows whenever a
+# test class is added, so any figure written down goes stale on its own.
+# Each is grouped by how it actually failed.
 #
 # Nothing here is a regression from enabling CI. All of it was already broken,
 # already dependent on infrastructure nobody provides, or already too heavy.
@@ -93,7 +96,7 @@ com/solfini/util/ProcessMonitorTest.java
 com/solfini/util/ResizingDisruptorTest.java
 
 # ---------------------------------------------------------------------------
-# Fail their assertions (36)
+# Fail their assertions (33)
 # ---------------------------------------------------------------------------
 # Ordinary red tests: the class runs to completion and reports failures or
 # errors. Pre-existing on main, nothing to do with CI.
@@ -111,7 +114,6 @@ com/solfini/matchengine/message/BalanceAdminDecodeTest.java
 com/solfini/matchengine/message/MessagePublisherTest.java
 com/solfini/matchengine/model/orderbook/ArrayOrderBookDataTest.java
 com/solfini/matchengine/model/orderbook/ExpireContractMessageScale8Test.java
-com/solfini/matchengine/model/orderbook/MassCancelTest.java
 com/solfini/matchengine/model/orderbook/OrderBookAvgPxTest.java
 com/solfini/matchengine/model/orderbook/OrderBookCancelReplaceTest.java
 com/solfini/matchengine/model/orderbook/OrderBookCashPreOrderCheckTest.java
@@ -128,8 +130,6 @@ com/solfini/matchengine/model/risk/OpenOrderCalcTest.java
 com/solfini/matchengine/model/risk/RiskCalculationTest.java
 com/solfini/matchengine/model/session/LogonTest.java
 com/solfini/matchengine/model/transaction/TransactionQueueTest.java
-com/solfini/matchengine/model/user/BalanceUpdateScaleTest.java
-com/solfini/matchengine/model/user/BalanceUpdateTest.java
 com/solfini/matchengine/model/user/UserCacheTest.java
 com/solfini/matchengine/user/UserBalanceChangeTest.java
 com/solfini/util/MailUtilTest.java
