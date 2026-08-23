@@ -401,11 +401,19 @@ public class User implements Appendable, Serializable, Constants {
     // than one per asset, which is the behaviour that was already in place before the fee moved.
     boolean withdrawFeeDue = false;
 
+    // Deferring the *charge* must not defer the *reservation*. When the fee is payable in the asset
+    // being withdrawn it competes with the withdrawal for the same balance, so the guards below have
+    // to see the balance less the fee -- otherwise a request for the whole balance is accepted and
+    // the fee then drives the position negative. This used to happen implicitly, because the fee was
+    // debited before the guards read the position; now it is explicit.
+    long sameAssetWithdrawFee = 0;
+
     if (balanceAdminMessage.getTxType() == API_TX_DEPOSIT) { // map old txn_type from api
       balanceAdminMessage.setTxType(TX_DEPOSIT);
     } else if (balanceAdminMessage.getTxType() == API_TX_WITHDRAW) {
       balanceAdminMessage.setTxType(TX_WITHDRAW);
       withdrawFeeDue = true;
+      sameAssetWithdrawFee = sameAssetWithdrawFee(instrument, balance.getAssetId());
     } else if (balanceAdminMessage.getTxType() == API_TX_CANCEL_WITHDRAW) { // cancel withdraw
       balanceAdminMessage.setTxType(TX_DEPOSIT);
       //refund withdraw fee
@@ -496,8 +504,9 @@ public class User implements Appendable, Serializable, Constants {
 
     } else if (quantityLong <= 0 && Context.isEnableBalanceWithdrawSpotLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {// spot positions
       final Position p = getPosition(balance.getAssetId());
-      LOGGER.info(LOG_FMT_4, "Withdraw position (spot) available: ", p.getAvailableQuantity(), " requested: ", -quantityLong);
-      if (p.getAvailableQuantity() + quantityLong >= 0) {
+      LOGGER.info(LOG_FMT_6, "Withdraw position (spot) available: ", p.getAvailableQuantity(), " requested: ", -quantityLong,
+          " same-asset fee reserved: ", sameAssetWithdrawFee);
+      if (p.getAvailableQuantity() + quantityLong - sameAssetWithdrawFee >= 0) {
         final Position position =
             addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
         balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
@@ -509,8 +518,9 @@ public class User implements Appendable, Serializable, Constants {
       // if withdrawing with limits, must be exact don't reduce amounts
       final Position position = getPosition(balance.getAssetId());
       long tempQuantityLong = quantityLong;
-      if (position.getAvailableQuantity() > 0 && usdMarginableValue > usdMarginRequiredValue) {
-        tempQuantityLong = -Math.min(Math.abs(quantityLong), position.getAvailableQuantity()); // limit to available position
+      final long availableForWithdrawal = position.getAvailableQuantity() - sameAssetWithdrawFee;
+      if (availableForWithdrawal > 0 && usdMarginableValue > usdMarginRequiredValue) {
+        tempQuantityLong = -Math.min(Math.abs(quantityLong), availableForWithdrawal); // limit to available position
         //LOGGER.info("Withdraw position.getAvailableQuantity() : " + position.getAvailableQuantity()  + " usdMarginableValue: " + usdMarginableValue
         //+ " usdMarginRequiredValue: " + usdMarginRequiredValue);
         if (usdMarginRequiredValue > 0) { // limit to requiredMargin
@@ -535,8 +545,9 @@ public class User implements Appendable, Serializable, Constants {
     } else if (quantityLong <= 0 && Context.isEnableBalanceWithdrawLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       // reduce size if needed, don't allow withdrawing more than current position
       final Position position = getPosition(balance.getAssetId());
-      if (position.getAvailableQuantity() > 0 && usdMarginableValue > usdMarginRequiredValue) {
-        quantityLong = -Math.min(Math.abs(quantityLong), position.getAvailableQuantity()); // limit to available position
+      final long availableForWithdrawal = position.getAvailableQuantity() - sameAssetWithdrawFee;
+      if (availableForWithdrawal > 0 && usdMarginableValue > usdMarginRequiredValue) {
+        quantityLong = -Math.min(Math.abs(quantityLong), availableForWithdrawal); // limit to available position
 
         if (usdMarginRequiredValue > 0) { // limit to requiredMargin
           long usdAvailableAdjusted = (long) MbxMath.roundToBestPrecision(
@@ -547,6 +558,13 @@ public class User implements Appendable, Serializable, Constants {
         addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       } else
         quantityLong = 0;
+
+      // Applying nothing is a refusal and has to say so. Left silent, the caller sees a plain
+      // TX_WITHDRAW, treats the request as settled, and can cancel it later -- and the cancel
+      // refunds a withdraw fee that was never charged, now that the charge is conditional.
+      if (quantityLong == 0) {
+        balanceAdminMessage.setTxType(TX_ADMIN_WITHDRAW_REJECTED);
+      }
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
     } else { // original addPosition without checks
@@ -561,7 +579,47 @@ public class User implements Appendable, Serializable, Constants {
     // owes a fee.
     if (withdrawFeeDue && balanceAdminMessage.getTxType() != TX_ADMIN_WITHDRAW_REJECTED && quantityLong != 0) {
       chargeWithdrawFee(balanceAdminMessage, instrument);
+      if (sameAssetWithdrawFee > 0) {
+        // The fee just moved the same position the withdrawal did, so the row this message carries
+        // is stale by the fee. balanceChange stays as it is: it is the withdrawal, not the fee.
+        balance.setBalance(getPosition(balance.getAssetId()).getQuantity(), instrument.getQuantityScale());
+      }
     }
+  }
+
+  /**
+   * The withdraw fee for this instrument, in that asset's own scale, when the fee is payable in the
+   * very asset being withdrawn. Zero in every other case.
+   * <p>
+   * Only the same-asset case has to be reserved out of the withdrawal headroom, because only it
+   * competes with the withdrawal for one balance. A fee payable in a different asset is charged
+   * against that other asset with no floor of its own, which is long-standing behaviour and is not
+   * changed here.
+   */
+  private final long sameAssetWithdrawFee(final Instrument instrument, final int withdrawnAssetId) {
+    if (instrument.getWithdrawFeeInstrument() != withdrawnAssetId) {
+      return 0;
+    }
+    final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
+    if (feeInstrument == null || UserCache.getExchangeUser() == null) {
+      return 0; // chargeWithdrawFee will not charge anything either, so reserve nothing
+    }
+    return scaledWithdrawFee(instrument, feeInstrument);
+  }
+
+  /**
+   * instrument.getWithdrawFee() raised into feeInstrument's quantity scale. Shared by the
+   * reservation and the charge so the two can never disagree about the amount.
+   */
+  private static long scaledWithdrawFee(final Instrument instrument, final Instrument feeInstrument) {
+    double withdrawFee = instrument.getWithdrawFee();
+    if (withdrawFee <= 0) {
+      return 0;
+    }
+    for (int i = 0; i < feeInstrument.getQuantityScale(); i++) {//qty scale is zero
+      withdrawFee = withdrawFee * 10;
+    }
+    return (long) withdrawFee;
   }
 
   /**
@@ -573,21 +631,18 @@ public class User implements Appendable, Serializable, Constants {
    * snapshot carried by these execution reports now includes the withdrawal as well as the fee,
    * which is the state the customer is actually left in.
    * <p>
-   * The available-balance guards deliberately do not reserve the fee, and do not need to. The API
-   * server rejects a withdrawal whose amount plus fee exceeds the available balance before it ever
-   * publishes the message, for both the same-asset and separate-asset fee cases.
+   * A fee payable in the asset being withdrawn is reserved ahead of the guards by
+   * {@link #sameAssetWithdrawFee}, so charging it here cannot take that position negative. A fee
+   * payable in a different asset is not reserved anywhere and can drive that asset negative; that
+   * is how it has always behaved and is not addressed here.
    */
   private final void chargeWithdrawFee(final BalanceAdminMessage balanceAdminMessage, final Instrument instrument) {
     final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
     final User exchangeUser = UserCache.getExchangeUser();
     if (feeInstrument != null && exchangeUser != null) {
-      double withdrawFee = instrument.getWithdrawFee();
-      LOGGER.info("Instrument withdraw fee. symbol: " + instrument.getSymbol() + " withdrawFee: " + withdrawFee);
+      LOGGER.info("Instrument withdraw fee. symbol: " + instrument.getSymbol() + " withdrawFee: " + instrument.getWithdrawFee());
+      final long withdrawFee = scaledWithdrawFee(instrument, feeInstrument);
       if (withdrawFee > 0) {
-        if (feeInstrument.getQuantityScale() > 0) {//qty scale is zero
-          for (int i = 0; i < (feeInstrument.getQuantityScale()); i++)
-            withdrawFee = withdrawFee * 10;
-        }
         Position feePosition = getPosition(feeInstrument.getId());
         Position exchangePosition = exchangeUser.getPosition(feeInstrument.getId());
 
@@ -599,8 +654,8 @@ public class User implements Appendable, Serializable, Constants {
         String exAvailBalBeforeWF = df.format(exchangePosition.getAvailableQuantity());
 
         LOGGER.info(LOG_FMT_6, "Withdraw fee. userId: ", balanceAdminMessage.getUserId(), " withdrawFee: ", withdrawFee , " " ,feeInstrument.getSymbol());
-        feePosition = addPosition(feeInstrument.getId(), (long) -withdrawFee, null, 0, TokenType.ERC20_GROUP);
-        exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), (long) withdrawFee, null, 0, TokenType.ERC20_GROUP);
+        feePosition = addPosition(feeInstrument.getId(), -withdrawFee, null, 0, TokenType.ERC20_GROUP);
+        exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), withdrawFee, null, 0, TokenType.ERC20_GROUP);
 
         String balAfterWF = df.format(feePosition.getQuantity());
         String availBalAfterWF = df.format(feePosition.getAvailableQuantity());
@@ -615,7 +670,7 @@ public class User implements Appendable, Serializable, Constants {
 
         final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
             NewOrderSingleHandler.getNextOrderId(),
-            this, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) -withdrawFee, (short) feeInstrument.getQuantityScale(),
+            this, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, -withdrawFee, (short) feeInstrument.getQuantityScale(),
             incrementAndGetFilledCountGlobal(), 0, exchangeUser.getId(), Constants.WITHDRAW_FEE);
         executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
         this.copySetPositionArr(executionReportMessage);
@@ -624,7 +679,7 @@ public class User implements Appendable, Serializable, Constants {
 
         final ExecutionReportMessage counterExecutionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
             NewOrderSingleHandler.getNextOrderId(),
-            exchangeUser, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) withdrawFee, (short) feeInstrument.getQuantityScale(),
+            exchangeUser, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, withdrawFee, (short) feeInstrument.getQuantityScale(),
             incrementAndGetFilledCountGlobal(), 0, this.getId(), Constants.WITHDRAW_FEE);
         counterExecutionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
         this.copySetPositionArr(counterExecutionReportMessage);

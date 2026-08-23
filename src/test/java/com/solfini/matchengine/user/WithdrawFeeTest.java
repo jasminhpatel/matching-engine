@@ -57,6 +57,8 @@ public class WithdrawFeeTest extends UserBalanceChangeTestBase {
   private static final int SAME_ASSET_EXCHANGE_USER_ID = 26;
   private static final int FULL_BALANCE_USER_ID = 27;
   private static final int FULL_BALANCE_EXCHANGE_USER_ID = 28;
+  private static final int BOUNDARY_USER_ID = 29;
+  private static final int BOUNDARY_EXCHANGE_USER_ID = 30;
 
   @Override
   protected void configureProperties(final Properties properties) {
@@ -151,13 +153,12 @@ public class WithdrawFeeTest extends UserBalanceChangeTestBase {
   }
 
   /**
-   * When the fee is payable in the asset being withdrawn, both movements land on the one position and the fee is taken
-   * after the withdrawal rather than reserved ahead of it.
+   * When the fee is payable in the asset being withdrawn, both movements land on the one position.
    *
-   * This is worth pinning down because it is the one behavioural change beyond "no fee on a refusal". Previously the fee
-   * was debited before the guard read the available balance, so it was implicitly reserved and a request for the entire
-   * balance refused itself. The guard now sees the un-reduced balance. Nothing here can overdraw the customer, because
-   * the API server rejects a withdrawal whose amount plus fee exceeds the available balance before publishing it.
+   * The net amount is the same whichever order they happen in, so this test cannot see the reordering and is not a
+   * regression guard for it -- see fullBalanceWithdrawalIsRefusedWhenTheSameAssetFeeWillNotFit for the case that can.
+   * What this pins is that the fee is taken from the right position and credited to the exchange user for a same-asset
+   * fee, which is the configuration the launch assets use.
    */
   @Test
   public void sameAssetFeeIsChargedAfterTheWithdrawal() {
@@ -172,27 +173,47 @@ public class WithdrawFeeTest extends UserBalanceChangeTestBase {
   }
 
   /**
-   * Withdrawing the entire available balance, with the fee payable in that same asset, now goes through and leaves the
-   * position short by the fee.
+   * A same-asset fee is reserved out of the headroom the guard checks, so a request for the entire balance is refused
+   * rather than applied and then driven negative by the fee.
    *
-   * This is a deliberate characterisation test rather than a statement that the outcome is desirable. Before the fee
-   * moved, it was debited ahead of the guard, so the guard saw a balance already reduced by the fee and refused the
-   * request; the fee was then charged anyway on the refusal, which is the bug this change fixes. Now the guard sees the
-   * real balance and accepts, and the fee follows.
+   * This is the test that proves the fee is still reserved after the charge was deferred. Deferring the charge on its
+   * own would remove the reservation, because it used to happen implicitly: the fee was debited before the guard read
+   * the position, so the guard saw a balance already short of it. The reservation is now explicit and this holds it
+   * down. Without it, the assertions below would be "applied" and a position of minus the fee.
    *
-   * The engine is not the control for this. The API server rejects a withdrawal whose amount plus fee exceeds the
-   * available balance before it publishes anything, for both the same-asset and separate-asset fee cases, so this input
-   * does not arise in production. If we ever decide the engine should reserve the fee itself, this test is the one that
-   * will fail and force the discussion.
+   * There is no upstream control to fall back on. Of the api-server call sites that send a withdrawal, only
+   * JsonAPI.sendWithdrawRequestJSON checks amount-plus-fee against the available balance; the fiat path, both Binance
+   * paths, both admin paths and the unattended WithdrawResendJob cron all check the amount alone.
    */
   @Test
-  public void fullBalanceWithdrawalIsAppliedAndTheSameAssetFeeFollowsIt() {
+  public void fullBalanceWithdrawalIsRefusedWhenTheSameAssetFeeWillNotFit() {
     final User user = newFundedUser(WITHDRAWN_INSTRUMENT, FULL_BALANCE_USER_ID, FULL_BALANCE_EXCHANGE_USER_ID);
+    final User exchangeUser = UserCache.getExchangeUser();
 
     final BalanceAdminMessage balanceAdminMessage = withdrawMessage(user, 1000);
     user.updateIncrement(balanceAdminMessage);
 
-    assertEquals("not refused", TX_WITHDRAW, balanceAdminMessage.getTxType());
-    assertEquals("short by the fee", -FEE_IN_SCALE, user.getPosition(WITHDRAWN_INSTRUMENT).getQuantity());
+    assertEquals("refused", TX_ADMIN_WITHDRAW_REJECTED, balanceAdminMessage.getTxType());
+    assertEquals("position untouched", 1000 * ONE_UNIT, user.getPosition(WITHDRAWN_INSTRUMENT).getQuantity());
+    assertEquals("no fee charged", 0L, exchangeUser.getPosition(WITHDRAWN_INSTRUMENT).getQuantity());
+  }
+
+  /**
+   * The largest same-asset withdrawal that still leaves the fee is accepted, and lands the position on exactly zero.
+   *
+   * The upper boundary of the reservation, so that "refused" above is not passing because the guard is simply too
+   * strict. Withdraw 998 of 1000 with a fee of 2.
+   */
+  @Test
+  public void withdrawalThatLeavesRoomForTheSameAssetFeeIsApplied() {
+    final User user = newFundedUser(WITHDRAWN_INSTRUMENT, BOUNDARY_USER_ID, BOUNDARY_EXCHANGE_USER_ID);
+    final User exchangeUser = UserCache.getExchangeUser();
+
+    final BalanceAdminMessage balanceAdminMessage = withdrawMessage(user, 998);
+    user.updateIncrement(balanceAdminMessage);
+
+    assertEquals("applied", TX_WITHDRAW, balanceAdminMessage.getTxType());
+    assertEquals("emptied to exactly zero", 0L, user.getPosition(WITHDRAWN_INSTRUMENT).getQuantity());
+    assertEquals("fee credited to the exchange user", FEE_IN_SCALE, exchangeUser.getPosition(WITHDRAWN_INSTRUMENT).getQuantity());
   }
 }
