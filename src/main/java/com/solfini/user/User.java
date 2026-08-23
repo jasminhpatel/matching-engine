@@ -392,70 +392,20 @@ public class User implements Appendable, Serializable, Constants {
         quantityLong = quantityLong / 10;
     }
 
+    // A customer withdrawal owes a fee, but only if the withdrawal is actually applied -- the
+    // guard chain further down can refuse it outright or shrink it to nothing. So record that a
+    // fee is due here and charge it at the end of this method, once the outcome is known.
+    //
+    // Only the first balance row of a message can set this, because the remap on the line below
+    // rewrites txType away from API_TX_WITHDRAW. That keeps the fee to one per withdrawal rather
+    // than one per asset, which is the behaviour that was already in place before the fee moved.
+    boolean withdrawFeeDue = false;
+
     if (balanceAdminMessage.getTxType() == API_TX_DEPOSIT) { // map old txn_type from api
       balanceAdminMessage.setTxType(TX_DEPOSIT);
     } else if (balanceAdminMessage.getTxType() == API_TX_WITHDRAW) {
       balanceAdminMessage.setTxType(TX_WITHDRAW);
-      //process withdraw fee
-      final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
-      final User exchangeUser = UserCache.getExchangeUser();
-      if (feeInstrument != null && exchangeUser != null) {
-        double withdrawFee = instrument.getWithdrawFee();
-        LOGGER.info("Instrument withdraw fee. symbol: " + instrument.getSymbol() + " withdrawFee: " + withdrawFee);
-        if (withdrawFee > 0) {
-          if (feeInstrument.getQuantityScale() > 0) {//qty scale is zero
-            for (int i = 0; i < (feeInstrument.getQuantityScale()); i++)
-              withdrawFee = withdrawFee * 10;
-          }
-          Position feePosition = getPosition(feeInstrument.getId());
-          Position exchangePosition = exchangeUser.getPosition(feeInstrument.getId());
-
-          DecimalFormat df = new DecimalFormat("###,###,###.##");
-          String balBeforeWF = df.format(feePosition.getQuantity());
-          String availBalBeforeWF = df.format(feePosition.getAvailableQuantity());
-
-          String exBalBeforeWF = df.format(exchangePosition.getQuantity());
-          String exAvailBalBeforeWF = df.format(exchangePosition.getAvailableQuantity());
-
-          LOGGER.info(LOG_FMT_6, "Withdraw fee. userId: ", balanceAdminMessage.getUserId(), " withdrawFee: ", withdrawFee , " " ,feeInstrument.getSymbol());
-          feePosition = addPosition(feeInstrument.getId(), (long) -withdrawFee, null, 0, TokenType.ERC20_GROUP);
-          exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), (long) withdrawFee, null, 0, TokenType.ERC20_GROUP);
-
-          String balAfterWF = df.format(feePosition.getQuantity());
-          String availBalAfterWF = df.format(feePosition.getAvailableQuantity());
-
-          String exBalAfterWF = df.format(exchangePosition.getQuantity());
-          String exAvailBalAfterWF = df.format(exchangePosition.getAvailableQuantity());
-
-          LOGGER.info("\nbalBeforeWF\t\t\t:" + balBeforeWF + "\nexBalAfterWF\t\t:" + exBalAfterWF
-              + "\navailBalBeforeWF\t:" + availBalBeforeWF + "\navailBalAfterWF\t\t:" + availBalAfterWF
-              + "\nexBalBeforeWF\t\t:" + exBalBeforeWF + "\nbalAfterWF\t\t\t:" + balAfterWF
-              + "\nexAvailBalBeforeWF\t:" + exAvailBalBeforeWF + "\nexAvailBalAfterWF\t:" + exAvailBalAfterWF);
-
-          final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
-              NewOrderSingleHandler.getNextOrderId(),
-              this, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) -withdrawFee, (short) feeInstrument.getQuantityScale(),
-              incrementAndGetFilledCountGlobal(), 0, exchangeUser.getId(), Constants.WITHDRAW_FEE);
-          executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
-          this.copySetPositionArr(executionReportMessage);
-
-          MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
-
-          final ExecutionReportMessage counterExecutionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
-              NewOrderSingleHandler.getNextOrderId(),
-              exchangeUser, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) withdrawFee, (short) feeInstrument.getQuantityScale(),
-              incrementAndGetFilledCountGlobal(), 0, this.getId(), Constants.WITHDRAW_FEE);
-          counterExecutionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
-          this.copySetPositionArr(counterExecutionReportMessage);
-
-          MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(counterExecutionReportMessage);
-
-        } else {
-          LOGGER.info("Zero withdraw fee. symbol: " + instrument.getSymbol());
-        }
-      } else {
-        LOGGER.info("Withdraw fee is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
-      }
+      withdrawFeeDue = true;
     } else if (balanceAdminMessage.getTxType() == API_TX_CANCEL_WITHDRAW) { // cancel withdraw
       balanceAdminMessage.setTxType(TX_DEPOSIT);
       //refund withdraw fee
@@ -603,6 +553,89 @@ public class User implements Appendable, Serializable, Constants {
       final Position position = addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
       balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
       balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
+    }
+
+    // Charge the withdraw fee only when the withdrawal actually moved money. The chain above
+    // either applied the delta, shrank it, or refused it by stamping TX_ADMIN_WITHDRAW_REJECTED.
+    // quantityLong holds whatever was applied, so a zero here means nothing moved. Neither case
+    // owes a fee.
+    if (withdrawFeeDue && balanceAdminMessage.getTxType() != TX_ADMIN_WITHDRAW_REJECTED && quantityLong != 0) {
+      chargeWithdrawFee(balanceAdminMessage, instrument);
+    }
+  }
+
+  /**
+   * Debits this instrument's withdraw fee from the user, credits the same amount to the exchange
+   * user, and publishes the matching pair of funding execution reports.
+   * <p>
+   * Called from {@link #updateIncrementInstrument} only after the withdrawal itself has been
+   * applied, so a refused withdrawal is never charged. One consequence worth knowing: the position
+   * snapshot carried by these execution reports now includes the withdrawal as well as the fee,
+   * which is the state the customer is actually left in.
+   * <p>
+   * The available-balance guards deliberately do not reserve the fee, and do not need to. The API
+   * server rejects a withdrawal whose amount plus fee exceeds the available balance before it ever
+   * publishes the message, for both the same-asset and separate-asset fee cases.
+   */
+  private final void chargeWithdrawFee(final BalanceAdminMessage balanceAdminMessage, final Instrument instrument) {
+    final Instrument feeInstrument = InstrumentCache.get(instrument.getWithdrawFeeInstrument());
+    final User exchangeUser = UserCache.getExchangeUser();
+    if (feeInstrument != null && exchangeUser != null) {
+      double withdrawFee = instrument.getWithdrawFee();
+      LOGGER.info("Instrument withdraw fee. symbol: " + instrument.getSymbol() + " withdrawFee: " + withdrawFee);
+      if (withdrawFee > 0) {
+        if (feeInstrument.getQuantityScale() > 0) {//qty scale is zero
+          for (int i = 0; i < (feeInstrument.getQuantityScale()); i++)
+            withdrawFee = withdrawFee * 10;
+        }
+        Position feePosition = getPosition(feeInstrument.getId());
+        Position exchangePosition = exchangeUser.getPosition(feeInstrument.getId());
+
+        DecimalFormat df = new DecimalFormat("###,###,###.##");
+        String balBeforeWF = df.format(feePosition.getQuantity());
+        String availBalBeforeWF = df.format(feePosition.getAvailableQuantity());
+
+        String exBalBeforeWF = df.format(exchangePosition.getQuantity());
+        String exAvailBalBeforeWF = df.format(exchangePosition.getAvailableQuantity());
+
+        LOGGER.info(LOG_FMT_6, "Withdraw fee. userId: ", balanceAdminMessage.getUserId(), " withdrawFee: ", withdrawFee , " " ,feeInstrument.getSymbol());
+        feePosition = addPosition(feeInstrument.getId(), (long) -withdrawFee, null, 0, TokenType.ERC20_GROUP);
+        exchangePosition = exchangeUser.addPosition(feeInstrument.getId(), (long) withdrawFee, null, 0, TokenType.ERC20_GROUP);
+
+        String balAfterWF = df.format(feePosition.getQuantity());
+        String availBalAfterWF = df.format(feePosition.getAvailableQuantity());
+
+        String exBalAfterWF = df.format(exchangePosition.getQuantity());
+        String exAvailBalAfterWF = df.format(exchangePosition.getAvailableQuantity());
+
+        LOGGER.info("\nbalBeforeWF\t\t\t:" + balBeforeWF + "\nexBalAfterWF\t\t:" + exBalAfterWF
+            + "\navailBalBeforeWF\t:" + availBalBeforeWF + "\navailBalAfterWF\t\t:" + availBalAfterWF
+            + "\nexBalBeforeWF\t\t:" + exBalBeforeWF + "\nbalAfterWF\t\t\t:" + balAfterWF
+            + "\nexAvailBalBeforeWF\t:" + exAvailBalBeforeWF + "\nexAvailBalAfterWF\t:" + exAvailBalAfterWF);
+
+        final ExecutionReportMessage executionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+            NewOrderSingleHandler.getNextOrderId(),
+            this, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) -withdrawFee, (short) feeInstrument.getQuantityScale(),
+            incrementAndGetFilledCountGlobal(), 0, exchangeUser.getId(), Constants.WITHDRAW_FEE);
+        executionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+        this.copySetPositionArr(executionReportMessage);
+
+        MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(executionReportMessage);
+
+        final ExecutionReportMessage counterExecutionReportMessage = ExecutionReportMessage.createFundingExecutionReport(
+            NewOrderSingleHandler.getNextOrderId(),
+            exchangeUser, feeInstrument.getId(), feeInstrument.getSymbol(), 1L, (short) 0, (long) withdrawFee, (short) feeInstrument.getQuantityScale(),
+            incrementAndGetFilledCountGlobal(), 0, this.getId(), Constants.WITHDRAW_FEE);
+        counterExecutionReportMessage.setKafkaRecordOffset(balanceAdminMessage.getKafkaRecordOffset());
+        this.copySetPositionArr(counterExecutionReportMessage);
+
+        MATCHER_TO_PUBLISHER_QUEUE.addGuaranteed(counterExecutionReportMessage);
+
+      } else {
+        LOGGER.info("Zero withdraw fee. symbol: " + instrument.getSymbol());
+      }
+    } else {
+      LOGGER.info("Withdraw fee is not processed. feeInstrument: " + feeInstrument + " exchangeUser: " + exchangeUser);
     }
   }
 
