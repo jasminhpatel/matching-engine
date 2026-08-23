@@ -102,13 +102,15 @@ public class KafkaInputFixListener extends KafkaListener {
     getConsumer().assign(partitions);
 
     if (replay) {
-      final long offset = getLastInputOffset();
-      getConsumer().seek(partition, offset);
-      LOGGER.info(LOG_FMT_2, "Moving input queue cursor to last processed offset: ", offset);
+      final long lastAppliedOffset = getLastInputOffset();
+      final long resumeOffset = resumeInputOffset(lastAppliedOffset);
+      getConsumer().seek(partition, resumeOffset);
+      LOGGER.info(LOG_FMT_4, "Last processed input offset: ", lastAppliedOffset, ", resuming input queue at: ", resumeOffset);
 
       if (replaySelected) {
         startPointOffset = getStartPointOffsetOffset();
-        LOGGER.info(LOG_FMT_4, "Start point offset of the input queue: ", startPointOffset, " pendingMessages: ", (startPointOffset - offset));
+        LOGGER.info(LOG_FMT_4, "Start point offset of the input queue: ", startPointOffset, " pendingMessages: ",
+            (startPointOffset - resumeOffset));
       }
     } else {
       getConsumer().seekToEnd(partitions);
@@ -119,6 +121,29 @@ public class KafkaInputFixListener extends KafkaListener {
         LOGGER.info("");
       }
     }
+  }
+
+  /**
+   * Where to resume reading the input queue, given the input offset of the last message this engine is
+   * known to have applied.
+   * <p>
+   * That message has already been applied and its effect is already in the state restored from the
+   * snapshot and the output replay, so reading it again applies it twice. Balance changes arrive as
+   * increments and the engine deduplicates nothing, so for a deposit or a withdrawal "twice" means
+   * twice the money. Resume from the message after it.
+   * <p>
+   * {@link #getLastInputOffset()} returns 0 for "nothing known" as well as for "offset 0" -- the
+   * output topic is empty, or no message on it carries an input offset. Zero is therefore treated as
+   * unknown and we start from the beginning of whatever the input topic still retains, which is what
+   * this did before. The one case that stays imprecise is an engine whose entire history is the single
+   * record at offset 0; it is indistinguishable from an empty topic through this signal, and it
+   * re-applies that record.
+   */
+  static long resumeInputOffset(final long lastAppliedInputOffset) {
+    if (lastAppliedInputOffset <= 0) {
+      return 0;
+    }
+    return lastAppliedInputOffset + 1;
   }
 
   protected long getLastInputOffset() {
