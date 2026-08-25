@@ -552,7 +552,8 @@ public class User implements Appendable, Serializable, Constants {
             addPosition(balance.getAssetId(), quantityLong, balance.getAssetIdtreeSet(), balance.getAssetId2(), balance.getTokenType());
         balance.setBalance(position.getQuantity(), instrument.getQuantityScale());
         balance.setBalanceChange(quantityLong, instrument.getQuantityScale()); // update newly changed amount
-        return;
+      } else {
+        balanceAdminMessage.setTxType(TX_ADMIN_WITHDRAW_REJECTED);
       }
     } else if (quantityLong <= 0 && Context.isEnableBalanceWithdrawExactLimits() && balanceAdminMessage.getTxType() <= TX_ADMIN_WITHDRAW) {
       // if withdrawing with limits, must be exact don't reduce amounts

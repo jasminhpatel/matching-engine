@@ -1,97 +1,21 @@
 package com.solfini.matchengine.model.risk;
 
-import java.util.Properties;
 import com.solfini.instrument.Balance;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.internal.admin.schema.TokenType;
 import com.solfini.internal.admin.schema.UpdateType;
-import com.solfini.matchengine.message.admin.BalanceAdminMessage;
-import com.solfini.matchengine.model.ModelTest;
-import com.solfini.user.User;
-import com.solfini.user.UserCache;
-import com.solfini.util.LogLevel;
-import com.solfini.util.PoolSize;
-import com.solfini.util.PropertyReader;
-import org.junit.Assert;
 import org.junit.Test;
-import org.slf4j.event.Level;
 import com.solfini.sbe.encoder.Side;
 import static com.solfini.sbe.encoder.TimeInForce.DAY;
 
-public class BalanceWithdrawalTest extends ModelTest {
-
-  private User user = null;
-
-  @Override
-  public void before() {
-    LogLevel.setLevel(Level.TRACE);
-
-    try {
-      Properties properties = new Properties();
-      PoolSize.minimize(properties);
-      properties.setProperty("INITIAL_ORDER_BOOK_SIZE", "500000");
-      properties.setProperty("ENABLE_BALANCE_WITHDRAW_EXACT_LIMITS", "FALSE");
-      properties.setProperty("ENABLE_BALANCE_WITHDRAW_LIMITS", "TRUE");
-      PropertyReader.initialize(null, properties);
-    } catch (Exception e) {
-      e.printStackTrace();
-      Assert.fail(e.getMessage());
-    }
-
-    InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(BTC, UpdateType.PUT, "BTC", 2, 2));
-    InstrumentCache.updateSecurityDefinition(createInstrumentDefinition(USDT, UpdateType.PUT, "USDT", 2, 2));
-    InstrumentCache.updateSecurityDefinition(createInstrumentPairDefinition(BTC_USDT_F, UpdateType.PUT, "BTC/USDT[F]", BTC, USDT, 2, 2));
-
-    expectMessage("securityId=" + BTC + ", symbol=BTC");
-    expectMessage("securityId=" + USDT + ", symbol=USDT");
-    expectMessage("securityId=" + BTC_USDT_F + ", symbol=BTC/USDT[F]");
-    assertMessages();
-
-    Assert.assertNotNull(InstrumentCache.get(BTC));
-    Assert.assertNotNull(InstrumentCache.get(USDT));
-    Assert.assertNotNull(InstrumentCache.getPair(BTC_USDT_F));
-
-    user = createUser(100, new Balance(BTC, 1_00, 2, 0, 2, null,0, TokenType.ERC20), new Balance(USDT, 10000_00, 2, 0, 2, null,0, TokenType.ERC20),
-        new Balance(BTC_USDT_F, 0, 2, 0, 2, null,0, TokenType.ERC20));
-
-    assertBalance(user, 1_00, 10000_00, 0);
-
-    expectMessage("userId=100");
-    assertMessages();
-
-    UserCache.processRisk(null);
-    InstrumentCache.get(BTC).setIndexFeedUsdMark(5000);
-    InstrumentCache.get(USDT).setIndexFeedUsdMark(1);
-    InstrumentCache.getPair(BTC_USDT_F).setIndexFeedUsdMark(4950);
-  }
-
-  @Override
-  public void after() {
-    InstrumentCache.getPair(BTC_USDT_F).getOrderBook().expireLiveSessionOrders();
-    super.after();
-  }
-
-  private BalanceAdminMessage updateBalance(final User user, final UpdateType updateType, final Balance... balances) {
-    BalanceAdminMessage message = new BalanceAdminMessage();
-    message.setUpdateType(updateType);
-    message.setUserId(user.getId());
-    message.setTxType(TX_WITHDRAW);
-
-    if (null != balances) {
-      for (final Balance balance : balances) {
-        message.addBalance(balance);
-      }
-    }
-
-    UserCache.addBalance(message);
-    return message;
-  }
-
-  private void assertBalance(final User user, final long balanceBTC, final long balanceUSDT, final long balanceBTC_USDT_F) {
-    Assert.assertEquals(balanceBTC, user.getPositionArr()[BTC].getQuantity());
-    Assert.assertEquals(balanceUSDT, user.getPositionArr()[USDT].getQuantity());
-    Assert.assertEquals(balanceBTC_USDT_F, user.getPositionArr()[BTC_USDT_F].getQuantity());
-  }
+/**
+ * Withdrawal tests that run with the default withdrawal flags.
+ *
+ * The over-withdrawal cases live in BalanceWithdrawalSpotLimitsDisabledTest, which needs
+ * ENABLE_BALANCE_WITHDRAW_SPOT_LIMITS off and therefore needs a JVM of its own. The fixture is shared via
+ * BalanceWithdrawalTestBase.
+ */
+public class BalanceWithdrawalTest extends BalanceWithdrawalTestBase {
 
   // Withdraw asset balance - positive to positive
   @Test
@@ -107,16 +31,6 @@ public class BalanceWithdrawalTest extends ModelTest {
   @Test
   public void withdrawBTC_PositiveToZero() {
     updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -100, 2, null,0, TokenType.ERC20));
-    assertBalance(user, 0, 10000_00, 0);
-
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
-    assertMessages();
-  }
-
-  // Withdraw asset balance - positive to negative (limits at zero)
-  @Test
-  public void withdrawBTC_PositiveToNegative() {
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -150, 2, null,0, TokenType.ERC20));
     assertBalance(user, 0, 10000_00, 0);
 
     expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
@@ -149,19 +63,6 @@ public class BalanceWithdrawalTest extends ModelTest {
     assertMessages();
   }
 
-  // Withdraw asset balance with open orders - positive to negative (limits at zero)
-  @Test
-  public void withdrawBTC_WithOpenOrders_PositiveToNegative() {
-    InstrumentCache.getPair(BTC_USDT_F).getOrderBook().addOrder(createOrder(1, user, BTC_USDT_F, 4950_00, 10_00, Side.BUY, DAY));
-    expectMessage("ExecutionReport", "orderId=1, ordType=LIMIT, ordStatus=NEW");
-
-    updateBalance(user, UpdateType.PATCH, new Balance(BTC, 0, 2, -150, 2, null,0, TokenType.ERC20));
-    assertBalance(user, 0, 10000_00, 0);
-
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + BTC + ", balance=0.00, balance_change=-1.00");
-    assertMessages();
-  }
-
   // Withdraw quote asset balance - positive to positive
   @Test
   public void withdrawUSDT_PositiveToPositive() {
@@ -176,16 +77,6 @@ public class BalanceWithdrawalTest extends ModelTest {
   @Test
   public void withdrawUSDT_PositiveToZero() {
     updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 2, -10000_00, 2, null,0, TokenType.ERC20));
-    assertBalance(user, 1_00, 0, 0);
-
-    expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=-10000.00");
-    assertMessages();
-  }
-
-  // Withdraw quote asset balance - positive to negative (limits at zero)
-  @Test
-  public void withdrawUSDT_PositiveToNegative() {
-    updateBalance(user, UpdateType.PATCH, new Balance(USDT, 0, 2, -15000_00, 2, null,0, TokenType.ERC20));
     assertBalance(user, 1_00, 0, 0);
 
     expectMessage("BalanceAdminMessage", "userId=100, updateType=PATCH, assetId=" + USDT + ", balance=0.00, balance_change=-10000.00");
