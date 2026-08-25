@@ -102,13 +102,15 @@ public class KafkaInputFixListener extends KafkaListener {
     getConsumer().assign(partitions);
 
     if (replay) {
-      final long offset = getLastInputOffset();
-      getConsumer().seek(partition, offset);
-      LOGGER.info(LOG_FMT_2, "Moving input queue cursor to last processed offset: ", offset);
+      final long lastAppliedOffset = getLastInputOffset();
+      final long resumeOffset = resumeInputOffset(lastAppliedOffset);
+      getConsumer().seek(partition, resumeOffset);
+      LOGGER.info(LOG_FMT_4, "Last processed input offset: ", lastAppliedOffset, ", resuming input queue at: ", resumeOffset);
 
       if (replaySelected) {
         startPointOffset = getStartPointOffsetOffset();
-        LOGGER.info(LOG_FMT_4, "Start point offset of the input queue: ", startPointOffset, " pendingMessages: ", (startPointOffset - offset));
+        LOGGER.info(LOG_FMT_4, "Start point offset of the input queue: ", startPointOffset, " pendingMessages: ",
+            (startPointOffset - resumeOffset));
       }
     } else {
       getConsumer().seekToEnd(partitions);
@@ -121,6 +123,44 @@ public class KafkaInputFixListener extends KafkaListener {
     }
   }
 
+  /**
+   * Where to resume reading the input queue, given the input offset of the last message this engine is
+   * known to have applied -- see {@link #getLastInputOffset()} for how that is established.
+   * <p>
+   * That message has already been applied and its effect is already in the state restored from the
+   * snapshot and the output replay, so reading it again applies it twice. Balance changes arrive as
+   * increments and the engine deduplicates nothing, so for a deposit or a withdrawal "twice" means
+   * twice the money. Resume from the message after it.
+   * <p>
+   * Zero means "nothing known", not "offset 0 was applied": {@link #getLastInputOffset()} returns 0
+   * for an empty output topic and for an output topic where nothing carries an input offset. It is
+   * passed through unchanged so the seek lands on 0, which is what this did before. Be aware what that
+   * actually does at runtime -- if retention has moved the input topic's log start past 0 then offset
+   * 0 no longer exists, the next poll takes an OffsetOutOfRange and the consumer falls back to its
+   * auto.offset.reset policy, which is unset throughout this repository and therefore defaults to
+   * latest. So the fallback resumes at the END of the input topic and replays nothing. That is
+   * long-standing behaviour rather than something introduced here, but it is not the "start from the
+   * beginning" it looks like, and setting KAFKA.CONSUMER.auto.offset.reset=earliest is what would make
+   * it so.
+   * <p>
+   * One case stays imprecise: an engine whose entire history is the single record at offset 0 cannot be
+   * told apart from an empty topic through this signal, and re-applies that record.
+   */
+  static long resumeInputOffset(final long lastAppliedInputOffset) {
+    if (lastAppliedInputOffset <= 0) {
+      return 0;
+    }
+    return lastAppliedInputOffset + 1;
+  }
+
+  /**
+   * The input offset of the newest message whose effects are genuinely present in the state rebuilt by
+   * the snapshot load and the output replay. Zero when that cannot be determined.
+   * <p>
+   * Found by scanning the output topic backwards for the newest record that carries an input offset.
+   * A record only counts if its output transaction is complete, which is what
+   * {@link #isAppliedBoundary} decides -- see there for why an incomplete one must be skipped.
+   */
   protected long getLastInputOffset() {
     // Read the last message on the matching engine output queue
     final KafkaListener reader = new KafkaListener(ME_KAFKA_TOPIC_PRIMARY);
@@ -152,7 +192,17 @@ public class KafkaInputFixListener extends KafkaListener {
         // wrap bytes
         decoderUnsafeBuffer.wrap(data);
         headerDecoder.wrap(decoderUnsafeBuffer, OFFSET);
+        final long transactionId = headerDecoder.transactionId();
+        final int transactionEnd = headerDecoder.transactionEnd();
         long offset = headerDecoder.kafkaRecordOffset();
+
+        if (!isAppliedBoundary(transactionId, transactionEnd)) {
+          if (LOGGER.isInfoEnabled()) {
+            LOGGER.info(LOG_FMT_4, "Ignoring output record from an unterminated transaction. transactionId: ", transactionId,
+                ", inputOffset: ", offset);
+          }
+          continue;
+        }
 
         if (offset > 0) {
           return offset;
@@ -165,6 +215,26 @@ public class KafkaInputFixListener extends KafkaListener {
     }
 
     return 0;
+  }
+
+  /**
+   * Whether an output record proves the input message that produced it was applied, and can therefore
+   * be used as the resume boundary.
+   * <p>
+   * The matcher wraps each input message's output records in one transaction, stamping every record
+   * with the transaction id and marking only the last one. Publishing is fire-and-forget with
+   * retries=0, so a crash or a single failed send can leave the earlier records of a set on the topic
+   * without the closing one.
+   * <p>
+   * That matters because of how the replay consumes them. Records with a transaction id of 0 or 1 are
+   * passed straight through, but anything higher is buffered by the receiver queue until the record
+   * marked last arrives, and the snapshot replay never flushes what is left over. So an unterminated
+   * transaction's records are stamped with an input offset and yet were never applied -- and taking
+   * one as the boundary would resume past an input message that never took effect. For a deposit that
+   * loses the money outright, which is worse than the duplicate the resume offset exists to prevent.
+   */
+  static boolean isAppliedBoundary(final long transactionId, final int transactionEnd) {
+    return transactionEnd == 1 || transactionId <= 1;
   }
 
   public long getStartPointOffsetOffset() {
@@ -205,8 +275,12 @@ public class KafkaInputFixListener extends KafkaListener {
             "KafkaInputFixListener decode error, msgType=" + messageType + LENGTH_EQ + length + SB_EQ + StringUtil.fixToString(data), e);
         return;
       }
-      //LOGGER.info(Constants.LOG_FMT_4, "replaySelected: ", replaySelected, " recordOffset: ", recordOffset, " startPointOffset: ", startPointOffset, " selected: ", (recordOffset <= startPointOffset));
-      if (replaySelected && recordOffset <= startPointOffset) {
+      // startPointOffset is the END offset of the input topic as it stood at startup -- the offset the
+      // next record produced will receive, not the offset of the last existing one. So the replay
+      // window is everything strictly below it. Using <= here pulled in the first record produced
+      // after startup, and since this branch drops anything that is not a user registration or a
+      // deposit, that discarded one live message per restart.
+      if (replaySelected && recordOffset < startPointOffset) {
         if (message instanceof UserAdminMessage userAdminMessage) { // new user registrations
           LOGGER.info(Constants.LOG_FMT_2, "Replaying input: ", userAdminMessage.toJSON());
         } else if (message instanceof BalanceAdminMessage balanceAdminMessage) { // deposits
