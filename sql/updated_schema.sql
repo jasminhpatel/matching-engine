@@ -1687,3 +1687,25 @@ ALTER TABLE blockchain_user_state ADD PRIMARY KEY (id, network, contractType);
 -- "contractKey" - already executed against the test DB with this exact statement.
 ALTER TABLE blockchain_notional_state ALTER COLUMN contractkey TYPE varchar(80);
 
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS trading_competition text NOT NULL DEFAULT '';
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS paper_trading smallint NOT NULL DEFAULT 0;
+
+ALTER TABLE user_state
+  ADD COLUMN IF NOT EXISTS paper_usdc_balance double precision NOT NULL DEFAULT 0;
+
+ALTER TABLE execution_report
+  ADD COLUMN IF NOT EXISTS ispapertrade boolean NOT NULL DEFAULT false;
+
+ALTER TABLE position_report
+  ADD COLUMN IF NOT EXISTS ispapertrade boolean NOT NULL DEFAULT false;
+
+ALTER TABLE position_report_balance
+  ADD COLUMN IF NOT EXISTS ispapertrade boolean NOT NULL DEFAULT false;
+
+  -- Add the persisted user-level paper-trading mode.
+  ALTER TABLE user_state
+    ADD COLUMN IF NOT EXISTS paper_trading smallint NOT NULL DEFAULT 0;
