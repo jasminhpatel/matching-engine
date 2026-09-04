@@ -413,8 +413,227 @@ public class FundManagerV2Reconciliation {
     }
   }
 
+  /**
+   * Composite-aware counterpart of reconcile(network, symbol) - see FundManagerV2SyncJob.
+   * syncComposites() for the caller. Symbol-keyed reconcile() is unchanged and still used by
+   * FundManagerV2CatchupJob's V5-only path; this is a parallel method, not a replacement, so that
+   * tool stays untouched (TSYS-131).
+   *
+   * memberTokenAddresses are the composite's member tokens as returned by
+   * FundingContractV6Loader.getCompositeTokens - resolved here to engine instrument ids via
+   * TokenInstrumentResolver so the snapshot-side comparison covers exactly this composite's members
+   * (all of them for a Grouped composite, e.g. Ethereum's USDC+USDT; just one for a Segregated one).
+   * A member that can't be resolved (native XDC's zero address - no ASSET instrument registered for
+   * it yet) is skipped rather than failing the whole composite's reconciliation.
+   */
+  public static void reconcileComposite(final String[] args, final StringBuilder summary, final boolean eod,
+      final String network, final String compositeId, final List<String> memberTokenAddresses) throws IOException, MessagingException {
+    summary.append("\n");
+
+    final StringBuilder csv = new StringBuilder();
+    csv.append("UserId,SnapBalance,BlockchainBalance,Status\n");
+    LOGGER.info("Fund Manager V2 composite reconciliation started. network=" + network + " compositeId=" + compositeId);
+    final Properties overlay = new Properties();
+    loadConfigurationFile(overlay);
+
+    // Same resolver FundManagerV2SnapUpdater.updateComposite already uses to build its own
+    // member-instrument set (loadFromSnapComposite's ignore-set) - throws IllegalStateException for
+    // an unrecognized token or an unregistered native-XDC instrument, which propagates out of this
+    // method and is caught per-composite by FundManagerV2SyncJob's caller, same as any other
+    // reconciliation failure for that composite.
+    final Set<Integer> memberInstrumentIds = new HashSet<>();
+    for (final String tokenAddress : memberTokenAddresses) {
+      memberInstrumentIds.add(FundingContractV6Loader.resolveInstrumentId(tokenAddress));
+    }
+
+    int missingUsers = 0, mismatchedPositions = 0, matchedPositions = 0;
+    final FundManagerSnapData blockchainSnapData = FundManagerV2Loader.getUserPositionsByComposite(network, compositeId);
+    final Map<Integer, Long> blockchainPositionsMap = blockchainSnapData.getUserPositionsMap();
+    final String snapshotMappingId = blockchainSnapData.getSnapshotId();
+    final String snapshotId = String.valueOf(BlockchainNotionalCache.getSnapshotIdByMappingId(
+        StringUtil.toInt(snapshotMappingId), network.toUpperCase(), compositeId));
+
+    LOGGER.info("Fund Manager snapshotId: " + snapshotId);
+    final String snapFile = PropertyReader.getProperty("CHRONICLE_ENGINE_SNAP_DIRECTORY", "") + "/" + snapshotId;
+    final double tolerancePercentage = PropertyReader.getProperty("ETHEREUM_NOTIONAL_DIFF_PERCENTAGE", 0.05);
+
+    if (cachedSnapMessages == null || !snapFile.equals(cachedSnapFile)) {
+      cachedSnapMessages = loadSnap(args, snapFile);
+      cachedSnapFile = snapFile;
+    }
+    final List<Message> snapUserPositions = cachedSnapMessages;
+    final AssetNotionalAccumulator notionalAccumulator =
+        new AssetNotionalAccumulator(Context.getUsdcId(), Context.getUsdtId(), Context.getXusdcId());
+
+    for (final Message message : snapUserPositions) {
+      if (message instanceof BalanceAdminMessage balanceAdminMessage) {
+        final int userId = balanceAdminMessage.getUserId();
+        final Position[] positionArr = balanceAdminMessage.getPositionArr();
+        if (positionArr == null) {
+          csv.append(userId).append(",0,0,User positions doesn't exist on snap file\n");
+          continue;
+        }
+        final double snapWithdrawable = CompositeSnapAggregator.sumMemberWithdrawable(positionArr, memberInstrumentIds);
+        for (final Position p : positionArr) {
+          if (p != null && p.getQuantity() != 0 && memberInstrumentIds.contains(p.getInstrumentId())) {
+            notionalAccumulator.addPosition(userId == 8, p.getInstrumentId(), p.getUsdValue());
+          }
+        }
+
+        final long scaledSnapValue = (long) (snapWithdrawable * 1_000_000D);
+        final Long blockchainUserPosition = blockchainPositionsMap.get(userId);
+        if (blockchainUserPosition == null) {
+          if (scaledSnapValue > 0) {
+            csv.append(userId).append(",").append(snapWithdrawable).append(",0,User doesn't exist on blockchain\n");
+            missingUsers++;
+          }
+          continue;
+        }
+        final long scaledBlockchainValue = blockchainUserPosition;
+        if (scaledSnapValue != scaledBlockchainValue) {
+          final double changePercentage = scaledBlockchainValue != 0
+              ? Math.abs((scaledSnapValue - scaledBlockchainValue) / (double) scaledBlockchainValue)
+              : 1;
+          if (changePercentage > tolerancePercentage) {
+            csv.append(userId).append(",").append(snapWithdrawable).append(",").append(scaledBlockchainValue / 1_000_000D)
+                .append(",Positions doesn't match\n");
+            mismatchedPositions++;
+          } else {
+            csv.append(userId).append(",").append(snapWithdrawable).append(",").append(scaledBlockchainValue / 1_000_000D)
+                .append(",Matched within 5%\n");
+            matchedPositions++;
+          }
+        } else {
+          csv.append(userId).append(",").append(snapWithdrawable).append(",").append(scaledBlockchainValue / 1_000_000D)
+              .append(",Matched\n");
+          matchedPositions++;
+        }
+      }
+    }
+
+    final String networkLabel = networkLabel(network);
+    final String assetLabel = assetLabel(network, memberTokenAddresses);
+    summary.append(networkLabel).append("/").append(assetLabel).append(" – User Withdrawable Reconciliation Summary: \n");
+    summary.append("\t Composite Id: ").append(compositeId).append("\n");
+    summary.append("\t Snapshot Id: ").append(blockchainSnapData.getSnapshotId()).append("\n");
+    summary.append("\t No of missing users in the contract: ").append(missingUsers).append("\n");
+    summary.append("\t No of mismatched Positions: ").append(mismatchedPositions).append("\n");
+    summary.append("\t No of matched Positions: ").append(matchedPositions).append("\n\n");
+
+    final StringBuilder html = new StringBuilder();
+    html.append("<div style=\"font-family:Arial,Helvetica,sans-serif;color:#222222;\">");
+    html.append("<h2 style=\"margin:0 0 12px;color:#2c3e50;\">").append(networkLabel)
+        .append("/").append(assetLabel).append(" – User Withdrawable Reconciliation Summary</h2>");
+    html.append("<table style=\"border-collapse:collapse;font-size:13px;margin-bottom:16px;\">");
+    appendHtmlInfoRow(html, "Composite Id", compositeId);
+    appendHtmlInfoRow(html, "Snapshot Id", blockchainSnapData.getSnapshotId());
+    appendHtmlInfoRow(html, "Missing users in the contract", missingUsers);
+    appendHtmlInfoRow(html, "Mismatched Positions", mismatchedPositions);
+    appendHtmlInfoRow(html, "Matched Positions", matchedPositions);
+
+    final double totalUserPositionsValue = notionalAccumulator.getTotalUserValue();
+    final double totalMarketMakerPositionsValue = notionalAccumulator.getTotalMarketMakerValue();
+    summary.append("\t Total of user position in USD: ").append(totalUserPositionsValue).append("\n");
+    summary.append("\t Total of market maker positions in USD: ").append(totalMarketMakerPositionsValue).append("\n");
+    appendHtmlInfoRow(html, "Total user position (USD)", String.format("%,.2f", totalUserPositionsValue));
+    appendHtmlInfoRow(html, "Total market maker positions (USD)", String.format("%,.2f", totalMarketMakerPositionsValue));
+    html.append("</table>");
+
+    boolean contractBalanceMismatchFound = false;
+    summary.append(ContractBalanceChecker.formatTableHeader());
+    html.append(ContractBalanceChecker.formatHtmlTableOpen());
+
+    if (memberInstrumentIds.contains(Context.getUsdcId())) {
+      final double contractUSDCValue = FundManagerLoader.getBalance(network, Context.getUsdcContract());
+      final AssetBalanceCheckResult usdcCheck = ContractBalanceChecker.check(
+          "USDC", notionalAccumulator.getUsdcRequiredBacking(), contractUSDCValue, tolerancePercentage);
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getUsdcUserValue(), notionalAccumulator.getUsdcMmValue(), usdcCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getUsdcUserValue(), notionalAccumulator.getUsdcMmValue(), usdcCheck));
+      if (!usdcCheck.skipped() && !usdcCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for USDC on {}: required={} actual={} diff={}%",
+            network, usdcCheck.requiredBacking(), usdcCheck.actualBalance(), usdcCheck.changePercentage() * 100);
+      }
+    }
+    if (memberInstrumentIds.contains(Context.getUsdtId())) {
+      final double contractUSDTValue = FundManagerLoader.getBalance(network, Context.getUsdtContract());
+      final AssetBalanceCheckResult usdtCheck = ContractBalanceChecker.check(
+          "USDT", notionalAccumulator.getUsdtRequiredBacking(), contractUSDTValue, tolerancePercentage);
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getUsdtUserValue(), notionalAccumulator.getUsdtMmValue(), usdtCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getUsdtUserValue(), notionalAccumulator.getUsdtMmValue(), usdtCheck));
+      if (!usdtCheck.skipped() && !usdtCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for USDT on {}: required={} actual={} diff={}%",
+            network, usdtCheck.requiredBacking(), usdtCheck.actualBalance(), usdtCheck.changePercentage() * 100);
+      }
+    }
+    if (memberInstrumentIds.contains(Context.getXusdcId())) {
+      final double contractXUSDCValue = FundManagerLoader.getBalance(network, Context.getXusdcContract());
+      final AssetBalanceCheckResult xusdcCheck = ContractBalanceChecker.check(
+          "XUSDC", notionalAccumulator.getXusdcRequiredBacking(), contractXUSDCValue, tolerancePercentage);
+      summary.append(ContractBalanceChecker.formatTableRow(
+          notionalAccumulator.getXusdcUserValue(), notionalAccumulator.getXusdcMmValue(), xusdcCheck));
+      html.append(ContractBalanceChecker.formatHtmlTableRow(
+          notionalAccumulator.getXusdcUserValue(), notionalAccumulator.getXusdcMmValue(), xusdcCheck));
+      if (!xusdcCheck.skipped() && !xusdcCheck.matched()) {
+        contractBalanceMismatchFound = true;
+        LOGGER.error("Contract balance mismatch for XUSDC on {}: required={} actual={} diff={}%",
+            network, xusdcCheck.requiredBacking(), xusdcCheck.actualBalance(), xusdcCheck.changePercentage() * 100);
+      }
+    }
+    // Native XDC composite membership resolves to null above and is skipped - it's also excluded
+    // from publishing via EXCLUDE_COMPOSITE_LIST until an ASSET instrument is registered for it,
+    // and no contract-balance check exists for it yet either (FundManagerLoader.getBalance is
+    // ERC20 balanceOf-based; native coin needs eth_getBalance). Add one here when that gap closes.
+
+    html.append(ContractBalanceChecker.formatHtmlTableClose());
+    html.append("</div>");
+
+    System.out.println(summary);
+    System.out.println();
+    System.out.println(csv);
+
+    if (eod) {
+      final String[] to = PropertyReader.getProperty("RECONCILIATION_ALERT_EMAILS",
+          "alerts.rohanw@gmail.com").split(",");
+      final String subject = (contractBalanceMismatchFound ? "[CONTRACT BALANCE MISMATCH] " : "")
+          + networkLabel + "/" + assetLabel + " – User Withdrawable Reconciliation";
+      final String body = summary.toString();
+      final String csvFile = csv.toString();
+      final List<MailAttachment> mailAttachments = new ArrayList<>(2);
+      mailAttachments.add(new MailAttachment("reconciliation_report.csv", "text/csv", csvFile));
+
+      MailUtil.sendMessage(to, subject, body, html.toString(), mailAttachments);
+    }
+  }
+
   static String networkLabel(final String network) {
     return XDC.equalsIgnoreCase(network) ? "XDC" : "Ethereum";
+  }
+
+  /**
+   * Human-readable asset list for a composite's email title (e.g. "USDC/USDT" for Ethereum's
+   * Grouped composite, "XUSDC" for XDC's Segregated one) - the raw compositeId hex is opaque to a
+   * reader and stays available in the body (Composite Id row) for exact traceability. Reads each
+   * member token's real on-chain symbol() generically rather than matching against a hardcoded
+   * asset list, so a newly added composite member needs no code change here. A per-token failure
+   * falls back to a shortened address rather than failing the whole report over a display nicety.
+   */
+  private static String assetLabel(final String network, final List<String> memberTokenAddresses) {
+    final List<String> assets = new ArrayList<>();
+    for (final String tokenAddress : memberTokenAddresses) {
+      try {
+        assets.add(FundManagerLoader.getSymbol(network, tokenAddress));
+      } catch (final Exception e) {
+        LOGGER.warn("Could not resolve symbol() for " + tokenAddress + ", falling back to address.", e);
+        assets.add(tokenAddress.substring(0, 8) + "…");
+      }
+    }
+    return assets.isEmpty() ? "Composite" : String.join("/", assets);
   }
 
   private static void appendHtmlInfoRow(final StringBuilder html, final String label, final Object value) {

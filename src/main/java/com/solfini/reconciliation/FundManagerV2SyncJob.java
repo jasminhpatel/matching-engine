@@ -129,13 +129,6 @@ public class FundManagerV2SyncJob {
       }
       final StringBuilder compositeSummary = new StringBuilder();
       try {
-        // NOTE: no reconcile() call here. FundManagerV2Reconciliation.reconcile(network, symbol)
-        // resolves `symbol` to a token address internally (Context.getTokenAddressBySymbol) and
-        // reads FundManagerV2Loader.getUserPositions(network, symbol) — neither is composite-
-        // aware, and passing a compositeId in place of symbol would silently resolve to a null
-        // token address rather than fail loudly. Composite-aware reconciliation (snap vs. chain,
-        // keyed by compositeId through FundingContractV6Loader/Views' getPositionsPaginated) is a
-        // real gap this pass does not close — flagged, not silently dropped.
         boolean success = FundManagerV2SnapUpdater.updateComposite(args, compositeSummary, null, network, coreAddress, compositeId, memberTokens, snapContext);
         summary.append(network).append("/").append(compositeId).append(" status: ").append(success).append("\n");
       } catch (Exception e) {
@@ -143,6 +136,13 @@ public class FundManagerV2SyncJob {
         summary.append(network).append("/").append(compositeId).append(" FAILED: ").append(e.getMessage()).append("\n");
       }
       System.out.println(compositeSummary);
+
+      // NOTE (TSYS-176): reconciliation deliberately does NOT run here. This job only publishes —
+      // reconciliation is event-driven: the publish above should cause the contract to emit
+      // CompositeBalanceUpdated, and it's that real on-chain event (observed by the
+      // blockchain-listener, TSYS-100/TSYS-177) that triggers FundManagerV2ReconcileTriggerJob for
+      // this composite, not this cron's own cadence. See FundManagerV2ReconcileTriggerJob's header
+      // comment for the on-demand entry point this replaced.
     }
   }
 

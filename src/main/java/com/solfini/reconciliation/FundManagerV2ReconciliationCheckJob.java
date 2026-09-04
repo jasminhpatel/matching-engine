@@ -1,9 +1,19 @@
 package com.solfini.reconciliation;
 
+import com.solfini.common.Context;
+import java.util.List;
+
 /**
  * Read-only reconciliation preview for one chain/symbol against whatever snapshot is currently
- * published on-chain. Calls FundManagerV2Reconciliation.reconcile() directly and never calls
- * FundManagerV2SnapUpdater.update() or sendHeartbeatBatch() — nothing is pushed to the blockchain.
+ * published on-chain. Composite-aware since TSYS-131: resolves the given symbol to whichever V6
+ * composite currently holds it (by walking getAllComposites/getCompositeTokens - the same
+ * discovery FundManagerV2SyncJob already does, just without a forward tokenComposite() lookup of
+ * its own) and calls FundManagerV2Reconciliation.reconcileComposite() for that whole composite.
+ * Never calls FundManagerV2SnapUpdater.updateComposite() or sendHeartbeatBatch() — nothing is
+ * pushed to the blockchain.
+ *
+ * For a Grouped composite (e.g. Ethereum's USDC+USDT), specifying either member symbol resolves to
+ * the same composite and produces the same whole-composite report.
  *
  * Reads real on-chain positions and real contract balances (live RPC calls) and sends the same
  * HTML summary email the nightly sync would send, so table/styling changes can be previewed
@@ -28,7 +38,28 @@ public class FundManagerV2ReconciliationCheckJob {
     System.out.println(summary);
 
     try {
-      FundManagerV2Reconciliation.reconcile(args, summary, true, network, symbol);
+      final String tokenAddress = Context.getTokenAddressBySymbol(symbol);
+      if (tokenAddress == null) {
+        throw new IllegalArgumentException("Unknown symbol: " + symbol);
+      }
+      final String coreAddress = Context.getFundManagerContractByNetworkAndVersion(network, 2);
+      final String viewsAddress = FundingContractV6Loader.getViewsContractAddress(network, coreAddress);
+      String matchedCompositeId = null;
+      List<String> matchedMemberTokens = null;
+      for (final String compositeId : FundingContractV6Loader.getAllComposites(network, viewsAddress)) {
+        final List<String> memberTokens = FundingContractV6Loader.getCompositeTokens(network, viewsAddress, compositeId);
+        if (memberTokens.stream().anyMatch(t -> t.equalsIgnoreCase(tokenAddress))) {
+          matchedCompositeId = compositeId;
+          matchedMemberTokens = memberTokens;
+          break;
+        }
+      }
+      if (matchedCompositeId == null) {
+        throw new IllegalStateException(symbol + " (" + tokenAddress + ") is not a member of any composite on " + network);
+      }
+      summary.append("Resolved to composite ").append(matchedCompositeId).append(" (members: ")
+          .append(matchedMemberTokens).append(")\n");
+      FundManagerV2Reconciliation.reconcileComposite(args, summary, true, network, matchedCompositeId, matchedMemberTokens);
     } catch (Exception e) {
       System.out.println("Reconciliation check failed: " + e.getMessage());
       e.printStackTrace();

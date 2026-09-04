@@ -114,6 +114,36 @@ public class FundManagerLoader {
     return decodeResponse2(actualPayload, userPositionsMap);
   }
 
+  /**
+   * Reads the real on-chain ERC20 symbol() for a token address, generically - no hardcoded
+   * per-asset list to maintain as new composite members get added. Used for email titles (see
+   * FundManagerV2Reconciliation.assetLabel) where the raw compositeId hex isn't recognizable to a
+   * reader. Callers should treat a failure here as non-fatal (fall back to the address itself)
+   * since it's a display nicety, not correctness-critical.
+   */
+  public static String getSymbol(final String network, final String tokenAddress) throws IOException {
+    final String callerAddress = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
+    final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, false, false);
+    final Function function = new Function(
+        "symbol",
+        Collections.emptyList(),
+        Collections.singletonList(new TypeReference<org.web3j.abi.datatypes.Utf8String>() {})
+    );
+    final String encodedFunction = FunctionEncoder.encode(function);
+    final EthCall response = web3j.ethCall(
+        Transaction.createEthCallTransaction(callerAddress, tokenAddress, encodedFunction),
+        DefaultBlockParameterName.LATEST
+    ).send();
+    if (response.hasError()) {
+      throw new RuntimeException(response.getError().getMessage());
+    }
+    final List<Type> decoded = FunctionReturnDecoder.decode(response.getValue(), function.getOutputParameters());
+    if (decoded.isEmpty()) {
+      throw new IllegalStateException("symbol() returned no data for " + tokenAddress);
+    }
+    return (String) decoded.getFirst().getValue();
+  }
+
   public static double getBalance(final String network, final String contractAddress) throws IOException {
     boolean useSecondary = false, hasProxyError = false;
     final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
@@ -128,18 +158,8 @@ public class FundManagerLoader {
 
     final String encodedBalanceOf = FunctionEncoder.encode(balanceOfFunction);
 
-    final EthCall balanceResponse = web3j.ethCall(
-        Transaction.createEthCallTransaction(
-            CALLER_ADDRESS,
-            contractAddress,
-            encodedBalanceOf
-        ),
-        DefaultBlockParameterName.LATEST
-    ).send();
-
-    final List<Type> balanceDecoded =
-        FunctionReturnDecoder.decode(balanceResponse.getValue(),
-            balanceOfFunction.getOutputParameters());
+    final List<Type> balanceDecoded = callAndDecodeWithRetry(
+        web3j, contractAddress, encodedBalanceOf, balanceOfFunction.getOutputParameters());
 
     final BigInteger rawBalance = (BigInteger) balanceDecoded.getFirst().getValue();
 
@@ -151,18 +171,8 @@ public class FundManagerLoader {
 
     final String encodedDecimals = FunctionEncoder.encode(decimalsFunction);
 
-    final EthCall decimalsResponse = web3j.ethCall(
-        Transaction.createEthCallTransaction(
-            CALLER_ADDRESS,
-            contractAddress,
-            encodedDecimals
-        ),
-        DefaultBlockParameterName.LATEST
-    ).send();
-
-    final List<Type> decimalsDecoded =
-        FunctionReturnDecoder.decode(decimalsResponse.getValue(),
-            decimalsFunction.getOutputParameters());
+    final List<Type> decimalsDecoded = callAndDecodeWithRetry(
+        web3j, contractAddress, encodedDecimals, decimalsFunction.getOutputParameters());
 
     final BigInteger decimals = (BigInteger) decimalsDecoded.get(0).getValue();
 
@@ -170,6 +180,45 @@ public class FundManagerLoader {
     final BigDecimal divisor = BigDecimal.TEN.pow(decimals.intValue());
 
     return new BigDecimal(rawBalance).divide(divisor).doubleValue();
+  }
+
+  /**
+   * Some public RPC endpoints intermittently return an empty (but error-free) result for a
+   * proxy-delegated eth_call - observed live against both Alchemy/Sepolia and rpc.apothem.network
+   * for calls that succeed on a plain retry moments later. Retrying here avoids failing an entire
+   * composite reconciliation over one transient empty response.
+   */
+  private static List<Type> callAndDecodeWithRetry(final Web3j web3j, final String contractAddress,
+      final String encodedFunction, final List<TypeReference<Type>> outputParameters) throws IOException {
+    // Read fresh rather than via the CALLER_ADDRESS static field: that field is frozen at
+    // FundManagerLoader's first class-load, which can happen before PropertyReader has been
+    // initialized depending on caller order (observed live: empty here even though the same key
+    // read correctly moments earlier in the same run) - a fresh read is immune to that ordering.
+    final String callerAddress = PropertyReader.getProperty("FUND_MANAGER_CONTRACT_ADDRESS", "");
+    final int maxAttempts = 3;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      final EthCall response = web3j.ethCall(
+          Transaction.createEthCallTransaction(callerAddress, contractAddress, encodedFunction),
+          DefaultBlockParameterName.LATEST
+      ).send();
+      if (response.hasError()) {
+        throw new RuntimeException(response.getError().getMessage());
+      }
+      final List<Type> decoded = FunctionReturnDecoder.decode(response.getValue(), outputParameters);
+      if (!decoded.isEmpty()) {
+        return decoded;
+      }
+      if (attempt < maxAttempts) {
+        try {
+          Thread.sleep(1000L * attempt);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+    throw new IllegalStateException("eth_call to " + contractAddress
+        + " returned an empty result after " + maxAttempts + " attempts (data: " + encodedFunction + ")");
   }
 
   private static String decodeResponse2(final byte[] data, final Map<Integer, Long> userPositionsMap) {

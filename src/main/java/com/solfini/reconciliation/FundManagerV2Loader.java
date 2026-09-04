@@ -61,6 +61,74 @@ public class FundManagerV2Loader {
     return blockchainSnapData;
   }
 
+  /**
+   * Composite-aware counterpart of getUserPositions(network, symbol). On FundingContractV6,
+   * getPositionsPaginated moved to the Views contract and takes the composite's bytes32 id instead
+   * of a token address - calling the old core-address/token-address shape against V6 would revert
+   * or hit a nonexistent function. Wire format (uint64 snapshotId prefix, then packed
+   * uint32 userId | uint256 balance | uint8 scale rows) is unchanged, so decodeResponse2 is reused
+   * as-is.
+   */
+  public static FundManagerSnapData getUserPositionsByComposite(final String network, final String compositeId) throws IOException {
+    final String coreAddress = Context.getFundManagerContractByNetworkAndVersion(network, 2);
+    final String viewsAddress = FundingContractV6Loader.getViewsContractAddress(network, coreAddress);
+    final FundManagerSnapData blockchainSnapData = new FundManagerSnapData();
+    int maxUserId = getMaxUserId(network);
+    final Map<Integer, Long> userPositionsMap = blockchainSnapData.getUserPositionsMap();
+    System.out.println("network: " + network + " compositeId: " + compositeId + " viewsAddress: " + viewsAddress);
+    final int batchSize = 200;
+    int startUserId = 1;
+    String snapshotId = null;
+    while (startUserId <= maxUserId + 1) {
+      String snapId = getUserPositionsComposite(userPositionsMap, startUserId, batchSize, network, viewsAddress, compositeId);
+      if (snapshotId == null) {
+        snapshotId = snapId;
+      }
+      if (!snapshotId.equalsIgnoreCase(snapId)) { //snapshot has been updated reload from the beginning
+        snapshotId = snapId;
+        startUserId = 1;
+        userPositionsMap.clear();
+        maxUserId = getMaxUserId(network);
+      } else {
+        startUserId += batchSize;
+      }
+    }
+    System.out.println("snapshotId: " + snapshotId + " startUserId: " + startUserId + " maxUserId: " + maxUserId);
+    blockchainSnapData.setSnapshotId(snapshotId);
+
+    return blockchainSnapData;
+  }
+
+  private static String getUserPositionsComposite(final Map<Integer, Long> userPositionsMap, final int start,
+      final int size, final String network, final String viewsAddress, final String compositeId) throws IOException {
+    boolean useSecondary = false, hasProxyError = false;
+    final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
+    final org.web3j.abi.datatypes.generated.Bytes32 compositeIdParam =
+        new org.web3j.abi.datatypes.generated.Bytes32(Numeric.hexStringToByteArray(compositeId));
+    final Uint32 fromUserId = new Uint32(start);
+    final Uint32 toUserId = new Uint32(start + size - 1);
+
+    final Function function = new Function(
+        "getPositionsPaginated",
+        Arrays.asList(compositeIdParam, fromUserId, toUserId),
+        Collections.emptyList()
+    );
+    final String encodedFunction = FunctionEncoder.encode(function);
+    final Transaction transaction = Transaction.createEthCallTransaction(CALLER_ADDRESS,
+        viewsAddress, encodedFunction);
+    final EthCall response = web3j.ethCall(transaction, DefaultBlockParameterName.LATEST).send();
+
+    if (response.hasError()) {
+      throw new RuntimeException(response.getError().getMessage());
+    }
+
+    final byte[] fullResult = Numeric.hexStringToByteArray(response.getValue());
+    final int payloadOffset = 32 + 32; // Solidity dynamic bytes: offset + length, skip both
+    final byte[] actualPayload = Arrays.copyOfRange(fullResult, payloadOffset, fullResult.length);
+
+    return decodeResponse2(actualPayload, userPositionsMap);
+  }
+
   private static int getMaxUserId(final String network) throws IOException {
     boolean useSecondary = false, hasProxyError = false;
     final Web3j web3j = RpcUtil.createWeb3jConnection(network, null, useSecondary, hasProxyError);
