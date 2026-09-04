@@ -10,8 +10,11 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class BlockchainNotionalCache {
+  private static final Logger LOGGER = LogManager.getLogger(BlockchainNotionalCache.class);
   private static final String SELECT = "SELECT userid,contractkey,notional,updated,snapshotid FROM blockchain_notional_state ORDER BY userId ASC;";
   private static final String UPSERT = """
       INSERT INTO blockchain_notional_state (userId, contractKey, notional, updated, snapshotId) 
@@ -70,14 +73,49 @@ public class BlockchainNotionalCache {
         ps.setLong(1, snapshotId);
         try (ResultSet rs = ps.executeQuery()) {
           if (rs.next()) {
-            return rs.getLong("id");
+            final long id = rs.getLong("id");
+            warnIfMappingHasGap(conn, id);
+            return id;
           }
         }
       }
     } catch (final Exception e) {
-      e.printStackTrace();
+      // MUST be loud: id BIGSERIAL becomes the on-chain snapshotId, and the contract only ever
+      // accepts the next one sequentially (+1 from its last committed value — see
+      // FundingContractV6.SnapshotIdGap). A silently-swallowed failure here (this used to be a
+      // bare e.printStackTrace(), invisible unless someone happened to be watching stderr) can
+      // leave the Postgres SERIAL sequence having consumed a value with no row to show for it —
+      // Postgres never reuses a skipped sequence value, even on rollback — permanently bricking
+      // every future publish for every composite until someone manually backfills the missing id
+      // (see TSYS-176/177 incident 2026-09-04: happened from an ordinary SIGTERM landing between
+      // the INSERT and commit, not even a normal exception path).
+      LOGGER.error("Failed to get or create blockchain_snap_mapping row for real snapshotId="
+          + snapshotId + " network=" + network + " symbol=" + symbol
+          + " — a stuck/duplicate Postgres sequence value here can permanently gap every future "
+          + "on-chain publish (SnapshotIdGap) until manually backfilled.", e);
     }
     return -1;
+  }
+
+  /**
+   * id BIGSERIAL with zero deletions means a healthy table always has id == row count; any
+   * mismatch means a sequence value was consumed with no committed row (see the exception
+   * comment above) — loud now, while it's cheap to fix, instead of a cryptic on-chain
+   * SnapshotIdGap revert days later once the gap is finally reached.
+   */
+  private static void warnIfMappingHasGap(final Connection conn, final long latestId) {
+    try (PreparedStatement ps = conn.prepareStatement("SELECT count(*) FROM blockchain_snap_mapping")) {
+      try (ResultSet rs = ps.executeQuery()) {
+        if (rs.next() && rs.getLong(1) != latestId) {
+          LOGGER.error("blockchain_snap_mapping has a gap: latest id=" + latestId + " but only "
+              + rs.getLong(1) + " row(s) exist. A future on-chain publish WILL revert with "
+              + "SnapshotIdGap once it reaches the missing id(s) — backfill the gap manually "
+              + "before that happens (see BlockchainNotionalCache.getOrCreateIncrementalId).");
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.error("Failed to check blockchain_snap_mapping for gaps (latest id=" + latestId + ")", e);
+    }
   }
 
   public static boolean confirmSnapMapping(final long snapshotId, final String network, final String symbol) {
