@@ -151,11 +151,11 @@ public class LiquiditySubscriptionCache {
               s.getExchange())) && s.isFuturesEnabled()) {
             continue; // bybit unified spot returns both spot and future balances, binance also returns the same
           }
+          exchanges.add(s.getExchange());
 
           for (LastBalance l : s.getBalanceCache().values()) {
             final String symbol = l.getSymbol().toUpperCase() + "/" + USD;
-
-            exchanges.add(s.getExchange());
+            
             if (l.getQuantity() != 0) {
               final PositionData positionData = symbolPositions.computeIfAbsent(symbol,
                   v -> new PositionData(symbol));
