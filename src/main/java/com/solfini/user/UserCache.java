@@ -301,6 +301,10 @@ public class UserCache implements Constants {
     // reject balanceAdminMessage with unexpected userId
     if (balanceAdminMessage.getUserId() < 0 || balanceAdminMessage.getUserId() >= userArr.length
         || userArr[balanceAdminMessage.getUserId()] == null || !userArr[balanceAdminMessage.getUserId()].isActive()) {
+      LOGGER.info(Constants.LOG_FMT_8, " Reject addBalance. userId ", balanceAdminMessage.getUserId(),
+          " within the userArr: ", balanceAdminMessage.getUserId() >= userArr.length,
+          " user: ", userArr[balanceAdminMessage.getUserId()],
+          " active: ", (userArr[balanceAdminMessage.getUserId()] != null && userArr[balanceAdminMessage.getUserId()].isActive()));
 
       try { // log error to trace the cause of this
         throw new NullPointerException();
