@@ -29,9 +29,9 @@ public class CMCTop30Checker {
 
   public static double getBPS(final String symbol) {
     if (isTop30(symbol)) {
-      return 0.002D;
+      return 0.0012D;
     } else {
-      return 0.003D;
+      return 0.0018D;
     }
   }
 
