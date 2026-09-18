@@ -426,7 +426,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
         return;
       }
       LOGGER.info(LOG_FMT_4, "Processing auto conversion. User Id: ", user.getId(), " usdBalance:", usdPosition.getUsdValue());
-      if (usdPosition.getUsdValue() >= 0) {
+      if (usdPosition.getQuantity() >= -MbxMath.changeScale(Context.getAutoConvertMinAmount(), usd.getQuantityScale())) {
         LOGGER.info(LOG_FMT_2, "Processing auto conversion. User Id: ", user.getId());
         return;
       }
@@ -3172,7 +3172,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
     LOGGER.info("UserId: " + user.getId() + " USD: " + usdPosition.getUsdValue() + " qty: " + usdPosition.getQuantity() + " scale: "
         + usd.getQuantityScale());
-    if (usdPosition.getUsdValue() < 0) {
+    if (usdPosition.getQuantity() < -MbxMath.changeScale(Context.getAutoConvertMinAmount(), usd.getQuantityScale())) {
       double usdPositionValue = (-usdPosition.getUsdValue() + 0.000001);// to fix rounding errors
       double amountToSettle = usdPositionValue;
       final Instrument usdc = InstrumentCache.getBySymbol(USDC);

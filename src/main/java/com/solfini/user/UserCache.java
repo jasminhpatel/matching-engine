@@ -450,7 +450,7 @@ public class UserCache implements Constants {
         if (Context.isLiquidityDexEnabled() && Context.isLiquidityImbalanceSettleEnabled() && user.getPositionArr() != null) {
           if (UserCache.getMarketMakerUser().getId() != user.getId()) {
             final Position usdPosition = user.getPositionArr()[usd.getId()];
-            if (usdPosition != null && usdPosition.getUsdValue() < 0) {
+            if (usdPosition != null && usdPosition.getQuantity() < -MbxMath.changeScale(Context.getAutoConvertMinAmount(), usd.getQuantityScale())) {
               final Position usdcPosition = user.getPositionArr()[usdc.getId()];
               final Position usdtPosition = user.getPositionArr()[usdt.getId()];
               final double stableCoinBalance = (usdcPosition != null ? usdcPosition.getUsdValue() : 0) +
