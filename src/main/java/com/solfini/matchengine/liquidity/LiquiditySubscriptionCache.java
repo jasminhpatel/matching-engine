@@ -70,65 +70,70 @@ public class LiquiditySubscriptionCache {
     final Collection<ExchangeSubscription> subscriptions = SUBSCRIPTIONS.values();
 
     for (final ExchangeSubscription subscription : subscriptions) {
-      if (subscription.getStatus() == 1) {
-        if ("BINANCE".equalsIgnoreCase(subscription.getExchange())) {
-          final BinanceFastClient client = new BinanceFastClient(subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("BYBIT".equalsIgnoreCase(subscription.getExchange())) {
-          final BybitFastClient client = new BybitFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("MEXC".equalsIgnoreCase(subscription.getExchange())) {
-          final MexcFastClient client = new MexcFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("BITGET".equalsIgnoreCase(subscription.getExchange())) {
-          final BitgetFastClient client = new BitgetFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription.getPassphrase(), subscription, false);// use default v3
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("DERIBIT".equalsIgnoreCase(subscription.getExchange())) {
-          final DeribitFastClient client = new DeribitFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("BITMART".equalsIgnoreCase(subscription.getExchange())) {
-          final BitmartFastClient client = new BitmartFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription.getPassphrase(), subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("KRAKEN".equalsIgnoreCase(subscription.getExchange())) {
-          final KrakenFastClient client = new KrakenFastClient(subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("COINBASE".equalsIgnoreCase(subscription.getExchange())) {
-          final CoinbaseFastClient client = new CoinbaseFastClient(subscription.getApiKey(),
-              subscription.getApiSecret(), subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("KUCOIN".equalsIgnoreCase(subscription.getExchange())) {
-          final KucoinFastClient client = new KucoinFastClient(subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        } else if ("HYPERLIQUID".equalsIgnoreCase(subscription.getExchange())) {
-          final HyperliquidFastClient client = new HyperliquidFastClient(subscription);
-          registerClients.add(client);
-          subscription.setClient(client);
-          client.start();
-        }
 
+      if (subscription.getStatus() == 1) {
+        try {
+          if ("BINANCE".equalsIgnoreCase(subscription.getExchange())) {
+            final BinanceFastClient client = new BinanceFastClient(subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("BYBIT".equalsIgnoreCase(subscription.getExchange())) {
+            final BybitFastClient client = new BybitFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("MEXC".equalsIgnoreCase(subscription.getExchange())) {
+            final MexcFastClient client = new MexcFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("BITGET".equalsIgnoreCase(subscription.getExchange())) {
+            final BitgetFastClient client = new BitgetFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription.getPassphrase(), subscription,
+                false);// use default v3
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("DERIBIT".equalsIgnoreCase(subscription.getExchange())) {
+            final DeribitFastClient client = new DeribitFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("BITMART".equalsIgnoreCase(subscription.getExchange())) {
+            final BitmartFastClient client = new BitmartFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription.getPassphrase(), subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("KRAKEN".equalsIgnoreCase(subscription.getExchange())) {
+            final KrakenFastClient client = new KrakenFastClient(subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("COINBASE".equalsIgnoreCase(subscription.getExchange())) {
+            final CoinbaseFastClient client = new CoinbaseFastClient(subscription.getApiKey(),
+                subscription.getApiSecret(), subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("KUCOIN".equalsIgnoreCase(subscription.getExchange())) {
+            final KucoinFastClient client = new KucoinFastClient(subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          } else if ("HYPERLIQUID".equalsIgnoreCase(subscription.getExchange())) {
+            final HyperliquidFastClient client = new HyperliquidFastClient(subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
+          }
+        } catch (Exception e) {
+          LOGGER.error(ERROR_LOG, e);
+        }
       }
     }
   }
