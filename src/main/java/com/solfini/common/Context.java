@@ -196,7 +196,7 @@ public final class Context implements Constants {
   private static final int LIQUIDITY_DEPTH_LEVELS = PropertyReader.getProperty("LIQUIDITY_DEPTH_LEVELS", 10);
   private static final boolean BLOCKCHAIN_POSITION_MANAGER_ENABLED = TRUE.equalsIgnoreCase(PropertyReader.getProperty("BLOCKCHAIN_POSITION_MANAGER_ENABLED", FALSE));
   private static final String[] LIQUIDITY_EXCHANGE_PREFERENCE =
-      PropertyReader.getProperty("LIQUIDITY_EXCHANGE_PREFERENCE", "bybit,binance,mexc,deribit").split(",");
+      PropertyReader.getProperty("LIQUIDITY_EXCHANGE_PREFERENCE", "bybit,binance,mexc,deribit,hyperliquid").split(",");
   private static final double PROMO_DEPOSIT_THRESHOLD = PropertyReader.getProperty("PROMO_DEPOSIT_THRESHOLD", 50.00D);
   private static final double PROMO_DEPOSIT_VALUE = PropertyReader.getProperty("PROMO_DEPOSIT_VALUE", 5.00D);
   private static final long EXTERNAL_EXCHANGE_BALANCE_CACHE_DURATION_MS = PropertyReader.getProperty("EXTERNAL_EXCHANGE_BALANCE_CACHE_DURATION_MS", ELEVEN_MINUTES);
