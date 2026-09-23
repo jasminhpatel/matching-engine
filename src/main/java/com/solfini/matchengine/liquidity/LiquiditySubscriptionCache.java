@@ -122,6 +122,11 @@ public class LiquiditySubscriptionCache {
           registerClients.add(client);
           subscription.setClient(client);
           client.start();
+        } else if ("HYPERLIQUID".equalsIgnoreCase(subscription.getExchange())) {
+          final HyperliquidFastClient client = new HyperliquidFastClient(subscription);
+          registerClients.add(client);
+          subscription.setClient(client);
+          client.start();
         }
 
       }

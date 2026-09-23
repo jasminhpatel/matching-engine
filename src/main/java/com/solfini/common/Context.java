@@ -307,7 +307,8 @@ public final class Context implements Constants {
   private static BigInteger GAS_LIMIT_FOR_USER_REGISTRATION =
       new BigInteger(PropertyReader.getProperty("GAS_LIMIT_FOR_USER_REGISTRATION", "150000"));
   private static final double AUTO_CONVERT_MIN_AMOUNT =  PropertyReader.getProperty("AUTO_CONVERT_MIN_AMOUNT", 0.01);// $0.01, or 1 cent
-
+  private static final boolean HYPERLIQUID_MAINNET =
+      TRUE.equalsIgnoreCase(PropertyReader.getProperty("HYPERLIQUID_MAINNET", TRUE));
 
   private static final OneToOneConcurrentArrayQueueCustom<Message> controlQueue =
       new OneToOneConcurrentArrayQueueCustom<>(CONTROL_QUEUE_CAPACITY, "controlQueue");
@@ -1432,5 +1433,9 @@ public final class Context implements Constants {
 
   public static double getAutoConvertMinAmount() {
     return AUTO_CONVERT_MIN_AMOUNT;
+  }
+
+  public static boolean isHyperliquidMainnet() {
+    return HYPERLIQUID_MAINNET;
   }
 }
