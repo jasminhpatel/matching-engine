@@ -586,7 +586,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
 
       order.setQuantityOrigLong(order.getQuantityLong()); // use this qty when triggering external order
-      order.setQuantityOrigScale(order.getQtyScale());
+      order.setQuantityOrigScale(instrumentPair.getQuantityScale()); // quantityLong is in pair scale
 
       double orderQty = MbxMath.scaleDown(order.getQty(), order.getQtyScale());
       // marketMaker Position - total external exchange positions.
@@ -699,7 +699,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     order.setExecuted(true);
     order.setPrice2(order.getPrice2(), order.getPriceScale());
     //order.setQuantityOrigLong(order.getQuantityLong());// already set
-    //order.setQuantityOrigScale(order.getQtyScale()); // already set
+    //order.setQuantityOrigScale(instrumentPair.getQuantityScale()); // already set
   }
 
   // activate CircuitBreaker if price moved
