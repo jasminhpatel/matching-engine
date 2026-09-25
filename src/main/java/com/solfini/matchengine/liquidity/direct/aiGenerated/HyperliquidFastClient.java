@@ -42,6 +42,8 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
   private static final long TEN_MINUTES = 600_000;
   private static final long ONE_MINUTE = 60_000;
   private static final int ORDER_WS_WAIT_MILLIS = 2_000;
+  /** Above this, Hyperliquid allows only integer prices. */
+  private static final long HL_INTEGER_PRICE_THRESHOLD = 100_000L;
 
   private final ExchangeSubscription subscription;
   private final HyperliquidRestClient restClient;
@@ -370,7 +372,14 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
     final String market = order.getSymbol() != null && order.getSymbol().contains(":") ? order.getSymbol() : base;
     final int assetId = futures ? restClient.ensurePerpAssetId(market) : restClient.ensureAssetId(base, quote);
     final boolean isBuy = order.getSide() == Side.BUY;
-    final String price = toWireNumber(order.getPrice(), order.getPriceScale());
+    final long roundedPrice =
+        toHyperliquidPrice(order.getPrice(), order.getPriceScale(), order.getQtyScale(), futures, isBuy);
+    final String price = toWireNumber(roundedPrice, order.getPriceScale());
+    if (roundedPrice != order.getPrice()) {
+      LOGGER.info("Hyperliquid price snapped to tick. clOrdId: " + order.getClOrdId() + " from: "
+          + toWireNumber(order.getPrice(), order.getPriceScale()) + " to: " + price);
+      order.setPrice(roundedPrice, order.getPriceScale());
+    }
     final String quantity = toWireNumber(order.getQty(), order.getQtyScale());
     final String cloid = toCloid(order.getClOrdId());
     subscription.cacheNewOrder(order);
@@ -658,8 +667,41 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
     return order.isExecuted() || order.isRejected();
   }
 
+  /**
+   * Snaps a scaled price onto Hyperliquid's tick and returns it in the same scale. Non-integer
+   * prices allow at most 5 significant figures and at most (6 - szDecimals) decimal places for
+   * perps, or (8 - szDecimals) for spot. Buys floor and sells ceil.
+   */
+  static long toHyperliquidPrice(final long amount, final int priceScale, final int szDecimals,
+      final boolean futures, final boolean isBuy) {
+    if (amount <= 0 || priceScale < 0) {
+      return amount;
+    }
+    final int maxPriceDecimals = Math.max(0, (futures ? 6 : 8) - Math.max(0, szDecimals));
+    final int tickDecimals;
+    if (amount > HL_INTEGER_PRICE_THRESHOLD * MbxMath.multiplier((short) priceScale)) {
+      tickDecimals = 0;
+    } else {
+      int magnitude = -priceScale;
+      long rest = amount;
+      while (rest >= 10) {
+        rest /= 10;
+        magnitude++;
+      }
+      tickDecimals = Math.min(4 - magnitude, maxPriceDecimals);
+    }
+    if (tickDecimals >= priceScale) {
+      return amount;
+    }
+    final long step = MbxMath.multiplier((short) (priceScale - tickDecimals));
+    if (isBuy || amount % step == 0) {
+      return (amount / step) * step;
+    }
+    return ((amount / step) + 1) * step;
+  }
+
   /** Renders a scaled long as a plain decimal string with no trailing zeros, as Hyperliquid requires. */
-  private static String toWireNumber(final long amount, final int scale) {
+  static String toWireNumber(final long amount, final int scale) {
     final String value = StringUtil.toNumericString(amount, scale);
     if (value.indexOf('.') < 0) {
       return value;
