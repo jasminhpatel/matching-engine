@@ -330,9 +330,9 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
       final String bestQuoteSymbol, final String baseSymbol, final int priceScale,
       final int qtyScale, final double fxRate) throws Exception {
 
+    // Hyperliquid does not support FOK orders, so convert them to IOC orders.
     if (order.getTimeInForce() == TimeInForce.FILL_OR_KILL) {
-      rejectUnsupportedFok(order);
-      return subscription.getExecutionReport(order.getClOrdId());
+      order.setTimeInForce(TimeInForce.IMMEDIATE_OR_CANCEL);
     }
     submitOrder(order, futuresEnabled, baseSymbol, bestQuoteSymbol);
     return subscription.getExecutionReport(order.getClOrdId());
