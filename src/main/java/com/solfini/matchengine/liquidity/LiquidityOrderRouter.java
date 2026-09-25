@@ -1064,13 +1064,13 @@ public class LiquidityOrderRouter implements Runnable {
                   (externalSymbol.getQuote() + "/" + USD).toUpperCase());
 
               final double fxRate = stableCoinPair.getUsdMark();
-              final int priceMultiplier = LiquidityCache.getMaximumPriceMultiplier((symbolLiquidity.getBestAsk() + symbolLiquidity.getBestBid())/2D);
+              //final int priceMultiplier = LiquidityCache.getMaximumPriceMultiplier((symbolLiquidity.getBestAsk() + symbolLiquidity.getBestBid())/2D);
               if (order.getSide() == Side.BUY) {
                 final LiquidityResponse.Depth[] asks = symbolLiquidity.getAsks();
                 for (LiquidityResponse.Depth ask : asks) {
                   if (tradeQtyDouble <= ask.getCumQty()) {
                     final double p1 = ask.getPrice() * (1 + bps) * fxRate;
-                    final double p = MbxMath.roundUp(p1, priceMultiplier);
+                    final double p = MbxMath.roundUp(p1, externalSymbol.getPriceScale());
                     LOGGER.info(LOG_FMT_8, "Liquidity Prep price: ", ask.getPrice(), " bps: ", bps, " fxRate: ", fxRate, " finalPrice: ", p);
                     return p;
                   }
@@ -1080,7 +1080,7 @@ public class LiquidityOrderRouter implements Runnable {
                 for (LiquidityResponse.Depth bid : bids) {
                   if (tradeQtyDouble <= bid.getCumQty()) {
                     final double p1 = bid.getPrice() * (1 - bps) * fxRate;
-                    final double p = MbxMath.roundDown(p1, priceMultiplier);
+                    final double p = MbxMath.roundDown(p1, externalSymbol.getPriceScale());
                     LOGGER.info(LOG_FMT_8, "Liquidity Prep price: ", bid.getPrice(), " bps: ", bps, " fxRate: ", fxRate, " finalPrice: ", p);
                     return p;
                   }
@@ -1116,6 +1116,5 @@ public class LiquidityOrderRouter implements Runnable {
 
     return multiplier;
   }*/
-
 
 }
