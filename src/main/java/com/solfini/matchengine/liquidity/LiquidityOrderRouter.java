@@ -1061,7 +1061,7 @@ public class LiquidityOrderRouter implements Runnable {
               double tradeQtyDouble = qtyUnits / qtyMul;
               final double bps = CMCTop30Checker.getBPS(externalSymbol.getBase());
               final InstrumentPair stableCoinPair = InstrumentCache.getPairBySymbol(
-                  externalSymbol.getQuote() + "/" + USD);
+                  (externalSymbol.getQuote() + "/" + USD).toUpperCase());
 
               final double fxRate = stableCoinPair.getUsdMark();
               final int priceMultiplier = LiquidityCache.getMaximumPriceMultiplier((symbolLiquidity.getBestAsk() + symbolLiquidity.getBestBid())/2D);
