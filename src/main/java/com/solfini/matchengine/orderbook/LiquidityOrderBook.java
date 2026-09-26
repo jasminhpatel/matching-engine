@@ -658,9 +658,10 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
       }
 
       matcherToPublisherQueue.addGuaranteed(executionReportMessage);
-      //reset reused values of the order object
+      // quantityOrigLong carried the external fill. The user trade report reads it at the pair scale.
       order.setPrice2(0L,(short) priceScale);
-      order.setQuantityOrigLong(order.getQty());
+      order.setQuantityOrigLong(order.getQuantityLong());
+      order.setQuantityOrigScale(instrumentPair.getQuantityScale());
       order.setFeeAccumulatedQuantity(0);
       order.setAssetId(0);
       //order.setSelectId(0);
