@@ -443,6 +443,85 @@ public class HtxRestClient {
         }
     }
 
+    /**
+     * Futures counterpart of {@link #querySpotOrderStatus}: polls {@code swap_order_info} for the order placed via
+     * {@link #sendLinearSwapOrderREST} or the linear-swap-trade WS (both store HTX's order_id_str in OcoClOrdId).
+     * Nothing else reports a futures fill, so without this the order sits at NEW until the poll loop gives up.
+     */
+    public boolean queryLinearSwapOrderStatus(final Order order, final String contractCode, final String clientOrderId) {
+        try {
+            final String orderId = order.getOcoClOrdId();
+            if (orderId == null || orderId.isEmpty()) {
+                LOGGER.debug("HTX queryLinearSwapOrderStatus: no order-id (OcoClOrdId) for clientOrderId=" + clientOrderId);
+                return false;
+            }
+            final String c = escapeJson(contractCode != null ? contractCode.toLowerCase(Locale.ROOT) : "btc-usdt");
+            final String json = postFuturesJson("/linear-swap-api/v1/swap_order_info",
+                    "{\"contract_code\":\"" + c + "\",\"order_id\":\"" + escapeJson(orderId) + "\"}");
+            if (json == null) return false;
+            final String status = minExtract(json, "status");
+            if (!"ok".equalsIgnoreCase(status)) {
+                LOGGER.warn("HTX swap_order_info not ok: " + minExtract(json, "err_msg"));
+                return true;
+            }
+            final List<String> orders = extractJsonObjects(extractJsonValue(json, "data"));
+            if (orders.isEmpty()) return true;
+            final String data = orders.get(0);
+            final String state = minExtract(data, "status");
+            if (state == null) return true;
+            // volume / trade_volume are whole contracts, matching the order's qtyScale 0; trade_avg_price is per coin.
+            final double filledQty = parseDoubleSafe(minExtract(data, "trade_volume"));
+            final double orderQty = parseDoubleSafe(minExtract(data, "volume"));
+            final double avgPrice = parseDoubleSafe(minExtract(data, "trade_avg_price"));
+            final OrdStatus ordStatus = toLinearSwapOrdStatus(state);
+            final long filledLong = MbxMath.changeScale(filledQty, order.getQtyScale());
+            final long totalQtyLong = MbxMath.changeScale(orderQty, order.getQtyScale());
+            final long avgPriceLong = MbxMath.changeScale(avgPrice, order.getPriceScale());
+            final ExecutionReportMessage executionMessage = getOrCreateExecutionReport(order, clientOrderId);
+            executionMessage.setClOrdId(clientOrderId);
+            executionMessage.setOrdStatus(ordStatus);
+            executionMessage.setCumQty(filledLong);
+            executionMessage.setCumQtyScale(order.getQtyScale());
+            executionMessage.setLeavesQty(totalQtyLong - filledLong);
+            executionMessage.setOrderQty(order.getQty());
+            executionMessage.setOrderQtyScale(order.getQtyScale());
+            if (avgPriceLong > 0) {
+                executionMessage.setLastPx(avgPriceLong);
+                executionMessage.setLastPxScale(order.getPriceScale());
+            }
+            if (ordStatus == OrdStatus.FILLED) {
+                executionMessage.setExecType(ExecType.TRADE);
+                order.setExecuted(true);
+            } else if (ordStatus == OrdStatus.PARTIALLY_FILLED) {
+                executionMessage.setExecType(ExecType.PARTIAL_FILL);
+            } else if (ordStatus == OrdStatus.CANCELED) {
+                executionMessage.setExecType(ExecType.CANCELED);
+                order.setRejected(true);
+            }
+            subscription.updateExecutionReport(executionMessage);
+            subscription.updateOrder(order.getClOrdId(), order);
+            return true;
+        } catch (final Exception e) {
+            LOGGER.error("HTX queryLinearSwapOrderStatus failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * swap_order_info reports status as a numeric code: 1/2 pending, 3 submitted, 4 partially filled,
+     * 5 partially filled then canceled, 6 filled, 7 canceled, 11 canceling. Unknown codes stay NEW so the poll
+     * loop never marks an order done on a state it doesn't understand.
+     */
+    private static OrdStatus toLinearSwapOrdStatus(final String status) {
+        if (status == null) return OrdStatus.NEW;
+        return switch (status.trim()) {
+            case "6" -> OrdStatus.FILLED;
+            case "4" -> OrdStatus.PARTIALLY_FILLED;
+            case "5", "7" -> OrdStatus.CANCELED;
+            default -> OrdStatus.NEW;
+        };
+    }
+
     public boolean transferSpotToFutures(final String currency, final String amount) throws Exception {
         return transferBetweenSpotAndSwap(currency, amount, true);
     }
@@ -537,30 +616,7 @@ public class HtxRestClient {
         final String spotJson = getSpotSymbolDetails();
         final String futureJson = getFutureSymbolDetails();
         if (futureJson != null) {
-            final long updated = System.currentTimeMillis();
-            for (final String obj : extractJsonObjects(extractJsonValue(futureJson, "data"))) {
-                final String contractCode = minExtract(obj, "contract_code");
-                if (contractCode != null && contractCode.contains("-")) {
-                    final String[] parts = contractCode.split("-", 2);
-                    final String base = parts[0];
-                    final String quote = parts.length > 1 ? parts[1] : "USDT";
-                    final double priceTick = parseDoubleSafe(minExtract(obj, "price_tick"));
-                    final int priceScale = priceTick > 0 && priceTick < 1 ? Math.max(0, (int) Math.round(-Math.log10(priceTick))) : 0;
-                    final String volPrecisionStr = minExtract(obj, "volume_precision");
-                    final int qtyScale = volPrecisionStr != null ? (int) parseDoubleSafe(volPrecisionStr) : 0;
-                    final ExternalSymbol sd = new ExternalSymbol();
-                    sd.setExchange("htx");
-                    sd.setSymbol(contractCode);
-                    sd.setBase(base);
-                    sd.setQuote(quote);
-                    sd.setFutures(true);
-                    sd.setTradable(true);
-                    sd.setUpdated(updated);
-                    sd.setPriceScale(priceScale);
-                    sd.setQtyScale(qtyScale);
-                    combined.add(sd);
-                }
-            }
+            combined.addAll(parseFutureInstruments(futureJson, System.currentTimeMillis()));
         }
         if (spotJson != null) {
             final long updated = System.currentTimeMillis();
@@ -592,6 +648,43 @@ public class HtxRestClient {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /** Parses {@code /linear-swap-api/v1/swap_contract_info}. */
+    private static List<ExternalSymbol> parseFutureInstruments(final String futureJson, final long updated) {
+        final List<ExternalSymbol> out = new ArrayList<>();
+        for (final String obj : extractJsonObjects(extractJsonValue(futureJson, "data"))) {
+            final String contractCode = minExtract(obj, "contract_code");
+            if (contractCode != null && contractCode.contains("-")) {
+                final String[] parts = contractCode.split("-", 2);
+                final String base = parts[0];
+                final String quote = parts.length > 1 ? parts[1] : "USDT";
+                final double priceTick = parseDoubleSafe(minExtract(obj, "price_tick"));
+                final int priceScale = priceTick > 0 && priceTick < 1 ? Math.max(0, (int) Math.round(-Math.log10(priceTick))) : 0;
+                // swap_contract_info has no volume_precision field. HTX futures volume is a whole number of
+                // contracts, each worth contract_size base units (BTC 0.001, ETH 0.01, DOGE 100). The router
+                // divides the base quantity by contractSize, so qtyScale is 0 and the price stays per coin.
+                final double contractSize = parseDoubleSafe(minExtract(obj, "contract_size"));
+                if (contractSize <= 0) {
+                    LOGGER.warn("HTX contract " + contractCode + " has no contract_size, skipping");
+                    continue;
+                }
+                final int qtyScale = 0;
+                final ExternalSymbol sd = new ExternalSymbol();
+                sd.setExchange("htx");
+                sd.setSymbol(contractCode);
+                sd.setBase(base);
+                sd.setQuote(quote);
+                sd.setFutures(true);
+                sd.setTradable(true);
+                sd.setUpdated(updated);
+                sd.setPriceScale(priceScale);
+                sd.setQtyScale(qtyScale);
+                sd.setContractSize(contractSize);
+                out.add(sd);
+            }
+        }
+        return out;
+    }
 
     private String getSpotSymbolDetails() {
         try {
