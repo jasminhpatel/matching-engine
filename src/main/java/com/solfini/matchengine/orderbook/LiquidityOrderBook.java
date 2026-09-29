@@ -686,6 +686,16 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
         }
       }
 
+      // partial external fill (IOC): the unfilled remainder will never execute. Release what the pre order check still holds for
+      // it and publish a cancel for the remainder so the user's order ends CANCELED with cumQty = the filled part.
+      if (order.getPartialFillQuantityLong() > 0 && order.getQuantityLong() > 0 && order.getQuantityLong() < order.getQuantityOrigLong()) {
+        LOGGER.info(LOG_FMT_6, "Liquidity trade partially filled. clOrdId: ", order.getClOrdId(), " filledQty: ",
+            order.getQuantityOrigLong() - order.getQuantityLong(), " unfilledQty: ", order.getQuantityLong());
+        preOrderCheck.updateCancel(order);
+        matcherToPublisherQueue.addGuaranteed(
+            ExecutionReportMessage.createCancelExecutionReport(order.getOrderId(), order, instrumentPair, order, 0));
+      }
+
       // convert stable coins to settle USD balance
       if (usdAutoConvertEnabled && order.getTargetStrategy() != AUTO_CONVERT) {
         autoConvertStableCoinsToSettle(order.getUser(), order.getKafkaRecordOffset());
@@ -949,6 +959,12 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
 
   }
 
+  // the counterparty covers only what the external exchange filled, so a partial external fill leaves the taker PARTIALLY_FILLED
+  public static long counterpartyQuantity(final Order takerOrder) {
+    final long partialFillQuantity = takerOrder.getPartialFillQuantityLong();
+    return partialFillQuantity > 0 ? Math.min(partialFillQuantity, takerOrder.getQuantityLong()) : takerOrder.getQuantityLong();
+  }
+
   public final int matchOnAsks(final Order takerOrder) {
     //LOGGER.info(Constants.LOG_FMT_2, "Liquidity matchOnAsks started: ", takerOrder.toJSON());
     User counterpartyUser = UserCache.getMarketMakerUser();
@@ -957,7 +973,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
     final Order tmpPtr = (Order) newOrderSingleHandler.buildNewLiquidationOrder(counterpartyUser,
         "" + 1_000_000_000 + counterpartyUser.getId(), instrumentPair.getId(), takerOrder.getClOrdId(), takerOrder.getPrice(),
-        takerOrder.getPriceScale(), takerOrder.getQuantityLong(), instrumentPair.getQuantityScale(), Side.SELL, OrdType.LIMIT, true);
+        takerOrder.getPriceScale(), counterpartyQuantity(takerOrder), instrumentPair.getQuantityScale(), Side.SELL, OrdType.LIMIT, true);
     tmpPtr.setTargetStrategy(takerOrder.getTargetStrategy());
     final long quantityFilled = tmpPtr.getMatchQuantityLong(takerOrder);
     tmpPtr.setQuantityLong(tmpPtr.getMatchQuantityLong(takerOrder) - quantityFilled);
@@ -1039,7 +1055,7 @@ public class LiquidityOrderBook extends GlobalOrderBook implements OrderBook, Co
     }
     final Order tmpPtr = (Order) newOrderSingleHandler.buildNewLiquidationOrder(counterpartyUser,
         "" + 1_000_000_000 + counterpartyUser.getId(), instrumentPair.getId(), takerOrder.getClOrdId(), takerOrder.getPrice(),
-        takerOrder.getPriceScale(), takerOrder.getQuantityLong(), instrumentPair.getQuantityScale(), Side.BUY, OrdType.LIMIT, true);
+        takerOrder.getPriceScale(), counterpartyQuantity(takerOrder), instrumentPair.getQuantityScale(), Side.BUY, OrdType.LIMIT, true);
     tmpPtr.setTargetStrategy(takerOrder.getTargetStrategy());
     final long quantityFilled = tmpPtr.getMatchQuantityLong(takerOrder);
     tmpPtr.setQuantityLong(tmpPtr.getMatchQuantityLong(takerOrder) - quantityFilled);

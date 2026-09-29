@@ -63,6 +63,10 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
 
   // Reconnect snapshots can redeliver fills already applied.
   private final Set<String> processedFillIds = ConcurrentHashMap.newKeySet();
+  // sum of the userFills sizes seen per order (qty scale of the order), see handleUserFills
+  private final ConcurrentHashMap<String, Long> websocketFilledQtyByClOrdId = new ConcurrentHashMap<>();
+  // sum of px * sz of the userFills seen per order, to price a quantity the REST poll reported without a price
+  private final ConcurrentHashMap<String, Double> websocketNotionalByClOrdId = new ConcurrentHashMap<>();
 
   public HyperliquidUserDataListener(final String walletAddress, final ExchangeSubscription subscription,
       final boolean mainnet) {
@@ -296,7 +300,7 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
         continue;
       }
       order.setOrderId(oid);
-      applyOrderStatus(order, hyperliquidStatus);
+      applyOrderStatus(order, hyperliquidStatus, orderNode);
     }
   }
 
@@ -321,23 +325,34 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
     return null;
   }
 
-  /** Maps Hyperliquid's documented terminal order statuses. */
-  private void applyOrderStatus(final Order order, final String hyperliquidStatus) {
+  /** Maps Hyperliquid's documented terminal order statuses. {@code orderNode} is the update's order snapshot (origSz, sz). */
+  private void applyOrderStatus(final Order order, final String hyperliquidStatus, final JsonNode orderNode) {
     final ExecutionReportMessage message = executionReport(order);
+    final boolean hasFilledPart = HyperliquidFastClient.hasFilledPart(orderNode) || message.getCumQty() > 0;
     if (HyperliquidFastClient.isOpenStatus(hyperliquidStatus)) {
       message.setOrdStatus(OrdStatus.NEW);
       message.setExecType(ExecType.NEW);
-    } else if ("filled".equalsIgnoreCase(hyperliquidStatus)) {
-      order.setExecuted(true);
-      message.setOrdStatus(OrdStatus.FILLED);
-      message.setExecType(ExecType.TRADE);
-    } else if (HyperliquidFastClient.isCanceledStatus(hyperliquidStatus)) {
-      message.setOrdStatus(OrdStatus.CANCELED);
-      message.setExecType(ExecType.CANCELED);
-      if (message.getCumQty() > 0) {
+    } else if ("filled".equalsIgnoreCase(hyperliquidStatus) && !HyperliquidFastClient.hasOpenSize(orderNode)) {
+      HyperliquidFastClient.applyFullFill(order, message);
+    } else if (HyperliquidFastClient.isCanceledStatus(hyperliquidStatus) || "filled".equalsIgnoreCase(hyperliquidStatus)) {
+      // cancelled, or IOC "filled" with sz > 0 still unfilled: terminal, PARTIALLY_FILLED when anything filled
+      if (hasFilledPart) {
+        // part filled, the rest cancelled (e.g. IOC): PARTIALLY_FILLED with the unfilled part as leavesQty
+        if (message.getCumQty() == 0) {
+          // the userFills push has not arrived yet - take the filled part from the snapshot
+          message.setCumQty(MbxMath.changeScaleWithRounding(orderNode.path("origSz").asDouble(), order.getQtyScale())
+              - MbxMath.changeScaleWithRounding(orderNode.path("sz").asDouble(), order.getQtyScale()));
+          message.setCumQtyScale(order.getQtyScale());
+        }
+        message.setLeavesQty(Math.max(0, order.getQty() - message.getCumQty()));
+        message.setLeavesQtyScale(order.getQtyScale());
         order.setExecuted(true);
+        message.setOrdStatus(OrdStatus.PARTIALLY_FILLED);
+        message.setExecType(ExecType.TRADE);
       } else {
         order.setRejected(true);
+        message.setOrdStatus(OrdStatus.CANCELED);
+        message.setExecType(ExecType.CANCELED);
       }
     } else if (HyperliquidFastClient.isRejectedStatus(hyperliquidStatus)) {
       order.setRejected(true);
@@ -350,8 +365,12 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
     LOGGER.info("Hyperliquid ORDER UPDATE >>> clOrdId=" + order.getClOrdId() + " status=" + hyperliquidStatus);
     subscription.updateExecutionReport(message);
     subscription.updateOrder(order.getClOrdId(), order);
+    // a cancelled order is terminal even when it is reported PARTIALLY_FILLED
     if (message.getOrdStatus() == OrdStatus.FILLED || message.getOrdStatus() == OrdStatus.CANCELED
-        || message.getOrdStatus() == OrdStatus.REJECTED) {
+        || message.getOrdStatus() == OrdStatus.REJECTED || HyperliquidFastClient.isCanceledStatus(hyperliquidStatus)
+        || "filled".equalsIgnoreCase(hyperliquidStatus)) {
+      websocketFilledQtyByClOrdId.remove(order.getClOrdId());
+      websocketNotionalByClOrdId.remove(order.getClOrdId());
       terminalOrder.accept(order.getClOrdId());
     }
   }
@@ -369,13 +388,9 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
     final String fillId = time + ":" + coin + ":" + tid;
 
     final long oid = fill.path("oid").asLong();
-    Order order = null;
-    for (final Order cachedOrder : subscription.getOrders().values()) {
-      if (cachedOrder.getOrderId() == oid) {
-        order = cachedOrder;
-        break;
-      }
-    }
+    // cloid first: an order that crosses on arrival can fill before its placement response has told us the oid
+    final String cloid = fill.hasNonNull("cloid") ? fill.path("cloid").asText() : null;
+    final Order order = findCachedOrder(oid, cloid);
     if (order == null) {
       LOGGER.debug("Hyperliquid userFills: no cached order for oid=" + oid + " coin=" + coin);
       return;
@@ -388,18 +403,28 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
       return;
     }
 
-    final long fillQty = MbxMath.changeScale(fill.path("sz").asDouble(), order.getQtyScale());
-    final long fillPrice = MbxMath.changeScale(fill.path("px").asDouble(), order.getPriceScale());
+    final long fillQty = MbxMath.changeScaleWithRounding(fill.path("sz").asDouble(), order.getQtyScale());
+    final long fillPrice = MbxMath.changeScaleWithRounding(fill.path("px").asDouble(), order.getPriceScale());
 
     final long previousCumQty = message.getCumQty();
     final long previousAvgPx = message.getAvgPx();
-    // An immediate execution is already represented by the signed order response. The fill event
-    // is still needed for fee data, but must not add the same quantity twice.
-    final boolean quantityAlreadyApplied = order.isExecuted() && previousCumQty > 0;
-    final long newCumQty = quantityAlreadyApplied ? previousCumQty : previousCumQty + fillQty;
-    final long newAvgPx = quantityAlreadyApplied ? previousAvgPx
-        : newCumQty == 0 ? 0
-        : Math.round((previousAvgPx * (double) previousCumQty + fillPrice * (double) fillQty) / newCumQty);
+    // An immediate execution is already represented by the signed order response (its totalSz), and a
+    // partly filled GTC keeps resting after it. Sum this order's fill events and take the larger of that
+    // sum and the reported cumQty, so a fill already in the response is never added twice while later
+    // fills of the resting remainder still count. The fill event is still needed for fee data.
+    final long websocketFilledQty = websocketFilledQtyByClOrdId.merge(order.getClOrdId(), fillQty, Long::sum);
+    final double websocketNotional = websocketNotionalByClOrdId.merge(order.getClOrdId(), fillPrice * (double) fillQty, Double::sum);
+    final long newCumQty = Math.max(previousCumQty, websocketFilledQty);
+    final long addedQty = newCumQty - previousCumQty;
+    final long newAvgPx;
+    if (previousAvgPx == 0) {
+      // the quantity so far has no price yet (REST poll without fills): price it from the fills seen
+      newAvgPx = Math.round(websocketNotional / websocketFilledQty);
+    } else if (addedQty == 0) {
+      newAvgPx = previousAvgPx;
+    } else {
+      newAvgPx = Math.round((previousAvgPx * (double) previousCumQty + fillPrice * (double) addedQty) / newCumQty);
+    }
     final long leavesQty = Math.max(0, order.getQty() - newCumQty);
 
     message.setCumQty(newCumQty);
@@ -440,6 +465,8 @@ public final class HyperliquidUserDataListener implements NettyWebSocketListener
     subscription.updateOrder(order.getClOrdId(), order);
     if (message.getOrdStatus() == OrdStatus.FILLED || message.getOrdStatus() == OrdStatus.CANCELED
         || message.getOrdStatus() == OrdStatus.REJECTED) {
+      websocketFilledQtyByClOrdId.remove(order.getClOrdId());
+      websocketNotionalByClOrdId.remove(order.getClOrdId());
       terminalOrder.accept(order.getClOrdId());
     }
   }
