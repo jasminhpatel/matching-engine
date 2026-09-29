@@ -11,6 +11,8 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.htx.HtxSpot
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.htx.HtxSpotUserDataListener;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.sbe.encoder.ExecType;
+import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.util.StringUtil;
 
 import java.util.List;
@@ -65,6 +67,11 @@ public final class HtxFastClient implements ExternalExchangeClient {
             return "BTC-USDT";
         }
         final String s = symbol.toUpperCase(java.util.Locale.ROOT);
+        if (s.contains("-")) {
+            // Already an HTX contract code ("BTC-USDT"): the router copies ExternalSymbol.symbol, which
+            // parseFutureInstruments sets from contract_code. Stripping "USDT" here produced "BTC--USDT".
+            return s;
+        }
         if (s.endsWith("USDT")) {
             final String base = s.substring(0, s.length() - 4);
             if (!base.isEmpty()) {
@@ -123,10 +130,15 @@ public final class HtxFastClient implements ExternalExchangeClient {
         final boolean isLimit = order.getType() == Constants.BUY_LIMIT || order.getType() == Constants.SELL_LIMIT;
         final String orderPriceType = isLimit ? "limit" : "opponent";
         final String priceStr = StringUtil.toNumericString(order.getPrice(), order.getPriceScale());
-        final double baseQty = order.getQty() / Math.pow(10, order.getQtyScale());
-        final double contractSize = (contractCode == null) ? 0.01
-                : (contractCode.toUpperCase(java.util.Locale.ROOT).startsWith("BTC-") ? 0.001 : 0.01);
-        final long volumeContracts = Math.max(1, Math.round(baseQty / contractSize));
+        // The router has already divided the base quantity by the symbol's contractSize (qtyScale 0), so
+        // order qty is a whole number of HTX contracts. Send it as-is like every other fast client.
+        final long volumeContracts = order.getQtyScale() == 0 ? order.getQty()
+                : (long) Math.floor(order.getQty() / Math.pow(10, order.getQtyScale()));
+        if (volumeContracts < 1) {
+            // Never round up to one contract: that would over-hedge the book.
+            rejectFutureOrder(order, "HTX qty for " + contractCode + " is below one contract");
+            return order;
+        }
         final String qtyStr = String.valueOf(volumeContracts);
         final double lev = subscription.getLeverage();
         final int leverRate = (lev >= 1 && lev <= 125) ? (int) Math.round(lev) : 10;
@@ -156,6 +168,10 @@ public final class HtxFastClient implements ExternalExchangeClient {
 
         LOGGER.debug("FUTURE: Start of Periodic REST API check for status update.");
         for (int i = 0; i < 100; i++) {
+            // No futures user-data stream: swap_order_info is the only source of a fill, mirroring the spot loop.
+            htxRestClient.queryLinearSwapOrderStatus(order, contractCode, order.getClOrdId());
+            subscription.updateOrder(order.getClOrdId(), order);
+
             final Order existingOrder = subscription.getOrder(order.getClOrdId());
             if (existingOrder.isRejected() || existingOrder.isExecuted())
                 return existingOrder;
@@ -220,6 +236,23 @@ public final class HtxFastClient implements ExternalExchangeClient {
 
         LOGGER.warn("SPOT: we couldn't process the order for order: " + order.getClOrdId());
         return order;
+    }
+
+    private void rejectFutureOrder(final Order order, final String reason) {
+        LOGGER.error("HTX futures order rejected locally clOrdId=" + order.getClOrdId() + " reason=" + reason);
+        ExecutionReportMessage exec = subscription.getExecutionReport(order.getClOrdId());
+        if (exec == null) {
+            exec = ExecutionReportMessage.createExternalExecutionReport(
+                    order.getOrderId(), order.getUser(), 0, order.getSymbol(), 0L, (short) 0, 0L, (short) 0,
+                    0, 0, 0, 0, order.getSide(), 0);
+        }
+        exec.setClOrdId(order.getClOrdId());
+        exec.setError(reason);
+        exec.setOrdStatus(OrdStatus.REJECTED);
+        exec.setExecType(ExecType.REJECTED);
+        subscription.updateExecutionReport(exec);
+        order.setRejected(true);
+        subscription.updateOrder(order.getClOrdId(), order);
     }
 
     private void sendFutureOrderRESTWithParams(final Order order, final String contractCode, final String side,
@@ -432,6 +465,12 @@ public final class HtxFastClient implements ExternalExchangeClient {
     private void bootstrapSpotBalanceSnapshot() throws Exception {
 
         final String body = htxRestClient.getSpotBalanceSnapshot();
+        if (body == null) {
+            // getSpotBalanceSnapshot already logged why. Skip like the futures path does rather than NPE and
+            // abort client start-up on a transient error; the periodic refresh retries in 10 minutes.
+            LOGGER.warn("HTX spot snapshot unavailable, keeping last known balances");
+            return;
+        }
         applySpotAccountSnapshot(body);
         LOGGER.info("Bootstrap snapshot applied");
     }
@@ -557,12 +596,17 @@ public final class HtxFastClient implements ExternalExchangeClient {
                 final int objEnd = pArr.indexOf('}', objStart);
                 if (objEnd < 0) break; // avoid infinite loop on malformed or unexpected format
                 final String obj = pArr.substring(objStart, objEnd + 1);
-                final String symbol = minExtract(obj, "contract_code");
+                final String contractCode = minExtract(obj, "contract_code");
+                // Volume is in contracts, which is the unit the router compares against (orderQty / contractSize).
                 final double volume = parseDoubleSafe(minExtract(obj, "volume"));
                 final String direction = minExtract(obj, "direction");
                 final double positionAmt = "buy".equalsIgnoreCase(direction) ? volume : -volume;
-                if (symbol != null)
+                if (contractCode != null) {
+                    // HTX reports "BTC-USDT"; the router looks positions up by base+quote ("BTCUSDT") like every
+                    // other fast client, so strip the separator or the position is never found.
+                    final String symbol = contractCode.replace("-", "").toUpperCase(java.util.Locale.ROOT);
                     subscription.updatePosition(symbol, positionAmt);
+                }
                 q = objEnd + 1;
             }
         }

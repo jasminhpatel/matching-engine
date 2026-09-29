@@ -24,7 +24,17 @@ public class ExternalSymbol {
   /** Price step size. If set, any price must be a multiple of this */
   private double priceStepSize;
 
+  /**
+   * Symbol-style multiplier for exchanges that list e.g. 1000SHIBUSDT: the exchange quantity AND price are both
+   * expressed per {@code multiplierContract} coins, so the router divides quantity and multiplies price by it.
+   */
   private int multiplierContract;
+  /**
+   * Base units per contract for contract-denominated futures (HTX BTC-USDT = 0.001 BTC, DOGE-USDT = 100 DOGE).
+   * The exchange quantity is in whole contracts but the price stays per coin, so the router only divides the
+   * quantity by it and leaves the price alone. Fractional values are common, hence a double. 0 = not contract based.
+   */
+  private double contractSize;
 
   // Option fields
   private String kind;
@@ -157,6 +167,14 @@ public class ExternalSymbol {
     this.multiplierContract = multiplierContract;
   }
 
+  public final double getContractSize() {
+    return contractSize;
+  }
+
+  public final void setContractSize(final double contractSize) {
+    this.contractSize = contractSize;
+  }
+
   public final double getMinimumAmount() {
     return minimumAmount;
   }
@@ -248,6 +266,7 @@ public class ExternalSymbol {
     sb.append(", amountStepSize=").append(amountStepSize);
     sb.append(", priceStepSize=").append(priceStepSize);
     sb.append(", multiplierContract=").append(multiplierContract);
+    sb.append(", contractSize=").append(contractSize);
     sb.append(", kind='").append(kind).append('\'');
     sb.append(", isPut=").append(isPut);
     sb.append(", isCall=").append(isCall);

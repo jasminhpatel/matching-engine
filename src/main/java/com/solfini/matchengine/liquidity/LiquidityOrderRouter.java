@@ -151,7 +151,8 @@ public class LiquidityOrderRouter implements Runnable {
               final double quoteBalance = subscription.getBalance(symbolStatus.getQuote());
               if (symbolStatus.isFutures()) {
                 final double baseBalance = subscription.getPosition(symbolStatus.getBase() + symbolStatus.getQuote());
-                final double multiplier = symbolStatus.getMultiplierContract() > 0 ? symbolStatus.getMultiplierContract() : 1D;
+                final double multiplier = symbolStatus.getContractSize() > 0 ? symbolStatus.getContractSize()
+                    : (symbolStatus.getMultiplierContract() > 0 ? symbolStatus.getMultiplierContract() : 1D);
                 // has short positions, buy back
                 LOGGER.info(LOG_FMT_12, "Check for Buy: ", order.getClOrdId(), " ", symbolStatus.toShortString(), " qty: ",
                     (orderQty / multiplier), " available: ", quoteBalance, " ", symbolStatus.getQuote(), " short: ", -baseBalance);
@@ -176,7 +177,8 @@ public class LiquidityOrderRouter implements Runnable {
             } else {
               final double quoteBalance = subscription.getBalance(symbolStatus.getQuote());
               final double baseBalance = subscription.getBalance(symbolStatus.getBase());
-              final double multiplier = symbolStatus.getMultiplierContract() > 0 ? symbolStatus.getMultiplierContract() : 1D;
+              final double multiplier = symbolStatus.getContractSize() > 0 ? symbolStatus.getContractSize()
+                  : (symbolStatus.getMultiplierContract() > 0 ? symbolStatus.getMultiplierContract() : 1D);
 
               final double minimumRequiredBalance = (orderQty * (1 - Context.getExternalExchangeSellQtyTolerancePercentage()));
               if (baseBalance >= minimumRequiredBalance
@@ -240,9 +242,13 @@ public class LiquidityOrderRouter implements Runnable {
 
     final int priceScale = selectedExchangeSymbol.getSymbolData().getPriceScale();
     final int qtyScale = selectedExchangeSymbol.getSymbolData().getQtyScale();
-    final double contractMultiplier =
-        selectedExchangeSymbol.getSymbolData().getMultiplierContract() > 0 ? selectedExchangeSymbol.getSymbolData().getMultiplierContract()
-            : 1D;
+    final ExternalSymbol symbolData = selectedExchangeSymbol.getSymbolData();
+    // Quantity divisor: contractSize for contract-denominated futures (HTX BTC-USDT = 0.001 BTC), otherwise the
+    // symbol-style multiplier (Bybit 1000SHIBUSDT), otherwise 1. Only the symbol-style multiplier also scales the
+    // price, because those exchanges quote the price per multiplied unit; contract prices stay per coin.
+    final double contractMultiplier = symbolData.getContractSize() > 0 ? symbolData.getContractSize()
+        : (symbolData.getMultiplierContract() > 0 ? symbolData.getMultiplierContract() : 1D);
+    final double priceMultiplier = symbolData.getMultiplierContract() > 0 ? symbolData.getMultiplierContract() : 1D;
     double xPrice = 0;
     double xQuantity = 0;
     long qtyUnits = 0;
@@ -273,7 +279,7 @@ public class LiquidityOrderRouter implements Runnable {
         qtyUnits = (long) ((rawQty / contractMultiplier) * qtyMul);
         xQuantity = qtyUnits / qtyMul;
       }
-      priceUnits = (long) Math.floor(xPrice * contractMultiplier * priceMul);
+      priceUnits = (long) Math.floor(xPrice * priceMultiplier * priceMul);
     } else {
       long marketPrice = order.getPrice();
       if (futuresEnabled) {
@@ -287,7 +293,7 @@ public class LiquidityOrderRouter implements Runnable {
           (long) (marketPrice * fxRate * (1 - (safetyFactorBps - Context.getProfitMarginBpsForLiquidity())) / (1 - safetyFactorBps)),
           order.getPriceScale());
       qtyUnits = (long) ((rawQty / contractMultiplier) * qtyMul);
-      priceUnits = (long) Math.ceil(xPrice * contractMultiplier * priceMul);
+      priceUnits = (long) Math.ceil(xPrice * priceMultiplier * priceMul);
 
       xQuantity = qtyUnits / qtyMul;
       // even if exchange have 1% lower continue.
@@ -450,10 +456,12 @@ public class LiquidityOrderRouter implements Runnable {
                 final XExchange.Balance baseCoinBalance =
                     ExternalExchangeHandler.getBalance(subscription, xExchange, symbolStatus.getBase());
                 // has short positions, buy back
-                if (symbolStatus.getMultiplierContract() > 0) {
-                  if (-baseCoinBalance.getCoinBalance() >= (orderQty / symbolStatus.getMultiplierContract())) {
+                if (symbolStatus.getMultiplierContract() > 0 || symbolStatus.getContractSize() > 0) {
+                  final double qtyDivisor = symbolStatus.getContractSize() > 0 ? symbolStatus.getContractSize()
+                      : symbolStatus.getMultiplierContract();
+                  if (-baseCoinBalance.getCoinBalance() >= (orderQty / qtyDivisor)) {
                     LOGGER.info(LOG_FMT_12, "Selected for Buy: ", order.getClOrdId(), " ", symbolStatus.toShortString(), " orderValue: ",
-                        (orderQty / symbolStatus.getMultiplierContract()), " available: ", availableBalance, " ", symbolStatus.getQuote(),
+                        (orderQty / qtyDivisor), " available: ", availableBalance, " ", symbolStatus.getQuote(),
                         " short: ", -baseCoinBalance.getCoinBalance());
                     selectedExchanges.computeIfAbsent(symbolStatus.getExchange().toLowerCase(), v -> new HashMap<>())
                         .put(symbolStatus.isFutures(), new SymbolBalance(subscription, symbolStatus, baseCoinBalance.getCoinBalance()));
@@ -930,10 +938,9 @@ public class LiquidityOrderRouter implements Runnable {
             final XExchange xExchange = X_EXCHANGE_CACHE.get(key);
             final XExchange.Balance balance =
                 ExternalExchangeHandler.getBalance(subscription, xExchange, selected.getSymbolData().getBase());
-            double convertedOrderQty = orderQty;
-            if (selected.getSymbolData().getMultiplierContract() > 0) {
-              convertedOrderQty = orderQty / selected.getSymbolData().getMultiplierContract();
-            }
+            final ExternalSymbol sym = selected.getSymbolData();
+            final double convertedOrderQty = orderQty / (sym.getContractSize() > 0 ? sym.getContractSize()
+                : (sym.getMultiplierContract() > 0 ? sym.getMultiplierContract() : 1D));
             if (balance.getCoinBalance() < 0 && Math.abs(balance.getCoinBalance()) >= convertedOrderQty) {
               LOGGER.info(LOG_FMT_6, "Select best (short). exchange: ", exchange.toLowerCase(), " futuresEnabled: ", true, " selected: ",
                   selected);
@@ -990,10 +997,9 @@ public class LiquidityOrderRouter implements Runnable {
             final ExchangeSubscription subscription = selected.getSubscription();
             final double positionBalance =
                 subscription.getPosition(selected.getSymbolData().getBase() + selected.getSymbolData().getQuote());
-            double convertedOrderQty = orderQty;
-            if (selected.getSymbolData().getMultiplierContract() > 0) {
-              convertedOrderQty = orderQty / selected.getSymbolData().getMultiplierContract();
-            }
+            final ExternalSymbol sym = selected.getSymbolData();
+            final double convertedOrderQty = orderQty / (sym.getContractSize() > 0 ? sym.getContractSize()
+                : (sym.getMultiplierContract() > 0 ? sym.getMultiplierContract() : 1D));
             if (positionBalance < 0 && Math.abs(positionBalance) >= convertedOrderQty) {
               LOGGER.info(LOG_FMT_6, "Select best (short). exchange: ", exchange.toLowerCase(), " futuresEnabled: ", true, " selected: ",
                   selected);
@@ -1048,9 +1054,8 @@ public class LiquidityOrderRouter implements Runnable {
         final int qtyScale = externalSymbol.getQtyScale();
         final double qtyMul = Math.pow(10, qtyScale);
         double rawQty = MbxMath.scaleDown(order.getQuantityOrigLong(), order.getQuantityOrigScale());
-        final double contractMultiplier =
-            externalSymbol.getMultiplierContract() > 0 ? externalSymbol.getMultiplierContract()
-                : 1D;
+        final double contractMultiplier = externalSymbol.getContractSize() > 0 ? externalSymbol.getContractSize()
+            : (externalSymbol.getMultiplierContract() > 0 ? externalSymbol.getMultiplierContract() : 1D);
         if (fullLiquidityMap != null) {
           final ConcurrentHashMap<Integer, Liquidity> exchangeLiquidity = fullLiquidityMap.get(
               tardisExchangeId);
