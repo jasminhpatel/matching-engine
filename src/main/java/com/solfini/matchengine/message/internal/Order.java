@@ -86,6 +86,8 @@ public class Order extends Message implements Constants {
   private boolean orderModified;
   private boolean executed;
   private boolean rejected;
+  // external exchange filled only part of the order: quantity to fill locally, at the pair quantity scale. 0 = full fill
+  private long partialFillQuantityLong;
 
   public Order() {
     // default constructor
@@ -836,6 +838,14 @@ public class Order extends Message implements Constants {
     this.rejected = rejected;
   }
 
+  public long getPartialFillQuantityLong() {
+    return partialFillQuantityLong;
+  }
+
+  public void setPartialFillQuantityLong(final long partialFillQuantityLong) {
+    this.partialFillQuantityLong = partialFillQuantityLong;
+  }
+
 /*  // TODO: remove this check used for debugging
   public void visit() {
     *//*
@@ -946,6 +956,7 @@ public class Order extends Message implements Constants {
     this.clOrdId = null;
     this.executed = false;
     this.rejected = false;
+    this.partialFillQuantityLong = 0;
     this.inputTime = 0;
     this.ocoClOrdId = null;
     this.ocoOrder = null;

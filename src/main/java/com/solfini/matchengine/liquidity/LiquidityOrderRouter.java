@@ -33,6 +33,7 @@ import org.knowm.xchange.dto.meta.InstrumentMetaData;
 import org.knowm.xchange.exceptions.ExchangeException;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -322,8 +323,20 @@ public class LiquidityOrderRouter implements Runnable {
     final ExecutionReportMessage executionReport =
         subscription.getClient().sendOrder(externalOrder, futuresEnabled, bestQuoteSymbol, baseSymbol, priceScale, qtyScale, fxRate);
 
-    if (executionReport.getOrdStatus() == OrdStatus.FILLED) {
+    // Only a client that could not honour FOK and downgraded the order to IOC (Hyperliquid) can leave a partial fill behind.
+    // Every other client keeps FOK, so this branch never runs for them: the exchange filled only part of the order, fill the
+    // same share of it locally, the rest is cancelled in the order book.
+    final boolean partiallyFilled = externalOrder.getTimeInForce() == TimeInForce.IMMEDIATE_OR_CANCEL
+        && executionReport.getOrdStatus() == OrdStatus.PARTIALLY_FILLED && executionReport.getCumQty() > 0;
+    final long partialFillQuantity = partiallyFilled
+        ? partialFillQuantity(order.getQuantityLong(), executionReport.getCumQty(), externalOrder.getQty()) : 0;
+    if (partiallyFilled && partialFillQuantity == 0) {
+      LOGGER.warn(LOG_FMT_6, "Liquidity trade partial fill too small to book locally. clOrdId: ", order.getClOrdId(), " cumQty: ",
+          executionReport.getCumQty(), " externalQty: ", externalOrder.getQty());
+    }
+    if (executionReport.getOrdStatus() == OrdStatus.FILLED || (partiallyFilled && partialFillQuantity > 0)) {
       order.setExecuted(true);
+      order.setPartialFillQuantityLong(partialFillQuantity);
       // don't override the qty field of the original order
       // order.setQty(0, 0);
       // These values are expected from Cache
@@ -337,7 +350,7 @@ public class LiquidityOrderRouter implements Runnable {
       LOGGER.info(Constants.LOG_FMT_20, "Liquidity trade successful. clOrdId: ", order.getClOrdId(), " symbol: ", baseSymbol.toUpperCase(),
           "/", bestQuoteSymbol, " futuresEnabled: ", futuresEnabled, " side: ", order.getSide().name(), " quantity: ",
           executionReport.getOrderQty(), " averagePrice:", order.getPrice2(), " xPrice: ", xPrice, " xQuantity: ", xQuantity, " result: ",
-          "success");
+          partiallyFilled ? "partially filled, cumQty: " + executionReport.getCumQty() : "success");
 
       end = System.currentTimeMillis();
       LOGGER.info(LOG_FMT_2, "External order liquidityOrder done time ", (end - start));
@@ -394,6 +407,19 @@ public class LiquidityOrderRouter implements Runnable {
 
       return order;
     }
+  }
+
+  /**
+   * Local quantity (pair scale) matching the share of the external order that filled, rounded down so the user is never credited
+   * more than the exchange executed. Returns 0 when the exchange filled the whole external quantity (full fill) or when the filled
+   * share is below one local quantity unit (nothing can be booked).
+   */
+  static long partialFillQuantity(final long localQuantity, final long externalCumQty, final long externalOrderQty) {
+    if (externalOrderQty <= 0 || externalCumQty >= externalOrderQty) {
+      return 0;
+    }
+    return BigInteger.valueOf(localQuantity).multiply(BigInteger.valueOf(externalCumQty))
+        .divide(BigInteger.valueOf(externalOrderQty)).longValue();
   }
 
   private Order routeOrderXchange(final Order order) {

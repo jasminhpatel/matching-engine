@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.HyperliquidFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.NettyWebSocketClientHandler;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.NettyWebSocketListenerInterface;
 import com.solfini.matchengine.message.internal.Order;
@@ -326,18 +327,22 @@ public final class HyperliquidTradeListener implements NettyWebSocketListenerInt
     final ExecutionReportMessage message = executionReport(order);
     if (status.has("filled")) {
       final JsonNode filled = status.path("filled");
-      final long filledQty = MbxMath.changeScale(filled.path("totalSz").asDouble(), order.getQtyScale());
+      final long filledQty = MbxMath.changeScaleWithRounding(filled.path("totalSz").asDouble(), order.getQtyScale());
       final long leavesQty = Math.max(0, order.getQty() - filledQty);
       order.setOrderId(filled.path("oid").asLong());
       order.setExecuted(true); // IOC is terminal even when only part of the requested size filled.
-      message.setOrdStatus(leavesQty == 0 ? OrdStatus.FILLED : OrdStatus.PARTIALLY_FILLED);
+      message.setOrdStatus(OrdStatus.PARTIALLY_FILLED); // switched to FILLED below when totalSz covers the order
       message.setExecType(ExecType.TRADE);
       message.setCumQty(filledQty);
       message.setCumQtyScale(order.getQtyScale());
-      message.setAvgPx(MbxMath.changeScale(filled.path("avgPx").asDouble(), order.getPriceScale()));
+      message.setAvgPx(MbxMath.changeScaleWithRounding(filled.path("avgPx").asDouble(), order.getPriceScale()));
       message.setAvgPxScale(order.getPriceScale());
       message.setLeavesQty(leavesQty);
       message.setLeavesQtyScale(order.getQtyScale());
+      // full vs partial decided on the exact totalSz, not on the double-converted quantity
+      if (HyperliquidFastClient.isFullyFilled(filled.path("totalSz").asText(), order)) {
+        HyperliquidFastClient.applyFullFill(order, message);
+      }
     } else if (status.has("resting")) {
       order.setOrderId(status.path("resting").path("oid").asLong());
       message.setOrdStatus(OrdStatus.NEW);

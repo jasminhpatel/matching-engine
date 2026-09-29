@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.HyperliquidFastClient;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
@@ -362,6 +363,18 @@ public class HyperliquidRestClient {
     if (response == null || response.getCode() != 200) {
       throw new IOException("Hyperliquid getOrderStatus failed with status: "
           + (response != null ? response.getCode() : "null"));
+    }
+    return JSON_MAPPER.readTree(response.getData());
+  }
+
+  /** Recent fills of this wallet: {@code {"type":"userFills","user":"0x..."}} -> [{coin,px,sz,side,time,oid,tid,fee,feeToken,...}]. */
+  public JsonNode getUserFills(final String user) throws IOException {
+    final Map<String, Object> request = new LinkedHashMap<>();
+    request.put("type", "userFills");
+    request.put("user", user);
+    final HttpUtils.Response response = postInfo(JSON_MAPPER.writeValueAsString(request));
+    if (response == null || response.getCode() != 200) {
+      throw new IOException("Hyperliquid getUserFills failed with status: " + (response != null ? response.getCode() : "null"));
     }
     return JSON_MAPPER.readTree(response.getData());
   }
@@ -770,18 +783,23 @@ public class HyperliquidRestClient {
     final ExecutionReportMessage message = executionReport(order);
     if (status.has("filled")) {
       final JsonNode filled = status.path("filled");
-      final long filledQty = MbxMath.changeScale(filled.path("totalSz").asDouble(), order.getQtyScale());
+      final long filledQty = MbxMath.changeScaleWithRounding(filled.path("totalSz").asDouble(), order.getQtyScale());
       final long leavesQty = Math.max(0, order.getQty() - filledQty);
       order.setOrderId(filled.path("oid").asLong());
       order.setExecuted(true); // terminal either way - IOC never leaves a resting remainder
       message.setExecType(ExecType.TRADE);
       message.setCumQty(filledQty);
       message.setCumQtyScale(order.getQtyScale());
-      message.setAvgPx(MbxMath.changeScale(filled.path("avgPx").asDouble(), order.getPriceScale()));
+      message.setAvgPx(MbxMath.changeScaleWithRounding(filled.path("avgPx").asDouble(), order.getPriceScale()));
       message.setAvgPxScale(order.getPriceScale());
       message.setLeavesQty(leavesQty);
       message.setLeavesQtyScale(order.getQtyScale());
-      message.setOrdStatus(leavesQty <= 0 ? OrdStatus.FILLED : OrdStatus.PARTIALLY_FILLED);
+      // full vs partial decided on the exact totalSz, not on the double-converted quantity
+      if (HyperliquidFastClient.isFullyFilled(filled.path("totalSz").asText(), order)) {
+        HyperliquidFastClient.applyFullFill(order, message);
+      } else {
+        message.setOrdStatus(OrdStatus.PARTIALLY_FILLED);
+      }
     } else if (status.has("resting")) {
       order.setOrderId(status.path("resting").path("oid").asLong());
       message.setOrdStatus(OrdStatus.NEW);

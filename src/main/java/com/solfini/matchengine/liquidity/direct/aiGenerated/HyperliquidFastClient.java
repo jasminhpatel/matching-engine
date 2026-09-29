@@ -20,6 +20,7 @@ import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.util.MbxMath;
 import com.solfini.util.StringUtil;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -529,17 +530,25 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
       message.setExecType(ExecType.NEW);
     } else if ("filled".equalsIgnoreCase(hyperliquidStatus)) {
       applyTerminalQuantities(order, message, orderSnapshot);
-      order.setExecuted(true);
-      message.setOrdStatus(OrdStatus.FILLED);
-      message.setExecType(ExecType.TRADE);
+      if (hasOpenSize(orderSnapshot)) {
+        // IOC: Hyperliquid reports "filled" once it stops, even when sz (the part that did not fill) is still > 0
+        order.setExecuted(true);
+        message.setOrdStatus(OrdStatus.PARTIALLY_FILLED);
+        message.setExecType(ExecType.TRADE);
+      } else {
+        applyFullFill(order, message);
+      }
     } else if (isCanceledStatus(hyperliquidStatus)) {
       applyTerminalQuantities(order, message, orderSnapshot);
-      message.setOrdStatus(OrdStatus.CANCELED);
-      message.setExecType(ExecType.CANCELED);
-      if (message.getCumQty() > 0) {
+      if (hasFilledPart(orderSnapshot) || message.getCumQty() > 0) {
+        // part filled, the rest cancelled (e.g. IOC): the order is PARTIALLY_FILLED, leavesQty = the unfilled part
         order.setExecuted(true);
+        message.setOrdStatus(OrdStatus.PARTIALLY_FILLED);
+        message.setExecType(ExecType.TRADE);
       } else {
         order.setRejected(true);
+        message.setOrdStatus(OrdStatus.CANCELED);
+        message.setExecType(ExecType.CANCELED);
       }
     } else if (isRejectedStatus(hyperliquidStatus)) {
       order.setRejected(true);
@@ -556,21 +565,87 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
     }
   }
 
+  /**
+   * True when part of the order has filled: origSz above sz (the open size). Compared on the decimal strings Hyperliquid
+   * sends, so a double conversion cannot turn a full fill into a partial one.
+   */
+  public static boolean hasFilledPart(final JsonNode orderSnapshot) {
+    if (!orderSnapshot.hasNonNull("origSz") || !orderSnapshot.hasNonNull("sz")) {
+      return false;
+    }
+    return new BigDecimal(orderSnapshot.path("origSz").asText()).compareTo(new BigDecimal(orderSnapshot.path("sz").asText())) > 0;
+  }
+
+  /** True when the snapshot still has an unfilled size (sz > 0). */
+  public static boolean hasOpenSize(final JsonNode orderSnapshot) {
+    return orderSnapshot.hasNonNull("sz") && new BigDecimal(orderSnapshot.path("sz").asText()).signum() > 0;
+  }
+
+  /** True when the filled size (Hyperliquid decimal string) covers the whole order quantity. */
+  public static boolean isFullyFilled(final String filledSize, final Order order) {
+    return new BigDecimal(filledSize).compareTo(BigDecimal.valueOf(order.getQty(), order.getQtyScale())) >= 0;
+  }
+
+  /** FILLED: cumQty is the whole order and nothing is left, whatever the double conversion of the sizes gave. */
+  public static void applyFullFill(final Order order, final ExecutionReportMessage message) {
+    order.setExecuted(true);
+    message.setOrdStatus(OrdStatus.FILLED);
+    message.setExecType(ExecType.TRADE);
+    message.setCumQty(order.getQty());
+    message.setCumQtyScale(order.getQtyScale());
+    message.setLeavesQty(0);
+    message.setLeavesQtyScale(order.getQtyScale());
+  }
+
   private void applyTerminalQuantities(final Order order, final ExecutionReportMessage message,
       final JsonNode orderSnapshot) {
     if (!orderSnapshot.has("origSz") || !orderSnapshot.has("sz")) {
       return;
     }
-    final long originalQty = MbxMath.changeScale(orderSnapshot.path("origSz").asDouble(), order.getQtyScale());
-    final long leavesQty = MbxMath.changeScale(orderSnapshot.path("sz").asDouble(), order.getQtyScale());
+    final long originalQty = MbxMath.changeScaleWithRounding(orderSnapshot.path("origSz").asDouble(), order.getQtyScale());
+    final long leavesQty = MbxMath.changeScaleWithRounding(orderSnapshot.path("sz").asDouble(), order.getQtyScale());
     final long cumulativeQty = Math.max(0, originalQty - leavesQty);
     message.setCumQty(cumulativeQty);
     message.setCumQtyScale(order.getQtyScale());
     message.setLeavesQty(leavesQty);
     message.setLeavesQtyScale(order.getQtyScale());
-    if (cumulativeQty > 0 && message.getAvgPx() == 0 && orderSnapshot.has("limitPx")) {
-      message.setAvgPx(MbxMath.changeScale(orderSnapshot.path("limitPx").asDouble(), order.getPriceScale()));
+    if (cumulativeQty > 0 && message.getAvgPx() == 0) {
+      // orderStatus carries no average price: take it from the order's fills, the limit price is only a last resort
+      long avgPx = averagePriceFromFills(order);
+      if (avgPx == 0 && orderSnapshot.has("limitPx")) {
+        avgPx = MbxMath.changeScaleWithRounding(orderSnapshot.path("limitPx").asDouble(), order.getPriceScale());
+        LOGGER.warn("Hyperliquid fills unavailable for clOrdId=" + order.getClOrdId() + " oid=" + order.getOrderId()
+            + ", using limitPx " + orderSnapshot.path("limitPx").asText() + " as average price");
+      }
+      message.setAvgPx(avgPx);
       message.setAvgPxScale(order.getPriceScale());
+    }
+  }
+
+  /** Quantity-weighted average price (order price scale) of the order's fills from the userFills info endpoint, 0 when unknown. */
+  private long averagePriceFromFills(final Order order) {
+    if (order.getOrderId() == 0) {
+      return 0;
+    }
+    try {
+      BigDecimal notional = BigDecimal.ZERO;
+      BigDecimal quantity = BigDecimal.ZERO;
+      for (final JsonNode fill : restClient.getUserFills(walletAddress)) {
+        if (fill.path("oid").asLong() != order.getOrderId()) {
+          continue;
+        }
+        final BigDecimal size = new BigDecimal(fill.path("sz").asText());
+        notional = notional.add(new BigDecimal(fill.path("px").asText()).multiply(size));
+        quantity = quantity.add(size);
+      }
+      if (quantity.signum() <= 0) {
+        return 0;
+      }
+      return notional.divide(quantity, order.getPriceScale(), java.math.RoundingMode.HALF_UP)
+          .movePointRight(order.getPriceScale()).longValueExact();
+    } catch (final Exception e) {
+      LOGGER.error("Hyperliquid userFills lookup failed for clOrdId=" + order.getClOrdId(), e);
+      return 0;
     }
   }
 
