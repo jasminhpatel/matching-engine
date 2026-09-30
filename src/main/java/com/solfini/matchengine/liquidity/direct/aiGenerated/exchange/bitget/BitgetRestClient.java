@@ -565,7 +565,7 @@ public class BitgetRestClient {
       if ("00000".equals(code)) {
         final String dataJson = extractJsonValue(json, "data");
         if (dataJson != null) {
-          generateUTAOrderFromJson(dataJson, clOrdId, orderId);
+          return generateUTAOrderFromJson(dataJson, clOrdId, orderId);
         }
       } else {
         final String msg = minExtract(json, "msg");
@@ -1011,6 +1011,11 @@ public class BitgetRestClient {
 
   private ExecutionReportMessage generateUTAOrderFromJson(final String orderJson, final String clientOrderId,
       final String orderId) {
+    // Router orders are cached with the scales it reads the report back with. Uncached lookups
+    // (copy-trade reconciliation) read the scales off the report, so the legacy defaults are safe there.
+    final Order order = subscription.getOrder(clientOrderId);
+    final short priceScale = order != null ? order.getPriceScale() : (short) 8;
+    final short qtyScale = order != null ? order.getQtyScale() : (short) 6;
     // Extract all order fields from Bitget response
     final String clientOid = minExtract(orderJson, "clientOid");
     final String category = minExtract(orderJson, "category");
@@ -1089,22 +1094,24 @@ public class BitgetRestClient {
     executionMessage.setOrdStatus(mappedOrderStatus);
     executionMessage.setTimeInForce(tif);
     executionMessage.setInputTime(updatedTimeLong);
-    executionMessage.setPrice(MbxMath.changeScale(priceDouble, 8));
-    executionMessage.setPriceScale((short) 8);
-    executionMessage.setOrderQty(MbxMath.changeScale(qtyDouble, 6));
-    executionMessage.setOrderQtyScale((short) 6);
-    executionMessage.setCumQty(MbxMath.changeScale(cumExecQtyDouble, 6));
-    executionMessage.setCumQtyScale((short) 6);
+    executionMessage.setPrice(MbxMath.changeScale(priceDouble, priceScale));
+    executionMessage.setPriceScale(priceScale);
+    executionMessage.setOrderQty(MbxMath.changeScale(qtyDouble, qtyScale));
+    executionMessage.setOrderQtyScale(qtyScale);
+    executionMessage.setCumQty(MbxMath.changeScale(cumExecQtyDouble, qtyScale));
+    executionMessage.setCumQtyScale(qtyScale);
     executionMessage.setLeavesQty(executionMessage.getOrderQty() - executionMessage.getCumQty());
-    executionMessage.setLeavesQtyScale((short) 6);
-    executionMessage.setAvgPx(MbxMath.changeScale(avgPriceDouble, 8));
-    executionMessage.setAvgPxScale((short) 8);
+    executionMessage.setLeavesQtyScale(qtyScale);
+    executionMessage.setAvgPx(MbxMath.changeScale(avgPriceDouble, priceScale));
+    executionMessage.setAvgPxScale(priceScale);
 
 
     LOGGER.debug("Updating execution report for clientOrderId: " + clientOrderId + " with status: " + orderStatus + ", posSide: " + posSide
         + ", holdMode: " + holdMode);
     subscription.updateExecutionReport(executionMessage);
-    subscription.updateOrder(clientOrderId, mappedOrderStatus.name());
+    if (order != null) {
+      subscription.updateOrder(clientOrderId, mappedOrderStatus.name());
+    }
 
     return executionMessage;
   }

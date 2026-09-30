@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.solfini.matchengine.liquidity.direct.aiGenerated.BinanceFastClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeUtils;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
 
@@ -376,6 +377,11 @@ public class BinanceRestClient {
             executionMessage.setOrderQtyScale(order.getQtyScale());
             executionMessage.setCumQty(executedQtyLong);
             executionMessage.setLeavesQty(order.getQty() - executedQtyLong);
+            final long avgPrice = ExternalExchangeUtils.averageFillPrice(cumulativeQuoteQty, executedQty, order.getPriceScale());
+            if (avgPrice > 0) {
+                executionMessage.setAvgPx(avgPrice);
+                executionMessage.setAvgPxScale(order.getPriceScale());
+            }
 
             LOGGER.debug("Updating execution report for clientOrderId: " + clientOrderId + " with status: " + orderStatus);
             subscription.updateOrder(clientOrderId, order);

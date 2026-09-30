@@ -397,7 +397,21 @@ public final class MexcSpotUserDataListener implements NettyWebSocketListenerInt
                 execReport.setPriceScale(order.getPriceScale());
 
                 // Update subscription with execution report
+                execReport.setLeavesQty(MbxMath.changeScale(remainQtyDouble, order.getQtyScale()));
+                execReport.setLeavesQtyScale(order.getQtyScale());
                 subscription.updateExecutionReport(execReport);
+            } else {
+                executionMessage.setOrdStatus(orderStatus);
+                executionMessage.setExecType(ExecType.ORDER_STATUS);
+                executionMessage.setCumQty(cumQtyLong);
+                executionMessage.setCumQtyScale(order.getQtyScale());
+                executionMessage.setLeavesQty(MbxMath.changeScale(remainQtyDouble, order.getQtyScale()));
+                executionMessage.setLeavesQtyScale(order.getQtyScale());
+                if (avgPriceLong > 0) {
+                    executionMessage.setAvgPx(avgPriceLong);
+                    executionMessage.setAvgPxScale(order.getPriceScale());
+                }
+                subscription.updateExecutionReport(executionMessage);
             }
 
             // Update order status in cache
