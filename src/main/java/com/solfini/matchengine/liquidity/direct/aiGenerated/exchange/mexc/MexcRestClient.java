@@ -12,6 +12,7 @@ import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeUtils;
 import com.solfini.sbe.encoder.ExecType;
 import com.solfini.sbe.encoder.OrdStatus;
 import com.solfini.util.HMAC;
@@ -479,6 +480,10 @@ public class MexcRestClient {
             order.setError("Order expired");
         }
 
+        // The router consumes the report status, not just the order's executed flag.
+        executionMessage.setOrdStatus(mapMexcOrderStatus(status, executionMessage.getOrdStatus()));
+        executionMessage.setExecType(ExecType.ORDER_STATUS);
+
         // Update execution report with all extracted fields
         executionMessage.setClOrdId(clientOrderId);
         executionMessage.setPrice(order.getPrice());
@@ -486,8 +491,14 @@ public class MexcRestClient {
         executionMessage.setOrderQty(order.getQty());
         executionMessage.setOrderQtyScale(order.getQtyScale());
         executionMessage.setCumQty(executedQtyLong);
+        executionMessage.setCumQtyScale(order.getQtyScale());
         executionMessage.setLeavesQty(leavesQtyLong);
-        executionMessage.setAvgPx(order.getPrice());
+        executionMessage.setLeavesQtyScale(order.getQtyScale());
+        final long avgPrice = ExternalExchangeUtils.averageFillPrice(cummulativeQuoteQty, executedQty, order.getPriceScale());
+        if (avgPrice > 0) {
+            executionMessage.setAvgPx(avgPrice);
+            executionMessage.setAvgPxScale(order.getPriceScale());
+        }
         executionMessage.setTimeInForce(order.getTimeInForce());
         executionMessage.setInputTime(updateTimeLong);
 
@@ -495,6 +506,32 @@ public class MexcRestClient {
         subscription.updateExecutionReport(executionMessage);
         subscription.updateOrder(clientOrderId, order);
 
+    }
+
+    /** Maps a MEXC REST order status; unknown or missing values keep the report's current status. */
+    private static OrdStatus mapMexcOrderStatus(final String status, final OrdStatus current) {
+        if (status == null) {
+            LOGGER.warn("MEXC order status missing, keeping " + current);
+            return current;
+        }
+        switch (status.toUpperCase(java.util.Locale.ROOT)) {
+            case "NEW":
+                return OrdStatus.NEW;
+            case "PARTIALLY_FILLED":
+                return OrdStatus.PARTIALLY_FILLED;
+            case "FILLED":
+                return OrdStatus.FILLED;
+            case "CANCELED":
+            case "PARTIALLY_CANCELED":
+                return OrdStatus.CANCELED;
+            case "REJECTED":
+                return OrdStatus.REJECTED;
+            case "EXPIRED":
+                return OrdStatus.EXPIRED;
+            default:
+                LOGGER.warn("Unknown MEXC order status: " + status + ", keeping " + current);
+                return current;
+        }
     }
 
 

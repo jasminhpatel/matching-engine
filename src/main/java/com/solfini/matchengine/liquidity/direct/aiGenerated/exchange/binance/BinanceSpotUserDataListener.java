@@ -5,6 +5,7 @@ import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeUtils;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.NettyWebSocketClientHandler;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.NettyWebSocketListenerInterface;
 import com.solfini.matchengine.message.internal.Order;
@@ -270,6 +271,7 @@ public final class BinanceSpotUserDataListener implements NettyWebSocketListener
         final String orderStatusStr = minExtract(eventObj, "X");
         final String lastFilledQtyStr = minExtract(eventObj, "l");
         final String cumulativeFilledQtyStr = minExtract(eventObj, "z");
+        final String cumulativeQuoteQtyStr = minExtract(eventObj, "Z");
         final String lastFilledPriceStr = minExtract(eventObj, "L");
         final String commissionStr = minExtract(eventObj, "n");
         final String tradeIdStr = minExtract(eventObj, "t");
@@ -344,6 +346,11 @@ public final class BinanceSpotUserDataListener implements NettyWebSocketListener
         executionReportMessage.setOrderQtyScale(order.getQtyScale());
         executionReportMessage.setCumQty(cumQtyLong);
         executionReportMessage.setCumQtyScale(order.getQtyScale());
+        final long avgPrice = ExternalExchangeUtils.averageFillPrice(cumulativeQuoteQtyStr, cumulativeFilledQtyStr, order.getPriceScale());
+        if (avgPrice > 0) {
+            executionReportMessage.setAvgPx(avgPrice);
+            executionReportMessage.setAvgPxScale(order.getPriceScale());
+        }
         executionReportMessage.setPrice(orderPriceLong);
         executionReportMessage.setPriceScale(order.getPriceScale());
         executionReportMessage.setClOrdId(clientOrderIdStr);
