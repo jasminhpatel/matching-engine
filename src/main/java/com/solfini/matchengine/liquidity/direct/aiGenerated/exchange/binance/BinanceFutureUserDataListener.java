@@ -4,6 +4,8 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.NettyWebSocketClientHandler;
@@ -23,6 +25,7 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
@@ -118,6 +121,8 @@ public final class BinanceFutureUserDataListener implements NettyWebSocketListen
 
       this.channel = b.connect(host, port).sync().channel();
       handler.handshakeFuture().sync();
+        // public contract status / delist date stream on the same connection, see applyContractInfo()
+        channel.writeAndFlush(new TextWebSocketFrame("{\"method\":\"SUBSCRIBE\",\"params\":[\"!contractInfo\"],\"id\":1}"));
         schedulePeriodicPing();
         LOGGER.info("Binance FutureUserData WebSocket connected");
         setConnected(true);
@@ -189,8 +194,40 @@ public final class BinanceFutureUserDataListener implements NettyWebSocketListen
             applyAccountUpdate(json);
         } else if (et.indexOf("ORDER_TRADE_UPDATE") >= 0) {
             parseOrderTradeUpdate(json);
+        } else if ("contractInfo".equals(et)) {
+            applyContractInfo(json);
         } else
             LOGGER.info("Unhandled event type: " + json);
+    }
+
+    /**
+     * !contractInfo push, sent on contract listing / settlement / bracket changes:
+     * {"e":"contractInfo","E":1669356423908,"s":"IOTAUSDT","ps":"IOTAUSDT","ct":"PERPETUAL","dt":4133404800000,
+     * "ot":1569398400000,"cs":"TRADING","bks":[...]}
+     */
+    private void applyContractInfo(final String json) {
+        final String symbol = minExtract(json, "s");
+        final String contractType = minExtract(json, "ct");
+        final String status = minExtract(json, "cs");
+        final long deliveryDate = parseLongSafe(minExtract(json, "dt"));
+        // quarterly contracts expire normally on dt, PENDING_TRADING is a new listing
+        if (symbol == null || status == null || "PENDING_TRADING".equals(status)
+                || (!"PERPETUAL".equals(contractType) && !"TRADIFI_PERPETUAL".equals(contractType))) {
+            return;
+        }
+        final boolean delistScheduled = deliveryDate > 0 && deliveryDate != BinanceRestClient.PERPETUAL_NO_DELIVERY_DATE;
+        if (DelistedSymbol.TRADING.equals(status) && !delistScheduled) {
+            DelistedSymbolCache.remove("BINANCE", true, symbol);
+            return;
+        }
+        final DelistedSymbol delisted = new DelistedSymbol();
+        delisted.setExchange("BINANCE");
+        delisted.setFutures(true);
+        delisted.setSymbol(symbol);
+        delisted.setStatus(status);
+        delisted.setDelistTime(delistScheduled ? deliveryDate : 0);
+        delisted.setDetectedAt(System.currentTimeMillis());
+        DelistedSymbolCache.update(delisted);
     }
 
 

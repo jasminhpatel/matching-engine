@@ -3,7 +3,9 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.binance.*;
@@ -73,6 +75,8 @@ public final class BinanceFastClient implements ExternalExchangeClient {
     @Override
     public void start() {
 
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
         if (subscription.isFuturesEnabled()) {
             startFutureClient();
         } else {
@@ -115,6 +119,13 @@ public final class BinanceFastClient implements ExternalExchangeClient {
     @Override
     public List<ExternalSymbol> getExchangeInstrumentsFull() {
         return binanceRestClient.getExchangeInstrumentsFull();
+    }
+
+    @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? binanceRestClient.getFuturesDelistedSymbols()
+                : binanceRestClient.getSpotDelistedSymbols();
     }
 
     @Override

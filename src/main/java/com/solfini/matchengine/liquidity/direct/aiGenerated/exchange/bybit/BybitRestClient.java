@@ -10,6 +10,7 @@ import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -20,10 +21,14 @@ import com.solfini.util.HMAC;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
 
@@ -33,6 +38,12 @@ public class BybitRestClient {
     private static final String MAINNET_BASE_URL = Context.getBybitUnifiedRest();
     private static final int PROXY_PORT = 8888;
     private static final ObjectMapper MAPPER = new ObjectMapper(); // todo use string parsing
+    private static final String BYBIT = "BYBIT";
+    private static final int MAX_INSTRUMENT_PAGES = 20; // safety stop for the cursor paging
+    private static final String REMOVED = "REMOVED"; // spot pair no longer listed by Bybit
+    // spot pairs seen in the previous call and the ones that disappeared since, see getSpotDelistedSymbols()
+    private final Set<String> knownSpotSymbols = new HashSet<>();
+    private final Map<String, DelistedSymbol> removedSpotSymbols = new HashMap<>();
 
     // Configuration and credentials - immutable after construction
     private final String apiKey;
@@ -852,6 +863,140 @@ public class BybitRestClient {
     return symbolStatuses;
   }
 
+  /**
+   * Linear perpetuals that are delisted or scheduled for delisting, from GET /v5/market/instruments-info.
+   * Trading perpetual with deliveryTime != "0" = delisting scheduled; status Closed (status=Closed query) = delisted.
+   *
+   * @return the delisted symbols, or null when a request failed
+   */
+  public List<DelistedSymbol> getFuturesDelistedSymbols() {
+    final List<ByBitSymbol> live = getInstruments("category=linear&limit=1000"); // Trading + PendingOpen
+    final List<ByBitSymbol> closed = getInstruments("category=linear&status=Closed&limit=1000");
+    if (live == null || closed == null) {
+      return null;
+    }
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    for (final ByBitSymbol byBitSymbol : live) {
+      final long deliveryTime = parseDeliveryTime(byBitSymbol.getDeliveryTime());
+      if ("LinearPerpetual".equals(byBitSymbol.getContractType()) && deliveryTime > 0) {
+        delisted.add(toDelistedSymbol(byBitSymbol, true, deliveryTime, now));
+      }
+    }
+    for (final ByBitSymbol byBitSymbol : closed) {
+      // dated LinearFutures close on their normal expiry, that is not a delisting
+      if ("LinearPerpetual".equals(byBitSymbol.getContractType()) && "Closed".equals(byBitSymbol.getStatus())) {
+        delisted.add(toDelistedSymbol(byBitSymbol, true, parseDeliveryTime(byBitSymbol.getDeliveryTime()), now));
+      }
+    }
+    return delisted;
+  }
+
+  /**
+   * Spot pairs Bybit stopped listing. Bybit spot has no delisted status or date: a delisted pair disappears from
+   * GET /v5/market/instruments-info?category=spot, so pairs missing compared to the previous call are reported.
+   * The first call only records the current pairs.
+   *
+   * @return the removed pairs, or null when the request failed
+   */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final List<ByBitSymbol> live = getInstruments("category=spot&limit=1000");
+    if (live == null) {
+      return null;
+    }
+    final Set<String> current = new HashSet<>();
+    for (final ByBitSymbol byBitSymbol : live) {
+      if (DelistedSymbol.TRADING.equalsIgnoreCase(byBitSymbol.getStatus())) {
+        current.add(byBitSymbol.getSymbol());
+      }
+    }
+    synchronized (knownSpotSymbols) {
+      if (!knownSpotSymbols.isEmpty() && current.size() < knownSpotSymbols.size() / 2) {
+        LOGGER.warn("Bybit spot list shrank from " + knownSpotSymbols.size() + " to " + current.size()
+            + " pairs, ignoring this response");
+        return null;
+      }
+      final long now = System.currentTimeMillis();
+      for (final String symbol : knownSpotSymbols) {
+        if (!current.contains(symbol) && !removedSpotSymbols.containsKey(symbol)) {
+          final DelistedSymbol delisted = new DelistedSymbol();
+          delisted.setExchange(BYBIT);
+          delisted.setFutures(false);
+          delisted.setSymbol(symbol);
+          delisted.setStatus(REMOVED);
+          delisted.setDetectedAt(now);
+          removedSpotSymbols.put(symbol, delisted);
+        }
+      }
+      removedSpotSymbols.keySet().removeAll(current); // listed again
+      knownSpotSymbols.addAll(current);
+      knownSpotSymbols.retainAll(current);
+      return new ArrayList<>(removedSpotSymbols.values());
+    }
+  }
+
+  // GET /v5/market/instruments-info following nextPageCursor; null when a request failed
+  private List<ByBitSymbol> getInstruments(final String query) {
+    final List<ByBitSymbol> symbols = new ArrayList<>();
+    String cursor = null;
+    int pages = 0;
+    do {
+      if (++pages > MAX_INSTRUMENT_PAGES) {
+        LOGGER.warn("Bybit instruments-info " + query + " stopped after " + MAX_INSTRUMENT_PAGES + " pages");
+        break;
+      }
+      final String url = MAINNET_BASE_URL + "/v5/market/instruments-info?" + query
+          + (cursor == null ? "" : "&cursor=" + URLEncoder.encode(cursor, StandardCharsets.UTF_8));
+      final HttpUtils.Response response = HttpUtils.get(url, new HashMap<>(), subscription.getLastUsedProxy(),
+          PROXY_PORT, subscription.isForceToUseProxy());
+      if (response == null || response.getCode() != 200) {
+        LOGGER.warn("Bybit instruments-info " + query + " failed with status: "
+            + (response != null ? response.getCode() : "null"));
+        return null;
+      }
+      try {
+        final ByBitExchangeInfoFull info = MAPPER.readValue(response.getData(), ByBitExchangeInfoFull.class);
+        if (info.getRetCode() != 0 || info.getResult() == null) {
+          LOGGER.warn("Bybit instruments-info " + query + " retCode: " + info.getRetCode());
+          return null;
+        }
+        final List<ByBitSymbol> page = info.getResult().getList();
+        if (page == null || page.isEmpty()) {
+          break;
+        }
+        symbols.addAll(page);
+        final String next = info.getResult().getNextPageCursor();
+        cursor = next == null || next.equals(cursor) ? null : next; // stop when the cursor does not move
+      } catch (final Exception e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
+        return null;
+      }
+    } while (cursor != null && !cursor.isEmpty());
+    return symbols;
+  }
+
+  private static long parseDeliveryTime(final String deliveryTime) {
+    try {
+      return deliveryTime == null || deliveryTime.isEmpty() ? 0 : Long.parseLong(deliveryTime);
+    } catch (final NumberFormatException e) {
+      return 0;
+    }
+  }
+
+  private static DelistedSymbol toDelistedSymbol(final ByBitSymbol byBitSymbol, final boolean futures,
+      final long delistTime, final long now) {
+    final DelistedSymbol delisted = new DelistedSymbol();
+    delisted.setExchange(BYBIT);
+    delisted.setFutures(futures);
+    delisted.setSymbol(byBitSymbol.getSymbol());
+    delisted.setBase(byBitSymbol.getBaseCoin());
+    delisted.setQuote(byBitSymbol.getQuoteCoin());
+    delisted.setStatus("Trading".equals(byBitSymbol.getStatus()) ? DelistedSymbol.TRADING : byBitSymbol.getStatus());
+    delisted.setDelistTime(delistTime);
+    delisted.setDetectedAt(now);
+    return delisted;
+  }
+
     /**
      * Extracts the fee currency key from cumFeeDetail JSON object
      * Expected format: {"XRP": "0.003"} -> returns "XRP"
@@ -1400,6 +1545,15 @@ public class BybitRestClient {
   public static class ByBitResult {
     private List<ByBitSymbol> list;
     private String category;
+    private String nextPageCursor;
+
+    public final String getNextPageCursor() {
+      return nextPageCursor;
+    }
+
+    public final void setNextPageCursor(final String nextPageCursor) {
+      this.nextPageCursor = nextPageCursor;
+    }
 
     public final List<ByBitSymbol> getList() {
       return list;
@@ -1425,8 +1579,18 @@ public class BybitRestClient {
     private String quoteCoin;
     private String status;
     private String contractType;
+    // linear: "0" = no end date; for a LinearPerpetual it is the delisting time (ms)
+    private String deliveryTime;
 
     private String marginTrading;
+
+    public final String getDeliveryTime() {
+      return deliveryTime;
+    }
+
+    public final void setDeliveryTime(final String deliveryTime) {
+      this.deliveryTime = deliveryTime;
+    }
     private ByBitSymbolLotSizeFilter lotSizeFilter;
     private ByBitPriceFilter priceFilter;
 

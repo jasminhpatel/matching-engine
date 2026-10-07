@@ -1,9 +1,11 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated;
 
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
+import java.util.Collections;
 import java.util.List;
 
 public interface ExternalExchangeClient {
@@ -21,6 +23,17 @@ public interface ExternalExchangeClient {
   default List<ExternalSymbol> getExchangeInstrumentsFull() {
     throw new UnsupportedOperationException(
         "This exchange client does not support full instrument data");
+  }
+
+  /**
+   * Returns the symbols of this client's segment (spot or futures) that are delisted, suspended,
+   * or scheduled for delisting.
+   *
+   * @return the delisted symbols, an empty list when the exchange does not support it,
+   *         or {@code null} when the exchange could not be queried
+   */
+  default List<DelistedSymbol> getDelistedSymbols() {
+    return Collections.emptyList();
   }
 
   /**

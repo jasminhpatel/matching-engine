@@ -7,6 +7,7 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -35,6 +36,9 @@ public class BinanceRestClient {
     private static final String REST_SPOT_BASE = Context.getBinanceSpotRest();
     private static final ObjectMapper MAPPER = new ObjectMapper(); // todo use string parsing
     private static final int PROXY_PORT = 8888;
+    private static final String BINANCE = "BINANCE";
+    // deliveryDate Binance uses for perpetuals with no delisting scheduled (2100-12-25)
+    static final long PERPETUAL_NO_DELIVERY_DATE = 4133404800000L;
     private final String apiKey;
     private final byte[] secretUtf8;
     private final ExchangeSubscription subscription;
@@ -650,6 +654,133 @@ public class BinanceRestClient {
     return symbolStatuses;
   }
 
+  /**
+   * Perpetual futures that are delisted, suspended or scheduled for delisting, from GET /fapi/v1/exchangeInfo.
+   * Binance sets deliveryDate of a perpetual to the delisting time once the delisting is announced.
+   *
+   * @return the delisted symbols, or null when the request failed
+   */
+  public List<DelistedSymbol> getFuturesDelistedSymbols() {
+    final HttpUtils.Response response = HttpUtils.get(REST_FUTURE_BASE + "/fapi/v1/exchangeInfo", new HashMap<>(),
+        subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+    if (response == null || response.getCode() != 200) {
+      LOGGER.warn("Futures exchangeInfo failed with status: " + (response != null ? response.getCode() : "null"));
+      return null;
+    }
+    try {
+      final BinanceExchangeInfoFull info = MAPPER.readValue(response.getData(), BinanceExchangeInfoFull.class);
+      final List<DelistedSymbol> delisted = new ArrayList<>();
+      final long now = System.currentTimeMillis();
+      if (info.getSymbols() != null) {
+        for (final BinanceSymbol binanceSymbol : info.getSymbols()) {
+          final String contractType = binanceSymbol.getContractType();
+          // quarterly contracts expire normally on deliveryDate, that is not a delisting
+          if (!"PERPETUAL".equals(contractType) && !"TRADIFI_PERPETUAL".equals(contractType)) {
+            continue;
+          }
+          final boolean delistScheduled = binanceSymbol.getDeliveryDate() != PERPETUAL_NO_DELIVERY_DATE;
+          final boolean tradingStopped = !DelistedSymbol.TRADING.equals(binanceSymbol.getStatus())
+              && !"PENDING_TRADING".equals(binanceSymbol.getStatus()); // PENDING_TRADING = new listing
+          if (delistScheduled || tradingStopped) {
+            final DelistedSymbol symbol = new DelistedSymbol();
+            symbol.setExchange(BINANCE);
+            symbol.setFutures(true);
+            symbol.setSymbol(binanceSymbol.getSymbol());
+            symbol.setBase(binanceSymbol.getBaseAsset());
+            symbol.setQuote(binanceSymbol.getQuoteAsset());
+            symbol.setStatus(binanceSymbol.getStatus());
+            symbol.setDelistTime(delistScheduled ? binanceSymbol.getDeliveryDate() : 0);
+            symbol.setDetectedAt(now);
+            delisted.add(symbol);
+          }
+        }
+      }
+      return delisted;
+    } catch (final Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+      return null;
+    }
+  }
+
+  /**
+   * Spot pairs that are suspended or delisted (GET /api/v3/exchangeInfo with symbolStatus HALT and BREAK) plus the
+   * pairs scheduled for delisting (GET /sapi/v1/spot/delist-schedule, needs the API key).
+   *
+   * @return the delisted symbols, or null when a request failed
+   */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final Map<String, DelistedSymbol> delisted = new HashMap<>();
+    final long now = System.currentTimeMillis();
+    for (final String symbolStatus : new String[] {"HALT", "BREAK"}) {
+      final HttpUtils.Response response = HttpUtils.get(REST_SPOT_BASE + "/api/v3/exchangeInfo?symbolStatus=" + symbolStatus,
+          new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+      if (response == null || response.getCode() != 200) {
+        LOGGER.warn("Spot exchangeInfo " + symbolStatus + " failed with status: " + (response != null ? response.getCode() : "null"));
+        return null;
+      }
+      try {
+        final BinanceExchangeInfoFull info = MAPPER.readValue(response.getData(), BinanceExchangeInfoFull.class);
+        if (info.getSymbols() != null) {
+          for (final BinanceSymbol binanceSymbol : info.getSymbols()) {
+            final DelistedSymbol symbol = new DelistedSymbol();
+            symbol.setExchange(BINANCE);
+            symbol.setFutures(false);
+            symbol.setSymbol(binanceSymbol.getSymbol());
+            symbol.setBase(binanceSymbol.getBaseAsset());
+            symbol.setQuote(binanceSymbol.getQuoteAsset());
+            symbol.setStatus(binanceSymbol.getStatus());
+            symbol.setDetectedAt(now);
+            delisted.put(symbol.getSymbol(), symbol);
+          }
+        }
+      } catch (final Exception e) {
+        LOGGER.error(Constants.ERROR_LOG, e);
+        return null;
+      }
+    }
+
+    if (apiKey == null || secretUtf8 == null) {
+      LOGGER.warn("No API key, skipping /sapi/v1/spot/delist-schedule; upcoming spot delistings are not included");
+      return new ArrayList<>(delisted.values());
+    }
+    try {
+      final long timeStamp = System.currentTimeMillis();
+      final String signature = PrivateKeyBasedSigner.generateSignature(secretUtf8, "timestamp=" + timeStamp);
+      final String queryString = "timestamp=" + timeStamp + "&signature=" + URLEncoder.encode(signature, StandardCharsets.UTF_8);
+      final Map<String, Object> headers = new HashMap<>();
+      headers.put("X-MBX-APIKEY", apiKey);
+      final HttpUtils.Response response = HttpUtils.get(REST_SPOT_BASE + "/sapi/v1/spot/delist-schedule?" + queryString,
+          headers, subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+      if (response == null || response.getCode() != 200) {
+        LOGGER.warn("Spot delist-schedule failed with status: " + (response != null ? response.getCode() + " " + response.getData() : "null"));
+        return null;
+      }
+      final BinanceDelistSchedule[] schedules = MAPPER.readValue(response.getData(), BinanceDelistSchedule[].class);
+      for (final BinanceDelistSchedule schedule : schedules) {
+        if (schedule.getSymbols() == null) {
+          continue;
+        }
+        for (final String name : schedule.getSymbols()) {
+          DelistedSymbol symbol = delisted.get(name);
+          if (symbol == null) { // still trading until delistTime
+            symbol = new DelistedSymbol();
+            symbol.setExchange(BINANCE);
+            symbol.setFutures(false);
+            symbol.setSymbol(name);
+            symbol.setStatus(DelistedSymbol.TRADING);
+            symbol.setDetectedAt(now);
+            delisted.put(name, symbol);
+          }
+          symbol.setDelistTime(schedule.getDelistTime());
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+      return null;
+    }
+    return new ArrayList<>(delisted.values());
+  }
+
     private boolean transferBalance(final String asset, final String amount, final int type)
             throws Exception {
         // type: 1 - transfer from spot account to USDT-M futures account
@@ -850,6 +981,8 @@ public class BinanceRestClient {
     private int quotePrecision;
     private int pricePrecision;
     private int quantityPrecision;
+    private long deliveryDate; // futures only
+    private String contractType; // futures only: PERPETUAL, TRADIFI_PERPETUAL, CURRENT_QUARTER, NEXT_QUARTER
     // private List<List<String>> permissionSets;
     private List<Filter> filters;
 
@@ -933,6 +1066,22 @@ public class BinanceRestClient {
 
     public final void setQuantityPrecision(final int quantityPrecision) {
       this.quantityPrecision = quantityPrecision;
+    }
+
+    public final long getDeliveryDate() {
+      return deliveryDate;
+    }
+
+    public final String getContractType() {
+      return contractType;
+    }
+
+    public final void setContractType(final String contractType) {
+      this.contractType = contractType;
+    }
+
+    public final void setDeliveryDate(final long deliveryDate) {
+      this.deliveryDate = deliveryDate;
     }
 
     public final List<Filter> getFilters() {
