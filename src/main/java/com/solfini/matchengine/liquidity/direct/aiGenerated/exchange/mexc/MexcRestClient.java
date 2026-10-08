@@ -2,11 +2,14 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.mexc;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -37,6 +40,7 @@ public class MexcRestClient {
     private final String apiKey;
     private final byte[] secretUtf8;
     private final ExchangeSubscription subscription;
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker(); // pairs no longer listed
 
     /**
      * Initializes MEXC REST client with API credentials
@@ -791,6 +795,62 @@ public class MexcRestClient {
       }
     }
     return null;
+  }
+
+  /**
+   * Spot pairs paused/offline (status != 1), restricted (tradeSideType != 1) or no longer listed by MEXC; null on failure.
+   * MEXC gives no delisting date: no API for it, and its announcement pages refuse server requests (403).
+   */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final HttpUtils.Response response = HttpUtils.get(MAINNET_BASE_URL + "/api/v3/exchangeInfo", new HashMap<>(),
+        subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+    if (response == null || response.getCode() != 200) {
+      LOGGER.warn("MEXC exchangeInfo failed with status: " + (response != null ? response.getCode() : "null"));
+      return null;
+    }
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    try {
+      for (final JsonNode item : MAPPER.readTree(response.getData()).path("symbols")) {
+        final String symbol = item.path("symbol").asText();
+        final String[] baseQuote = {item.path("baseAsset").asText(), item.path("quoteAsset").asText()};
+        listed.put(symbol, baseQuote);
+        final String stopped = stoppedStatus(item);
+        if (stopped != null) {
+          delisted.add(toDelisted(symbol, baseQuote, stopped, now));
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+      return null;
+    }
+    final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), false, listed, now);
+    if (removed == null) {
+      return null;
+    }
+    delisted.addAll(removed);
+    return delisted;
+  }
+
+  // null when the pair trades normally, else its status; status 2 paused, 3 offline; tradeSideType 2 buy only, 3 sell only, 4 closed
+  private static String stoppedStatus(final JsonNode item) {
+    final String status = item.path("status").asText();
+    final String side = item.path("tradeSideType").asText("1");
+    return "1".equals(status) && "1".equals(side) ? null : "status=" + status + " tradeSideType=" + side;
+  }
+
+  private DelistedSymbol toDelisted(final String symbol, final String[] baseQuote, final String status, final long now) {
+    final DelistedSymbol delisted = new DelistedSymbol();
+    delisted.setExchange(subscription.getExchange());
+    delisted.setFutures(false);
+    delisted.setSymbol(symbol);
+    delisted.setBase(baseQuote[0]);
+    delisted.setQuote(baseQuote[1]);
+    delisted.setStatus(status);
+    delisted.setTradingDisabled(true);
+    delisted.setDetectedAt(now);
+    return delisted;
   }
 
   public Ticker getTicker(final String symbol) {

@@ -3,6 +3,7 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitget;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.shaded.json.JSONObject;
 import com.solfini.common.Constants;
@@ -10,7 +11,9 @@ import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -45,6 +48,7 @@ public class BitgetRestClient {
   private final ExchangeSubscription subscription;
   private final boolean DEMO_TRADING_ENABLE = Context.getBitgetExchangeDemoTradingEnable();
   private static final String[] QUOTES = {"USDT", "USDC", "USD"};
+  private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker(); // symbols no longer listed
 
   public BitgetRestClient(final String apiKey, final String secretKey, final String passphrase, final ExchangeSubscription subscription) {
     this.apiKey = apiKey;
@@ -732,6 +736,96 @@ public class BitgetRestClient {
       }
     }
     return null;
+  }
+
+  /** Spot pairs halted, scheduled (offTime) or no longer listed by Bitget; null when the request failed. */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final JsonNode list = getSymbolList("/api/v2/spot/public/symbols");
+    if (list == null) {
+      return null;
+    }
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    for (final JsonNode item : list) {
+      addListed(item, item.path("status").asText(), "online", now, false, listed, delisted);
+    }
+    return withNoLongerListed(delisted, listed, false, now);
+  }
+
+  /** USDT/USDC perpetuals stopped, scheduled (offTime) or no longer listed by Bitget; null when a request failed. */
+  public List<DelistedSymbol> getFuturesDelistedSymbols() {
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    for (final String productType : new String[] {"USDT-FUTURES", "USDC-FUTURES"}) {
+      final JsonNode list = getSymbolList("/api/v2/mix/market/contracts?productType=" + productType);
+      if (list == null) { // keep the last state: a partial list would drop the other product's entries
+        return null;
+      }
+      for (final JsonNode item : list) {
+        final String status = item.path("symbolStatus").asText();
+        addListed(item, status, "listed".equals(status) ? "listed" : "normal", now, true, listed, delisted); // listed = new listing
+      }
+    }
+    return withNoLongerListed(delisted, listed, true, now);
+  }
+
+  // records a listed symbol; adds it as delisted when its status is not tradingStatus, or when an offTime is set
+  private void addListed(final JsonNode item, final String status, final String tradingStatus, final long now, final boolean futures,
+      final Map<String, String[]> listed, final List<DelistedSymbol> delisted) {
+    final String symbol = item.path("symbol").asText();
+    final String base = item.path("baseCoin").asText();
+    final String quote = item.path("quoteCoin").asText();
+    final long offTime = item.path("offTime").asLong(0); // "" or "-1" when no delisting is scheduled
+    listed.put(symbol, new String[] {base, quote});
+    final boolean stopped = !tradingStatus.equals(status) || (offTime > 0 && offTime <= now);
+    if (stopped || offTime > 0) {
+      delisted.add(toDelisted(symbol, base, quote, futures, status, stopped, Math.max(offTime, 0), now));
+    }
+  }
+
+  // adds the symbols Bitget no longer lists; null when the list shrank too much
+  private List<DelistedSymbol> withNoLongerListed(final List<DelistedSymbol> delisted, final Map<String, String[]> listed,
+      final boolean futures, final long now) {
+    final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+    if (removed == null) {
+      return null;
+    }
+    delisted.addAll(removed);
+    return delisted;
+  }
+
+  private DelistedSymbol toDelisted(final String symbol, final String base, final String quote, final boolean futures,
+      final String status, final boolean stopped, final long delistTime, final long now) {
+    final DelistedSymbol delisted = new DelistedSymbol();
+    delisted.setExchange(subscription.getExchange());
+    delisted.setFutures(futures);
+    delisted.setSymbol(symbol);
+    delisted.setBase(base);
+    delisted.setQuote(quote);
+    delisted.setStatus(status);
+    delisted.setTradingDisabled(stopped);
+    delisted.setDelistTime(delistTime);
+    delisted.setDetectedAt(now);
+    return delisted;
+  }
+
+  // the "data" list of a public Bitget symbols / contracts request; null when it failed
+  private JsonNode getSymbolList(final String path) {
+    final HttpUtils.Response response = HttpUtils.get(REST_API_BASE + path, new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT,
+        subscription.isForceToUseProxy());
+    if (response == null || response.getCode() != 200) {
+      LOGGER.warn("Bitget " + path + " failed with status: " + (response != null ? response.getCode() : "null"));
+      return null;
+    }
+    try {
+      final JsonNode root = MAPPER.readTree(response.getData());
+      return "00000".equals(root.path("code").asText()) && root.path("data").isArray() ? root.path("data") : null;
+    } catch (final Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
+      return null;
+    }
   }
 
   public static Ticker getTicker(final String symbol) {

@@ -10,6 +10,7 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClie
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -204,11 +205,98 @@ public class DelistedSymbolCache {
       return found;
     }
     for (final ExternalSymbol external : getExternalSymbols(symbol.getExchange(), symbol.isFutures(), base)) {
-      if (symbol.getSymbol().equalsIgnoreCase(external.getSymbol())) {
+      if (symbol.getSymbol().equalsIgnoreCase(exchangeSymbol(external))) {
         found.add(external);
       }
     }
     return found;
+  }
+
+  /** The instrument's exchange symbol; base + quote when it has none saved (Bitget). */
+  public static String exchangeSymbol(final ExternalSymbol external) {
+    return external.getSymbol() != null ? external.getSymbol() : (external.getBase() + external.getQuote()).toUpperCase();
+  }
+
+  /** Saved instruments of a segment; waits up to 120 s for the startup load (until the exchange's count stops changing). */
+  public static List<ExternalSymbol> waitForSavedSymbols(final String exchange, final boolean futures) {
+    final long waitUntil = System.currentTimeMillis() + 120_000;
+    int count = savedBaseCount(exchange);
+    int previous = -1;
+    while ((count == 0 || count != previous) && System.currentTimeMillis() < waitUntil) {
+      previous = count;
+      try {
+        Thread.sleep(2000);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+      count = savedBaseCount(exchange);
+    }
+    final List<ExternalSymbol> saved = new ArrayList<>();
+    try {
+      for (final String base : ExternalInstrumentCache.getAvailableSymbols(exchange)) {
+        for (final ExternalSymbol external : getExternalSymbols(exchange, futures, base)) {
+          if (saved.stream().noneMatch(s -> s == external)) {
+            saved.add(external);
+          }
+        }
+      }
+    } catch (final RuntimeException e) { // nothing loaded for this exchange
+      saved.clear();
+    }
+    LOGGER.info(exchange + (futures ? " futures" : " spot") + " delisting check starts from " + saved.size() + " saved pairs");
+    return saved;
+  }
+
+  /** Finds pairs an exchange no longer lists (delisted pairs disappear from its list); one per exchange segment. */
+  public static final class ListedTracker {
+    private final Map<String, String[]> known = new HashMap<>(); // symbol -> base, quote
+    private final Map<String, DelistedSymbol> removed = new HashMap<>();
+    private int lastCount;
+
+    /**
+     * Known pairs missing from listed (symbol -> base, quote), as stopped symbols; null when listed shrank under half the
+     * previous response. The first call starts from the saved pairs, so delistings while the engine was down are caught.
+     */
+    public synchronized List<DelistedSymbol> update(final String exchange, final boolean futures, final Map<String, String[]> listed,
+        final long now) {
+      if (listed.isEmpty() || (lastCount > 0 && listed.size() < lastCount / 2)) {
+        LOGGER.warn(exchange + " list shrank from " + lastCount + " to " + listed.size() + " symbols, ignoring this response");
+        return null;
+      }
+      if (lastCount == 0) {
+        for (final ExternalSymbol saved : waitForSavedSymbols(exchange, futures)) {
+          known.put(exchangeSymbol(saved), new String[] {saved.getBase(), saved.getQuote()});
+        }
+      }
+      for (final Map.Entry<String, String[]> entry : known.entrySet()) {
+        if (!listed.containsKey(entry.getKey()) && !removed.containsKey(entry.getKey())) {
+          final DelistedSymbol symbol = new DelistedSymbol();
+          symbol.setExchange(exchange);
+          symbol.setFutures(futures);
+          symbol.setSymbol(entry.getKey());
+          symbol.setBase(entry.getValue()[0]);
+          symbol.setQuote(entry.getValue()[1]);
+          symbol.setStatus("REMOVED");
+          symbol.setTradingDisabled(true);
+          symbol.setDetectedAt(now);
+          removed.put(entry.getKey(), symbol);
+        }
+      }
+      removed.keySet().removeAll(listed.keySet()); // listed again
+      known.clear();
+      known.putAll(listed); // the no longer listed ones are kept in removed
+      lastCount = listed.size();
+      return new ArrayList<>(removed.values());
+    }
+  }
+
+  private static int savedBaseCount(final String exchange) {
+    try {
+      return ExternalInstrumentCache.getAvailableSymbols(exchange).size();
+    } catch (final RuntimeException e) { // not loaded yet, or still loading
+      return 0;
+    }
   }
 
   /** Instruments of one exchange segment and base; also tries the plain base of multiplier contracts (1000PEPE). */
@@ -224,7 +312,7 @@ public class DelistedSymbolCache {
         continue;
       }
       for (final ExternalSymbol external : listed) {
-        if (external.isFutures() == futures && exchange.equalsIgnoreCase(external.getExchange()) && external.getSymbol() != null
+        if (external.isFutures() == futures && exchange.equalsIgnoreCase(external.getExchange())
             && found.stream().noneMatch(f -> f == external)) {
           found.add(external);
         }

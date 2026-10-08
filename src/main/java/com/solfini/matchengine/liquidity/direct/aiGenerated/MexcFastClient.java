@@ -1,6 +1,8 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated;
 
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -12,6 +14,7 @@ import com.solfini.sbe.encoder.Side;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.util.StringUtil;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -103,6 +106,8 @@ public final class MexcFastClient implements ExternalExchangeClient {
 
     @Override
     public void start() {
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
         try {
             LOGGER.info("Starting MEXC SPOT client with WebSocket + REST API");
             startSpotClient();
@@ -147,6 +152,12 @@ public final class MexcFastClient implements ExternalExchangeClient {
   @Override
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     return mexcRestClient.getExchangeInstrumentsFull();
+  }
+
+  @Override
+  public List<DelistedSymbol> getDelistedSymbols() {
+    // this client trades MEXC spot only
+    return subscription.isFuturesEnabled() ? Collections.emptyList() : mexcRestClient.getSpotDelistedSymbols();
   }
 
     @Override
