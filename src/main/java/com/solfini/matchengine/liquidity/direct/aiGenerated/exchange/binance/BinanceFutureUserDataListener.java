@@ -121,7 +121,8 @@ public final class BinanceFutureUserDataListener implements NettyWebSocketListen
 
       this.channel = b.connect(host, port).sync().channel();
       handler.handshakeFuture().sync();
-        // public contract status / delist date stream on the same connection, see applyContractInfo()
+        // public contract status / delist date stream, see applyContractInfo(); the reply is checked in onMessage().
+        // It may not push when a delisting is announced, the 10 minute REST poll stays the main source.
         channel.writeAndFlush(new TextWebSocketFrame("{\"method\":\"SUBSCRIBE\",\"params\":[\"!contractInfo\"],\"id\":1}"));
         schedulePeriodicPing();
         LOGGER.info("Binance FutureUserData WebSocket connected");
@@ -188,8 +189,13 @@ public final class BinanceFutureUserDataListener implements NettyWebSocketListen
 
         // Two main event types: "e":"ACCOUNT_UPDATE" and "e":"ORDER_TRADE_UPDATE"
         final String et = minExtract(json, "e");
-        if (et == null)
+        if (et == null) {
+            // !contractInfo subscribe reply: {"result":null,"id":1}, or {"error":{...},"id":1} when rejected
+            if ("1".equals(minExtract(json, "id")) && json.contains("\"error\"")) {
+                LOGGER.error("Binance !contractInfo subscribe rejected, delisting updates come from the REST poll only: " + json);
+            }
             return;
+        }
         if (et.indexOf("ACCOUNT_UPDATE") >= 0) {
             applyAccountUpdate(json);
         } else if (et.indexOf("ORDER_TRADE_UPDATE") >= 0) {
@@ -217,14 +223,15 @@ public final class BinanceFutureUserDataListener implements NettyWebSocketListen
         }
         final boolean delistScheduled = deliveryDate > 0 && deliveryDate != BinanceRestClient.PERPETUAL_NO_DELIVERY_DATE;
         if (DelistedSymbol.TRADING.equals(status) && !delistScheduled) {
-            DelistedSymbolCache.remove("BINANCE", true, symbol);
+            DelistedSymbolCache.remove(subscription.getExchange(), true, symbol);
             return;
         }
         final DelistedSymbol delisted = new DelistedSymbol();
-        delisted.setExchange("BINANCE");
+        delisted.setExchange(subscription.getExchange());
         delisted.setFutures(true);
         delisted.setSymbol(symbol);
         delisted.setStatus(status);
+        delisted.setTradingDisabled(!DelistedSymbol.TRADING.equals(status));
         delisted.setDelistTime(delistScheduled ? deliveryDate : 0);
         delisted.setDetectedAt(System.currentTimeMillis());
         DelistedSymbolCache.update(delisted);

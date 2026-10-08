@@ -2,6 +2,7 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bybit;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
@@ -11,7 +12,9 @@ import com.solfini.instrument.InstrumentCache;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
@@ -22,6 +25,7 @@ import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
 
 import java.net.URLEncoder;
+import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,12 +42,14 @@ public class BybitRestClient {
     private static final String MAINNET_BASE_URL = Context.getBybitUnifiedRest();
     private static final int PROXY_PORT = 8888;
     private static final ObjectMapper MAPPER = new ObjectMapper(); // todo use string parsing
-    private static final String BYBIT = "BYBIT";
     private static final int MAX_INSTRUMENT_PAGES = 20; // safety stop for the cursor paging
     private static final String REMOVED = "REMOVED"; // spot pair no longer listed by Bybit
     // spot pairs seen in the previous call and the ones that disappeared since, see getSpotDelistedSymbols()
     private final Set<String> knownSpotSymbols = new HashSet<>();
     private final Map<String, DelistedSymbol> removedSpotSymbols = new HashMap<>();
+    private int lastLiveSpotCount; // pairs in the previous response, 0 before the first one
+    private long lastAnnouncementTime; // publishTime of the newest delisting announcement already logged
+    private static final long SAVED_PAIRS_WAIT_MILLIS = 120_000; // first spot check waits this long for the saved pairs
 
     // Configuration and credentials - immutable after construction
     private final String apiKey;
@@ -865,16 +871,18 @@ public class BybitRestClient {
 
   /**
    * Linear perpetuals that are delisted or scheduled for delisting, from GET /v5/market/instruments-info.
-   * Trading perpetual with deliveryTime != "0" = delisting scheduled; status Closed (status=Closed query) = delisted.
+   * Trading perpetual with deliveryTime != "0" = delisting scheduled; status Delivering or Closed = trading stopped.
    *
    * @return the delisted symbols, or null when a request failed
    */
   public List<DelistedSymbol> getFuturesDelistedSymbols() {
-    final List<ByBitSymbol> live = getInstruments("category=linear&limit=1000"); // Trading + PendingOpen
+    final List<ByBitSymbol> live = getInstruments("category=linear&limit=1000"); // Trading only
+    final List<ByBitSymbol> delivering = getInstruments("category=linear&status=Delivering&limit=1000");
     final List<ByBitSymbol> closed = getInstruments("category=linear&status=Closed&limit=1000");
-    if (live == null || closed == null) {
+    if (live == null || delivering == null || closed == null) {
       return null;
     }
+    closed.addAll(delivering); // both stopped trading, checked the same way below
     final long now = System.currentTimeMillis();
     final List<DelistedSymbol> delisted = new ArrayList<>();
     for (final ByBitSymbol byBitSymbol : live) {
@@ -885,7 +893,8 @@ public class BybitRestClient {
     }
     for (final ByBitSymbol byBitSymbol : closed) {
       // dated LinearFutures close on their normal expiry, that is not a delisting
-      if ("LinearPerpetual".equals(byBitSymbol.getContractType()) && "Closed".equals(byBitSymbol.getStatus())) {
+      if ("LinearPerpetual".equals(byBitSymbol.getContractType())
+          && ("Closed".equals(byBitSymbol.getStatus()) || "Delivering".equals(byBitSymbol.getStatus()))) {
         delisted.add(toDelistedSymbol(byBitSymbol, true, parseDeliveryTime(byBitSymbol.getDeliveryTime()), now));
       }
     }
@@ -895,14 +904,21 @@ public class BybitRestClient {
   /**
    * Spot pairs Bybit stopped listing. Bybit spot has no delisted status or date: a delisted pair disappears from
    * GET /v5/market/instruments-info?category=spot, so pairs missing compared to the previous call are reported.
-   * The first call only records the current pairs.
+   * The first call starts from the saved pairs, so pairs delisted while the engine was down are caught too.
    *
    * @return the removed pairs, or null when the request failed
    */
   public List<DelistedSymbol> getSpotDelistedSymbols() {
+    checkDelistingAnnouncements();
     final List<ByBitSymbol> live = getInstruments("category=spot&limit=1000");
     if (live == null) {
       return null;
+    }
+    if (lastLiveSpotCount == 0) {
+      final List<String> saved = waitForSavedSpotSymbols();
+      synchronized (knownSpotSymbols) {
+        knownSpotSymbols.addAll(saved);
+      }
     }
     final Set<String> current = new HashSet<>();
     for (final ByBitSymbol byBitSymbol : live) {
@@ -911,8 +927,8 @@ public class BybitRestClient {
       }
     }
     synchronized (knownSpotSymbols) {
-      if (!knownSpotSymbols.isEmpty() && current.size() < knownSpotSymbols.size() / 2) {
-        LOGGER.warn("Bybit spot list shrank from " + knownSpotSymbols.size() + " to " + current.size()
+      if (lastLiveSpotCount > 0 && current.size() < lastLiveSpotCount / 2) {
+        LOGGER.warn("Bybit spot list shrank from " + lastLiveSpotCount + " to " + current.size()
             + " pairs, ignoring this response");
         return null;
       }
@@ -920,10 +936,11 @@ public class BybitRestClient {
       for (final String symbol : knownSpotSymbols) {
         if (!current.contains(symbol) && !removedSpotSymbols.containsKey(symbol)) {
           final DelistedSymbol delisted = new DelistedSymbol();
-          delisted.setExchange(BYBIT);
+          delisted.setExchange(subscription.getExchange());
           delisted.setFutures(false);
           delisted.setSymbol(symbol);
           delisted.setStatus(REMOVED);
+          delisted.setTradingDisabled(true);
           delisted.setDetectedAt(now);
           removedSpotSymbols.put(symbol, delisted);
         }
@@ -931,7 +948,69 @@ public class BybitRestClient {
       removedSpotSymbols.keySet().removeAll(current); // listed again
       knownSpotSymbols.addAll(current);
       knownSpotSymbols.retainAll(current);
+      lastLiveSpotCount = current.size();
       return new ArrayList<>(removedSpotSymbols.values());
+    }
+  }
+
+  // the saved pairs load on another startup thread: wait until their count stops changing
+  private List<String> waitForSavedSpotSymbols() {
+    final long waitUntil = System.currentTimeMillis() + SAVED_PAIRS_WAIT_MILLIS;
+    List<String> saved = savedSpotSymbols();
+    int previous = -1;
+    while ((saved.isEmpty() || saved.size() != previous) && System.currentTimeMillis() < waitUntil) {
+      previous = saved.size();
+      try {
+        Thread.sleep(2000);
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+      saved = savedSpotSymbols();
+    }
+    LOGGER.info("Bybit spot delisting check starts from " + saved.size() + " saved pairs");
+    return saved;
+  }
+
+  // Bybit spot pairs saved in external_instrument_state, read through ExternalInstrumentCache; empty until loaded
+  private List<String> savedSpotSymbols() {
+    final List<String> symbols = new ArrayList<>();
+    try {
+      for (final String base : ExternalInstrumentCache.getAvailableSymbols(subscription.getExchange())) {
+        for (final ExternalSymbol external : DelistedSymbolCache.getExternalSymbols(subscription.getExchange(), false, base)) {
+          if (!symbols.contains(external.getSymbol())) {
+            symbols.add(external.getSymbol());
+          }
+        }
+      }
+    } catch (final RuntimeException e) { // nothing loaded for this exchange yet, or still loading
+      symbols.clear();
+    }
+    return symbols;
+  }
+
+  // Bybit names no spot pairs or dates, so new spot delisting announcements are logged (title, date, link)
+  private void checkDelistingAnnouncements() {
+    try {
+      final HttpUtils.Response response = HttpUtils.get(MAINNET_BASE_URL + "/v5/announcements/index?locale=en-US&type=delistings&limit=20",
+          new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+      if (response == null || response.getCode() != 200) {
+        return;
+      }
+      final long since = lastAnnouncementTime > 0 ? lastAnnouncementTime : System.currentTimeMillis() - 7L * 24 * 3600_000;
+      long latest = since;
+      for (final JsonNode item : MAPPER.readTree(response.getData()).path("result").path("list")) {
+        final long publishTime = item.path("publishTime").asLong(0);
+        final String tags = item.path("tags").toString(); // perpetuals come with a deliveryTime, WEB3 = Bybit Alpha
+        if (publishTime > since && !tags.contains("\"Derivatives\"") && !tags.contains("\"WEB3\"")) {
+          LOGGER.warn("Bybit spot delisting announced: " + item.path("title").asText() + " (published "
+              + Instant.ofEpochMilli(publishTime) + ", " + item.path("url").asText() + ")");
+        }
+        latest = Math.max(latest, publishTime);
+      }
+      lastAnnouncementTime = latest;
+    } catch (final Exception e) {
+      LOGGER.error(Constants.ERROR_LOG, e);
     }
   }
 
@@ -983,10 +1062,11 @@ public class BybitRestClient {
     }
   }
 
-  private static DelistedSymbol toDelistedSymbol(final ByBitSymbol byBitSymbol, final boolean futures,
+  private DelistedSymbol toDelistedSymbol(final ByBitSymbol byBitSymbol, final boolean futures,
       final long delistTime, final long now) {
     final DelistedSymbol delisted = new DelistedSymbol();
-    delisted.setExchange(BYBIT);
+    delisted.setExchange(subscription.getExchange());
+    delisted.setTradingDisabled(!"Trading".equals(byBitSymbol.getStatus()));
     delisted.setFutures(futures);
     delisted.setSymbol(byBitSymbol.getSymbol());
     delisted.setBase(byBitSymbol.getBaseCoin());

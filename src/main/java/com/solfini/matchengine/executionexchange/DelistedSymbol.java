@@ -11,8 +11,10 @@ public class DelistedSymbol {
   private String symbol;
   private String base;
   private String quote;
-  /** Raw status reported by the exchange, e.g. TRADING, BREAK, HALT, SETTLING */
+  /** Raw exchange status, for display only (e.g. BREAK, Delivering, REMOVED); decide with isTradingDisabled(). */
   private String status;
+  /** True when trading has stopped on the exchange (delisted or suspended), set by the exchange client. */
+  private boolean tradingDisabled;
   /** Delisting time in millis, 0 when the exchange gives no date */
   private long delistTime;
   private long detectedAt;
@@ -27,12 +29,16 @@ public class DelistedSymbol {
 
   /** Still trading, but a delisting date is scheduled. */
   public final boolean isUpcoming() {
-    return TRADING.equalsIgnoreCase(status) && delistTime > 0;
+    return !tradingDisabled && delistTime > 0;
   }
 
   /** Trading has stopped on the exchange (delisted or suspended). */
   public final boolean isTradingDisabled() {
-    return !TRADING.equalsIgnoreCase(status);
+    return tradingDisabled;
+  }
+
+  public final void setTradingDisabled(final boolean tradingDisabled) {
+    this.tradingDisabled = tradingDisabled;
   }
 
   public final String getExchange() {
@@ -108,6 +114,7 @@ public class DelistedSymbol {
     sb.append(", base='").append(base).append('\'');
     sb.append(", quote='").append(quote).append('\'');
     sb.append(", status='").append(status).append('\'');
+    sb.append(", tradingDisabled=").append(tradingDisabled);
     sb.append(", delistTime=").append(delistTime);
     sb.append(", detectedAt=").append(detectedAt);
     sb.append('}');

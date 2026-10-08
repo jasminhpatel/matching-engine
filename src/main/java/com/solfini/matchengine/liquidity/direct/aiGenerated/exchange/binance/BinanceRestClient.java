@@ -36,7 +36,6 @@ public class BinanceRestClient {
     private static final String REST_SPOT_BASE = Context.getBinanceSpotRest();
     private static final ObjectMapper MAPPER = new ObjectMapper(); // todo use string parsing
     private static final int PROXY_PORT = 8888;
-    private static final String BINANCE = "BINANCE";
     // deliveryDate Binance uses for perpetuals with no delisting scheduled (2100-12-25)
     static final long PERPETUAL_NO_DELIVERY_DATE = 4133404800000L;
     private final String apiKey;
@@ -678,17 +677,18 @@ public class BinanceRestClient {
           if (!"PERPETUAL".equals(contractType) && !"TRADIFI_PERPETUAL".equals(contractType)) {
             continue;
           }
-          final boolean delistScheduled = binanceSymbol.getDeliveryDate() != PERPETUAL_NO_DELIVERY_DATE;
+          final boolean delistScheduled = binanceSymbol.getDeliveryDate() > 0 && binanceSymbol.getDeliveryDate() != PERPETUAL_NO_DELIVERY_DATE;
           final boolean tradingStopped = !DelistedSymbol.TRADING.equals(binanceSymbol.getStatus())
               && !"PENDING_TRADING".equals(binanceSymbol.getStatus()); // PENDING_TRADING = new listing
           if (delistScheduled || tradingStopped) {
             final DelistedSymbol symbol = new DelistedSymbol();
-            symbol.setExchange(BINANCE);
+            symbol.setExchange(subscription.getExchange());
             symbol.setFutures(true);
             symbol.setSymbol(binanceSymbol.getSymbol());
             symbol.setBase(binanceSymbol.getBaseAsset());
             symbol.setQuote(binanceSymbol.getQuoteAsset());
             symbol.setStatus(binanceSymbol.getStatus());
+            symbol.setTradingDisabled(tradingStopped);
             symbol.setDelistTime(delistScheduled ? binanceSymbol.getDeliveryDate() : 0);
             symbol.setDetectedAt(now);
             delisted.add(symbol);
@@ -706,7 +706,7 @@ public class BinanceRestClient {
    * Spot pairs that are suspended or delisted (GET /api/v3/exchangeInfo with symbolStatus HALT and BREAK) plus the
    * pairs scheduled for delisting (GET /sapi/v1/spot/delist-schedule, needs the API key).
    *
-   * @return the delisted symbols, or null when a request failed
+   * @return the delisted symbols, or null when an exchangeInfo request failed
    */
   public List<DelistedSymbol> getSpotDelistedSymbols() {
     final Map<String, DelistedSymbol> delisted = new HashMap<>();
@@ -723,12 +723,13 @@ public class BinanceRestClient {
         if (info.getSymbols() != null) {
           for (final BinanceSymbol binanceSymbol : info.getSymbols()) {
             final DelistedSymbol symbol = new DelistedSymbol();
-            symbol.setExchange(BINANCE);
+            symbol.setExchange(subscription.getExchange());
             symbol.setFutures(false);
             symbol.setSymbol(binanceSymbol.getSymbol());
             symbol.setBase(binanceSymbol.getBaseAsset());
             symbol.setQuote(binanceSymbol.getQuoteAsset());
             symbol.setStatus(binanceSymbol.getStatus());
+            symbol.setTradingDisabled(true);
             symbol.setDetectedAt(now);
             delisted.put(symbol.getSymbol(), symbol);
           }
@@ -753,7 +754,7 @@ public class BinanceRestClient {
           headers, subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
       if (response == null || response.getCode() != 200) {
         LOGGER.warn("Spot delist-schedule failed with status: " + (response != null ? response.getCode() + " " + response.getData() : "null"));
-        return null;
+        return new ArrayList<>(delisted.values()); // keep the HALT/BREAK pairs
       }
       final BinanceDelistSchedule[] schedules = MAPPER.readValue(response.getData(), BinanceDelistSchedule[].class);
       for (final BinanceDelistSchedule schedule : schedules) {
@@ -764,7 +765,7 @@ public class BinanceRestClient {
           DelistedSymbol symbol = delisted.get(name);
           if (symbol == null) { // still trading until delistTime
             symbol = new DelistedSymbol();
-            symbol.setExchange(BINANCE);
+            symbol.setExchange(subscription.getExchange());
             symbol.setFutures(false);
             symbol.setSymbol(name);
             symbol.setStatus(DelistedSymbol.TRADING);
@@ -775,8 +776,7 @@ public class BinanceRestClient {
         }
       }
     } catch (final Exception e) {
-      LOGGER.error(Constants.ERROR_LOG, e);
-      return null;
+      LOGGER.error(Constants.ERROR_LOG, e); // keep the HALT/BREAK pairs
     }
     return new ArrayList<>(delisted.values());
   }
