@@ -1,5 +1,7 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.coinbase;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
@@ -9,6 +11,8 @@ import com.nimbusds.jwt.SignedJWT;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -29,7 +33,9 @@ import java.security.Security;
 import java.security.interfaces.ECPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
@@ -61,6 +67,99 @@ public class CoinbaseRestClient {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
         this.subscription = subscription;
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // products no longer listed; first check starts from the saved pairs
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker();
+    // product ids of the latest successful check, for the WebSocket status stream
+    private volatile List<String> listedProductIds = new ArrayList<>();
+
+    /** Spot products not online / trading disabled / cancel or view only, post only (restricted) or no longer listed. */
+    public List<DelistedSymbol> getSpotDelistedSymbols() {
+        return getDelistedSymbols("product_type=SPOT", false);
+    }
+
+    /** Perpetuals cancel / view only, disabled, delisted / offline, post only (restricted) or no longer listed. */
+    public List<DelistedSymbol> getFuturesDelistedSymbols() {
+        return getDelistedSymbols("product_type=FUTURE&contract_expiry_type=PERPETUAL", true);
+    }
+
+    public List<String> getListedProductIds() {
+        return listedProductIds;
+    }
+
+    // public /market/products (no key needed), all pages; null when a request failed
+    private List<DelistedSymbol> getDelistedSymbols(final String filter, final boolean futures) {
+        final List<JsonNode> products = new ArrayList<>();
+        String cursor = "";
+        int pages = 0;
+        do {
+            final HttpUtils.Response response = HttpUtils.get(BASE_URL + "/market/products?get_all_products=true&limit=10000&" + filter
+                    + (cursor.isEmpty() ? "" : "&cursor=" + cursor), new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT,
+                subscription.isForceToUseProxy());
+            if (response == null || response.getCode() != 200) {
+                LOGGER.warn("Coinbase market/products failed with status: " + (response != null ? response.getCode() : "null"));
+                return null;
+            }
+            try {
+                final JsonNode root = MAPPER.readTree(response.getData());
+                if (!root.path("products").isArray()) {
+                    LOGGER.warn("Coinbase market/products returned no products: " + response.getData());
+                    return null;
+                }
+                root.path("products").forEach(products::add);
+                cursor = root.path("pagination").path("has_next").asBoolean(false) ? root.path("pagination").path("next_cursor").asText("") : "";
+            } catch (final Exception e) {
+                LOGGER.error("Coinbase market/products parse failed", e);
+                return null;
+            }
+        } while (!cursor.isEmpty() && ++pages < 20);
+        return toDelistedSymbols(products, futures, System.currentTimeMillis());
+    }
+
+    List<DelistedSymbol> toDelistedSymbols(final List<JsonNode> products, final boolean futures, final long now) {
+        final List<DelistedSymbol> delisted = new ArrayList<>();
+        final Map<String, String[]> listed = new HashMap<>();
+        for (final JsonNode product : products) {
+            final DelistedSymbol state = toState(product, subscription.getExchange(), futures, now);
+            listed.put(state.getSymbol(), new String[] {state.getBase(), state.getQuote()});
+            if (state.isTradingDisabled() || state.isRestricted()) {
+                delisted.add(state);
+            }
+        }
+        final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+        if (removed == null) {
+            return null;
+        }
+        listedProductIds = new ArrayList<>(listed.keySet());
+        delisted.addAll(removed);
+        return delisted;
+    }
+
+    // spot: stopped unless status online and no trading_disabled / cancel_only / view_only / is_disabled flag.
+    // futures: trading_disabled is set by region (INTX), so only explicit flags or a delisted / offline status stop it.
+    // post_only (maker orders only) = restricted, still routed; limit_only doesn't affect limit orders
+    static DelistedSymbol toState(final JsonNode product, final String exchange, final boolean futures, final long now) {
+        final String id = product.path("product_id").asText();
+        final String status = product.path("status").asText();
+        final boolean flags = product.path("cancel_only").asBoolean(false) || product.path("view_only").asBoolean(false)
+            || product.path("is_disabled").asBoolean(false);
+        final boolean stopped = futures ? flags || "delisted".equalsIgnoreCase(status) || "offline".equalsIgnoreCase(status)
+            : flags || !"online".equalsIgnoreCase(status) || product.path("trading_disabled").asBoolean(false);
+        final String base = product.path("base_currency_id").asText();
+        final DelistedSymbol state = new DelistedSymbol();
+        state.setExchange(exchange);
+        state.setFutures(futures);
+        state.setSymbol(id);
+        state.setBase(base.isEmpty() ? id.split("-")[0] : base); // perpetuals have no base_currency_id (BTC-PERP-INTX)
+        state.setQuote(product.path("quote_currency_id").asText());
+        state.setStatus(status + (product.path("trading_disabled").asBoolean(false) ? " trading_disabled" : "")
+            + (product.path("cancel_only").asBoolean(false) ? " cancel_only" : "") + (product.path("post_only").asBoolean(false) ? " post_only" : ""));
+        state.setTradingDisabled(stopped);
+        state.setRestricted(!stopped && product.path("post_only").asBoolean(false));
+        state.setDetectedAt(now);
+        return state;
     }
 
     // Helper to extract nth object from a JSON array string (assumes array of objects, not robust)

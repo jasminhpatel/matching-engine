@@ -1,9 +1,18 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -20,6 +29,10 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     private static final CustomLogger LOGGER = CustomLogger.getLogger(CoinbaseFastClient.class);
     private static final long TEN_MINUTES = 600_000;
     private static final long ONE_MINUTE = 60_000;
+    private static final String STATUS_WS_URL = "wss://advanced-trade-ws.coinbase.com";
+    private static final long STATUS_RESUBSCRIBE_MILLIS = 3_600_000; // reconnect hourly to pick up new product ids
+    private static final long STATUS_RECONNECT_MILLIS = 10_000;
+    private volatile boolean statusStreamRunning;
 
     private final ExchangeSubscription subscription;
 
@@ -48,10 +61,118 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     @Override
     public void start() {
         LOGGER.info("Starting Coinbase client");
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
+        if (!restOnly) {
+            startStatusStream();
+        }
         if (subscription.isFuturesEnabled()) {
             startFutureClient();
         } else {
             startSpotClient();
+        }
+    }
+
+    @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? coinbaseRestClient.getFuturesDelistedSymbols()
+                : coinbaseRestClient.getSpotDelistedSymbols();
+    }
+
+    // Coinbase "status" channel (public when product ids are given): a product leaving "online" is blocked at once instead
+    // of at the next 10 minute check. It can still say "online" for a delisted product, so it never unblocks anything.
+    void startStatusStream() {
+        statusStreamRunning = true;
+        final Thread thread = new Thread(() -> {
+            while (statusStreamRunning) {
+                try {
+                    runStatusStream(STATUS_RESUBSCRIBE_MILLIS);
+                } catch (final Exception e) {
+                    LOGGER.warn("Coinbase status stream reconnects after error: " + e);
+                }
+                try {
+                    Thread.sleep(STATUS_RECONNECT_MILLIS);
+                } catch (final InterruptedException e) {
+                    return;
+                }
+            }
+        }, "coinbaseStatusStream-" + (subscription.isFuturesEnabled() ? "futures" : "spot"));
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    // one connection subscribed to the products of the latest check, until it closes or resubscribeMillis pass (new products)
+    void runStatusStream(final long resubscribeMillis) throws Exception {
+        final List<String> ids = coinbaseRestClient.getListedProductIds();
+        if (ids.isEmpty()) {
+            return; // the first REST check has not finished yet
+        }
+        final CompletableFuture<Void> closed = new CompletableFuture<>();
+        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(STATUS_WS_URL), new WebSocket.Listener() {
+            private final StringBuilder text = new StringBuilder();
+
+            @Override
+            public CompletionStage<?> onText(final WebSocket webSocket, final CharSequence data, final boolean last) {
+                text.append(data);
+                if (last) {
+                    applyStatusMessage(text.toString(), subscription.getExchange(), subscription.isFuturesEnabled());
+                    text.setLength(0);
+                }
+                webSocket.request(1);
+                return null;
+            }
+
+            @Override
+            public CompletionStage<?> onClose(final WebSocket webSocket, final int statusCode, final String reason) {
+                closed.complete(null);
+                return null;
+            }
+
+            @Override
+            public void onError(final WebSocket webSocket, final Throwable error) {
+                closed.completeExceptionally(error);
+            }
+        }).get(15, TimeUnit.SECONDS);
+        socket.sendText("{\"type\":\"subscribe\",\"channel\":\"status\",\"product_ids\":[\"" + String.join("\",\"", ids) + "\"]}", true);
+        try {
+            closed.get(resubscribeMillis, TimeUnit.MILLISECONDS);
+        } catch (final TimeoutException e) {
+            // resubscribe with the products of the latest check
+        } finally {
+            socket.abort();
+        }
+    }
+
+    /** Applies a status channel message: a product of this segment whose status is not "online" is stored as stopped. */
+    static void applyStatusMessage(final String json, final String exchange, final boolean futures) {
+        if (json.contains("\"type\":\"error\"")) {
+            LOGGER.error("Coinbase status channel error: " + json);
+            return;
+        }
+        if (!"status".equals(minExtract(json, "channel"))) {
+            return;
+        }
+        int at = json.indexOf("\"product_type\"");
+        while (at >= 0) {
+            final int end = json.indexOf('}', at);
+            final String product = json.substring(at, end < 0 ? json.length() : end);
+            final String status = minExtract(product, "status");
+            if (futures == "FUTURE".equals(minExtract(product, "product_type")) && status != null && !"online".equalsIgnoreCase(status)) {
+                final String id = minExtract(product, "id");
+                final String base = minExtract(product, "base_currency");
+                final DelistedSymbol stopped = new DelistedSymbol();
+                stopped.setExchange(exchange);
+                stopped.setFutures(futures);
+                stopped.setSymbol(id);
+                stopped.setBase(base == null || base.isEmpty() ? id.split("-")[0] : base);
+                stopped.setQuote(minExtract(product, "quote_currency"));
+                stopped.setStatus(status + " (status channel)");
+                stopped.setTradingDisabled(true);
+                stopped.setDetectedAt(System.currentTimeMillis());
+                DelistedSymbolCache.update(stopped);
+            }
+            at = json.indexOf("\"product_type\"", at + 1);
         }
     }
 
@@ -183,6 +304,7 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     @Override
     public void stop() {
         LOGGER.info("Stopping Coinbase client");
+        statusStreamRunning = false;
         stopPeriodicAccountRefresh();
 
         if (userDataListener != null) {

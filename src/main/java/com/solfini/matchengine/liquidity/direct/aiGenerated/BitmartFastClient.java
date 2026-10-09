@@ -8,6 +8,8 @@ import java.util.*;
 
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -57,6 +59,8 @@ public final class BitmartFastClient implements ExternalExchangeClient {
     @Override
     public void start() {
         LOGGER.info("Starting BitMart client");
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
         if (subscription.isFuturesEnabled()) {
             startFutureClient();
         } else {
@@ -136,6 +140,13 @@ public final class BitmartFastClient implements ExternalExchangeClient {
             ticker.setInstrumentType(instrumentType);
         }
         return ticker;
+    }
+
+    @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? bitmartRestClient.getFuturesDelistedSymbols()
+                : bitmartRestClient.getSpotDelistedSymbols();
     }
 
     public List<ExternalSymbol> getExchangeInstrumentsFull() {

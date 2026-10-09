@@ -3,7 +3,9 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.hyperliqui
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -73,6 +75,10 @@ public class HyperliquidRestClient {
   private final Map<String, Integer> hip3DexIndexByName = new ConcurrentHashMap<>();
   private final Map<String, Integer> hip3PerpAssetIdByMarket = new ConcurrentHashMap<>();
   private final Map<String, Integer> hip3PerpQtyScaleByMarket = new ConcurrentHashMap<>();
+
+  // symbols no longer listed, one per segment (a client serves one); first check starts from the saved pairs
+  private final DelistedSymbolCache.ListedTracker futuresTracker = new DelistedSymbolCache.ListedTracker();
+  private final DelistedSymbolCache.ListedTracker spotTracker = new DelistedSymbolCache.ListedTracker();
 
   public HyperliquidRestClient(final String privateKey, final ExchangeSubscription subscription,
       final boolean mainnet) {
@@ -984,6 +990,92 @@ public class HyperliquidRestClient {
     } else {
       throw new IllegalArgumentException("Unsupported msgpack value type: " + value.getClass());
     }
+  }
+
+  /** Perps of the main dex and the commodities dex the loader uses: isDelisted, or no longer listed. Null on failure. */
+  public List<DelistedSymbol> getFuturesDelistedSymbols() {
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    for (final String dex : new String[] {"", COMMODITIES_DEX}) {
+      final JsonNode universe = readInfo("{\"type\":\"meta\",\"dex\":\"" + dex + "\"}", "universe");
+      if (universe == null) { // keep the last state: a partial list would drop the other dex's entries
+        return null;
+      }
+      for (final JsonNode market : universe) {
+        final String name = market.path("name").asText(); // main dex "BTC", commodities dex "xyz:CL"
+        if (name.isEmpty()) {
+          continue;
+        }
+        listed.put(name, new String[] {name, "USDC"});
+        if (market.path("isDelisted").asBoolean(false)) {
+          delisted.add(toDelistedSymbol(name, name, "USDC", true, "isDelisted", now));
+        }
+      }
+    }
+    return withNoLongerListed(delisted, listed, true, now);
+  }
+
+  /** Spot pairs (base + quote, as the loader names them) no longer listed; spotMeta has no delisted flag. Null on failure. */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final long now = System.currentTimeMillis();
+    final JsonNode meta = readInfo("{\"type\":\"spotMeta\"}", null);
+    if (meta == null || !meta.path("universe").isArray()) {
+      return null;
+    }
+    final Map<Integer, String> tokenNames = new HashMap<>();
+    meta.path("tokens").forEach(token -> tokenNames.put(token.path("index").asInt(), token.path("name").asText()));
+    final Map<String, String[]> listed = new HashMap<>();
+    for (final JsonNode market : meta.path("universe")) {
+      final JsonNode tokens = market.path("tokens");
+      final String base = tokens.size() == 2 ? tokenNames.get(tokens.get(0).asInt()) : null;
+      final String quote = tokens.size() == 2 ? tokenNames.get(tokens.get(1).asInt()) : null;
+      if (base != null && quote != null) {
+        listed.put(base + quote, new String[] {base, quote});
+      }
+    }
+    return withNoLongerListed(new ArrayList<>(), listed, false, now);
+  }
+
+  private List<DelistedSymbol> withNoLongerListed(final List<DelistedSymbol> delisted, final Map<String, String[]> listed,
+      final boolean futures, final long now) {
+    final List<DelistedSymbol> removed = (futures ? futuresTracker : spotTracker).update(subscription.getExchange(), futures, listed, now);
+    if (removed == null) {
+      return null;
+    }
+    delisted.addAll(removed);
+    return delisted;
+  }
+
+  // POST /info; the given field of the answer (or the whole answer), null when the request failed
+  private JsonNode readInfo(final String body, final String field) {
+    final HttpUtils.Response response = postInfo(body);
+    if (response == null || response.getCode() != 200) {
+      LOGGER.warn("Hyperliquid info " + body + " failed with status: " + (response != null ? response.getCode() : "null"));
+      return null;
+    }
+    try {
+      final JsonNode node = JSON_MAPPER.readTree(response.getData());
+      final JsonNode value = field == null ? node : node.path(field);
+      return field == null || value.isArray() ? value : null;
+    } catch (final Exception e) {
+      LOGGER.error("Hyperliquid info " + body + " parse failed", e);
+      return null;
+    }
+  }
+
+  private DelistedSymbol toDelistedSymbol(final String symbol, final String base, final String quote, final boolean futures,
+      final String status, final long now) {
+    final DelistedSymbol state = new DelistedSymbol();
+    state.setExchange(subscription.getExchange());
+    state.setFutures(futures);
+    state.setSymbol(symbol);
+    state.setBase(base);
+    state.setQuote(quote);
+    state.setStatus(status);
+    state.setTradingDisabled(true);
+    state.setDetectedAt(now);
+    return state;
   }
 
   HttpUtils.Response postInfo(final String body) {

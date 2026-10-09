@@ -1,6 +1,10 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.bitmart;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -15,7 +19,9 @@ import com.solfini.util.MbxMath;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
@@ -31,6 +37,9 @@ public class BitmartRestClient {
     private final String secretKey;
     private final String memo;
     private final ExchangeSubscription subscription;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // symbols no longer listed (delisted pairs disappear from both lists); first check starts from the saved pairs
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker();
 
     public BitmartRestClient(final String apiKey, final String secretKey, final String memo, final ExchangeSubscription subscription) {
         this.apiKey = apiKey;
@@ -639,6 +648,71 @@ public class BitmartRestClient {
             LOGGER.error("getSpotSymbolDetails failed: " + e.getMessage());
         }
         return null;
+    }
+
+    /** Perpetuals Delisted, past or upcoming delist_time, or no longer listed; dated futures are skipped. Null on failure. */
+    public List<DelistedSymbol> getFuturesDelistedSymbols() {
+        final String json = getFutureSymbolDetails();
+        return json == null ? null : toDelistedSymbols(json, true, System.currentTimeMillis());
+    }
+
+    /** Spot pairs not trading, past or upcoming planned_down_time, or no longer listed; null when the request failed. */
+    public List<DelistedSymbol> getSpotDelistedSymbols() {
+        final String json = getSpotSymbolDetails();
+        return json == null ? null : toDelistedSymbols(json, false, System.currentTimeMillis());
+    }
+
+    // parses a /contract/public/details or /spot/v1/symbols/details response; null when it is not a valid list
+    List<DelistedSymbol> toDelistedSymbols(final String json, final boolean futures, final long now) {
+        final List<DelistedSymbol> delisted = new ArrayList<>();
+        final Map<String, String[]> listed = new HashMap<>();
+        try {
+            final JsonNode root = MAPPER.readTree(json);
+            final JsonNode symbols = root.path("data").path("symbols");
+            if (root.path("code").asInt(-1) != 1000 || !symbols.isArray()) {
+                LOGGER.warn("Bitmart " + (futures ? "contract" : "spot") + " details returned no symbols: " + json);
+                return null;
+            }
+            for (final JsonNode item : symbols) {
+                final String symbol = item.path("symbol").asText();
+                listed.put(symbol, new String[] {item.path("base_currency").asText(), item.path("quote_currency").asText()});
+                if (futures && item.path("product_type").asInt(1) != 1) {
+                    continue; // product_type 2 = futures with a fixed expiry, not a delisting; still listed so a saved row is not marked removed
+                }
+                final String status = futures ? item.path("status").asText() : item.path("trade_status").asText();
+                final long delistTime = toMillis(item.path(futures ? "delist_time" : "planned_down_time").asLong(0));
+                // futures: Trading / Delisted; spot: trading, pre-trade = new listing
+                final boolean trading = futures ? "Trading".equals(status) : "trading".equals(status) || "pre-trade".equals(status);
+                final boolean stopped = !trading || (delistTime > 0 && delistTime <= now);
+                if (stopped || delistTime > 0) {
+                    final DelistedSymbol entry = new DelistedSymbol();
+                    entry.setExchange(subscription.getExchange());
+                    entry.setFutures(futures);
+                    entry.setSymbol(symbol);
+                    entry.setBase(item.path("base_currency").asText());
+                    entry.setQuote(item.path("quote_currency").asText());
+                    entry.setStatus(status);
+                    entry.setTradingDisabled(stopped);
+                    entry.setDelistTime(delistTime);
+                    entry.setDetectedAt(now);
+                    delisted.add(entry);
+                }
+            }
+        } catch (final Exception e) {
+            LOGGER.error("Bitmart " + (futures ? "contract" : "spot") + " details parse failed", e);
+            return null;
+        }
+        final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+        if (removed == null) {
+            return null;
+        }
+        delisted.addAll(removed);
+        return delisted;
+    }
+
+    // delist_time is documented as Unix time without unit; accept seconds as well as milliseconds
+    static long toMillis(final long time) {
+        return time > 0 && time < 100_000_000_000L ? time * 1000 : Math.max(time, 0);
     }
 
     public Ticker getSpotTicker(final String symbol) {

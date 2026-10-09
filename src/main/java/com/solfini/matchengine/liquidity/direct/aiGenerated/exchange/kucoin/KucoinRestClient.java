@@ -1,6 +1,10 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.kucoin;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
@@ -21,6 +25,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.extractJsonValue;
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.minExtract;
@@ -733,6 +738,117 @@ public class KucoinRestClient {
 
         LOGGER.info("Total KuCoin instruments fetched: " + externalSymbolList.size());
         return externalSymbolList.isEmpty() ? null : externalSymbolList;
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // symbols no longer listed; first check starts from the saved pairs
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker();
+    // publishTime of the newest delisting announcement already logged, shared so spot and futures log it once
+    private static final AtomicLong LAST_ANNOUNCEMENT_TIME = new AtomicLong();
+
+    /** Spot pairs with trading disabled (enableTrading false) or no longer listed; null when the request failed. */
+    public List<DelistedSymbol> getSpotDelistedSymbols() {
+        checkDelistingAnnouncements();
+        final String json = getSpotSymbols();
+        return json == null ? null : toDelistedSymbols(json, false, System.currentTimeMillis());
+    }
+
+    /** Perpetuals not Open / Init, past or upcoming expireDate (delisting time), or no longer listed; null on failure. */
+    public List<DelistedSymbol> getFuturesDelistedSymbols() {
+        checkDelistingAnnouncements();
+        final String json = getFuturesSymbols();
+        return json == null ? null : toDelistedSymbols(json, true, System.currentTimeMillis());
+    }
+
+    // parses /api/v2/symbols or /api/v1/contracts/active; null when it is not a valid list
+    List<DelistedSymbol> toDelistedSymbols(final String json, final boolean futures, final long now) {
+        final List<DelistedSymbol> delisted = new ArrayList<>();
+        final Map<String, String[]> listed = new HashMap<>();
+        try {
+            final JsonNode root = MAPPER.readTree(json);
+            if (!"200000".equals(root.path("code").asText()) || !root.path("data").isArray()) {
+                LOGGER.warn("KuCoin " + (futures ? "contracts" : "symbols") + " not ok: " + json);
+                return null;
+            }
+            for (final JsonNode item : root.path("data")) {
+                if (futures && !"FFWCSX".equals(item.path("type").asText())) {
+                    // FFICSX = futures with an expiry, not a delisting; still listed so its saved row is not marked removed
+                    listed.put(item.path("symbol").asText(), new String[] {item.path("baseCurrency").asText(), item.path("quoteCurrency").asText()});
+                    continue;
+                }
+                final DelistedSymbol state = futures ? toFuturesState(item, subscription.getExchange(), now)
+                    : toSpotState(item, subscription.getExchange(), now);
+                listed.put(state.getSymbol(), new String[] {state.getBase(), state.getQuote()});
+                if (state.isTradingDisabled() || state.isUpcoming()) {
+                    delisted.add(state);
+                }
+            }
+        } catch (final Exception e) {
+            LOGGER.error("KuCoin " + (futures ? "contracts" : "symbols") + " parse failed", e);
+            return null;
+        }
+        final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+        if (removed == null) {
+            return null;
+        }
+        delisted.addAll(removed);
+        return delisted;
+    }
+
+    static DelistedSymbol toSpotState(final JsonNode item, final String exchange, final long now) {
+        final boolean trading = item.path("enableTrading").asBoolean(false);
+        return toState(item.path("symbol").asText(), item.path("baseCurrency").asText(), item.path("quoteCurrency").asText(), false,
+            trading ? "enableTrading" : "trading disabled", !trading, 0, exchange, now);
+    }
+
+    // Open = trading, Init = new listing; any other status (CancelOnly, Paused, BeingSettled, Closed...) = stopped
+    static DelistedSymbol toFuturesState(final JsonNode item, final String exchange, final long now) {
+        final String status = item.path("status").asText();
+        final long expire = item.path("expireDate").asLong(0); // delisting time of a perpetual, null when none
+        final boolean stopped = !("Open".equals(status) || "Init".equals(status)) || (expire > 0 && expire <= now);
+        return toState(item.path("symbol").asText(), item.path("baseCurrency").asText(), item.path("quoteCurrency").asText(), true,
+            status, stopped, Math.max(expire, 0), exchange, now);
+    }
+
+    private static DelistedSymbol toState(final String symbol, final String base, final String quote, final boolean futures,
+        final String status, final boolean stopped, final long delistTime, final String exchange, final long now) {
+        final DelistedSymbol state = new DelistedSymbol();
+        state.setExchange(exchange);
+        state.setFutures(futures);
+        state.setSymbol(symbol);
+        state.setBase(base);
+        state.setQuote(quote);
+        state.setStatus(status);
+        state.setTradingDisabled(stopped);
+        state.setDelistTime(delistTime);
+        state.setDetectedAt(now);
+        return state;
+    }
+
+    // logs delisting announcements published since the last check (the last 7 days on the first); a failure only skips it
+    private void checkDelistingAnnouncements() {
+        try {
+            final HttpUtils.Response response = HttpUtils.get(restSpotBase + "/api/v3/announcements?annType=delistings&pageSize=20&lang=en_US",
+                new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+            if (response == null || response.getCode() != 200) {
+                return;
+            }
+            synchronized (LAST_ANNOUNCEMENT_TIME) {
+                final long since = LAST_ANNOUNCEMENT_TIME.get() > 0 ? LAST_ANNOUNCEMENT_TIME.get() : System.currentTimeMillis() - 7L * 24 * 3600_000;
+                long latest = since;
+                for (final JsonNode item : MAPPER.readTree(response.getData()).path("data").path("items")) {
+                    final long time = item.path("cTime").asLong(0);
+                    if (time > since) {
+                        LOGGER.warn("KuCoin delisting announced: " + item.path("annTitle").asText() + " (published "
+                            + java.time.Instant.ofEpochMilli(time) + ", " + item.path("annUrl").asText() + ")");
+                    }
+                    latest = Math.max(latest, time);
+                }
+                LAST_ANNOUNCEMENT_TIME.set(latest);
+            }
+        } catch (final Exception e) {
+            LOGGER.error("KuCoin announcements failed", e);
+        }
     }
 
     private String getSpotSymbols() {

@@ -3,13 +3,16 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.kraken;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.instrument.Instrument;
 import com.solfini.instrument.InstrumentCache;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalExchangeUtil;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -22,6 +25,7 @@ import com.solfini.util.HMAC;
 import com.solfini.util.HttpUtils;
 import com.solfini.util.MbxMath;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
@@ -279,6 +283,160 @@ public class KrakenRestClient {
         }
         return null;
     }
+
+  // spot pairs no longer listed: known by pair key (live instruments) and normalized base + quote (saved rows have only that)
+  private final DelistedSymbolCache.ListedTracker spotTracker = new DelistedSymbolCache.ListedTracker();
+  private final DelistedSymbolCache.ListedTracker futuresTracker = new DelistedSymbolCache.ListedTracker();
+  // normalized base + quote -> pair key of the latest spot check, to map the WebSocket's pairs
+  private volatile Map<String, String> pairKeyByBaseQuote = new HashMap<>();
+
+  /** Spot pairs cancel_only (stopped), post_only / reduce_only (restricted) or no longer listed; null on failure. */
+  public List<DelistedSymbol> getSpotDelistedSymbols() {
+    final JsonNode result = getJson(MAINNET_SPOT_BASE_URL + "/0/public/AssetPairs", "result");
+    if (result == null || !result.isObject()) {
+      return null;
+    }
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    final Map<String, String> keys = new HashMap<>();
+    result.fields().forEachRemaining(pair -> {
+      final String base = normalizeBaseCurrency(pair.getValue().path("base").asText());
+      final String quote = normalizeQuoteCurrency(pair.getValue().path("quote").asText());
+      listed.put(pair.getKey(), new String[] {base, quote});
+      listed.put((base + quote).toUpperCase(), new String[] {base, quote});
+      keys.put((base + quote).toUpperCase(), pair.getKey());
+      delisted.addAll(spotStates(pair.getKey(), base, quote, pair.getValue().path("status").asText(), subscription.getExchange(), now));
+    });
+    final List<DelistedSymbol> removed = spotTracker.update(subscription.getExchange(), false, listed, now);
+    if (removed == null) {
+      return null;
+    }
+    pairKeyByBaseQuote = keys;
+    delisted.addAll(removed);
+    return delisted;
+  }
+
+  // used by the REST check and the instrument WebSocket: online / limit_only = trading, post_only / reduce_only =
+  // restricted, anything else (cancel_only, ...) = stopped; a stopped pair also gets a base + quote entry for saved rows
+  static List<DelistedSymbol> spotStates(final String key, final String base, final String quote, final String status,
+      final String exchange, final long now) {
+    final List<DelistedSymbol> states = new ArrayList<>();
+    if ("online".equals(status) || "limit_only".equals(status)) {
+      return states;
+    }
+    final boolean restricted = "post_only".equals(status) || "reduce_only".equals(status);
+    states.add(toDelisted(key, base, quote, false, status, !restricted, 0, exchange, now));
+    if (!restricted) {
+      states.add(toDelisted((base + quote).toUpperCase(), base, quote, false, status, true, 0, exchange, now));
+    }
+    states.get(0).setRestricted(restricted);
+    return states;
+  }
+
+  /** Applies an instrument channel message (snapshot / update) to the pairs the latest REST check lists. */
+  public void applyInstrumentMessage(final String json) {
+    try {
+      final JsonNode root = MAPPER.readTree(json);
+      if (!"instrument".equals(root.path("channel").asText())) {
+        return;
+      }
+      final long now = System.currentTimeMillis();
+      for (final JsonNode pair : root.path("data").path("pairs")) {
+        final String base = normalizeBaseCurrency(pair.path("base").asText());
+        final String quote = normalizeQuoteCurrency(pair.path("quote").asText());
+        final String key = pairKeyByBaseQuote.get((base + quote).toUpperCase());
+        if (key == null) {
+          continue; // not in the latest REST list (or a name the REST list spells differently): REST decides
+        }
+        final List<DelistedSymbol> states = spotStates(key, base, quote, pair.path("status").asText(), subscription.getExchange(), now);
+        if (!states.isEmpty()) {
+          states.forEach(DelistedSymbolCache::update);
+        } else {
+          for (final String symbol : new String[] {key, (base + quote).toUpperCase()}) {
+            final DelistedSymbol current = DelistedSymbolCache.get(subscription.getExchange(), false, symbol);
+            if (current != null && !"REMOVED".equals(current.getStatus())) {
+              DelistedSymbolCache.remove(subscription.getExchange(), false, symbol);
+            }
+          }
+        }
+      }
+    } catch (final Exception e) {
+      LOGGER.error("Kraken instrument message failed", e);
+    }
+  }
+
+  /** Perpetuals (PF_ / PI_) not tradeable or expired, postOnly (restricted), lastTradingTime past / upcoming, or gone. */
+  public List<DelistedSymbol> getFuturesDelistedSymbols() {
+    final JsonNode instruments = getJson(MAINNET_FUTURE_BASE_URL + "/api/v3/instruments", "instruments");
+    if (instruments == null || !instruments.isArray()) {
+      return null;
+    }
+    final long now = System.currentTimeMillis();
+    final List<DelistedSymbol> delisted = new ArrayList<>();
+    final Map<String, String[]> listed = new HashMap<>();
+    for (final JsonNode item : instruments) {
+      final String symbol = item.path("symbol").asText();
+      final String base = item.path("base").asText(item.path("underlying").asText());
+      final String quote = item.path("quote").asText("USD");
+      listed.put(symbol, new String[] {base, quote});
+      if (!symbol.startsWith("PF_") && !symbol.startsWith("PI_")) {
+        continue; // dated futures expire normally, not a delisting; still listed so a saved row is not marked removed
+      }
+      final long lastTrading = item.hasNonNull("lastTradingTime") ? Instant.parse(item.path("lastTradingTime").asText()).toEpochMilli() : 0;
+      final boolean stopped = !item.path("tradeable").asBoolean(true) || item.path("isExpired").asBoolean(false)
+          || (lastTrading > 0 && lastTrading <= now);
+      final boolean restricted = !stopped && item.path("postOnly").asBoolean(false);
+      if (stopped || restricted || lastTrading > 0) {
+        final DelistedSymbol state = toDelisted(symbol, base, quote, true, stopped ? "not tradeable" : restricted ? "postOnly" : "lastTradingTime",
+            stopped, lastTrading, subscription.getExchange(), now);
+        state.setRestricted(restricted);
+        delisted.add(state);
+      }
+    }
+    final List<DelistedSymbol> removed = futuresTracker.update(subscription.getExchange(), true, listed, now);
+    if (removed == null) {
+      return null;
+    }
+    delisted.addAll(removed);
+    return delisted;
+  }
+
+  // public GET; the given field of the answer, null when the request failed
+  private JsonNode getJson(final String url, final String field) {
+    final HttpUtils.Response response = HttpUtils.get(url, new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT,
+        subscription.isForceToUseProxy());
+    if (response == null || response.getCode() != 200) {
+      LOGGER.warn("Kraken " + url + " failed with status: " + (response != null ? response.getCode() : "null"));
+      return null;
+    }
+    try {
+      final JsonNode root = MAPPER.readTree(response.getData());
+      if (root.path("error").isArray() && root.path("error").size() > 0) {
+        LOGGER.warn("Kraken " + url + " returned errors: " + root.path("error"));
+        return null;
+      }
+      return root.path(field).isMissingNode() ? null : root.path(field);
+    } catch (final Exception e) {
+      LOGGER.error("Kraken " + url + " parse failed", e);
+      return null;
+    }
+  }
+
+  private static DelistedSymbol toDelisted(final String symbol, final String base, final String quote, final boolean futures,
+      final String status, final boolean stopped, final long delistTime, final String exchange, final long now) {
+    final DelistedSymbol state = new DelistedSymbol();
+    state.setExchange(exchange);
+    state.setFutures(futures);
+    state.setSymbol(symbol);
+    state.setBase(base);
+    state.setQuote(quote);
+    state.setStatus(status);
+    state.setTradingDisabled(stopped);
+    state.setDelistTime(delistTime);
+    state.setDetectedAt(now);
+    return state;
+  }
 
   public List<ExternalSymbol> getExchangeInstrumentsFull() {
     HttpUtils.Response response = HttpUtils.get(MAINNET_SPOT_BASE_URL + "/0/public/AssetPairs", new HashMap<>()

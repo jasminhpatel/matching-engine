@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.hyperliquid.HyperliquidPositionSnapshot;
@@ -86,7 +88,14 @@ public class HyperliquidFastClient implements ExternalExchangeClient {
 
   @Override
   public void start() {
+    // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+    DelistedSymbolCache.start(subscription);
     start(false);
+  }
+
+  @Override
+  public List<DelistedSymbol> getDelistedSymbols() {
+    return subscription.isFuturesEnabled() ? restClient.getFuturesDelistedSymbols() : restClient.getSpotDelistedSymbols();
   }
 
   private void start(final boolean parallel) {

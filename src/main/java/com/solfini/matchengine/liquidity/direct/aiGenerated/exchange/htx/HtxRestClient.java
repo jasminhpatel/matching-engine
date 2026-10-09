@@ -1,6 +1,10 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.htx;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -43,6 +47,99 @@ public class HtxRestClient {
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.subscription = subscription;
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // symbols no longer listed; first check starts from the saved pairs
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker();
+    // contract codes of the latest futures check: the contract_info WebSocket also sends old hidden contracts, ignored
+    private volatile Set<String> listedContracts = Collections.emptySet();
+
+    public Set<String> getListedContracts() {
+        return listedContracts;
+    }
+
+    /** Spot pairs not online (offline, suspend; pre-online = new listing), API trading disabled, or no longer listed. */
+    public List<DelistedSymbol> getSpotDelistedSymbols() {
+        final String json = getSpotSymbolDetails();
+        return json == null ? null : toDelistedSymbols(json, false, System.currentTimeMillis());
+    }
+
+    /** USDT swaps not listing (status other than 1 / 2), past or upcoming delivery_time, or no longer listed. */
+    public List<DelistedSymbol> getFuturesDelistedSymbols() {
+        final String json = getFutureSymbolDetails();
+        return json == null ? null : toDelistedSymbols(json, true, System.currentTimeMillis());
+    }
+
+    // parses /v1/common/symbols or /linear-swap-api/v1/swap_contract_info; null when it is not a valid list
+    List<DelistedSymbol> toDelistedSymbols(final String json, final boolean futures, final long now) {
+        final List<DelistedSymbol> delisted = new ArrayList<>();
+        final Map<String, String[]> listed = new HashMap<>();
+        try {
+            final JsonNode root = MAPPER.readTree(json);
+            if (!"ok".equals(root.path("status").asText()) || !root.path("data").isArray()) {
+                LOGGER.warn("HTX " + (futures ? "contract" : "symbol") + " list not ok: " + json);
+                return null;
+            }
+            for (final JsonNode item : root.path("data")) {
+                final DelistedSymbol state = futures ? toFuturesState(item, subscription.getExchange(), now)
+                    : toSpotState(item, subscription.getExchange(), now);
+                listed.put(state.getSymbol(), new String[] {state.getBase(), state.getQuote()});
+                if (futures && !"swap".equals(item.path("business_type").asText("swap"))) {
+                    continue; // dated futures expire normally, not a delisting; still listed so a saved row is not marked removed
+                }
+                if (state.isTradingDisabled() || state.isUpcoming()) {
+                    delisted.add(state);
+                }
+            }
+        } catch (final Exception e) {
+            LOGGER.error("HTX " + (futures ? "contract" : "symbol") + " list parse failed", e);
+            return null;
+        }
+        final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+        if (removed == null) {
+            return null;
+        }
+        if (futures) {
+            listedContracts = new HashSet<>(listed.keySet());
+        }
+        delisted.addAll(removed);
+        return delisted;
+    }
+
+    // stopped unless state is online or pre-online (new listing) and api-trading is enabled
+    static DelistedSymbol toSpotState(final JsonNode item, final String exchange, final long now) {
+        final String state = item.path("state").asText();
+        final boolean stopped = !("online".equals(state) || "pre-online".equals(state)) || "disabled".equals(item.path("api-trading").asText());
+        return toState(item.path("symbol").asText(), item.path("base-currency").asText().toUpperCase(Locale.ROOT),
+            item.path("quote-currency").asText().toUpperCase(Locale.ROOT), false, state + " api-trading " + item.path("api-trading").asText(),
+            stopped, 0, now, exchange);
+    }
+
+    /** Used by the REST check and the contract_info WebSocket: status 1 listing, 2 pending listing; delivery_time = delisting. */
+    public static DelistedSymbol toFuturesState(final JsonNode item, final String exchange, final long now) {
+        final String code = item.path("contract_code").asText();
+        final int status = item.path("contract_status").asInt(-1);
+        final long deliveryTime = item.path("delivery_time").asLong(0); // "" when no delisting is scheduled
+        final boolean stopped = (status != 1 && status != 2) || (deliveryTime > 0 && deliveryTime <= now);
+        final String[] baseQuote = code.split("-", 2);
+        return toState(code, baseQuote[0], baseQuote.length > 1 ? baseQuote[1] : "USDT", true, "contract_status " + status, stopped,
+            Math.max(deliveryTime, 0), now, exchange);
+    }
+
+    private static DelistedSymbol toState(final String symbol, final String base, final String quote, final boolean futures,
+        final String status, final boolean stopped, final long delistTime, final long now, final String exchange) {
+        final DelistedSymbol state = new DelistedSymbol();
+        state.setExchange(exchange);
+        state.setFutures(futures);
+        state.setSymbol(symbol);
+        state.setBase(base);
+        state.setQuote(quote);
+        state.setStatus(status);
+        state.setTradingDisabled(stopped);
+        state.setDelistTime(delistTime);
+        state.setDetectedAt(now);
+        return state;
     }
 
 

@@ -2,6 +2,8 @@ package com.solfini.matchengine.liquidity.direct.aiGenerated;
 
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.kraken.*;
@@ -10,8 +12,15 @@ import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.sbe.encoder.TimeInForce;
 import com.solfini.util.StringUtil;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.minExtract;
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.parseDoubleSafe;
@@ -45,6 +54,9 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     private volatile boolean isFutureAccountRefreshRunning = false;
 
     private final boolean restOnly;
+    private static final String INSTRUMENT_WS_URL = "wss://ws.kraken.com/v2";
+    private static final long INSTRUMENT_RECONNECT_MILLIS = 10_000;
+    private volatile boolean instrumentStreamRunning;
 
     // ======= Constructor =======
     public KrakenFastClient(final ExchangeSubscription subscription) {
@@ -70,6 +82,11 @@ public final class KrakenFastClient implements ExternalExchangeClient {
 
     @Override
     public void start() {
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
+        if (!restOnly && !subscription.isFuturesEnabled()) {
+            startInstrumentStream();
+        }
         if (subscription.isFuturesEnabled()) {
             startFutureClient();
         } else {
@@ -78,8 +95,82 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     }
 
     @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? krakenRestClient.getFuturesDelistedSymbols()
+                : krakenRestClient.getSpotDelistedSymbols();
+    }
+
+    // Kraken v2 "instrument" channel (public): pair status changes, classified like the REST check, so a stop is
+    // applied at once instead of at the next 10 minute check
+    void startInstrumentStream() {
+        instrumentStreamRunning = true;
+        final Thread thread = new Thread(() -> {
+            while (instrumentStreamRunning) {
+                try {
+                    runInstrumentStream(Long.MAX_VALUE);
+                } catch (final Exception e) {
+                    LOGGER.warn("Kraken instrument stream reconnects after error: " + e);
+                }
+                try {
+                    Thread.sleep(INSTRUMENT_RECONNECT_MILLIS);
+                } catch (final InterruptedException e) {
+                    return;
+                }
+            }
+        }, "krakenInstrumentStream");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    // one connection, until it closes or maxMillis pass
+    void runInstrumentStream(final long maxMillis) throws Exception {
+        final CompletableFuture<Void> closed = new CompletableFuture<>();
+        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(INSTRUMENT_WS_URL),
+                new WebSocket.Listener() {
+            private final StringBuilder text = new StringBuilder();
+
+            @Override
+            public CompletionStage<?> onText(final WebSocket webSocket, final CharSequence data, final boolean last) {
+                text.append(data);
+                if (last) {
+                    final String json = text.toString();
+                    text.setLength(0);
+                    if (json.contains("\"success\":false")) {
+                        LOGGER.error("Kraken instrument subscribe rejected, delisting updates come from the REST check only: " + json);
+                    } else {
+                        krakenRestClient.applyInstrumentMessage(json);
+                    }
+                }
+                webSocket.request(1);
+                return null;
+            }
+
+            @Override
+            public CompletionStage<?> onClose(final WebSocket webSocket, final int statusCode, final String reason) {
+                closed.complete(null);
+                return null;
+            }
+
+            @Override
+            public void onError(final WebSocket webSocket, final Throwable error) {
+                closed.completeExceptionally(error);
+            }
+        }).get(15, TimeUnit.SECONDS);
+        socket.sendText("{\"method\":\"subscribe\",\"params\":{\"channel\":\"instrument\",\"snapshot\":true}}", true);
+        try {
+            closed.get(maxMillis, TimeUnit.MILLISECONDS);
+        } catch (final TimeoutException e) {
+            // caller limit reached
+        } finally {
+            socket.abort();
+        }
+    }
+
+    @Override
     public void stop() {
         LOGGER.info("Stopping KrakenFastClient...");
+        instrumentStreamRunning = false;
         stopPeriodicFutureAccountRefresh();
         stopPeriodicSpotAccountRefresh();
         disconnectWebSockets();

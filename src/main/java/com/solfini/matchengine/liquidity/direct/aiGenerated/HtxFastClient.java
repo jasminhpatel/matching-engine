@@ -1,7 +1,11 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -13,8 +17,21 @@ import com.solfini.matchengine.message.internal.Order;
 import com.solfini.matchengine.message.outbound.ExecutionReportMessage;
 import com.solfini.util.StringUtil;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.zip.GZIPInputStream;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.minExtract;
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.parseDoubleSafe;
@@ -26,6 +43,10 @@ public final class HtxFastClient implements ExternalExchangeClient {
     private static final long ONE_MINUTE = 60_000;
     private static final int SNAPSHOT_RETRY_DELAY_MS = 2_000;
     private static final int SNAPSHOT_MAX_ATTEMPTS = 2;
+    private static final String CONTRACT_INFO_WS_URL = "wss://api.hbdm.com/linear-swap-notification";
+    private static final long CONTRACT_INFO_RECONNECT_MILLIS = 10_000;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private volatile boolean contractInfoRunning;
 
     private final ExchangeSubscription subscription;
     private final HtxRestClient htxRestClient;
@@ -83,6 +104,11 @@ public final class HtxFastClient implements ExternalExchangeClient {
 
     @Override
     public void start() {
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
+        if (!restOnly && subscription.isFuturesEnabled()) {
+            startContractInfoStream();
+        }
         if (subscription.isFuturesEnabled()) {
             startFutureClient();
         } else {
@@ -91,7 +117,121 @@ public final class HtxFastClient implements ExternalExchangeClient {
     }
 
     @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? htxRestClient.getFuturesDelistedSymbols()
+                : htxRestClient.getSpotDelistedSymbols();
+    }
+
+    // HTX public.*.contract_info (no key): contract status / delivery_time changes, classified like the REST check
+    // (HtxRestClient.toFuturesState), so a stop is applied at once instead of at the next 10 minute check
+    void startContractInfoStream() {
+        contractInfoRunning = true;
+        final Thread thread = new Thread(() -> {
+            while (contractInfoRunning) {
+                try {
+                    runContractInfoStream(Long.MAX_VALUE);
+                } catch (final Exception e) {
+                    LOGGER.warn("HTX contract_info stream reconnects after error: " + e);
+                }
+                try {
+                    Thread.sleep(CONTRACT_INFO_RECONNECT_MILLIS);
+                } catch (final InterruptedException e) {
+                    return;
+                }
+            }
+        }, "htxContractInfoStream");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    // one connection, until it closes or maxMillis pass; frames are gzip compressed
+    void runContractInfoStream(final long maxMillis) throws Exception {
+        final CompletableFuture<Void> closed = new CompletableFuture<>();
+        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(CONTRACT_INFO_WS_URL),
+                new WebSocket.Listener() {
+            private final ByteArrayOutputStream frame = new ByteArrayOutputStream();
+
+            @Override
+            public CompletionStage<?> onBinary(final WebSocket webSocket, final ByteBuffer data, final boolean last) {
+                final byte[] bytes = new byte[data.remaining()];
+                data.get(bytes);
+                frame.write(bytes, 0, bytes.length);
+                if (last) {
+                    try (GZIPInputStream in = new GZIPInputStream(new ByteArrayInputStream(frame.toByteArray()))) {
+                        handleContractInfoMessage(new String(in.readAllBytes(), StandardCharsets.UTF_8), webSocket);
+                    } catch (final Exception e) {
+                        LOGGER.error("HTX contract_info message failed", e);
+                    }
+                    frame.reset();
+                }
+                webSocket.request(1);
+                return null;
+            }
+
+            @Override
+            public CompletionStage<?> onClose(final WebSocket webSocket, final int statusCode, final String reason) {
+                closed.complete(null);
+                return null;
+            }
+
+            @Override
+            public void onError(final WebSocket webSocket, final Throwable error) {
+                closed.completeExceptionally(error);
+            }
+        }).get(15, TimeUnit.SECONDS);
+        socket.sendText("{\"op\":\"sub\",\"cid\":\"delisting\",\"topic\":\"public.*.contract_info\"}", true);
+        try {
+            closed.get(maxMillis, TimeUnit.MILLISECONDS);
+        } catch (final TimeoutException e) {
+            // test / caller limit reached
+        } finally {
+            socket.abort();
+        }
+    }
+
+    // answers HTX's pings (the connection is closed otherwise) and applies init / update contract lists
+    void handleContractInfoMessage(final String json, final WebSocket socket) {
+        if (json.contains("\"op\":\"ping\"")) {
+            socket.sendText(json.replace("\"ping\"", "\"pong\""), true);
+            return;
+        }
+        if (json.contains("\"err-code\"") && !json.contains("\"err-code\":0")) {
+            LOGGER.error("HTX contract_info subscribe rejected, delisting updates come from the REST check only: " + json);
+            return;
+        }
+        if (json.contains("\"op\":\"notify\"")) {
+            applyContractInfo(json, subscription.getExchange(), htxRestClient.getListedContracts());
+        }
+    }
+
+    // only contracts the latest REST check lists (the stream also sends old hidden ones); stopped / scheduled = stored,
+    // trading normally again = removed (saved-row REMOVED entries stay)
+    static void applyContractInfo(final String json, final String exchange, final Set<String> listedContracts) {
+        try {
+            final long now = System.currentTimeMillis();
+            for (final JsonNode item : MAPPER.readTree(json).path("data")) {
+                if (!"swap".equals(item.path("business_type").asText("swap")) || !listedContracts.contains(item.path("contract_code").asText())) {
+                    continue;
+                }
+                final DelistedSymbol state = HtxRestClient.toFuturesState(item, exchange, now);
+                if (state.isTradingDisabled() || state.isUpcoming()) {
+                    DelistedSymbolCache.update(state);
+                } else {
+                    final DelistedSymbol current = DelistedSymbolCache.get(exchange, true, state.getSymbol());
+                    if (current != null && !"REMOVED".equals(current.getStatus())) {
+                        DelistedSymbolCache.remove(exchange, true, state.getSymbol());
+                    }
+                }
+            }
+        } catch (final Exception e) {
+            LOGGER.error("HTX contract_info parse failed", e);
+        }
+    }
+
+    @Override
     public void stop() {
+        contractInfoRunning = false;
         stopPeriodicSpotAccountRefresh();
         if (subscription.isFuturesEnabled()) {
             stopPeriodicFutureAccountRefresh();
