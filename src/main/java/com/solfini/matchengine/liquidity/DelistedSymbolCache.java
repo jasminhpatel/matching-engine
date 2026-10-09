@@ -18,9 +18,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Delisted, suspended and to-be-delisted symbols of all external exchanges, refreshed from each subscription's client.
@@ -43,6 +47,15 @@ public class DelistedSymbolCache {
   private static final ConcurrentHashMap<String, List<ExternalSymbol>> DISABLED = new ConcurrentHashMap<>();
   // quotes the router routes to, used to find the base of a symbol that comes without one
   private static final String[] ROUTED_QUOTES = {"USDT", "USDC", "USD"};
+  // a refresh waits this long for the exchange (HttpUtils has no timeout); includes the up to 120 s saved-pairs wait
+  private static final long REFRESH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
+  // key <segment prefix, number of the latest refresh>, so a late result of an abandoned refresh is not applied
+  private static final ConcurrentHashMap<String, Long> REFRESH_GENERATION = new ConcurrentHashMap<>();
+  private static final ExecutorService REFRESH_WORKERS = Executors.newCachedThreadPool(r -> {
+    final Thread thread = new Thread(r, "delistedSymbolRefreshWorker");
+    thread.setDaemon(true);
+    return thread;
+  });
 
   /** Loads the delisted symbols now and every REFRESH_MINUTES, one thread per segment; repeat calls do nothing. */
   public static void start(final ExchangeSubscription subscription) {
@@ -55,13 +68,8 @@ public class DelistedSymbolCache {
       thread.setDaemon(true);
       return thread;
     });
-    scheduler.scheduleWithFixedDelay(() -> {
-      try {
-        refresh(subscription);
-      } catch (Exception e) {
-        LOGGER.error(ERROR_LOG, e);
-      }
-    }, 0, REFRESH_MINUTES, TimeUnit.MINUTES);
+    scheduler.scheduleWithFixedDelay(() -> refreshWithTimeout(subscription, REFRESH_TIMEOUT_MILLIS), 0, REFRESH_MINUTES,
+        TimeUnit.MINUTES);
   }
 
   private static String getSegmentPrefix(final ExchangeSubscription subscription) {
@@ -69,6 +77,11 @@ public class DelistedSymbolCache {
   }
 
   public static void refresh(final ExchangeSubscription subscription) {
+    refresh(subscription, REFRESH_GENERATION.merge(getSegmentPrefix(subscription), 1L, Long::sum));
+  }
+
+  // applies the result only if no newer refresh of the segment started meanwhile (a late answer of a timed-out one)
+  private static void refresh(final ExchangeSubscription subscription, final long generation) {
     final ExternalExchangeClient client = subscription.getClient();
     if (client == null) {
       return;
@@ -77,7 +90,34 @@ public class DelistedSymbolCache {
     if (symbols == null) { // request failed, keep the last known state
       return;
     }
-    apply(getSegmentPrefix(subscription), symbols, System.currentTimeMillis());
+    final String segmentPrefix = getSegmentPrefix(subscription);
+    synchronized (REFRESH_GENERATION) {
+      if (REFRESH_GENERATION.get(segmentPrefix) != generation) {
+        LOGGER.warn("Late delisting result of " + segmentPrefix + " dropped, a newer refresh started meanwhile");
+        return;
+      }
+      apply(segmentPrefix, symbols, System.currentTimeMillis());
+    }
+  }
+
+  /** Runs a refresh on a worker and stops waiting after timeoutMillis, so a request that never answers (no HTTP timeout)
+   * cannot freeze the segment: the next cycle runs normally and a late result is dropped. */
+  static void refreshWithTimeout(final ExchangeSubscription subscription, final long timeoutMillis) {
+    final long generation;
+    synchronized (REFRESH_GENERATION) {
+      generation = REFRESH_GENERATION.merge(getSegmentPrefix(subscription), 1L, Long::sum);
+    }
+    final Future<?> future = REFRESH_WORKERS.submit(() -> refresh(subscription, generation));
+    try {
+      future.get(timeoutMillis, TimeUnit.MILLISECONDS);
+    } catch (final TimeoutException e) {
+      LOGGER.warn("Delisting refresh of " + getSegmentPrefix(subscription) + " got no answer within " + timeoutMillis / 1000
+          + " s, the last known state is kept and the next cycle retries");
+    } catch (final ExecutionException e) {
+      LOGGER.error(ERROR_LOG, e.getCause());
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Replaces the segment with a REST snapshot; a symbol pushed by WebSocket is kept for PUSH_GRACE_MILLIS. */
@@ -87,6 +127,12 @@ public class DelistedSymbolCache {
     final Set<String> current = new HashSet<>();
     for (final DelistedSymbol symbol : symbols) {
       current.add(symbol.getKey());
+      final Long pushedAt = PUSHED_AT.get(symbol.getKey());
+      final DelistedSymbol pushed = DELISTED.get(symbol.getKey());
+      if (pushedAt != null && now - pushedAt < PUSH_GRACE_MILLIS && pushed != null && pushed.isTradingDisabled()
+          && !symbol.isTradingDisabled()) {
+        continue; // a recent push says stopped and REST can lag: keep the push until the grace period ends
+      }
       PUSHED_AT.remove(symbol.getKey()); // REST reports it now, the REST state is used from here on
       store(symbol, now, !firstLoad);
     }
@@ -133,14 +179,21 @@ public class DelistedSymbolCache {
     if (symbol.isTradingDisabled() && (previous == null ? logNew : !previous.isTradingDisabled())) {
       LOGGER.warn("Trading stopped: " + symbol);
     }
+    if (symbol.isRestricted() && (previous == null ? logNew : !previous.isRestricted())) {
+      LOGGER.warn("Trading restricted to one side, still routed: " + symbol);
+    }
   }
 
   /** One line for a segment's first load: how many are stopped, and which delistings are scheduled. */
   private static void logFirstLoad(final String segmentPrefix, final List<DelistedSymbol> symbols, final long now) {
     int stopped = 0;
+    int restricted = 0;
     final StringBuilder scheduled = new StringBuilder();
     int scheduledCount = 0;
     for (final DelistedSymbol symbol : symbols) {
+      if (symbol.isRestricted()) {
+        restricted++;
+      }
       if (symbol.isTradingDisabled()) {
         stopped++;
       } else if (symbol.isUpcoming() && symbol.getDelistTime() > now) {
@@ -149,8 +202,8 @@ public class DelistedSymbolCache {
             .append(Instant.ofEpochMilli(symbol.getDelistTime()));
       }
     }
-    LOGGER.warn("Delisted symbols loaded for " + segmentPrefix + " trading stopped: " + stopped + ", delisting scheduled: "
-        + scheduledCount + (scheduledCount > 0 ? " [" + scheduled + "]" : ""));
+    LOGGER.warn("Delisted symbols loaded for " + segmentPrefix + " trading stopped: " + stopped + ", restricted: " + restricted
+        + ", delisting scheduled: " + scheduledCount + (scheduledCount > 0 ? " [" + scheduled + "]" : ""));
   }
 
   /** Removes one symbol that is trading normally again, e.g. from a WebSocket push. */
@@ -170,22 +223,38 @@ public class DelistedSymbolCache {
       restoreTradable(symbol.getKey());
       return;
     }
-    for (final ExternalSymbol external : findExternalSymbols(symbol)) {
-      if (external.isTradable()) {
-        external.setTradable(false);
-        DISABLED.computeIfAbsent(symbol.getKey(), k -> new CopyOnWriteArrayList<>()).add(external);
-        LOGGER.info("Not tradable while delisted: " + symbol.getKey());
+    final List<ExternalSymbol> instruments = findExternalSymbols(symbol);
+    // compute() runs one at a time per key with restoreTradable(); skip when the key was removed in the meantime
+    DISABLED.compute(symbol.getKey(), (key, disabled) -> {
+      final DelistedSymbol current = DELISTED.get(key);
+      if (current == null || !current.isTradingDisabled()) {
+        return disabled;
       }
-    }
+      final List<ExternalSymbol> list = disabled != null ? disabled : new CopyOnWriteArrayList<>();
+      for (final ExternalSymbol external : instruments) {
+        if (external.isTradable()) {
+          external.setTradable(false);
+          list.add(external);
+          LOGGER.info("Not tradable while delisted: " + key);
+        }
+      }
+      return list.isEmpty() ? null : list;
+    });
   }
 
-  /** Sets back tradable the instruments syncTradable() disabled for this key. */
+  /** Sets back tradable the instruments syncTradable() disabled for this key, unless it is stopped again meanwhile. */
   private static void restoreTradable(final String key) {
-    final List<ExternalSymbol> disabled = DISABLED.remove(key);
-    if (disabled != null) {
-      disabled.forEach(external -> external.setTradable(true));
-      LOGGER.info("Tradable again: " + key);
-    }
+    DISABLED.compute(key, (k, disabled) -> {
+      final DelistedSymbol current = DELISTED.get(k);
+      if (current != null && current.isTradingDisabled()) {
+        return disabled;
+      }
+      if (disabled != null) {
+        disabled.forEach(external -> external.setTradable(true));
+        LOGGER.info("Tradable again: " + k);
+      }
+      return null;
+    });
   }
 
   /** The ExternalInstrumentCache instruments of a delisted symbol (same exchange, segment and exchange symbol). */
@@ -212,9 +281,13 @@ public class DelistedSymbolCache {
     return found;
   }
 
-  /** The instrument's exchange symbol; base + quote when it has none saved (Bitget). */
+  /** The instrument's exchange symbol: symbol, else prompt (Deribit instrument name), else base + quote (Bitget rows). */
   public static String exchangeSymbol(final ExternalSymbol external) {
-    return external.getSymbol() != null ? external.getSymbol() : (external.getBase() + external.getQuote()).toUpperCase();
+    if (external.getSymbol() != null) {
+      return external.getSymbol();
+    }
+    return external.getPrompt() != null && !external.getPrompt().isEmpty() ? external.getPrompt()
+        : (external.getBase() + external.getQuote()).toUpperCase();
   }
 
   /** Saved instruments of a segment; waits up to 120 s for the startup load (until the exchange's count stops changing). */
@@ -232,27 +305,51 @@ public class DelistedSymbolCache {
       }
       count = savedBaseCount(exchange);
     }
-    final List<ExternalSymbol> saved = new ArrayList<>();
-    try {
-      for (final String base : ExternalInstrumentCache.getAvailableSymbols(exchange)) {
-        for (final ExternalSymbol external : getExternalSymbols(exchange, futures, base)) {
-          if (saved.stream().noneMatch(s -> s == external)) {
-            saved.add(external);
+    // the instrument load can still be adding on another thread (HashSet copy may throw): retry instead of using 0 pairs
+    for (int attempt = 1; attempt <= 5; attempt++) {
+      try {
+        final List<ExternalSymbol> saved = new ArrayList<>();
+        for (final String base : ExternalInstrumentCache.getAvailableSymbols(exchange)) {
+          for (final ExternalSymbol external : getExternalSymbols(exchange, futures, base)) {
+            if (saved.stream().noneMatch(s -> s == external)) {
+              saved.add(external);
+            }
           }
         }
+        LOGGER.info(exchange + (futures ? " futures" : " spot") + " delisting check starts from " + saved.size() + " saved pairs");
+        return saved;
+      } catch (final RuntimeException e) { // NullPointerException: nothing loaded; ConcurrentModificationException: still loading
+        if (count == 0) {
+          break;
+        }
+        try {
+          Thread.sleep(1000);
+        } catch (final InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          break;
+        }
       }
-    } catch (final RuntimeException e) { // nothing loaded for this exchange
-      saved.clear();
     }
-    LOGGER.info(exchange + (futures ? " futures" : " spot") + " delisting check starts from " + saved.size() + " saved pairs");
-    return saved;
+    LOGGER.warn(exchange + (futures ? " futures" : " spot") + " saved pairs could not be read, pairs delisted while the engine"
+        + " was down are not detected this run");
+    return new ArrayList<>();
   }
 
   /** Finds pairs an exchange no longer lists (delisted pairs disappear from its list); one per exchange segment. */
   public static final class ListedTracker {
     private final Map<String, String[]> known = new HashMap<>(); // symbol -> base, quote
     private final Map<String, DelistedSymbol> removed = new HashMap<>();
+    private final boolean seedFromSaved;
     private int lastCount;
+
+    public ListedTracker() {
+      this(true);
+    }
+
+    /** seedFromSaved false when saved rows can't give the exchange symbol (Deribit names aren't stored). */
+    public ListedTracker(final boolean seedFromSaved) {
+      this.seedFromSaved = seedFromSaved;
+    }
 
     /**
      * Known pairs missing from listed (symbol -> base, quote), as stopped symbols; null when listed shrank under half the
@@ -264,9 +361,14 @@ public class DelistedSymbolCache {
         LOGGER.warn(exchange + " list shrank from " + lastCount + " to " + listed.size() + " symbols, ignoring this response");
         return null;
       }
-      if (lastCount == 0) {
+      final boolean firstCall = lastCount == 0;
+      if (firstCall && seedFromSaved) {
+        // only pairs we could trade, with a real exchange symbol (base + quote is unreliable for futures, e.g. Bitget ...PERP)
         for (final ExternalSymbol saved : waitForSavedSymbols(exchange, futures)) {
-          known.put(exchangeSymbol(saved), new String[] {saved.getBase(), saved.getQuote()});
+          final boolean named = saved.getSymbol() != null || (saved.getPrompt() != null && !saved.getPrompt().isEmpty());
+          if (saved.isTradable() && (named || !futures)) {
+            known.put(exchangeSymbol(saved), new String[] {saved.getBase(), saved.getQuote()});
+          }
         }
       }
       for (final Map.Entry<String, String[]> entry : known.entrySet()) {
@@ -284,6 +386,10 @@ public class DelistedSymbolCache {
         }
       }
       removed.keySet().removeAll(listed.keySet()); // listed again
+      if (firstCall && seedFromSaved) {
+        LOGGER.warn(exchange + (futures ? " futures" : " spot") + " first check: " + removed.size()
+            + " saved pairs are no longer listed (includes old delistings kept in the saved data)");
+      }
       known.clear();
       known.putAll(listed); // the no longer listed ones are kept in removed
       lastCount = listed.size();

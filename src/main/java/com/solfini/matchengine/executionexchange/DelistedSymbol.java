@@ -15,6 +15,8 @@ public class DelistedSymbol {
   private String status;
   /** True when trading has stopped on the exchange (delisted or suspended), set by the exchange client. */
   private boolean tradingDisabled;
+  /** True when only one side is allowed (buy only, sell only, close only); still routed so positions can be exited. */
+  private boolean restricted;
   /** Delisting time in millis, 0 when the exchange gives no date */
   private long delistTime;
   private long detectedAt;
@@ -39,6 +41,14 @@ public class DelistedSymbol {
 
   public final void setTradingDisabled(final boolean tradingDisabled) {
     this.tradingDisabled = tradingDisabled;
+  }
+
+  public final boolean isRestricted() {
+    return restricted;
+  }
+
+  public final void setRestricted(final boolean restricted) {
+    this.restricted = restricted;
   }
 
   public final String getExchange() {
@@ -115,6 +125,7 @@ public class DelistedSymbol {
     sb.append(", quote='").append(quote).append('\'');
     sb.append(", status='").append(status).append('\'');
     sb.append(", tradingDisabled=").append(tradingDisabled);
+    sb.append(", restricted=").append(restricted);
     sb.append(", delistTime=").append(delistTime);
     sb.append(", detectedAt=").append(detectedAt);
     sb.append('}');

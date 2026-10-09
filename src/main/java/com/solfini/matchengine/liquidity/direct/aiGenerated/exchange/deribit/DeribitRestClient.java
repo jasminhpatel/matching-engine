@@ -1,6 +1,10 @@
 package com.solfini.matchengine.liquidity.direct.aiGenerated.exchange.deribit;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.message.internal.Order;
@@ -18,6 +22,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
 
@@ -31,6 +37,10 @@ public class DeribitRestClient {
     private final ExchangeSubscription subscription;
     private String accessToken;
     private long tokenExpiryTime;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final long NO_EXPIRY = 32503708800000L; // expiration_timestamp of a perpetual with no delisting (year 3000)
+    // instruments no longer listed; saved rows don't hold Deribit instrument names, so no seeding from them
+    private final DelistedSymbolCache.ListedTracker listedTracker = new DelistedSymbolCache.ListedTracker(false);
 
     public DeribitRestClient(final String clientId, final String clientSecret, final ExchangeSubscription subscription) {
         this.clientId = clientId;
@@ -779,6 +789,99 @@ public class DeribitRestClient {
 
         LOGGER.info("Total Deribit instruments fetched: " + externalSymbolList.size());
         return externalSymbolList.isEmpty() ? null : externalSymbolList;
+    }
+
+    /** Perpetuals not open, scheduled (real expiration) or no longer listed; dated futures expire normally. Null on failure. */
+    public List<DelistedSymbol> getFuturesDelistedSymbols() {
+        return getDelistedSymbols("future", true);
+    }
+
+    /** Spot pairs not open (locked, halted, ...) or no longer listed; null when the request failed. */
+    public List<DelistedSymbol> getSpotDelistedSymbols() {
+        return getDelistedSymbols("spot", false);
+    }
+
+    private List<DelistedSymbol> getDelistedSymbols(final String kind, final boolean futures) {
+        final HttpUtils.Response response = HttpUtils.get(REST_API_BASE + "/api/v2/public/get_instruments?currency=any&kind=" + kind,
+                new HashMap<>(), subscription.getLastUsedProxy(), PROXY_PORT, subscription.isForceToUseProxy());
+        if (response == null || response.getCode() != 200) {
+            LOGGER.warn("Deribit get_instruments " + kind + " failed with status: " + (response != null ? response.getCode() : "null"));
+            return null;
+        }
+        final long now = System.currentTimeMillis();
+        final List<DelistedSymbol> delisted = new ArrayList<>();
+        final Map<String, String[]> listed = new HashMap<>();
+        final Set<String> openBaseQuote = new HashSet<>(); // base + quote with at least one open instrument of this kind
+        try {
+            final JsonNode result = MAPPER.readTree(response.getData()).path("result");
+            if (!result.isArray()) {
+                LOGGER.warn("Deribit get_instruments " + kind + " returned no result: " + response.getData());
+                return null;
+            }
+            for (final JsonNode item : result) {
+                if (item.path("is_active").asBoolean(false) && "open".equals(item.path("state").asText())) {
+                    openBaseQuote.add((item.path("base_currency").asText() + item.path("quote_currency").asText()).toUpperCase());
+                }
+                if (futures && !"perpetual".equals(item.path("settlement_period").asText())) {
+                    continue; // dated futures expire normally, that is not a delisting
+                }
+                final DelistedSymbol symbol = toDelistedSymbol(item, subscription.getExchange(), futures, now);
+                listed.put(symbol.getSymbol(), new String[] {symbol.getBase(), symbol.getQuote()});
+                if (symbol.isTradingDisabled() || symbol.isUpcoming()) {
+                    delisted.add(symbol);
+                }
+            }
+        } catch (final Exception e) {
+            LOGGER.error("Deribit get_instruments " + kind + " parse failed", e);
+            return null;
+        }
+        final List<DelistedSymbol> removed = listedTracker.update(subscription.getExchange(), futures, listed, now);
+        if (removed == null) {
+            return null;
+        }
+        delisted.addAll(removed);
+        delisted.addAll(savedRowEntries(delisted, openBaseQuote, now));
+        return delisted;
+    }
+
+    // Saved (DB) rows have no instrument name, only base + quote: block them too, but only when no instrument of that
+    // base + quote is open in this kind, so a coin that still trades is never blocked
+    private List<DelistedSymbol> savedRowEntries(final List<DelistedSymbol> delisted, final Set<String> openBaseQuote, final long now) {
+        final Map<String, DelistedSymbol> entries = new HashMap<>();
+        for (final DelistedSymbol symbol : delisted) {
+            final String baseQuote = (symbol.getBase() + symbol.getQuote()).toUpperCase();
+            if (symbol.isTradingDisabled() && !openBaseQuote.contains(baseQuote) && !entries.containsKey(baseQuote)) {
+                final DelistedSymbol entry = new DelistedSymbol();
+                entry.setExchange(symbol.getExchange());
+                entry.setFutures(symbol.isFutures());
+                entry.setSymbol(baseQuote); // what a saved row without a name is matched by
+                entry.setBase(symbol.getBase());
+                entry.setQuote(symbol.getQuote());
+                entry.setStatus("NO_OPEN_INSTRUMENT (" + symbol.getSymbol() + ")");
+                entry.setTradingDisabled(true);
+                entry.setDetectedAt(now);
+                entries.put(baseQuote, entry);
+            }
+        }
+        return new ArrayList<>(entries.values());
+    }
+
+    // stopped when not active or state is not "open" (locked, inactive, halted); a real expiration on a perpetual = delisting date
+    static DelistedSymbol toDelistedSymbol(final JsonNode item, final String exchange, final boolean futures, final long now) {
+        final long expiration = futures ? item.path("expiration_timestamp").asLong(0) : 0;
+        final long delistTime = expiration > 0 && expiration < NO_EXPIRY ? expiration : 0;
+        final DelistedSymbol symbol = new DelistedSymbol();
+        symbol.setExchange(exchange);
+        symbol.setFutures(futures);
+        symbol.setSymbol(item.path("instrument_name").asText());
+        symbol.setBase(item.path("base_currency").asText());
+        symbol.setQuote(item.path("quote_currency").asText());
+        symbol.setStatus(item.path("state").asText());
+        symbol.setTradingDisabled(!item.path("is_active").asBoolean(false) || !"open".equals(item.path("state").asText())
+                || (delistTime > 0 && delistTime <= now));
+        symbol.setDelistTime(delistTime);
+        symbol.setDetectedAt(now);
+        return symbol;
     }
 
     /**

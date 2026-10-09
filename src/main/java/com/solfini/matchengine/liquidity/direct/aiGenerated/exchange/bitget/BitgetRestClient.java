@@ -779,9 +779,14 @@ public class BitgetRestClient {
     final String quote = item.path("quoteCoin").asText();
     final long offTime = item.path("offTime").asLong(0); // "" or "-1" when no delisting is scheduled
     listed.put(symbol, new String[] {base, quote});
-    final boolean stopped = !tradingStatus.equals(status) || (offTime > 0 && offTime <= now);
-    if (stopped || offTime > 0) {
-      delisted.add(toDelisted(symbol, base, quote, futures, status, stopped, Math.max(offTime, 0), now));
+    final boolean pastOffTime = offTime > 0 && offTime <= now;
+    // limit_open = close only: restricted, still routed so positions can be exited
+    final boolean restricted = "limit_open".equals(status) && !pastOffTime;
+    final boolean stopped = (!tradingStatus.equals(status) && !restricted) || pastOffTime;
+    if (stopped || restricted || offTime > 0) {
+      final DelistedSymbol symbolState = toDelisted(symbol, base, quote, futures, status, stopped, Math.max(offTime, 0), now);
+      symbolState.setRestricted(restricted);
+      delisted.add(symbolState);
     }
   }
 

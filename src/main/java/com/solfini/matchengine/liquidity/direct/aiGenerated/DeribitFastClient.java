@@ -8,6 +8,8 @@ import java.util.Objects;
 
 import com.solfini.common.Constants;
 import com.solfini.common.CustomLogger;
+import com.solfini.matchengine.executionexchange.DelistedSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.Ticker;
@@ -51,6 +53,8 @@ public final class DeribitFastClient implements ExternalExchangeClient {
 
     @Override
     public void start() {
+        // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
+        DelistedSymbolCache.start(subscription);
         try {
             // Start periodic REST API polling for account state synchronization
             startPeriodicAccountRefresh();
@@ -104,6 +108,13 @@ public final class DeribitFastClient implements ExternalExchangeClient {
     @Override
     public List<ExternalSymbol> getExchangeInstrumentsFull() {
         return deribitRestClient.getExchangeInstrumentsFull();
+    }
+
+    @Override
+    public List<DelistedSymbol> getDelistedSymbols() {
+        return subscription.isFuturesEnabled()
+                ? deribitRestClient.getFuturesDelistedSymbols()
+                : deribitRestClient.getSpotDelistedSymbols();
     }
 
     @Override

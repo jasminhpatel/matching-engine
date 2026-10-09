@@ -883,9 +883,9 @@ public class BybitRestClient {
         delisted.add(toDelistedSymbol(byBitSymbol, true, deliveryTime, now));
       }
     }
-    for (final ByBitSymbol byBitSymbol : closed) {
-      // dated LinearFutures close on their normal expiry, that is not a delisting
-      // old renamed contracts (e.g. DATAOLD01USDT) come back as PendingOpen with a past deliveryTime
+    for (final ByBitSymbol byBitSymbol : closed) { // results of the status=Closed and status=Delivering queries
+      // dated LinearFutures close on their normal expiry, that is not a delisting. The status=Closed query also returns old
+      // renamed perpetuals (e.g. DATAOLD01USDT) as PendingOpen with a past deliveryTime: stopped too
       final long deliveryTime = parseDeliveryTime(byBitSymbol.getDeliveryTime());
       if ("LinearPerpetual".equals(byBitSymbol.getContractType()) && ("Closed".equals(byBitSymbol.getStatus())
           || "Delivering".equals(byBitSymbol.getStatus()) || (deliveryTime > 0 && deliveryTime <= now))) {

@@ -798,7 +798,7 @@ public class MexcRestClient {
   }
 
   /**
-   * Spot pairs paused/offline (status != 1), restricted (tradeSideType != 1) or no longer listed by MEXC; null on failure.
+   * Spot pairs stopped (paused, offline, closed), restricted (buy or sell only) or no longer listed by MEXC; null on failure.
    * MEXC gives no delisting date: no API for it, and its announcement pages refuse server requests (403).
    */
   public List<DelistedSymbol> getSpotDelistedSymbols() {
@@ -816,9 +816,9 @@ public class MexcRestClient {
         final String symbol = item.path("symbol").asText();
         final String[] baseQuote = {item.path("baseAsset").asText(), item.path("quoteAsset").asText()};
         listed.put(symbol, baseQuote);
-        final String stopped = stoppedStatus(item);
-        if (stopped != null) {
-          delisted.add(toDelisted(symbol, baseQuote, stopped, now));
+        final DelistedSymbol state = toState(item, subscription.getExchange(), now);
+        if (state != null) {
+          delisted.add(state);
         }
       }
     } catch (final Exception e) {
@@ -833,22 +833,24 @@ public class MexcRestClient {
     return delisted;
   }
 
-  // null when the pair trades normally, else its status; status 2 paused, 3 offline; tradeSideType 2 buy only, 3 sell only, 4 closed
-  private static String stoppedStatus(final JsonNode item) {
+  // null when the pair trades normally. status 2 paused, 3 offline or tradeSideType 4 closed = stopped;
+  // tradeSideType 2 buy only, 3 sell only = restricted (still routed, so positions can be exited)
+  static DelistedSymbol toState(final JsonNode item, final String exchange, final long now) {
     final String status = item.path("status").asText();
     final String side = item.path("tradeSideType").asText("1");
-    return "1".equals(status) && "1".equals(side) ? null : "status=" + status + " tradeSideType=" + side;
-  }
-
-  private DelistedSymbol toDelisted(final String symbol, final String[] baseQuote, final String status, final long now) {
+    if ("1".equals(status) && "1".equals(side)) {
+      return null;
+    }
+    final boolean stopped = !"1".equals(status) || "4".equals(side);
     final DelistedSymbol delisted = new DelistedSymbol();
-    delisted.setExchange(subscription.getExchange());
+    delisted.setExchange(exchange);
     delisted.setFutures(false);
-    delisted.setSymbol(symbol);
-    delisted.setBase(baseQuote[0]);
-    delisted.setQuote(baseQuote[1]);
-    delisted.setStatus(status);
-    delisted.setTradingDisabled(true);
+    delisted.setSymbol(item.path("symbol").asText());
+    delisted.setBase(item.path("baseAsset").asText());
+    delisted.setQuote(item.path("quoteAsset").asText());
+    delisted.setStatus("status=" + status + " tradeSideType=" + side);
+    delisted.setTradingDisabled(stopped);
+    delisted.setRestricted(!stopped);
     delisted.setDetectedAt(now);
     return delisted;
   }
