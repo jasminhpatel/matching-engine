@@ -38,6 +38,22 @@ import javax.net.ssl.SSLSocketFactory;
 public class HttpUtils {
   private static final CustomLogger LOGGER = CustomLogger.getLogger(HttpUtils.class);
 
+    // connect / read timeout for the requests of one thread, 0 = none (default); set only by the delisting refresh workers
+    private static final ThreadLocal<Integer> THREAD_TIMEOUT_MILLIS = ThreadLocal.withInitial(() -> 0);
+
+    /** Connect / read timeout for the HTTP requests of the calling thread; 0 = none, as for every other caller. */
+    public static void setThreadTimeout(final int millis) {
+        THREAD_TIMEOUT_MILLIS.set(millis);
+    }
+
+    private static void applyThreadTimeout(final HttpsURLConnection connection) {
+        final int millis = THREAD_TIMEOUT_MILLIS.get();
+        if (millis > 0) {
+            connection.setConnectTimeout(millis);
+            connection.setReadTimeout(millis);
+        }
+    }
+
     public static Response get1(final String httpsURL, final Map<String, Object> headers) {
         return get(httpsURL, headers, null, 0, false);
     }
@@ -66,6 +82,7 @@ public class HttpUtils {
             connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setUseCaches(false);
+            applyThreadTimeout(connection);
             connection.setRequestMethod("GET");
             for (Map.Entry<String, Object> entry : headers.entrySet()) {
                 connection.setRequestProperty(entry.getKey(), String.valueOf(entry.getValue()));
@@ -141,6 +158,7 @@ public class HttpUtils {
             connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setUseCaches(false);
+            applyThreadTimeout(connection);
             connection.setRequestMethod("POST");
 
             for (Map.Entry<String, Object> entry : headers.entrySet()) {
@@ -211,6 +229,7 @@ public class HttpUtils {
             connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setUseCaches(false);
+            applyThreadTimeout(connection);
             connection.setRequestMethod("PUT");
 
             for (Map.Entry<String, Object> entry : headers.entrySet()) {
@@ -284,6 +303,7 @@ public class HttpUtils {
             connection.setDoOutput(false);
             connection.setDoInput(true);
             connection.setUseCaches(false);
+            applyThreadTimeout(connection);
             connection.setRequestMethod("DELETE");
 
             for (Map.Entry<String, Object> entry : headers.entrySet()) {

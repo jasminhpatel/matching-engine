@@ -14,6 +14,7 @@ import com.solfini.matchengine.drmode.message.DRExecutionReport;
 import com.solfini.matchengine.drmode.message.DROrder;
 import com.solfini.matchengine.executionexchange.*;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
+import com.solfini.matchengine.liquidity.DelistedSymbolCache;
 import com.solfini.matchengine.liquidity.ExchangeSubscription;
 import com.solfini.matchengine.liquidity.Ticker;
 import com.solfini.matchengine.liquidity.direct.FastClientFactory;
@@ -762,6 +763,15 @@ public class CopyTradeOrderBook extends GlobalOrderBook implements OrderBook, Co
             " exchange: ", subscription.getExchange(), " subscription: ", subscription.getId(), " order: ", copyTradeOrder.getClOrdId());
 
         copyTradeOrder.setResult("REJECTED: Symbol not tradable. " + baseSymbol + "/" + quotedSymbol);
+        matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
+
+        return;
+      }
+      if (!DelistedSymbolCache.isSideAllowed(externalSymbol, side)) { // buy only / sell only / post only on the exchange
+        LOGGER.info(Constants.LOG_FMT_10, "Side not allowed on the exchange. symbol: ", baseSymbol, "/", quotedSymbol,
+            " exchange: ", subscription.getExchange(), " side: ", side, " order: ", copyTradeOrder.getClOrdId());
+
+        copyTradeOrder.setResult("REJECTED: " + side + " not allowed on the exchange. " + baseSymbol + "/" + quotedSymbol);
         matcherToPublisherQueue.addGuaranteed(copyTradeOrder);
 
         return;

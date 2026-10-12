@@ -786,6 +786,7 @@ public class BitgetRestClient {
     if (stopped || restricted || offTime > 0) {
       final DelistedSymbol symbolState = toDelisted(symbol, base, quote, futures, status, stopped, Math.max(offTime, 0), now);
       symbolState.setRestricted(restricted);
+      symbolState.setRestriction(restricted ? DelistedSymbol.REDUCE_ONLY : null); // limit_open = close only
       delisted.add(symbolState);
     }
   }

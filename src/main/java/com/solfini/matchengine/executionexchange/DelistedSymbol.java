@@ -5,6 +5,11 @@ package com.solfini.matchengine.executionexchange;
  */
 public class DelistedSymbol {
   public static final String TRADING = "TRADING";
+  // kinds of restriction: only buy orders, only sell orders, only maker orders, only orders that close a position
+  public static final String BUY_ONLY = "BUY_ONLY";
+  public static final String SELL_ONLY = "SELL_ONLY";
+  public static final String POST_ONLY = "POST_ONLY";
+  public static final String REDUCE_ONLY = "REDUCE_ONLY";
 
   private String exchange;
   private boolean futures;
@@ -17,6 +22,8 @@ public class DelistedSymbol {
   private boolean tradingDisabled;
   /** True when only one side is allowed (buy only, sell only, close only); still routed so positions can be exited. */
   private boolean restricted;
+  /** Which restriction when restricted: BUY_ONLY, SELL_ONLY, POST_ONLY or REDUCE_ONLY. */
+  private String restriction;
   /** Delisting time in millis, 0 when the exchange gives no date */
   private long delistTime;
   private long detectedAt;
@@ -49,6 +56,14 @@ public class DelistedSymbol {
 
   public final void setRestricted(final boolean restricted) {
     this.restricted = restricted;
+  }
+
+  public final String getRestriction() {
+    return restriction;
+  }
+
+  public final void setRestriction(final String restriction) {
+    this.restriction = restriction;
   }
 
   public final String getExchange() {
@@ -126,6 +141,7 @@ public class DelistedSymbol {
     sb.append(", status='").append(status).append('\'');
     sb.append(", tradingDisabled=").append(tradingDisabled);
     sb.append(", restricted=").append(restricted);
+    sb.append(", restriction=").append(restriction);
     sb.append(", delistTime=").append(delistTime);
     sb.append(", detectedAt=").append(detectedAt);
     sb.append('}');

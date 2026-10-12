@@ -851,6 +851,9 @@ public class MexcRestClient {
     delisted.setStatus("status=" + status + " tradeSideType=" + side);
     delisted.setTradingDisabled(stopped);
     delisted.setRestricted(!stopped);
+    if (!stopped) { // tradeSideType 2 = buy orders only, 3 = sell orders only
+      delisted.setRestriction("2".equals(side) ? DelistedSymbol.BUY_ONLY : "3".equals(side) ? DelistedSymbol.SELL_ONLY : null);
+    }
     delisted.setDetectedAt(now);
     return delisted;
   }

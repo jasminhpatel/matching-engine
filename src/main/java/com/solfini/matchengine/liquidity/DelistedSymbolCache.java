@@ -8,6 +8,8 @@ import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClient;
+import com.solfini.sbe.encoder.Side;
+import com.solfini.util.HttpUtils;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -61,6 +63,8 @@ public class DelistedSymbolCache {
   // workers per segment still running (a cancelled one too: HttpUtils can't be interrupted, so it may still hang)
   private static final ConcurrentHashMap<String, AtomicInteger> RUNNING = new ConcurrentHashMap<>();
   private static final int MAX_RUNNING_PER_SEGMENT = 3;
+  // connect / read timeout of each exchange request a refresh worker makes, so a dead connection fails instead of hanging
+  private static final int REQUEST_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(60);
   private static final ExecutorService REFRESH_WORKERS = Executors.newCachedThreadPool(r -> {
     final Thread thread = new Thread(r, "delistedSymbolRefreshWorker");
     thread.setDaemon(true);
@@ -125,9 +129,11 @@ public class DelistedSymbolCache {
     }
     final Future<?> future = REFRESH_WORKERS.submit(() -> {
       running.incrementAndGet(); // counted once it runs: a task cancelled before it starts never hangs
+      HttpUtils.setThreadTimeout(REQUEST_TIMEOUT_MILLIS);
       try {
         refresh(subscription, generation);
       } finally {
+        HttpUtils.setThreadTimeout(0);
         running.decrementAndGet();
       }
     });
@@ -487,6 +493,41 @@ public class DelistedSymbolCache {
       LOGGER.warn("Delisting WebSocket uses the default network, outbound IP / proxy not usable: " + e.getMessage());
     }
     return builder.build();
+  }
+
+  /** False when the pair's one-side restriction rules out this side: buy only, sell only, or post only (the router's
+   * fill-or-kill orders take liquidity). Close only stays allowed, so positions can still be exited. */
+  public static boolean isSideAllowed(final ExternalSymbol external, final Side side) {
+    final String restriction = DELISTED.isEmpty() ? null : restrictionOf(external);
+    if (restriction == null) {
+      return true;
+    }
+    switch (restriction) {
+      case DelistedSymbol.BUY_ONLY:
+        return side == Side.BUY;
+      case DelistedSymbol.SELL_ONLY:
+        return side == Side.SELL;
+      case DelistedSymbol.POST_ONLY:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  // restriction of the instrument, looked up by every name it can be stored under (symbol, prompt, base + quote)
+  private static String restrictionOf(final ExternalSymbol external) {
+    final String baseQuote = external.getBase() == null || external.getQuote() == null ? null
+        : (external.getBase() + external.getQuote()).toUpperCase();
+    for (final String name : new String[] {external.getSymbol(), external.getPrompt(), baseQuote}) {
+      if (name == null || name.isEmpty()) {
+        continue;
+      }
+      final DelistedSymbol symbol = DELISTED.get(DelistedSymbol.getKey(external.getExchange(), external.isFutures(), name));
+      if (symbol != null && symbol.isRestricted() && !symbol.isTradingDisabled()) {
+        return symbol.getRestriction();
+      }
+    }
+    return null;
   }
 
   /** True when the instrument cache has an instrument for this symbol (same exchange, segment and exchange symbol). */

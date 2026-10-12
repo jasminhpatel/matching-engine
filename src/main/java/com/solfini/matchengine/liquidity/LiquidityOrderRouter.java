@@ -137,7 +137,8 @@ public class LiquidityOrderRouter implements Runnable {
     for (final ExternalSymbol symbolStatus : availableExchanges) {
       if (EXCHANGE_PREFERENCE.contains(symbolStatus.getExchange().toLowerCase())) {
         try {
-          if (symbolStatus.isTradable() && (USD.equalsIgnoreCase(symbolStatus.getQuote()) || USDC.equalsIgnoreCase(symbolStatus.getQuote())
+          if (symbolStatus.isTradable() && DelistedSymbolCache.isSideAllowed(symbolStatus, side)
+              && (USD.equalsIgnoreCase(symbolStatus.getQuote()) || USDC.equalsIgnoreCase(symbolStatus.getQuote())
               || USDT.equalsIgnoreCase(symbolStatus.getQuote()))) {
 
             final ExchangeSubscription subscription = LiquiditySubscriptionCache.get(symbolStatus.getExchange(), symbolStatus.isFutures());
@@ -424,7 +425,8 @@ public class LiquidityOrderRouter implements Runnable {
     for (ExternalSymbol symbolStatus : availableExchanges) {
       if (EXCHANGE_PREFERENCE.contains(symbolStatus.getExchange().toLowerCase())) {
         try {
-          if (symbolStatus.isTradable() && (USD.equalsIgnoreCase(symbolStatus.getQuote()) || USDC.equalsIgnoreCase(symbolStatus.getQuote())
+          if (symbolStatus.isTradable() && DelistedSymbolCache.isSideAllowed(symbolStatus, side)
+              && (USD.equalsIgnoreCase(symbolStatus.getQuote()) || USDC.equalsIgnoreCase(symbolStatus.getQuote())
               || USDT.equalsIgnoreCase(symbolStatus.getQuote()))) {
 
             final String key = (symbolStatus.getExchange() + "_" + symbolStatus.isFutures()).toLowerCase();

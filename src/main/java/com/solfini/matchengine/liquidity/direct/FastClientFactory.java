@@ -14,6 +14,7 @@ import com.solfini.matchengine.liquidity.direct.aiGenerated.BybitFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.CoinbaseFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.DeribitFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClient;
+import com.solfini.matchengine.liquidity.direct.aiGenerated.HtxFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.KrakenFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.KucoinFastClient;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.MexcFastClient;
@@ -110,6 +111,13 @@ public class FastClientFactory {
       }
       case "KUCOIN": {
         final KucoinFastClient client = new KucoinFastClient(externalSubscription, REST_ONLY);
+        externalSubscription.setClient(client);
+        client.start();
+
+        return client;
+      }
+      case "HTX": {
+        final HtxFastClient client = new HtxFastClient(externalSubscription, REST_ONLY);
         externalSubscription.setClient(client);
         client.start();
 

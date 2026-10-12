@@ -444,6 +444,10 @@ public final class HtxFastClient implements ExternalExchangeClient {
         try {
             bootstrapSpotBalanceSnapshot();
             startPeriodicSpotAccountRefresh();
+            if (restOnly) { // REST-only (FastClientFactory): no trade listener exists, as in the other clients
+                LOGGER.info("HTX Spot Client started in REST-only mode, WebSocket connections skipped");
+                return;
+            }
             startUserSpotBalanceStream();
             startUserSpotTradeStream();
         } catch (Exception e) {
@@ -477,6 +481,11 @@ public final class HtxFastClient implements ExternalExchangeClient {
             LOGGER.info("Starting HTX Futures Client (linear-swap)...");
 
             bootstrapFutureBalanceSnapshot();
+            if (restOnly) { // REST-only (FastClientFactory): no trade listener exists, as in the other clients
+                startPeriodicFutureAccountRefresh();
+                LOGGER.info("HTX Futures Client started in REST-only mode, WebSocket connections skipped");
+                return;
+            }
             startFutureTradeStream();
             if (futureTradeListener != null) {
                 final long deadline = System.currentTimeMillis() + 5_000L;

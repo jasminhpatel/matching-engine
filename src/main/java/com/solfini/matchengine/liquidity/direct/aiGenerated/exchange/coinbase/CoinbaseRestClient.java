@@ -158,6 +158,7 @@ public class CoinbaseRestClient {
             + (product.path("cancel_only").asBoolean(false) ? " cancel_only" : "") + (product.path("post_only").asBoolean(false) ? " post_only" : ""));
         state.setTradingDisabled(stopped);
         state.setRestricted(!stopped && product.path("post_only").asBoolean(false));
+        state.setRestriction(state.isRestricted() ? DelistedSymbol.POST_ONLY : null);
         state.setDetectedAt(now);
         return state;
     }

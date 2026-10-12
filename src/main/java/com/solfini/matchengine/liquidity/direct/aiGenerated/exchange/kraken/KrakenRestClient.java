@@ -339,6 +339,9 @@ public class KrakenRestClient {
       }
     }
     states.get(0).setRestricted(restricted);
+    if (restricted) {
+      states.get(0).setRestriction("post_only".equals(status) ? DelistedSymbol.POST_ONLY : DelistedSymbol.REDUCE_ONLY);
+    }
     return states;
   }
 
@@ -423,6 +426,7 @@ public class KrakenRestClient {
         final DelistedSymbol state = toDelisted(symbol, base, quote, true, stopped ? "not tradeable" : restricted ? "postOnly" : "lastTradingTime",
             stopped, lastTrading, subscription.getExchange(), now);
         state.setRestricted(restricted);
+        state.setRestriction(restricted ? DelistedSymbol.POST_ONLY : null);
         delisted.add(state);
       }
     }
