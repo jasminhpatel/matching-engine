@@ -47,8 +47,10 @@ public final class HtxFastClient implements ExternalExchangeClient {
     private static final long CONTRACT_INFO_RECONNECT_MILLIS = 10_000;
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private volatile boolean contractInfoRunning;
+    private volatile Thread contractInfoThread; // interrupted by stop(), which aborts the open socket
 
     private final ExchangeSubscription subscription;
+    private HttpClient streamHttpClient; // used by the delisting stream thread only
     private final HtxRestClient htxRestClient;
     private final HtxSpotTradeListener spotTradeListener;
     private final HtxFutureTradeListener futureTradeListener;
@@ -126,6 +128,9 @@ public final class HtxFastClient implements ExternalExchangeClient {
     // HTX public.*.contract_info (no key): contract status / delivery_time changes, classified like the REST check
     // (HtxRestClient.toFuturesState), so a stop is applied at once instead of at the next 10 minute check
     void startContractInfoStream() {
+        if (contractInfoThread != null && contractInfoThread.isAlive()) {
+            return; // already running, a restart must not open a second stream
+        }
         contractInfoRunning = true;
         final Thread thread = new Thread(() -> {
             while (contractInfoRunning) {
@@ -133,6 +138,9 @@ public final class HtxFastClient implements ExternalExchangeClient {
                     runContractInfoStream(Long.MAX_VALUE);
                 } catch (final Exception e) {
                     LOGGER.warn("HTX contract_info stream reconnects after error: " + e);
+                }
+                if (!contractInfoRunning) {
+                    return; // stopped
                 }
                 try {
                     Thread.sleep(CONTRACT_INFO_RECONNECT_MILLIS);
@@ -142,13 +150,25 @@ public final class HtxFastClient implements ExternalExchangeClient {
             }
         }, "htxContractInfoStream");
         thread.setDaemon(true);
+        contractInfoThread = thread;
         thread.start();
+    }
+
+    // one HttpClient for all reconnects, with the outbound IP / proxy the REST calls use
+    private HttpClient streamHttpClient() {
+        if (streamHttpClient == null) {
+            streamHttpClient = DelistedSymbolCache.webSocketHttpClient(subscription);
+        }
+        return streamHttpClient;
     }
 
     // one connection, until it closes or maxMillis pass; frames are gzip compressed
     void runContractInfoStream(final long maxMillis) throws Exception {
+        if (htxRestClient.getListedContracts().isEmpty()) {
+            return; // first REST check not done: the init snapshot would be skipped, so connect after it
+        }
         final CompletableFuture<Void> closed = new CompletableFuture<>();
-        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(CONTRACT_INFO_WS_URL),
+        final WebSocket socket = streamHttpClient().newWebSocketBuilder().buildAsync(URI.create(CONTRACT_INFO_WS_URL),
                 new WebSocket.Listener() {
             private final ByteArrayOutputStream frame = new ByteArrayOutputStream();
 
@@ -232,6 +252,9 @@ public final class HtxFastClient implements ExternalExchangeClient {
     @Override
     public void stop() {
         contractInfoRunning = false;
+        if (contractInfoThread != null) {
+            contractInfoThread.interrupt();
+        }
         stopPeriodicSpotAccountRefresh();
         if (subscription.isFuturesEnabled()) {
             stopPeriodicFutureAccountRefresh();

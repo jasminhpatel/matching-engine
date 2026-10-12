@@ -102,6 +102,8 @@ public class HtxRestClient {
         }
         if (futures) {
             listedContracts = new HashSet<>(listed.keySet());
+        } else { // HTX still lists ~1500 pairs delisted years ago as offline: keep only those we have an instrument for
+            delisted.removeIf(state -> !DelistedSymbolCache.hasSavedInstrument(state));
         }
         delisted.addAll(removed);
         return delisted;

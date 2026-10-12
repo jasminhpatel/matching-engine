@@ -2,11 +2,17 @@ package com.solfini.matchengine.liquidity;
 
 import static com.solfini.common.Constants.ERROR_LOG;
 
+import com.solfini.common.Context;
 import com.solfini.common.CustomLogger;
 import com.solfini.matchengine.executionexchange.DelistedSymbol;
 import com.solfini.matchengine.executionexchange.ExternalInstrumentCache;
 import com.solfini.matchengine.executionexchange.ExternalSymbol;
 import com.solfini.matchengine.liquidity.direct.aiGenerated.ExternalExchangeClient;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -25,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Delisted, suspended and to-be-delisted symbols of all external exchanges, refreshed from each subscription's client.
@@ -51,6 +58,9 @@ public class DelistedSymbolCache {
   private static final long REFRESH_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
   // key <segment prefix, number of the latest refresh>, so a late result of an abandoned refresh is not applied
   private static final ConcurrentHashMap<String, Long> REFRESH_GENERATION = new ConcurrentHashMap<>();
+  // workers per segment still running (a cancelled one too: HttpUtils can't be interrupted, so it may still hang)
+  private static final ConcurrentHashMap<String, AtomicInteger> RUNNING = new ConcurrentHashMap<>();
+  private static final int MAX_RUNNING_PER_SEGMENT = 3;
   private static final ExecutorService REFRESH_WORKERS = Executors.newCachedThreadPool(r -> {
     final Thread thread = new Thread(r, "delistedSymbolRefreshWorker");
     thread.setDaemon(true);
@@ -103,15 +113,29 @@ public class DelistedSymbolCache {
   /** Runs a refresh on a worker and stops waiting after timeoutMillis, so a request that never answers (no HTTP timeout)
    * cannot freeze the segment: the next cycle runs normally and a late result is dropped. */
   static void refreshWithTimeout(final ExchangeSubscription subscription, final long timeoutMillis) {
+    final String segmentPrefix = getSegmentPrefix(subscription);
+    final AtomicInteger running = RUNNING.computeIfAbsent(segmentPrefix, k -> new AtomicInteger());
+    if (running.get() >= MAX_RUNNING_PER_SEGMENT) { // bounded: don't add threads while earlier requests still hang
+      LOGGER.warn("Delisting refresh of " + segmentPrefix + " skipped, " + running.get() + " earlier requests still hang");
+      return;
+    }
     final long generation;
     synchronized (REFRESH_GENERATION) {
-      generation = REFRESH_GENERATION.merge(getSegmentPrefix(subscription), 1L, Long::sum);
+      generation = REFRESH_GENERATION.merge(segmentPrefix, 1L, Long::sum);
     }
-    final Future<?> future = REFRESH_WORKERS.submit(() -> refresh(subscription, generation));
+    final Future<?> future = REFRESH_WORKERS.submit(() -> {
+      running.incrementAndGet(); // counted once it runs: a task cancelled before it starts never hangs
+      try {
+        refresh(subscription, generation);
+      } finally {
+        running.decrementAndGet();
+      }
+    });
     try {
       future.get(timeoutMillis, TimeUnit.MILLISECONDS);
     } catch (final TimeoutException e) {
-      LOGGER.warn("Delisting refresh of " + getSegmentPrefix(subscription) + " got no answer within " + timeoutMillis / 1000
+      future.cancel(true); // interrupt flag: a late answer leaves ListedTracker unchanged
+      LOGGER.warn("Delisting refresh of " + segmentPrefix + " got no answer within " + timeoutMillis / 1000
           + " s, the last known state is kept and the next cycle retries");
     } catch (final ExecutionException e) {
       LOGGER.error(ERROR_LOG, e.getCause());
@@ -357,13 +381,17 @@ public class DelistedSymbolCache {
      */
     public synchronized List<DelistedSymbol> update(final String exchange, final boolean futures, final Map<String, String[]> listed,
         final long now) {
+      if (Thread.currentThread().isInterrupted()) { // refresh timed out and was abandoned
+        return null;
+      }
       if (listed.isEmpty() || (lastCount > 0 && listed.size() < lastCount / 2)) {
         LOGGER.warn(exchange + " list shrank from " + lastCount + " to " + listed.size() + " symbols, ignoring this response");
         return null;
       }
       final boolean firstCall = lastCount == 0;
       if (firstCall && seedFromSaved) {
-        // only pairs we could trade, with a real exchange symbol (base + quote is unreliable for futures, e.g. Bitget ...PERP)
+        // only pairs we could trade; futures need a real exchange symbol (base + quote is unreliable, e.g. Bitget ...PERP),
+        // spot rows without one use base + quote, which isListed() compares normalized against both names
         for (final ExternalSymbol saved : waitForSavedSymbols(exchange, futures)) {
           final boolean named = saved.getSymbol() != null || (saved.getPrompt() != null && !saved.getPrompt().isEmpty());
           if (saved.isTradable() && (named || !futures)) {
@@ -371,8 +399,16 @@ public class DelistedSymbolCache {
           }
         }
       }
+      // names compared without case and separators (BTC-USD = btcusd); spot also counts as listed under another spelling
+      final Set<String> listedNames = new HashSet<>();
+      for (final Map.Entry<String, String[]> entry : listed.entrySet()) {
+        listedNames.add(normalize(entry.getKey()));
+        if (!futures) {
+          listedNames.add(normalize(entry.getValue()[0] + entry.getValue()[1]));
+        }
+      }
       for (final Map.Entry<String, String[]> entry : known.entrySet()) {
-        if (!listed.containsKey(entry.getKey()) && !removed.containsKey(entry.getKey())) {
+        if (!isListed(listedNames, entry.getKey(), entry.getValue(), futures) && !removed.containsKey(entry.getKey())) {
           final DelistedSymbol symbol = new DelistedSymbol();
           symbol.setExchange(exchange);
           symbol.setFutures(futures);
@@ -385,7 +421,8 @@ public class DelistedSymbolCache {
           removed.put(entry.getKey(), symbol);
         }
       }
-      removed.keySet().removeAll(listed.keySet()); // listed again
+      removed.values().removeIf(symbol -> isListed(listedNames, symbol.getSymbol(), new String[] {symbol.getBase(), symbol.getQuote()},
+          futures)); // listed again
       if (firstCall && seedFromSaved) {
         LOGGER.warn(exchange + (futures ? " futures" : " spot") + " first check: " + removed.size()
             + " saved pairs are no longer listed (includes old delistings kept in the saved data)");
@@ -394,6 +431,15 @@ public class DelistedSymbolCache {
       known.putAll(listed); // the no longer listed ones are kept in removed
       lastCount = listed.size();
       return new ArrayList<>(removed.values());
+    }
+
+    private static boolean isListed(final Set<String> listedNames, final String symbol, final String[] baseQuote, final boolean futures) {
+      return listedNames.contains(normalize(symbol))
+          || (!futures && baseQuote[0] != null && baseQuote[1] != null && listedNames.contains(normalize(baseQuote[0] + baseQuote[1])));
+    }
+
+    private static String normalize(final String name) {
+      return name == null ? "" : name.replaceAll("[-_/]", "").toUpperCase();
     }
   }
 
@@ -425,6 +471,27 @@ public class DelistedSymbolCache {
       }
     }
     return found;
+  }
+
+  /** HttpClient for the delisting WebSockets, with the outbound IP / proxy rule HttpUtils uses for REST. */
+  public static HttpClient webSocketHttpClient(final ExchangeSubscription subscription) {
+    final HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15));
+    final String outboundIp = Context.getOutboundIp();
+    try {
+      if (!subscription.isForceToUseProxy() && outboundIp != null && !outboundIp.isEmpty()) {
+        builder.localAddress(InetAddress.getByName(outboundIp));
+      } else if (subscription.getLastUsedProxy() != null) {
+        builder.proxy(ProxySelector.of(new InetSocketAddress(subscription.getLastUsedProxy(), Context.getExternalExchangeProxyPort())));
+      }
+    } catch (final Exception e) { // unknown outbound IP: connect without it rather than not at all
+      LOGGER.warn("Delisting WebSocket uses the default network, outbound IP / proxy not usable: " + e.getMessage());
+    }
+    return builder.build();
+  }
+
+  /** True when the instrument cache has an instrument for this symbol (same exchange, segment and exchange symbol). */
+  public static boolean hasSavedInstrument(final DelistedSymbol symbol) {
+    return !findExternalSymbols(symbol).isEmpty();
   }
 
   public static DelistedSymbol get(final String exchange, final boolean futures, final String symbol) {

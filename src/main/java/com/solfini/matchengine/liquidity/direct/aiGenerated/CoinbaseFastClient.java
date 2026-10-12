@@ -33,8 +33,10 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     private static final long STATUS_RESUBSCRIBE_MILLIS = 3_600_000; // reconnect hourly to pick up new product ids
     private static final long STATUS_RECONNECT_MILLIS = 10_000;
     private volatile boolean statusStreamRunning;
+    private volatile Thread statusStreamThread; // interrupted by stop(), which aborts the open socket
 
     private final ExchangeSubscription subscription;
+    private HttpClient streamHttpClient; // used by the delisting stream thread only
 
     private final String apiKey;
     private final String apiSecret;
@@ -63,7 +65,7 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
         LOGGER.info("Starting Coinbase client");
         // first, so a failing account login below does not stop it; delisted symbols now, then every 10 minutes
         DelistedSymbolCache.start(subscription);
-        if (!restOnly) {
+        if (!restOnly && !subscription.isFuturesEnabled()) { // the status channel only reports spot products
             startStatusStream();
         }
         if (subscription.isFuturesEnabled()) {
@@ -83,6 +85,9 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     // Coinbase "status" channel (public when product ids are given): a product leaving "online" is blocked at once instead
     // of at the next 10 minute check. It can still say "online" for a delisted product, so it never unblocks anything.
     void startStatusStream() {
+        if (statusStreamThread != null && statusStreamThread.isAlive()) {
+            return; // already running, a restart must not open a second stream
+        }
         statusStreamRunning = true;
         final Thread thread = new Thread(() -> {
             while (statusStreamRunning) {
@@ -90,6 +95,9 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
                     runStatusStream(STATUS_RESUBSCRIBE_MILLIS);
                 } catch (final Exception e) {
                     LOGGER.warn("Coinbase status stream reconnects after error: " + e);
+                }
+                if (!statusStreamRunning) {
+                    return; // stopped
                 }
                 try {
                     Thread.sleep(STATUS_RECONNECT_MILLIS);
@@ -99,7 +107,16 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
             }
         }, "coinbaseStatusStream-" + (subscription.isFuturesEnabled() ? "futures" : "spot"));
         thread.setDaemon(true);
+        statusStreamThread = thread;
         thread.start();
+    }
+
+    // one HttpClient for all reconnects, with the outbound IP / proxy the REST calls use
+    private HttpClient streamHttpClient() {
+        if (streamHttpClient == null) {
+            streamHttpClient = DelistedSymbolCache.webSocketHttpClient(subscription);
+        }
+        return streamHttpClient;
     }
 
     // one connection subscribed to the products of the latest check, until it closes or resubscribeMillis pass (new products)
@@ -109,7 +126,7 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
             return; // the first REST check has not finished yet
         }
         final CompletableFuture<Void> closed = new CompletableFuture<>();
-        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(STATUS_WS_URL), new WebSocket.Listener() {
+        final WebSocket socket = streamHttpClient().newWebSocketBuilder().buildAsync(URI.create(STATUS_WS_URL), new WebSocket.Listener() {
             private final StringBuilder text = new StringBuilder();
 
             @Override
@@ -305,6 +322,9 @@ public final class CoinbaseFastClient implements ExternalExchangeClient {
     public void stop() {
         LOGGER.info("Stopping Coinbase client");
         statusStreamRunning = false;
+        if (statusStreamThread != null) {
+            statusStreamThread.interrupt();
+        }
         stopPeriodicAccountRefresh();
 
         if (userDataListener != null) {

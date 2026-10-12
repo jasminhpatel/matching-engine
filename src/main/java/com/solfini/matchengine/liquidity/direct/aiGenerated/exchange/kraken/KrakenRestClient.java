@@ -32,7 +32,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static com.solfini.matchengine.liquidity.direct.aiGenerated.JsonHelper.*;
 
@@ -284,11 +286,11 @@ public class KrakenRestClient {
         return null;
     }
 
-  // spot pairs no longer listed: known by pair key (live instruments) and normalized base + quote (saved rows have only that)
+  // spot pairs no longer listed: known by pair key (prompt), altname (symbol of DB rows) and normalized base + quote
   private final DelistedSymbolCache.ListedTracker spotTracker = new DelistedSymbolCache.ListedTracker();
   private final DelistedSymbolCache.ListedTracker futuresTracker = new DelistedSymbolCache.ListedTracker();
-  // normalized base + quote -> pair key of the latest spot check, to map the WebSocket's pairs
-  private volatile Map<String, String> pairKeyByBaseQuote = new HashMap<>();
+  // normalized base + quote -> {pair key, altname} of the latest spot check, to map the WebSocket's pairs
+  private volatile Map<String, String[]> pairKeyByBaseQuote = new HashMap<>();
 
   /** Spot pairs cancel_only (stopped), post_only / reduce_only (restricted) or no longer listed; null on failure. */
   public List<DelistedSymbol> getSpotDelistedSymbols() {
@@ -299,14 +301,16 @@ public class KrakenRestClient {
     final long now = System.currentTimeMillis();
     final List<DelistedSymbol> delisted = new ArrayList<>();
     final Map<String, String[]> listed = new HashMap<>();
-    final Map<String, String> keys = new HashMap<>();
+    final Map<String, String[]> keys = new HashMap<>();
     result.fields().forEachRemaining(pair -> {
       final String base = normalizeBaseCurrency(pair.getValue().path("base").asText());
       final String quote = normalizeQuoteCurrency(pair.getValue().path("quote").asText());
+      final String altname = pair.getValue().path("altname").asText(pair.getKey());
       listed.put(pair.getKey(), new String[] {base, quote});
+      listed.put(altname, new String[] {base, quote});
       listed.put((base + quote).toUpperCase(), new String[] {base, quote});
-      keys.put((base + quote).toUpperCase(), pair.getKey());
-      delisted.addAll(spotStates(pair.getKey(), base, quote, pair.getValue().path("status").asText(), subscription.getExchange(), now));
+      keys.put((base + quote).toUpperCase(), new String[] {pair.getKey(), altname});
+      delisted.addAll(spotStates(pair.getKey(), altname, base, quote, pair.getValue().path("status").asText(), subscription.getExchange(), now));
     });
     final List<DelistedSymbol> removed = spotTracker.update(subscription.getExchange(), false, listed, now);
     if (removed == null) {
@@ -318,9 +322,9 @@ public class KrakenRestClient {
   }
 
   // used by the REST check and the instrument WebSocket: online / limit_only = trading, post_only / reduce_only =
-  // restricted, anything else (cancel_only, ...) = stopped; a stopped pair also gets a base + quote entry for saved rows
-  static List<DelistedSymbol> spotStates(final String key, final String base, final String quote, final String status,
-      final String exchange, final long now) {
+  // restricted, anything else (cancel_only, ...) = stopped; a stopped pair also gets altname and base + quote entries
+  static List<DelistedSymbol> spotStates(final String key, final String altname, final String base, final String quote,
+      final String status, final String exchange, final long now) {
     final List<DelistedSymbol> states = new ArrayList<>();
     if ("online".equals(status) || "limit_only".equals(status)) {
       return states;
@@ -328,10 +332,28 @@ public class KrakenRestClient {
     final boolean restricted = "post_only".equals(status) || "reduce_only".equals(status);
     states.add(toDelisted(key, base, quote, false, status, !restricted, 0, exchange, now));
     if (!restricted) {
-      states.add(toDelisted((base + quote).toUpperCase(), base, quote, false, status, true, 0, exchange, now));
+      for (final String name : spotNames(key, altname, base, quote)) {
+        if (!name.equals(key)) {
+          states.add(toDelisted(name, base, quote, false, status, true, 0, exchange, now));
+        }
+      }
     }
     states.get(0).setRestricted(restricted);
     return states;
+  }
+
+  // every name a saved Kraken spot row can have: pair key, altname, normalized base + quote
+  static Set<String> spotNames(final String key, final String altname, final String base, final String quote) {
+    final Set<String> names = new LinkedHashSet<>();
+    names.add(key);
+    names.add(altname);
+    names.add((base + quote).toUpperCase());
+    return names;
+  }
+
+  /** True once a REST spot check has listed the pairs, so the WebSocket snapshot can be mapped. */
+  public boolean isSpotListLoaded() {
+    return !pairKeyByBaseQuote.isEmpty();
   }
 
   /** Applies an instrument channel message (snapshot / update) to the pairs the latest REST check lists. */
@@ -345,15 +367,16 @@ public class KrakenRestClient {
       for (final JsonNode pair : root.path("data").path("pairs")) {
         final String base = normalizeBaseCurrency(pair.path("base").asText());
         final String quote = normalizeQuoteCurrency(pair.path("quote").asText());
-        final String key = pairKeyByBaseQuote.get((base + quote).toUpperCase());
-        if (key == null) {
+        final String[] names = pairKeyByBaseQuote.get((base + quote).toUpperCase());
+        if (names == null) {
           continue; // not in the latest REST list (or a name the REST list spells differently): REST decides
         }
-        final List<DelistedSymbol> states = spotStates(key, base, quote, pair.path("status").asText(), subscription.getExchange(), now);
+        final List<DelistedSymbol> states = spotStates(names[0], names[1], base, quote, pair.path("status").asText(),
+            subscription.getExchange(), now);
         if (!states.isEmpty()) {
           states.forEach(DelistedSymbolCache::update);
         } else {
-          for (final String symbol : new String[] {key, (base + quote).toUpperCase()}) {
+          for (final String symbol : spotNames(names[0], names[1], base, quote)) {
             final DelistedSymbol current = DelistedSymbolCache.get(subscription.getExchange(), false, symbol);
             if (current != null && !"REMOVED".equals(current.getStatus())) {
               DelistedSymbolCache.remove(subscription.getExchange(), false, symbol);
@@ -372,7 +395,11 @@ public class KrakenRestClient {
     if (instruments == null || !instruments.isArray()) {
       return null;
     }
-    final long now = System.currentTimeMillis();
+    return toFuturesDelisted(instruments, System.currentTimeMillis());
+  }
+
+  // parses the instruments array of /api/v3/instruments
+  List<DelistedSymbol> toFuturesDelisted(final JsonNode instruments, final long now) {
     final List<DelistedSymbol> delisted = new ArrayList<>();
     final Map<String, String[]> listed = new HashMap<>();
     for (final JsonNode item : instruments) {
@@ -383,7 +410,12 @@ public class KrakenRestClient {
       if (!symbol.startsWith("PF_") && !symbol.startsWith("PI_")) {
         continue; // dated futures expire normally, not a delisting; still listed so a saved row is not marked removed
       }
-      final long lastTrading = item.hasNonNull("lastTradingTime") ? Instant.parse(item.path("lastTradingTime").asText()).toEpochMilli() : 0;
+      long lastTrading = 0;
+      try {
+        lastTrading = item.hasNonNull("lastTradingTime") ? Instant.parse(item.path("lastTradingTime").asText()).toEpochMilli() : 0;
+      } catch (final RuntimeException e) { // one bad date must not fail the whole refresh
+        LOGGER.warn("Kraken " + symbol + " has an unreadable lastTradingTime: " + item.path("lastTradingTime").asText());
+      }
       final boolean stopped = !item.path("tradeable").asBoolean(true) || item.path("isExpired").asBoolean(false)
           || (lastTrading > 0 && lastTrading <= now);
       final boolean restricted = !stopped && item.path("postOnly").asBoolean(false);

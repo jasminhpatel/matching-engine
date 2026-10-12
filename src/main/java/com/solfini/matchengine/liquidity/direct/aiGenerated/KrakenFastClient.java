@@ -34,6 +34,7 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     private static final long TEN_MINUTES = 600_000;
     private static final long ONE_MINUTE = 60_000;
     private final ExchangeSubscription subscription;
+    private HttpClient streamHttpClient; // used by the delisting stream thread only
 
     // ======= API credentials =======
     private final String apiKey;
@@ -57,6 +58,7 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     private static final String INSTRUMENT_WS_URL = "wss://ws.kraken.com/v2";
     private static final long INSTRUMENT_RECONNECT_MILLIS = 10_000;
     private volatile boolean instrumentStreamRunning;
+    private volatile Thread instrumentStreamThread; // interrupted by stop(), which aborts the open socket
 
     // ======= Constructor =======
     public KrakenFastClient(final ExchangeSubscription subscription) {
@@ -104,6 +106,9 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     // Kraken v2 "instrument" channel (public): pair status changes, classified like the REST check, so a stop is
     // applied at once instead of at the next 10 minute check
     void startInstrumentStream() {
+        if (instrumentStreamThread != null && instrumentStreamThread.isAlive()) {
+            return; // already running, a restart must not open a second stream
+        }
         instrumentStreamRunning = true;
         final Thread thread = new Thread(() -> {
             while (instrumentStreamRunning) {
@@ -111,6 +116,9 @@ public final class KrakenFastClient implements ExternalExchangeClient {
                     runInstrumentStream(Long.MAX_VALUE);
                 } catch (final Exception e) {
                     LOGGER.warn("Kraken instrument stream reconnects after error: " + e);
+                }
+                if (!instrumentStreamRunning) {
+                    return; // stopped
                 }
                 try {
                     Thread.sleep(INSTRUMENT_RECONNECT_MILLIS);
@@ -120,13 +128,25 @@ public final class KrakenFastClient implements ExternalExchangeClient {
             }
         }, "krakenInstrumentStream");
         thread.setDaemon(true);
+        instrumentStreamThread = thread;
         thread.start();
+    }
+
+    // one HttpClient for all reconnects, with the outbound IP / proxy the REST calls use
+    private HttpClient streamHttpClient() {
+        if (streamHttpClient == null) {
+            streamHttpClient = DelistedSymbolCache.webSocketHttpClient(subscription);
+        }
+        return streamHttpClient;
     }
 
     // one connection, until it closes or maxMillis pass
     void runInstrumentStream(final long maxMillis) throws Exception {
+        if (!krakenRestClient.isSpotListLoaded()) {
+            return; // first REST check not done: the snapshot would be skipped, so connect after it
+        }
         final CompletableFuture<Void> closed = new CompletableFuture<>();
-        final WebSocket socket = HttpClient.newHttpClient().newWebSocketBuilder().buildAsync(URI.create(INSTRUMENT_WS_URL),
+        final WebSocket socket = streamHttpClient().newWebSocketBuilder().buildAsync(URI.create(INSTRUMENT_WS_URL),
                 new WebSocket.Listener() {
             private final StringBuilder text = new StringBuilder();
 
@@ -171,6 +191,9 @@ public final class KrakenFastClient implements ExternalExchangeClient {
     public void stop() {
         LOGGER.info("Stopping KrakenFastClient...");
         instrumentStreamRunning = false;
+        if (instrumentStreamThread != null) {
+            instrumentStreamThread.interrupt();
+        }
         stopPeriodicFutureAccountRefresh();
         stopPeriodicSpotAccountRefresh();
         disconnectWebSockets();

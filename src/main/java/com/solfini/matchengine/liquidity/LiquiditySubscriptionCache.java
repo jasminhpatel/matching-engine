@@ -130,6 +130,11 @@ public class LiquiditySubscriptionCache {
             registerClients.add(client);
             subscription.setClient(client);
             client.start();
+          } else if ("HTX".equalsIgnoreCase(subscription.getExchange())) {
+            final HtxFastClient client = new HtxFastClient(subscription);
+            registerClients.add(client);
+            subscription.setClient(client);
+            client.start();
           }
         } catch (Exception e) {
           LOGGER.error(ERROR_LOG, e);
